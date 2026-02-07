@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Header } from "@/components/Header";
 import { PromptInput } from "@/components/PromptInput";
 import { BuilderTabs } from "@/components/BuilderTabs";
+import { ContextPanel } from "@/components/ContextPanel";
 import { ToneControls } from "@/components/ToneControls";
 import { QualityScore } from "@/components/QualityScore";
 import { OutputPanel } from "@/components/OutputPanel";
@@ -37,6 +38,11 @@ const Index = () => {
     versions,
     saveVersion,
     loadTemplate,
+    updateContextSources,
+    updateContextStructured,
+    updateContextInterview,
+    updateProjectNotes,
+    toggleDelimiters,
   } = usePromptBuilder();
 
   useEffect(() => {
@@ -121,6 +127,23 @@ const Index = () => {
             <Separator />
 
             <BuilderTabs config={config} onUpdate={updateConfig} />
+
+            <Separator />
+
+            {/* New: Rich Context Panel */}
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium text-foreground flex items-center gap-1.5">
+                📋 Context & Sources
+              </h3>
+              <ContextPanel
+                contextConfig={config.contextConfig}
+                onUpdateSources={updateContextSources}
+                onUpdateStructured={updateContextStructured}
+                onUpdateInterview={updateContextInterview}
+                onUpdateProjectNotes={updateProjectNotes}
+                onToggleDelimiters={toggleDelimiters}
+              />
+            </div>
 
             <Separator />
 

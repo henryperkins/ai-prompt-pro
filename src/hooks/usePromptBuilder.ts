@@ -1,5 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { PromptConfig, defaultConfig, buildPrompt, scorePrompt } from "@/lib/prompt-builder";
+import type { ContextSource, StructuredContext, InterviewAnswer } from "@/lib/context-types";
+import { defaultContextConfig } from "@/lib/context-types";
 
 const STORAGE_KEY = "promptforge-draft";
 
@@ -33,6 +35,45 @@ export function usePromptBuilder() {
     setConfig(defaultConfig);
     setEnhancedPrompt("");
     localStorage.removeItem(STORAGE_KEY);
+  }, []);
+
+  // Context-specific updaters
+  const updateContextSources = useCallback((sources: ContextSource[]) => {
+    setConfig((prev) => ({
+      ...prev,
+      contextConfig: { ...prev.contextConfig, sources },
+    }));
+  }, []);
+
+  const updateContextStructured = useCallback((updates: Partial<StructuredContext>) => {
+    setConfig((prev) => ({
+      ...prev,
+      contextConfig: {
+        ...prev.contextConfig,
+        structured: { ...prev.contextConfig.structured, ...updates },
+      },
+    }));
+  }, []);
+
+  const updateContextInterview = useCallback((answers: InterviewAnswer[]) => {
+    setConfig((prev) => ({
+      ...prev,
+      contextConfig: { ...prev.contextConfig, interviewAnswers: answers },
+    }));
+  }, []);
+
+  const updateProjectNotes = useCallback((notes: string) => {
+    setConfig((prev) => ({
+      ...prev,
+      contextConfig: { ...prev.contextConfig, projectNotes: notes },
+    }));
+  }, []);
+
+  const toggleDelimiters = useCallback((value: boolean) => {
+    setConfig((prev) => ({
+      ...prev,
+      contextConfig: { ...prev.contextConfig, useDelimiters: value },
+    }));
   }, []);
 
   const builtPrompt = buildPrompt(config);
@@ -95,5 +136,11 @@ export function usePromptBuilder() {
     versions,
     saveVersion,
     loadTemplate,
+    // Context-specific
+    updateContextSources,
+    updateContextStructured,
+    updateContextInterview,
+    updateProjectNotes,
+    toggleDelimiters,
   };
 }

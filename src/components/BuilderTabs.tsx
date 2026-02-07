@@ -5,7 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { User, Target, FileText, Layout, Lightbulb, Shield } from "lucide-react";
+import { User, Target, Layout, Lightbulb, Shield } from "lucide-react";
 import {
   PromptConfig,
   roles,
@@ -36,7 +36,7 @@ export function BuilderTabs({ config, onUpdate }: BuilderTabsProps) {
 
   return (
     <Tabs defaultValue="role" className="w-full">
-      <TabsList className="w-full grid grid-cols-3 lg:grid-cols-6 h-auto gap-1 bg-muted/30 p-1">
+      <TabsList className="w-full grid grid-cols-5 h-auto gap-1 bg-muted/30 p-1">
         <TabsTrigger value="role" className="gap-1 text-xs px-2">
           <User className="w-3 h-3" />
           <span className="hidden sm:inline">Role</span>
@@ -44,10 +44,6 @@ export function BuilderTabs({ config, onUpdate }: BuilderTabsProps) {
         <TabsTrigger value="task" className="gap-1 text-xs px-2">
           <Target className="w-3 h-3" />
           <span className="hidden sm:inline">Task</span>
-        </TabsTrigger>
-        <TabsTrigger value="context" className="gap-1 text-xs px-2">
-          <FileText className="w-3 h-3" />
-          <span className="hidden sm:inline">Context</span>
         </TabsTrigger>
         <TabsTrigger value="format" className="gap-1 text-xs px-2">
           <Layout className="w-3 h-3" />
@@ -94,17 +90,6 @@ export function BuilderTabs({ config, onUpdate }: BuilderTabsProps) {
           onChange={(e) => onUpdate({ task: e.target.value })}
           className="min-h-[100px] bg-background"
           aria-label="Task description"
-        />
-      </TabsContent>
-
-      <TabsContent value="context" className="space-y-3 mt-4">
-        <p className="text-xs text-muted-foreground">Provide key data or background the model needs</p>
-        <Textarea
-          placeholder="Add relevant background information, data, or references..."
-          value={config.context}
-          onChange={(e) => onUpdate({ context: e.target.value })}
-          className="min-h-[100px] bg-background"
-          aria-label="Context input"
         />
       </TabsContent>
 
