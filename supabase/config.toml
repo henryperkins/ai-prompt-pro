@@ -1,0 +1,4 @@
+project_id = "bsdsxwefmpaaxarbhxuq"
+
+[functions.enhance-prompt]
+verify_jwt = false
