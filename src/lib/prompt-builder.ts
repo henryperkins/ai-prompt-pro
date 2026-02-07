@@ -1,9 +1,13 @@
+import type { ContextConfig } from "@/lib/context-types";
+import { defaultContextConfig, buildContextBlock } from "@/lib/context-types";
+
 export interface PromptConfig {
   originalPrompt: string;
   role: string;
   customRole: string;
   task: string;
   context: string;
+  contextConfig: ContextConfig;
   format: string[];
   customFormat: string;
   lengthPreference: string;
@@ -20,6 +24,7 @@ export const defaultConfig: PromptConfig = {
   customRole: "",
   task: "",
   context: "",
+  contextConfig: defaultContextConfig,
   format: [],
   customFormat: "",
   lengthPreference: "standard",
@@ -86,7 +91,14 @@ export function buildPrompt(config: PromptConfig): string {
     parts.push(`**Task:** ${config.task || config.originalPrompt}`);
   }
 
-  if (config.context) {
+  // Rich context from ContextPanel
+  const contextBlock = buildContextBlock(config.contextConfig, config.contextConfig.useDelimiters);
+  if (contextBlock) {
+    parts.push(contextBlock);
+  }
+
+  // Legacy context field (for backward compat / simple usage)
+  if (config.context && !contextBlock) {
     parts.push(`**Context:** ${config.context}`);
   }
 
@@ -139,12 +151,19 @@ export function scorePrompt(config: PromptConfig): {
   }
   if (clarity < 15) tips.push("Make your task description more specific and detailed.");
 
-  // Context (0-25)
+  // Context (0-25) — now includes structured context
   if (config.context) {
-    context = Math.min(25, Math.round((config.context.length / 150) * 25));
+    context = Math.min(15, Math.round((config.context.length / 150) * 15));
   }
-  if (config.role || config.customRole) context = Math.min(25, context + 8);
-  if (context < 15) tips.push("Add more background context to help the AI understand your needs.");
+  const ctx = config.contextConfig;
+  if (ctx.sources.length > 0) context += 5;
+  if (ctx.structured.audience || ctx.structured.product) context += 4;
+  if (ctx.structured.offer) context += 3;
+  if (ctx.interviewAnswers.filter((a) => a.answer.trim()).length > 0) context += 3;
+  if (ctx.projectNotes.trim()) context += 2;
+  if (config.role || config.customRole) context = Math.min(25, context + 5);
+  context = Math.min(25, context);
+  if (context < 15) tips.push("Use the Context & Sources panel to add structured background info.");
 
   // Specificity (0-25)
   if (config.format.length > 0) specificity += 8;
