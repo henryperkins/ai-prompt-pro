@@ -1,0 +1,35 @@
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { RotateCcw } from "lucide-react";
+
+interface PromptInputProps {
+  value: string;
+  onChange: (value: string) => void;
+  onReset: () => void;
+}
+
+export function PromptInput({ value, onChange, onReset }: PromptInputProps) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="text-sm font-medium text-foreground">Your Prompt</label>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">{value.length} chars</span>
+          {value && (
+            <Button variant="ghost" size="sm" onClick={onReset} className="h-6 px-2 text-xs gap-1">
+              <RotateCcw className="w-3 h-3" />
+              Clear
+            </Button>
+          )}
+        </div>
+      </div>
+      <Textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Enter your basic prompt here... (e.g., 'Write a blog post about AI')"
+        className="min-h-[120px] resize-none bg-background border-input text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring"
+        aria-label="Original prompt input"
+      />
+    </div>
+  );
+}

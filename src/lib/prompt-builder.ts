@@ -1,0 +1,176 @@
+export interface PromptConfig {
+  originalPrompt: string;
+  role: string;
+  customRole: string;
+  task: string;
+  context: string;
+  format: string[];
+  customFormat: string;
+  lengthPreference: string;
+  examples: string;
+  constraints: string[];
+  customConstraint: string;
+  tone: string;
+  complexity: string;
+}
+
+export const defaultConfig: PromptConfig = {
+  originalPrompt: "",
+  role: "",
+  customRole: "",
+  task: "",
+  context: "",
+  format: [],
+  customFormat: "",
+  lengthPreference: "standard",
+  examples: "",
+  constraints: [],
+  customConstraint: "",
+  tone: "Professional",
+  complexity: "Moderate",
+};
+
+export const roles = [
+  "Expert Copywriter",
+  "Data Analyst",
+  "Software Developer",
+  "Teacher",
+  "Business Consultant",
+  "Creative Director",
+  "Marketing Specialist",
+  "UX Designer",
+  "Financial Advisor",
+  "Research Scientist",
+  "Product Manager",
+  "Legal Advisor",
+  "Medical Professional",
+  "Journalist",
+  "Technical Writer",
+];
+
+export const formatOptions = [
+  "Bullet points",
+  "Numbered list",
+  "Paragraph form",
+  "Table",
+  "JSON",
+  "Markdown",
+  "Code block",
+];
+
+export const constraintOptions = [
+  "Avoid jargon",
+  "Use formal tone",
+  "Be conversational",
+  "Include citations",
+  "Think step-by-step",
+];
+
+export const toneOptions = ["Professional", "Casual", "Technical", "Creative", "Academic"];
+export const complexityOptions = ["Simple", "Moderate", "Advanced"];
+export const lengthOptions = [
+  { value: "brief", label: "Brief (~100 words)" },
+  { value: "standard", label: "Standard (~300 words)" },
+  { value: "detailed", label: "Detailed (500+ words)" },
+];
+
+export function buildPrompt(config: PromptConfig): string {
+  const parts: string[] = [];
+
+  const actualRole = config.customRole || config.role;
+  if (actualRole) {
+    parts.push(`**Role:** Act as a ${actualRole}.`);
+  }
+
+  if (config.task || config.originalPrompt) {
+    parts.push(`**Task:** ${config.task || config.originalPrompt}`);
+  }
+
+  if (config.context) {
+    parts.push(`**Context:** ${config.context}`);
+  }
+
+  const formats = [...config.format];
+  if (config.customFormat) formats.push(config.customFormat);
+  if (formats.length > 0) {
+    const lengthLabel =
+      config.lengthPreference === "brief"
+        ? "Keep it brief (~100 words)"
+        : config.lengthPreference === "detailed"
+          ? "Be detailed (500+ words)"
+          : "Standard length (~300 words)";
+    parts.push(`**Format:** Present the response as ${formats.join(", ")}. ${lengthLabel}.`);
+  }
+
+  if (config.examples) {
+    parts.push(`**Examples:**\n${config.examples}`);
+  }
+
+  const allConstraints = [...config.constraints];
+  if (config.customConstraint) allConstraints.push(config.customConstraint);
+  if (config.tone) allConstraints.push(`Use a ${config.tone.toLowerCase()} tone`);
+  if (config.complexity) allConstraints.push(`Target ${config.complexity.toLowerCase()} complexity level`);
+
+  if (allConstraints.length > 0) {
+    parts.push(`**Constraints:**\n${allConstraints.map((c) => `- ${c}`).join("\n")}`);
+  }
+
+  return parts.join("\n\n");
+}
+
+export function scorePrompt(config: PromptConfig): {
+  total: number;
+  clarity: number;
+  context: number;
+  specificity: number;
+  structure: number;
+  tips: string[];
+} {
+  let clarity = 0;
+  let context = 0;
+  let specificity = 0;
+  let structure = 0;
+  const tips: string[] = [];
+
+  // Clarity (0-25)
+  if (config.task || config.originalPrompt) {
+    const taskLen = (config.task || config.originalPrompt).length;
+    clarity = Math.min(25, Math.round((taskLen / 100) * 25));
+  }
+  if (clarity < 15) tips.push("Make your task description more specific and detailed.");
+
+  // Context (0-25)
+  if (config.context) {
+    context = Math.min(25, Math.round((config.context.length / 150) * 25));
+  }
+  if (config.role || config.customRole) context = Math.min(25, context + 8);
+  if (context < 15) tips.push("Add more background context to help the AI understand your needs.");
+
+  // Specificity (0-25)
+  if (config.format.length > 0) specificity += 8;
+  if (config.lengthPreference) specificity += 5;
+  if (config.examples) specificity += 7;
+  if (config.constraints.length > 0) specificity += 5;
+  specificity = Math.min(25, specificity);
+  if (specificity < 15) tips.push("Specify output format, length, or provide examples for better results.");
+
+  // Structure (0-25)
+  if (config.role || config.customRole) structure += 7;
+  if (config.tone) structure += 5;
+  if (config.complexity) structure += 5;
+  if (config.constraints.length >= 2) structure += 4;
+  if (config.format.length > 0) structure += 4;
+  structure = Math.min(25, structure);
+  if (structure < 15) tips.push("Select a role, tone, and constraints to improve prompt structure.");
+
+  if (tips.length === 0) tips.push("Great prompt! You've covered all the essentials.");
+
+  return {
+    total: clarity + context + specificity + structure,
+    clarity,
+    context,
+    specificity,
+    structure,
+  tips,
+  };
+}
