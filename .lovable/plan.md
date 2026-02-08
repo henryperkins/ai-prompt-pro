@@ -1,101 +1,123 @@
 
 
-## Plan: Drag-and-Drop File Upload + URL Auto-Fetch
+## Condense and Streamline the UI for Mobile
 
-### Overview
+### Problem
 
-Two new capabilities for the context source chips:
+The current layout is a long, vertically scrolling page on mobile with every section fully expanded. Users on small screens must scroll through the PromptInput, BuilderTabs, the entire Context & Sources panel (drop zone, structured form, interview, project notes, delimiter toggle, quality meter), Tone controls, Quality Score, and then finally the Output panel. That is a lot of real estate before reaching the "Enhance with AI" button.
 
-1. **Drag-and-drop file upload** -- Users can drop text-based files (`.txt`, `.md`, `.csv`, `.json`, `.xml`) directly onto the context panel. The file contents are read in the browser and auto-summarized into a compact source chip.
+### Strategy
 
-2. **URL auto-fetch** -- When users paste a URL, a new edge function fetches the page content via the AI gateway, extracts the key passages, and populates the source chip automatically (no manual copy-paste needed).
-
----
-
-### Feature 1: Drag-and-Drop File Upload
-
-**What the user sees:**
-- A dashed drop zone appears at the top of the Sources section with the text "Drop files here (.txt, .md, .csv, .json)"
-- When a file is dragged over the area, the zone highlights with a visual accent border
-- On drop, the file is read in the browser, auto-summarized, and added as a "file" type chip
-- Multiple files can be dropped at once
-- A loading spinner shows briefly while the file is being read
-- Unsupported file types show a toast error
-
-**Files changed:**
-- `src/components/ContextSourceChips.tsx` -- Add drag-and-drop event handlers (`onDragOver`, `onDragEnter`, `onDragLeave`, `onDrop`) wrapping the component. Use the browser `FileReader` API to read text-based files. Call `summarizeSource()` on the content and invoke `onAdd()` with a source of type `"file"`.
-
-**Supported formats:** `.txt`, `.md`, `.csv`, `.json`, `.xml`, `.log`, `.yaml`, `.yml` (all read as plain text via `FileReader.readAsText`).
+Use **collapsible accordion sections** and **mobile-specific layout adjustments** to dramatically reduce the visible surface area, without removing a single feature. Every section remains accessible -- it just defaults to collapsed or is tucked behind a tap.
 
 ---
 
-### Feature 2: URL Auto-Fetch
+### Changes
 
-**What the user sees:**
-- In the "Add source" dialog, when the user selects the URL mode, there is now a URL input field and a "Fetch & Extract" button
-- The user pastes a URL and clicks the button (or the content area is still available for manual paste as a fallback)
-- A loading spinner appears while the edge function fetches and summarizes the page
-- On success, the extracted key passages populate the content textarea automatically, and the title field is set to the page's domain
-- The user can review/edit the extracted content before clicking "Add source"
-- On error (e.g., unreachable URL), a toast message explains the issue and the user can still paste content manually
+#### 1. Compact hero on mobile
+**File:** `src/pages/Index.tsx`
 
-**Files changed:**
+- Reduce hero heading from `text-3xl` to `text-xl` on small screens
+- Shorten or hide the subtitle paragraph on mobile (`hidden sm:block` or smaller text)
+- Reduce `mb-8` to `mb-4` on mobile
+- Reduce `py-6` padding to `py-3` on mobile
 
-1. **New edge function: `supabase/functions/extract-url/index.ts`**
-   - Accepts `{ url: string }` in the request body
-   - Fetches the URL's HTML content server-side using `fetch()`
-   - Strips HTML tags to extract plain text (lightweight regex-based stripping -- no heavy dependencies)
-   - Truncates to a reasonable limit (~8,000 characters) to stay within token budgets
-   - Sends the extracted text to the Lovable AI gateway with a system prompt instructing it to produce 5-10 concise bullet points of the key information
-   - Returns `{ title: string, content: string }` as JSON (non-streaming, since this is a short extraction task)
-   - Uses CORS headers and `verify_jwt = false` (same pattern as `enhance-prompt`)
-   - Uses the existing `LOVABLE_API_KEY` secret
+#### 2. Collapsible accordion layout for the left column
+**File:** `src/pages/Index.tsx`
 
-2. **`supabase/config.toml`** -- Add the new function entry:
-   ```toml
-   [functions.extract-url]
-   verify_jwt = false
-   ```
+Replace the flat `space-y-6` stack with a Radix **Accordion** (`type="multiple"`) so each major section collapses independently. The sections become:
 
-3. **`src/lib/ai-client.ts`** -- Add a new `extractUrl()` function that calls the `extract-url` edge function and returns the extracted title and content. This is a simple `fetch` + JSON response (no streaming needed).
+| Accordion Item | Content | Default State |
+|---|---|---|
+| "Your Prompt" | `PromptInput` | **Open** (always visible) |
+| "Builder" | `BuilderTabs` | Open |
+| "Context & Sources" | `ContextPanel` | **Collapsed** |
+| "Tone & Style" | `ToneControls` | **Collapsed** |
+| "Quality Score" | `QualityScore` | **Collapsed** |
 
-4. **`src/components/ContextSourceChips.tsx`** -- Update the URL mode UI:
-   - Add a "Fetch & Extract" button next to the URL input
-   - When clicked, call `extractUrl()` from `ai-client.ts`
-   - On success, populate the content textarea and title field with the results
-   - Show a loading state on the button while fetching
-   - Keep manual paste as a fallback (the textarea remains editable)
+Each trigger shows an icon + label + a small status indicator (e.g., the quality score number, tone selection, source count) so users can see state at a glance without expanding.
+
+This alone removes ~60% of the vertical scroll on mobile while keeping everything one tap away.
+
+#### 3. Sticky "Enhance" button on mobile
+**File:** `src/pages/Index.tsx`
+
+On screens below `lg`, move the "Enhance with AI" button out of the Output panel and into a **sticky bottom bar** (`fixed bottom-0 inset-x-0`). This ensures the primary CTA is always reachable without scrolling to the bottom. Hide the `Ctrl+Enter` hint on mobile since there is no keyboard shortcut on phones.
+
+#### 4. Output panel as a bottom sheet on mobile
+**Files:** `src/pages/Index.tsx`, `src/components/OutputPanel.tsx`
+
+On mobile (`< lg`), instead of rendering the output panel inline below all the input sections, render it inside a **Drawer** (vaul, already installed). The sticky "Enhance" button triggers both the enhancement AND opens the drawer to show results. A "View output" button in the sticky bar lets users open it on demand.
+
+On desktop (`lg+`), keep the current sticky side panel behavior -- no changes.
+
+#### 5. Condense the Context Panel internals
+**File:** `src/components/ContextPanel.tsx`
+
+Replace the flat list of sub-sections (source chips, structured form, interview, project notes, delimiters toggle, quality meter) with a **nested accordion** or **collapsible groups**:
+
+- **Sources** -- always visible (compact chip row + drop zone)
+- **Structured fields** -- collapsible, shows count of filled fields as badge
+- **Context interview** -- already collapsible (keep as-is)
+- **Project notes** -- collapsible, shows "has notes" indicator
+- **Settings row** -- Delimiter toggle + quality meter merged into a single compact row
+
+This cuts the Context panel height by roughly half when sub-sections are collapsed.
+
+#### 6. Smaller drop zone on mobile
+**File:** `src/components/ContextSourceChips.tsx`
+
+Reduce the drop zone padding from `p-3` to `p-2` on mobile. Make the text smaller. This saves space without removing functionality.
+
+#### 7. Responsive adjustments to existing components
+
+**`src/components/PromptInput.tsx`:**
+- Reduce `min-h-[120px]` to `min-h-[80px]` on mobile (it auto-grows anyway)
+
+**`src/components/ToneControls.tsx`:**
+- Use smaller buttons (`size="xs"` or reduced padding) on mobile so the button row wraps less
+
+**`src/components/QualityScore.tsx`:**
+- Collapse the four score bars into a single-line summary on mobile: "72/100 -- 2 tips" with expand-to-see-details
+
+**`src/components/OutputPanel.tsx`:**
+- Reduce min-height of empty state from `min-h-[200px]` to `min-h-[120px]`
+
+**`src/components/TemplateLibrary.tsx`:**
+- Use a Drawer instead of Dialog on mobile (responsive pattern already common in shadcn/ui)
+
+**`src/components/VersionHistory.tsx`:**
+- Reduce sheet width on mobile (already handles this via `w-[400px] sm:w-[540px]`, but add full-width on very small screens)
+
+#### 8. Global spacing tightening for mobile
+**File:** `src/pages/Index.tsx`
+
+- `gap-6` between grid columns becomes `gap-4` on mobile
+- `space-y-6` in the left column becomes `space-y-3` on mobile
+- Separators between accordion items are removed (the accordion borders serve that purpose)
 
 ---
 
-### Technical Details
+### Technical approach
 
-**Drag-and-drop implementation (browser-only, no server):**
-```text
-ContextSourceChips component
-  +-- Drop zone wrapper div (onDragOver, onDrop, etc.)
-  |     +-- Visual indicator (dashed border, highlight on dragover)
-  +-- Existing chip list and dialog
-```
+- **Accordion:** Use the existing `@radix-ui/react-accordion` (already installed) with `Accordion`, `AccordionItem`, `AccordionTrigger`, `AccordionContent` from `src/components/ui/accordion.tsx`
+- **Drawer:** Use the existing `vaul` Drawer from `src/components/ui/drawer.tsx` for the mobile output panel
+- **Responsive detection:** Use the existing `useIsMobile()` hook from `src/hooks/use-mobile.tsx` to conditionally render Drawer vs. inline panel
+- **Collapsible:** Use the existing `@radix-ui/react-collapsible` for Context Panel sub-sections
+- No new dependencies are needed
 
-- `onDrop` handler reads each file via `FileReader.readAsText()`
-- File size guard: reject files larger than 500KB with a toast warning
-- Each file becomes a `ContextSource` with `type: "file"`, title set to filename
+### Files to create or modify
 
-**URL extraction edge function flow:**
-```text
-Browser                    Edge Function              AI Gateway
-  |                            |                          |
-  |-- POST {url} ------------>|                          |
-  |                            |-- fetch(url) ---------->| (target website)
-  |                            |<-- HTML response -------|
-  |                            |-- strip HTML, truncate  |
-  |                            |-- POST chat/completions |
-  |                            |   "Extract key points"  |
-  |                            |<-- bullet points -------|
-  |<-- {title, content} ------|                          |
-```
-
-**Edge function system prompt for extraction:**
-> "You are a content extractor. Given raw text from a web page, extract the 5-10 most important and relevant points as concise bullet points. Focus on facts, data, and key claims. Omit navigation text, ads, and boilerplate. Return only the bullet points, one per line, prefixed with a bullet character."
+| File | Action |
+|---|---|
+| `src/pages/Index.tsx` | Major refactor -- accordion layout, sticky CTA, drawer for mobile output |
+| `src/components/OutputPanel.tsx` | Extract content into a shared component usable in both inline and drawer modes |
+| `src/components/ContextPanel.tsx` | Wrap sub-sections in collapsibles with status badges |
+| `src/components/ContextSourceChips.tsx` | Tighter mobile spacing |
+| `src/components/PromptInput.tsx` | Smaller textarea on mobile |
+| `src/components/ToneControls.tsx` | Compact button sizes on mobile |
+| `src/components/QualityScore.tsx` | Collapsible detail view on mobile |
+| `src/components/TemplateLibrary.tsx` | Drawer on mobile, Dialog on desktop |
+| `src/components/VersionHistory.tsx` | Full-width on very small screens |
+| `src/components/Header.tsx` | Minor -- tighter padding on mobile |
 
