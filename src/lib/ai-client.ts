@@ -1,4 +1,5 @@
 const ENHANCE_URL = `https://bsdsxwefmpaaxarbhxuq.supabase.co/functions/v1/enhance-prompt`;
+const EXTRACT_URL = `https://bsdsxwefmpaaxarbhxuq.supabase.co/functions/v1/extract-url`;
 
 export async function streamEnhance({
   prompt,
@@ -92,4 +93,22 @@ export async function streamEnhance({
     console.error("Stream error:", e);
     onError(e instanceof Error ? e.message : "Unknown error");
   }
+}
+
+export async function extractUrl(url: string): Promise<{ title: string; content: string }> {
+  const resp = await fetch(EXTRACT_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJzZHN4d2VmbXBhYXhhcmJoeHVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0NTI0OTAsImV4cCI6MjA4NjAyODQ5MH0.JctsR0m4oAvM0Eo7RJsgvSt6ntOo_UbrYup_hlTCpnM`,
+    },
+    body: JSON.stringify({ url }),
+  });
+
+  if (!resp.ok) {
+    const errorData = await resp.json().catch(() => ({ error: "Extraction failed" }));
+    throw new Error(errorData.error || `Error: ${resp.status}`);
+  }
+
+  return resp.json();
 }
