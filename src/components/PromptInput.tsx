@@ -27,7 +27,7 @@ export function PromptInput({ value, onChange, onReset }: PromptInputProps) {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Enter your basic prompt here... (e.g., 'Write a blog post about AI')"
-        className="min-h-[120px] resize-none bg-background border-input text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring"
+        className="min-h-[80px] sm:min-h-[120px] resize-none bg-background border-input text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring"
         aria-label="Original prompt input"
       />
     </div>

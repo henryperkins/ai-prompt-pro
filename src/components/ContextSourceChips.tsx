@@ -150,22 +150,22 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
   };
 
   return (
-    <div className="space-y-3">
-      {/* Drop zone */}
+    <div className="space-y-2">
+      {/* Drop zone — compact */}
       <div
         onDragOver={handleDragOver}
         onDragEnter={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`rounded-lg border-2 border-dashed transition-colors p-3 text-center ${
+        className={`rounded-lg border-2 border-dashed transition-colors p-2 sm:p-3 text-center ${
           isDragOver
             ? "border-primary bg-primary/5"
             : "border-muted-foreground/20 hover:border-muted-foreground/40"
         }`}
       >
-        <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-          <Upload className="w-3.5 h-3.5" />
-          <span>Drop files here ({ALLOWED_EXTENSIONS.slice(0, 4).join(", ")}…)</span>
+        <div className="flex items-center justify-center gap-1.5 text-[11px] sm:text-xs text-muted-foreground">
+          <Upload className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+          <span>Drop files ({ALLOWED_EXTENSIONS.slice(0, 4).join(", ")}…)</span>
         </div>
       </div>
 
@@ -175,7 +175,7 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
           <DialogTrigger asChild>
             <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
               <Plus className="w-3 h-3" />
-              Add source
+              Add
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
@@ -224,7 +224,7 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
                       ) : (
                         <Globe className="w-3.5 h-3.5" />
                       )}
-                      {isFetching ? "Fetching…" : "Fetch & Extract"}
+                      {isFetching ? "Fetching…" : "Fetch"}
                     </Button>
                   </div>
                 )}
@@ -242,9 +242,9 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
                   }
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  className="min-h-[120px] bg-background"
+                  className="min-h-[100px] sm:min-h-[120px] bg-background"
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[11px] text-muted-foreground">
                   Long content will be auto-summarized into compact bullet points.
                 </p>
                 <div className="flex gap-2 justify-end">
@@ -271,16 +271,16 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
       </div>
 
       {sources.length > 0 && (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5 sm:gap-2">
           {sources.map((source) => (
             <Badge
               key={source.id}
               variant="secondary"
-              className="gap-1.5 pr-1 max-w-[200px] group cursor-default"
+              className="gap-1 sm:gap-1.5 pr-1 max-w-[180px] sm:max-w-[200px] group cursor-default"
               title={`${source.title}\n${source.summary}`}
             >
               {chipIcon(source.type)}
-              <span className="truncate text-xs">{source.title}</span>
+              <span className="truncate text-[11px] sm:text-xs">{source.title}</span>
               <button
                 onClick={() => onRemove(source.id)}
                 className="ml-0.5 rounded-full p-0.5 hover:bg-destructive/20 transition-colors"
@@ -294,8 +294,8 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
       )}
 
       {sources.length === 0 && (
-        <p className="text-xs text-muted-foreground">
-          No sources yet. Add text snippets, fetch from URLs, or drop files for richer context.
+        <p className="text-[11px] sm:text-xs text-muted-foreground">
+          No sources yet. Add text, fetch URLs, or drop files.
         </p>
       )}
     </div>
