@@ -10,6 +10,7 @@ interface OutputPanelProps {
   isEnhancing: boolean;
   onEnhance: () => void;
   onSaveVersion: () => void;
+  hideEnhanceButton?: boolean;
 }
 
 export function OutputPanel({
@@ -18,6 +19,7 @@ export function OutputPanel({
   isEnhancing,
   onEnhance,
   onSaveVersion,
+  hideEnhanceButton = false,
 }: OutputPanelProps) {
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
@@ -55,7 +57,7 @@ export function OutputPanel({
             {displayPrompt}
           </pre>
         ) : (
-          <div className="flex items-center justify-center h-full min-h-[200px]">
+          <div className="flex items-center justify-center h-full min-h-[120px] sm:min-h-[200px]">
             <p className="text-sm text-muted-foreground text-center">
               Your enhanced prompt will appear here.
               <br />
@@ -65,25 +67,27 @@ export function OutputPanel({
         )}
       </Card>
 
-      <Button
-        variant="glow"
-        size="lg"
-        onClick={onEnhance}
-        disabled={isEnhancing || !builtPrompt}
-        className="w-full gap-2"
-      >
-        {isEnhancing ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Enhancing...
-          </>
-        ) : (
-          <>
-            <Sparkles className="w-4 h-4" />
-            Enhance with AI
-          </>
-        )}
-      </Button>
+      {!hideEnhanceButton && (
+        <Button
+          variant="glow"
+          size="lg"
+          onClick={onEnhance}
+          disabled={isEnhancing || !builtPrompt}
+          className="w-full gap-2"
+        >
+          {isEnhancing ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Enhancing...
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-4 h-4" />
+              Enhance with AI
+            </>
+          )}
+        </Button>
+      )}
     </div>
   );
 }
