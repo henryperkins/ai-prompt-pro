@@ -2,3 +2,6 @@ project_id = "bsdsxwefmpaaxarbhxuq"
 
 [functions.enhance-prompt]
 verify_jwt = false
+
+[functions.extract-url]
+verify_jwt = false
