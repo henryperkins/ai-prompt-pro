@@ -73,6 +73,7 @@ export interface TemplateSummary {
   name: string;
   description: string;
   tags: string[];
+  starterPrompt: string;
   updatedAt: number;
   createdAt: number;
   revision: number;
@@ -444,7 +445,7 @@ function migrateLegacyV1(legacy: LegacyTemplateRecordV1): TemplateRecord {
   return {
     metadata: {
       id: legacy.id || generateId("tpl"),
-      name: legacy.name || "Migrated Template",
+      name: legacy.name || "Migrated Preset",
       description: legacy.description || "",
       tags: [],
       schemaVersion: CURRENT_SCHEMA_VERSION,
@@ -532,12 +533,36 @@ function writeAllRecords(records: TemplateRecord[]): void {
   }
 }
 
+function toSingleLine(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function clipText(value: string, limit: number): string {
+  if (value.length <= limit) return value;
+  return `${value.slice(0, limit - 3).trimEnd()}...`;
+}
+
+function inferStarterPrompt(config: PromptConfig): string {
+  const candidates = [
+    config.task,
+    config.originalPrompt,
+    config.contextConfig.structured.offer,
+    config.contextConfig.structured.product,
+  ];
+  const first = candidates.map(toSingleLine).find((value) => value.length > 0);
+  if (!first) {
+    return "Start by stating the goal, audience, and desired output format.";
+  }
+  return clipText(first, 120);
+}
+
 export function listTemplateSummaries(): TemplateSummary[] {
   return readAllRecords().map((record) => ({
     id: record.metadata.id,
     name: record.metadata.name,
     description: record.metadata.description,
     tags: record.metadata.tags,
+    starterPrompt: inferStarterPrompt(record.state.promptConfig),
     updatedAt: record.metadata.updatedAt,
     createdAt: record.metadata.createdAt,
     revision: record.metadata.revision,
@@ -560,7 +585,7 @@ export function loadTemplateById(id: string): TemplateLoadResult | null {
 
 export function saveTemplateSnapshot(input: TemplateSaveInput): SaveTemplateResult {
   const name = input.name.trim();
-  if (!name) throw new Error("Template name is required.");
+  if (!name) throw new Error("Preset name is required.");
 
   const now = Date.now();
   const normalizedConfig = normalizePromptConfig(input.config);

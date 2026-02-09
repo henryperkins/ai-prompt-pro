@@ -24,11 +24,11 @@ export function Header({ isDark, onToggleTheme, onOpenTemplates, onOpenHistory }
             variant="ghost"
             size="sm"
             onClick={onOpenTemplates}
-            aria-label="Open templates"
+            aria-label="Open presets"
             className="interactive-chip gap-1.5 sm:gap-2 h-8 sm:h-9 px-2 sm:px-3"
           >
             <BookOpen className="w-4 h-4" />
-            <span className="hidden sm:inline text-sm">Templates</span>
+            <span className="hidden sm:inline text-sm">Presets</span>
           </Button>
           <Button
             variant="ghost"

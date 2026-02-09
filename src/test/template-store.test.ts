@@ -74,6 +74,7 @@ describe("template-store", () => {
 
     const summaries = listTemplateSummaries();
     expect(summaries[0].tags).toEqual(["ops", "deploy"]);
+    expect(summaries[0].starterPrompt).toContain("Build a safer deployment checklist");
   });
 
   it("stores external sources as references and strips raw payloads", () => {

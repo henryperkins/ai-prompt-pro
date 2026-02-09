@@ -192,7 +192,7 @@ const Index = () => {
   const handleSelectTemplate = useCallback(
     (template: PromptTemplate) => {
       loadTemplate(template);
-      toast({ title: `Template loaded: ${template.name}` });
+      toast({ title: `Preset loaded: ${template.name}` });
     },
     [loadTemplate, toast]
   );
@@ -201,15 +201,15 @@ const Index = () => {
     (id: string) => {
       const loaded = loadSavedTemplate(id);
       if (!loaded) {
-        toast({ title: "Template not found", variant: "destructive" });
+        toast({ title: "Preset not found", variant: "destructive" });
         return;
       }
       toast({
-        title: `Template loaded: ${loaded.record.metadata.name}`,
+        title: `Preset loaded: ${loaded.record.metadata.name}`,
         description:
           loaded.warnings.length > 0
             ? `${loaded.warnings.length} context warning(s). Review integrations before running.`
-            : "Template restored successfully.",
+            : "Preset restored successfully.",
       });
     },
     [loadSavedTemplate, toast]
@@ -219,10 +219,10 @@ const Index = () => {
     (id: string) => {
       const deleted = deleteSavedTemplate(id);
       if (!deleted) {
-        toast({ title: "Template not found", variant: "destructive" });
+        toast({ title: "Preset not found", variant: "destructive" });
         return;
       }
-      toast({ title: "Saved template deleted" });
+      toast({ title: "Saved preset deleted" });
     },
     [deleteSavedTemplate, toast]
   );
@@ -242,12 +242,12 @@ const Index = () => {
               ? "updated"
               : "unchanged";
         toast({
-          title: `Template ${verb}: ${result.record.metadata.name}`,
+          title: `Preset ${verb}: ${result.record.metadata.name}`,
           description: `Revision r${result.record.metadata.revision}.${warningText}`,
         });
       } catch (error) {
         toast({
-          title: "Failed to save template",
+          title: "Failed to save preset",
           description: error instanceof Error ? error.message : "Unexpected error",
           variant: "destructive",
         });

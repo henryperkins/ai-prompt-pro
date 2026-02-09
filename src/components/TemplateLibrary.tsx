@@ -138,6 +138,7 @@ function TemplateList({
         template.name,
         template.description,
         template.tags.join(" "),
+        template.starterPrompt,
       ]
         .join(" ")
         .toLowerCase();
@@ -166,6 +167,7 @@ function TemplateList({
       const haystack = [
         template.name,
         template.description,
+        template.starterPrompt,
         template.category,
         template.tone,
         template.complexity,
@@ -184,7 +186,7 @@ function TemplateList({
           <Input
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
-            placeholder="Search templates by name, description, or tags"
+            placeholder="Search presets by name, description, tags, or starter text"
             className="h-8 pl-8 text-xs bg-background"
           />
         </div>
@@ -206,7 +208,7 @@ function TemplateList({
       <div className="space-y-2 pb-2 border-b border-border/60">
         <div className="flex items-center gap-2">
           <Database className="w-4 h-4 text-muted-foreground" />
-          <h3 className="text-xs font-medium text-foreground">Saved Templates</h3>
+          <h3 className="text-xs font-medium text-foreground">Saved Presets</h3>
           <Badge variant="secondary" className="text-[10px]">
             {filteredSaved.length}
           </Badge>
@@ -214,13 +216,13 @@ function TemplateList({
 
         {savedTemplates.length === 0 && (
           <p className="text-xs text-muted-foreground">
-            No saved templates yet. Use "Save Template" from the output panel.
+            No saved presets yet. Use "Save Preset" from the output panel.
           </p>
         )}
 
         {savedTemplates.length > 0 && filteredSaved.length === 0 && (
           <p className="text-xs text-muted-foreground">
-            No saved templates match this search.
+            No saved presets match this search.
           </p>
         )}
 
@@ -249,6 +251,9 @@ function TemplateList({
                 {template.description && (
                   <p className="text-xs text-muted-foreground line-clamp-2">{template.description}</p>
                 )}
+                <p className="text-[11px] text-muted-foreground/90 line-clamp-2">
+                  <span className="font-medium text-foreground/80">Start:</span> {template.starterPrompt}
+                </p>
                 {template.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {template.tags.slice(0, 4).map((tag) => (
@@ -341,6 +346,9 @@ function TemplateList({
                       </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground line-clamp-2">{template.description}</p>
+                    <p className="text-[11px] text-muted-foreground/90 line-clamp-2">
+                      <span className="font-medium text-foreground/80">Start:</span> {template.starterPrompt}
+                    </p>
                     <div className="flex gap-1 mt-1.5">
                       <Badge variant="secondary" className="text-[10px]">
                         {template.tone}
@@ -386,7 +394,7 @@ export function TemplateLibrary({
       <Drawer open={open} onOpenChange={onOpenChange}>
         <DrawerContent className="max-h-[85vh]">
           <DrawerHeader>
-            <DrawerTitle>Template Library</DrawerTitle>
+            <DrawerTitle>Preset Library</DrawerTitle>
           </DrawerHeader>
           <div className="px-4 pb-4 overflow-auto flex-1 flex flex-col">
             <TemplateList
@@ -412,7 +420,7 @@ export function TemplateLibrary({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle className="text-foreground">Template Library</DialogTitle>
+          <DialogTitle className="text-foreground">Preset Library</DialogTitle>
         </DialogHeader>
         <TemplateList
           activeCategory={activeCategory}

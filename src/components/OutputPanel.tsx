@@ -166,12 +166,12 @@ export function OutputPanel({
             <DialogTrigger asChild>
               <Button variant="ghost" size="sm" disabled={!canSaveTemplate} className="gap-1 text-xs">
                 <Save className="w-3 h-3" />
-                Save Template
+                Save Preset
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Save as Template</DialogTitle>
+                <DialogTitle>Save as Preset</DialogTitle>
                 <DialogDescription>
                   Snapshot the full prompt and context configuration for reuse.
                 </DialogDescription>
@@ -180,7 +180,7 @@ export function OutputPanel({
                 <Input
                   value={templateName}
                   onChange={(event) => setTemplateName(event.target.value)}
-                  placeholder="Template name"
+                  placeholder="Preset name"
                   className="bg-background"
                 />
                 <Textarea
@@ -204,7 +204,7 @@ export function OutputPanel({
                   Cancel
                 </Button>
                 <Button onClick={handleSaveTemplate} disabled={!templateName.trim()}>
-                  Save Template
+                  Save Preset
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -236,7 +236,7 @@ export function OutputPanel({
             <p className="text-sm text-muted-foreground text-center">
               Your enhanced prompt will appear here.
               <br />
-              Start by entering a prompt or choosing a template.
+              Start by entering a prompt or choosing a preset.
             </p>
           </div>
         )}

@@ -3,6 +3,7 @@ export interface PromptTemplate {
   name: string;
   category: "content" | "analysis" | "creative" | "business" | "education";
   description: string;
+  starterPrompt: string;
   role: string;
   task: string;
   context: string;
@@ -20,6 +21,7 @@ export const templates: PromptTemplate[] = [
     name: "Blog Post Writer",
     category: "content",
     description: "Create engaging blog posts on any topic with SEO optimization",
+    starterPrompt: "Write a 1,200-word blog post about edge AI for small businesses.",
     role: "Expert Copywriter & SEO Specialist",
     task: "Write a comprehensive, engaging blog post",
     context: "The blog targets a general audience interested in learning new topics. Content should be informative yet accessible.",
@@ -35,6 +37,7 @@ export const templates: PromptTemplate[] = [
     name: "Social Media Post",
     category: "content",
     description: "Craft attention-grabbing social media content",
+    starterPrompt: "Create 3 LinkedIn posts announcing our spring product launch.",
     role: "Social Media Marketing Expert",
     task: "Create engaging social media posts that drive engagement",
     context: "Posts should be platform-optimized and include relevant hashtags. Focus on shareability.",
@@ -50,6 +53,7 @@ export const templates: PromptTemplate[] = [
     name: "Email Campaign",
     category: "content",
     description: "Write persuasive email sequences",
+    starterPrompt: "Draft a 4-email onboarding sequence for new trial users.",
     role: "Email Marketing Strategist",
     task: "Write a compelling email that converts readers",
     context: "Professional email targeting potential customers. Should follow email marketing best practices.",
@@ -65,6 +69,7 @@ export const templates: PromptTemplate[] = [
     name: "Data Analysis Report",
     category: "analysis",
     description: "Analyze datasets and provide actionable insights",
+    starterPrompt: "Analyze this churn dataset and summarize the top 5 retention risks.",
     role: "Senior Data Analyst",
     task: "Analyze the provided data and generate a comprehensive report with insights",
     context: "Data-driven analysis targeting business decision makers who need actionable recommendations.",
@@ -80,6 +85,7 @@ export const templates: PromptTemplate[] = [
     name: "Code Review",
     category: "analysis",
     description: "Thorough code review with improvement suggestions",
+    starterPrompt: "Review this TypeScript API handler for bugs, security, and performance.",
     role: "Senior Software Engineer",
     task: "Review the provided code for bugs, performance issues, and best practices",
     context: "Code review for a production application. Focus on security, maintainability, and performance.",
@@ -95,6 +101,7 @@ export const templates: PromptTemplate[] = [
     name: "Brainstorming Session",
     category: "creative",
     description: "Generate creative ideas and explore possibilities",
+    starterPrompt: "Brainstorm 20 campaign ideas for a zero-budget local fitness app launch.",
     role: "Creative Director & Innovation Consultant",
     task: "Generate diverse, creative ideas and explore possibilities",
     context: "Open-ended creative brainstorming session. Push boundaries and think outside the box.",
@@ -110,6 +117,7 @@ export const templates: PromptTemplate[] = [
     name: "Story Writing",
     category: "creative",
     description: "Craft compelling narratives and stories",
+    starterPrompt: "Write a short sci-fi story about a city powered by memories.",
     role: "Published Fiction Author",
     task: "Write a compelling story with vivid characters and engaging plot",
     context: "Creative fiction writing. Focus on character development, dialogue, and narrative tension.",
@@ -125,6 +133,7 @@ export const templates: PromptTemplate[] = [
     name: "Business Proposal",
     category: "business",
     description: "Create professional business proposals",
+    starterPrompt: "Draft a proposal to redesign a retailer's ecommerce checkout flow.",
     role: "Business Development Consultant",
     task: "Draft a professional business proposal",
     context: "Formal business document targeting potential clients or stakeholders. Should demonstrate value proposition clearly.",
@@ -140,6 +149,7 @@ export const templates: PromptTemplate[] = [
     name: "Lesson Plan",
     category: "education",
     description: "Design structured educational lesson plans",
+    starterPrompt: "Create a 45-minute lesson plan to teach photosynthesis to 8th graders.",
     role: "Experienced Educator & Curriculum Designer",
     task: "Create a structured, engaging lesson plan",
     context: "Educational content designed for effective learning outcomes. Include activities, assessments, and clear objectives.",
@@ -155,6 +165,7 @@ export const templates: PromptTemplate[] = [
     name: "Concept Explainer",
     category: "education",
     description: "Explain complex topics in simple terms",
+    starterPrompt: "Explain how neural networks work using simple everyday analogies.",
     role: "Expert Teacher & Science Communicator",
     task: "Explain a complex concept in simple, easy-to-understand terms",
     context: "Educational explanation for beginners. Use analogies and real-world examples.",
