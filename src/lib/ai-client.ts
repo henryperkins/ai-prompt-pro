@@ -1,5 +1,105 @@
-const ENHANCE_URL = `https://bsdsxwefmpaaxarbhxuq.supabase.co/functions/v1/enhance-prompt`;
-const EXTRACT_URL = `https://bsdsxwefmpaaxarbhxuq.supabase.co/functions/v1/extract-url`;
+import { supabase } from "@/integrations/supabase/client";
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+let bootstrapTokenPromise: Promise<string> | null = null;
+
+function assertSupabaseEnv(): void {
+  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+    throw new Error("Supabase environment variables are missing.");
+  }
+}
+
+function functionUrl(name: "enhance-prompt" | "extract-url"): string {
+  assertSupabaseEnv();
+  return `${SUPABASE_URL}/functions/v1/${name}`;
+}
+
+async function getAccessToken(): Promise<string> {
+  assertSupabaseEnv();
+
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
+  if (sessionError) {
+    throw new Error(`Could not read auth session: ${sessionError.message}`);
+  }
+  if (session?.access_token) {
+    return session.access_token;
+  }
+
+  const { data, error } = await supabase.auth.signInAnonymously();
+  if (error || !data.session?.access_token) {
+    throw new Error(
+      error?.message ||
+        "Authentication required. Enable anonymous sign-ins or sign in before using AI features.",
+    );
+  }
+  return data.session.access_token;
+}
+
+async function getAccessTokenWithBootstrap(): Promise<string> {
+  if (!bootstrapTokenPromise) {
+    bootstrapTokenPromise = getAccessToken().finally(() => {
+      bootstrapTokenPromise = null;
+    });
+  }
+  return bootstrapTokenPromise;
+}
+
+async function functionHeaders(): Promise<Record<string, string>> {
+  assertSupabaseEnv();
+  const accessToken = await getAccessTokenWithBootstrap();
+  return {
+    "Content-Type": "application/json",
+    apikey: SUPABASE_PUBLISHABLE_KEY as string,
+    Authorization: `Bearer ${accessToken}`,
+  };
+}
+
+function extractSseError(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const data = payload as { error?: unknown };
+  if (typeof data.error === "string" && data.error.trim()) {
+    return data.error.trim();
+  }
+  if (data.error && typeof data.error === "object") {
+    const message = (data.error as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim()) {
+      return message.trim();
+    }
+  }
+  return null;
+}
+
+function extractSseText(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const data = payload as {
+    choices?: Array<{ delta?: { content?: unknown } }>;
+    type?: unknown;
+    delta?: unknown;
+    output_text?: unknown;
+  };
+
+  const chatCompletionsDelta = data.choices?.[0]?.delta?.content;
+  if (typeof chatCompletionsDelta === "string" && chatCompletionsDelta) {
+    return chatCompletionsDelta;
+  }
+
+  // Responses API streaming event shape.
+  if (data.type === "response.output_text.delta" && typeof data.delta === "string" && data.delta) {
+    return data.delta;
+  }
+
+  // Fallback for any adapter that emits output_text directly.
+  if (typeof data.output_text === "string" && data.output_text) {
+    return data.output_text;
+  }
+
+  return null;
+}
 
 export async function streamEnhance({
   prompt,
@@ -13,12 +113,10 @@ export async function streamEnhance({
   onError: (error: string) => void;
 }) {
   try {
-    const resp = await fetch(ENHANCE_URL, {
+    const headers = await functionHeaders();
+    const resp = await fetch(functionUrl("enhance-prompt"), {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJzZHN4d2VmbXBhYXhhcmJoeHVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0NTI0OTAsImV4cCI6MjA4NjAyODQ5MH0.JctsR0m4oAvM0Eo7RJsgvSt6ntOo_UbrYup_hlTCpnM`,
-      },
+      headers,
       body: JSON.stringify({ prompt }),
     });
 
@@ -37,6 +135,7 @@ export async function streamEnhance({
     const decoder = new TextDecoder();
     let textBuffer = "";
     let streamDone = false;
+    let terminalError: string | null = null;
 
     while (!streamDone) {
       const { done, value } = await reader.read();
@@ -60,13 +159,25 @@ export async function streamEnhance({
 
         try {
           const parsed = JSON.parse(jsonStr);
-          const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+          const parsedError = extractSseError(parsed);
+          if (parsedError) {
+            terminalError = parsedError;
+            streamDone = true;
+            break;
+          }
+
+          const content = extractSseText(parsed);
           if (content) onDelta(content);
         } catch {
           textBuffer = line + "\n" + textBuffer;
           break;
         }
       }
+    }
+
+    if (terminalError) {
+      onError(terminalError);
+      return;
     }
 
     // Final flush
@@ -80,12 +191,22 @@ export async function streamEnhance({
         if (jsonStr === "[DONE]") continue;
         try {
           const parsed = JSON.parse(jsonStr);
-          const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+          const parsedError = extractSseError(parsed);
+          if (parsedError) {
+            terminalError = parsedError;
+            break;
+          }
+          const content = extractSseText(parsed);
           if (content) onDelta(content);
         } catch {
           /* ignore */
         }
       }
+    }
+
+    if (terminalError) {
+      onError(terminalError);
+      return;
     }
 
     onDone();
@@ -96,12 +217,10 @@ export async function streamEnhance({
 }
 
 export async function extractUrl(url: string): Promise<{ title: string; content: string }> {
-  const resp = await fetch(EXTRACT_URL, {
+  const headers = await functionHeaders();
+  const resp = await fetch(functionUrl("extract-url"), {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJzZHN4d2VmbXBhYXhhcmJoeHVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0NTI0OTAsImV4cCI6MjA4NjAyODQ5MH0.JctsR0m4oAvM0Eo7RJsgvSt6ntOo_UbrYup_hlTCpnM`,
-    },
+    headers,
     body: JSON.stringify({ url }),
   });
 

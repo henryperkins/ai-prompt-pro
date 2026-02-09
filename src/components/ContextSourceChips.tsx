@@ -27,6 +27,19 @@ type AddMode = "text" | "url" | null;
 const ALLOWED_EXTENSIONS = [".txt", ".md", ".csv", ".json", ".xml", ".log", ".yaml", ".yml"];
 const MAX_FILE_SIZE = 500 * 1024; // 500KB
 
+function normalizeUrlInput(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    const parsed = new URL(candidate);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    return parsed.href;
+  } catch {
+    return null;
+  }
+}
+
 export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceChipsProps) {
   const [mode, setMode] = useState<AddMode>(null);
   const [title, setTitle] = useState("");
@@ -38,13 +51,49 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
 
   const handleAdd = () => {
     if (!content.trim()) return;
+    const isUrl = mode === "url";
+    const trimmedUrl = urlInput.trim();
+    const normalizedUrl = isUrl ? normalizeUrlInput(trimmedUrl) : null;
+    if (isUrl && !normalizedUrl) {
+      toast({
+        title: "Invalid URL",
+        description: "Enter a valid http(s) URL before saving this source.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const resolvedUrl = normalizedUrl ?? "";
     const source: ContextSource = {
       id: Date.now().toString(),
-      type: mode === "url" ? "url" : "text",
-      title: title.trim() || (mode === "url" ? (() => { try { return new URL(urlInput || content).hostname; } catch { return `Source ${sources.length + 1}`; } })() : `Snippet ${sources.length + 1}`),
+      type: isUrl ? "url" : "text",
+      title:
+        title.trim() ||
+        (isUrl
+          ? (() => {
+              try {
+                return new URL(resolvedUrl).hostname;
+              } catch {
+                return `Source ${sources.length + 1}`;
+              }
+            })()
+          : `Snippet ${sources.length + 1}`),
       rawContent: content.trim(),
       summary: summarizeSource(content.trim()),
       addedAt: Date.now(),
+      reference: isUrl
+        ? {
+            kind: "url",
+            refId: `url:${resolvedUrl}`,
+            locator: resolvedUrl,
+            permissionScope: "public",
+          }
+        : undefined,
+      validation: isUrl
+        ? {
+            status: "unknown",
+            checkedAt: Date.now(),
+          }
+        : undefined,
     };
     onAdd(source);
     setTitle("");
@@ -106,6 +155,15 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
             rawContent: text,
             summary: summarizeSource(text),
             addedAt: Date.now(),
+            reference: {
+              kind: "file",
+              refId: `file:${file.name}:${file.lastModified}`,
+              locator: file.name,
+            },
+            validation: {
+              status: "unknown",
+              checkedAt: Date.now(),
+            },
           };
           onAdd(source);
           toast({ title: "File added", description: `"${file.name}" added as context source.` });

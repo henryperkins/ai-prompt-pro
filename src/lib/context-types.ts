@@ -1,10 +1,51 @@
+export type ContextSourceType = "text" | "url" | "file" | "database" | "rag";
+export type SourceValidationStatus = "unknown" | "valid" | "stale" | "invalid";
+
+export interface ContextReference {
+  kind: "url" | "file" | "database" | "rag";
+  refId: string;
+  locator: string;
+  permissionScope?: string;
+}
+
+export interface SourceValidation {
+  status: SourceValidationStatus;
+  checkedAt?: number;
+  message?: string;
+}
+
 export interface ContextSource {
   id: string;
-  type: "text" | "url" | "file";
+  type: ContextSourceType;
   title: string;
   rawContent: string;
   summary: string;
   addedAt: number;
+  reference?: ContextReference;
+  validation?: SourceValidation;
+}
+
+export interface DatabaseConnection {
+  id: string;
+  label: string;
+  provider: "postgres" | "mysql" | "sqlite" | "mongodb" | "other";
+  connectionRef: string;
+  database: string;
+  schema?: string;
+  tables: string[];
+  readOnly: boolean;
+  lastValidatedAt?: number;
+}
+
+export interface RagParameters {
+  enabled: boolean;
+  vectorStoreRef: string;
+  namespace: string;
+  topK: number;
+  minScore: number;
+  retrievalStrategy: "semantic" | "hybrid" | "keyword";
+  documentRefs: string[];
+  chunkWindow: number;
 }
 
 export interface StructuredContext {
@@ -23,6 +64,8 @@ export interface InterviewAnswer {
 
 export interface ContextConfig {
   sources: ContextSource[];
+  databaseConnections: DatabaseConnection[];
+  rag: RagParameters;
   structured: StructuredContext;
   interviewAnswers: InterviewAnswer[];
   useDelimiters: boolean;
@@ -31,6 +74,17 @@ export interface ContextConfig {
 
 export const defaultContextConfig: ContextConfig = {
   sources: [],
+  databaseConnections: [],
+  rag: {
+    enabled: false,
+    vectorStoreRef: "",
+    namespace: "",
+    topK: 5,
+    minScore: 0.2,
+    retrievalStrategy: "hybrid",
+    documentRefs: [],
+    chunkWindow: 3,
+  },
   structured: {
     audience: "",
     product: "",
@@ -152,17 +206,41 @@ export const interviewQuestions = [
   },
 ];
 
+function splitIntoSentences(content: string): string[] {
+  const normalized = content.replace(/\n+/g, " ").trim();
+  if (!normalized) return [];
+  const sentences: string[] = [];
+  let start = 0;
+
+  for (let i = 0; i < normalized.length; i += 1) {
+    const char = normalized[i];
+    if (char !== "." && char !== "!" && char !== "?") continue;
+
+    const next = normalized[i + 1];
+    if (next !== " " && next !== undefined) continue;
+
+    const sentence = normalized.slice(start, i + 1).trim();
+    if (sentence) sentences.push(sentence);
+
+    let j = i + 1;
+    while (normalized[j] === " ") j += 1;
+    start = j;
+    i = j - 1;
+  }
+
+  const tail = normalized.slice(start).trim();
+  if (tail) sentences.push(tail);
+  return sentences;
+}
+
 export function summarizeSource(content: string): string {
-  const sentences = content
-    .replace(/\n+/g, " ")
-    .split(/(?<=[.!?])\s+/)
-    .filter((s) => s.trim().length > 10);
+  const sentences = splitIntoSentences(content).filter((s) => s.trim().length > 10);
 
   if (sentences.length <= 5) {
     return sentences.map((s) => `• ${s.trim()}`).join("\n");
   }
 
-  // Pick the first 3 and last 2 sentences as a heuristic summary
+  // Pick the first 3 and last 2 sentences as a heuristic summary.
   const picked = [...sentences.slice(0, 3), ...sentences.slice(-2)];
   return picked.map((s) => `• ${s.trim()}`).join("\n");
 }
@@ -190,12 +268,48 @@ export function buildContextBlock(ctx: ContextConfig, useDelimiters: boolean): s
   // Sources
   if (ctx.sources.length > 0) {
     const sourceLines = ctx.sources.map(
-      (s) => `[${s.type.toUpperCase()}: ${s.title}]\n${s.summary}`
+      (s) =>
+        `[${s.type.toUpperCase()}: ${s.title}]` +
+        (s.reference ? ` [ref=${s.reference.refId}]` : "") +
+        `\n${s.summary}`
     );
     if (useDelimiters) {
       sections.push(`<sources>\n${sourceLines.join("\n\n")}\n</sources>`);
     } else {
       sections.push(`**Sources:**\n${sourceLines.join("\n\n")}`);
+    }
+  }
+
+  // Database connections
+  if (ctx.databaseConnections.length > 0) {
+    const dbLines = ctx.databaseConnections.map((db) => {
+      const tableSegment = db.tables.length > 0 ? ` tables=${db.tables.join(",")}` : "";
+      const schemaSegment = db.schema ? ` schema=${db.schema}` : "";
+      return `[DB: ${db.label}] ref=${db.connectionRef} db=${db.database}${schemaSegment}${tableSegment} readOnly=${db.readOnly}`;
+    });
+    if (useDelimiters) {
+      sections.push(`<database-connections>\n${dbLines.join("\n")}\n</database-connections>`);
+    } else {
+      sections.push(`**Database Connections:**\n${dbLines.join("\n")}`);
+    }
+  }
+
+  // RAG parameters
+  if (ctx.rag.enabled && ctx.rag.vectorStoreRef.trim()) {
+    const ragLines = [
+      `vectorStoreRef: ${ctx.rag.vectorStoreRef}`,
+      `namespace: ${ctx.rag.namespace || "default"}`,
+      `retrievalStrategy: ${ctx.rag.retrievalStrategy}`,
+      `topK: ${ctx.rag.topK}`,
+      `minScore: ${ctx.rag.minScore}`,
+      `chunkWindow: ${ctx.rag.chunkWindow}`,
+      ctx.rag.documentRefs.length > 0 ? `documentRefs: ${ctx.rag.documentRefs.join(", ")}` : "",
+    ].filter(Boolean);
+
+    if (useDelimiters) {
+      sections.push(`<rag-parameters>\n${ragLines.join("\n")}\n</rag-parameters>`);
+    } else {
+      sections.push(`**RAG Parameters:**\n${ragLines.join("\n")}`);
     }
   }
 

@@ -1,90 +1,157 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import {
+  applyRateLimit,
+  getClientIp,
+  jsonResponse,
+  requireAuthenticatedUser,
+  resolveCors,
+} from "../_shared/security.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+const MAX_PROMPT_CHARS = Number(Deno.env.get("MAX_PROMPT_CHARS") || "16000");
+const ENHANCE_PER_MINUTE = Number(Deno.env.get("ENHANCE_PER_MINUTE") || "12");
+const ENHANCE_PER_DAY = Number(Deno.env.get("ENHANCE_PER_DAY") || "300");
+const AGENT_SERVICE_URL = Deno.env.get("AGENT_SERVICE_URL");
+const AGENT_SERVICE_TOKEN = Deno.env.get("AGENT_SERVICE_TOKEN");
+
+function normalizeAgentServiceUrl(raw: string): string {
+  return raw.endsWith("/") ? raw.slice(0, -1) : raw;
+}
 
 serve(async (req) => {
+  const cors = resolveCors(req);
+
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    if (!cors.ok) {
+      return jsonResponse({ error: cors.error }, cors.status, cors.headers);
+    }
+    return new Response("ok", { headers: cors.headers });
+  }
+
+  if (!cors.ok) {
+    return jsonResponse({ error: cors.error }, cors.status, cors.headers);
+  }
+
+  if (req.method !== "POST") {
+    return jsonResponse({ error: "Method not allowed." }, 405, cors.headers);
   }
 
   try {
-    const { prompt } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const auth = requireAuthenticatedUser(req);
+    if (!auth.ok) {
+      return jsonResponse({ error: auth.error }, auth.status, cors.headers);
+    }
+
+    const clientIp = getClientIp(req);
+    const minuteLimit = await applyRateLimit({
+      scope: "enhance-minute",
+      key: `${auth.userId}:${clientIp}`,
+      limit: ENHANCE_PER_MINUTE,
+      windowMs: 60_000,
+    });
+    if (!minuteLimit.ok) {
+      return jsonResponse(
+        { error: "Rate limit exceeded. Please try again later." },
+        429,
+        cors.headers,
+        {
+          "Retry-After": String(minuteLimit.retryAfterSeconds),
+        },
+      );
+    }
+
+    const dailyLimit = await applyRateLimit({
+      scope: "enhance-day",
+      key: auth.userId,
+      limit: ENHANCE_PER_DAY,
+      windowMs: 86_400_000,
+    });
+    if (!dailyLimit.ok) {
+      return jsonResponse(
+        { error: "Daily quota exceeded. Please try again tomorrow." },
+        429,
+        cors.headers,
+        {
+          "Retry-After": String(dailyLimit.retryAfterSeconds),
+        },
+      );
+    }
+
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return jsonResponse({ error: "Invalid JSON body." }, 400, cors.headers);
+    }
+
+    const promptRaw = (body as { prompt?: unknown })?.prompt;
+    const prompt = typeof promptRaw === "string" ? promptRaw.trim() : "";
+    if (!prompt) {
+      return jsonResponse({ error: "Prompt is required." }, 400, cors.headers);
+    }
+    if (prompt.length > MAX_PROMPT_CHARS) {
+      return jsonResponse(
+        { error: `Prompt is too large. Maximum ${MAX_PROMPT_CHARS} characters.` },
+        413,
+        cors.headers,
+      );
+    }
+
+    if (!AGENT_SERVICE_URL) {
+      throw new Error("AGENT_SERVICE_URL is not configured");
+    }
+
+    const agentServiceUrl = normalizeAgentServiceUrl(AGENT_SERVICE_URL);
 
     console.log("Enhancing prompt, length:", prompt?.length);
 
-    const response = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messages: [
-            {
-              role: "system",
-              content: `You are an expert prompt engineer. Your job is to take a structured prompt and enhance it to be more effective, clear, and optimized for large language models.
-
-Rules:
-- Keep the original intent perfectly intact
-- Improve clarity, specificity, and structure
-- Add helpful instructions the user may have missed
-- Use clear section headers (Role, Task, Context, Format, Constraints)
-- Be concise but thorough
-- Return ONLY the enhanced prompt text, no explanations or meta-commentary
-- Do not wrap in markdown code blocks
-- Maintain a professional and direct tone`,
-            },
-            {
-              role: "user",
-              content: `Please enhance this prompt:\n\n${prompt}`,
-            },
-          ],
-          stream: true,
-        }),
-      }
-    );
+    const response = await fetch(`${agentServiceUrl}/enhance`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(AGENT_SERVICE_TOKEN ? { "x-agent-token": AGENT_SERVICE_TOKEN } : {}),
+      },
+      body: JSON.stringify({ prompt }),
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI credits depleted. Please add funds to continue." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+      let errorMessage = "AI enhancement failed. Please try again.";
+      try {
+        const parsed = JSON.parse(errorText) as { detail?: unknown; error?: unknown };
+        if (typeof parsed.detail === "string" && parsed.detail.trim()) {
+          errorMessage = parsed.detail.trim();
+        } else if (typeof parsed.error === "string" && parsed.error.trim()) {
+          errorMessage = parsed.error.trim();
+        }
+      } catch {
+        if (errorText.trim()) errorMessage = errorText.trim();
       }
 
-      return new Response(
-        JSON.stringify({ error: "AI enhancement failed. Please try again." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      console.error("Agent service error:", response.status, errorMessage);
+
+      return jsonResponse(
+        { error: errorMessage },
+        response.status >= 400 && response.status < 600 ? response.status : 500,
+        cors.headers,
       );
     }
 
     console.log("Streaming response back to client");
 
     return new Response(response.body, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      headers: {
+        ...cors.headers,
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
     });
   } catch (e) {
     console.error("enhance-prompt error:", e);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    return jsonResponse(
+      { error: e instanceof Error ? e.message : "Unknown error" },
+      500,
+      cors.headers,
     );
   }
 });

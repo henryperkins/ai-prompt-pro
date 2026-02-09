@@ -157,6 +157,8 @@ export function scorePrompt(config: PromptConfig): {
   }
   const ctx = config.contextConfig;
   if (ctx.sources.length > 0) context += 5;
+  if (ctx.databaseConnections.length > 0) context += 3;
+  if (ctx.rag.enabled && ctx.rag.vectorStoreRef.trim()) context += 3;
   if (ctx.structured.audience || ctx.structured.product) context += 4;
   if (ctx.structured.offer) context += 3;
   if (ctx.interviewAnswers.filter((a) => a.answer.trim()).length > 0) context += 3;

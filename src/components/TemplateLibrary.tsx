@@ -16,12 +16,24 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { templates, categoryLabels, type PromptTemplate } from "@/lib/templates";
-import { FileText, TrendingUp, Palette, Briefcase, GraduationCap } from "lucide-react";
+import type { TemplateSummary } from "@/lib/template-store";
+import {
+  FileText,
+  TrendingUp,
+  Palette,
+  Briefcase,
+  GraduationCap,
+  Database,
+  Trash2,
+} from "lucide-react";
 
 interface TemplateLibraryProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSelect: (template: PromptTemplate) => void;
+  savedTemplates: TemplateSummary[];
+  onSelectPreset: (template: PromptTemplate) => void;
+  onSelectSaved: (id: string) => void;
+  onDeleteSaved: (id: string) => void;
 }
 
 const categoryIcons: Record<string, React.ReactNode> = {
@@ -35,12 +47,18 @@ const categoryIcons: Record<string, React.ReactNode> = {
 function TemplateList({
   activeCategory,
   setActiveCategory,
-  onSelect,
+  savedTemplates,
+  onSelectPreset,
+  onSelectSaved,
+  onDeleteSaved,
   onClose,
 }: {
   activeCategory: string;
   setActiveCategory: (c: string) => void;
-  onSelect: (t: PromptTemplate) => void;
+  savedTemplates: TemplateSummary[];
+  onSelectPreset: (t: PromptTemplate) => void;
+  onSelectSaved: (id: string) => void;
+  onDeleteSaved: (id: string) => void;
   onClose: () => void;
 }) {
   const categories = ["all", ...Object.keys(categoryLabels)];
@@ -51,6 +69,68 @@ function TemplateList({
 
   return (
     <>
+      <div className="space-y-2 pb-2 border-b border-border/60">
+        <div className="flex items-center gap-2">
+          <Database className="w-4 h-4 text-muted-foreground" />
+          <h3 className="text-xs font-medium text-foreground">Saved Templates</h3>
+          <Badge variant="secondary" className="text-[10px]">
+            {savedTemplates.length}
+          </Badge>
+        </div>
+
+        {savedTemplates.length === 0 && (
+          <p className="text-xs text-muted-foreground">
+            No saved templates yet. Use "Save Template" from the output panel.
+          </p>
+        )}
+
+        {savedTemplates.map((template) => (
+          <Card
+            key={template.id}
+            className="p-3 hover:border-primary/50 transition-all cursor-pointer group"
+            onClick={() => {
+              onSelectSaved(template.id);
+              onClose();
+            }}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="space-y-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h4 className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+                    {template.name}
+                  </h4>
+                  <Badge variant="outline" className="text-[10px]">
+                    r{template.revision}
+                  </Badge>
+                </div>
+                {template.description && (
+                  <p className="text-xs text-muted-foreground line-clamp-2">{template.description}</p>
+                )}
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                  <span>{template.sourceCount} sources</span>
+                  <span>•</span>
+                  <span>{template.databaseCount} DB</span>
+                  <span>•</span>
+                  <span>{template.ragEnabled ? "RAG on" : "RAG off"}</span>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="w-7 h-7 opacity-0 group-hover:opacity-100"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onDeleteSaved(template.id);
+                }}
+                aria-label={`Delete ${template.name}`}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          </Card>
+        ))}
+      </div>
+
       <div className="flex flex-wrap gap-1.5 sm:gap-2 py-2">
         {categories.map((cat) => (
           <Button
@@ -72,7 +152,7 @@ function TemplateList({
             key={template.id}
             className="p-3 sm:p-4 hover:border-primary/50 transition-all cursor-pointer group"
             onClick={() => {
-              onSelect(template);
+              onSelectPreset(template);
               onClose();
             }}
           >
@@ -107,7 +187,14 @@ function TemplateList({
   );
 }
 
-export function TemplateLibrary({ open, onOpenChange, onSelect }: TemplateLibraryProps) {
+export function TemplateLibrary({
+  open,
+  onOpenChange,
+  savedTemplates,
+  onSelectPreset,
+  onSelectSaved,
+  onDeleteSaved,
+}: TemplateLibraryProps) {
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const isMobile = useIsMobile();
 
@@ -122,7 +209,10 @@ export function TemplateLibrary({ open, onOpenChange, onSelect }: TemplateLibrar
             <TemplateList
               activeCategory={activeCategory}
               setActiveCategory={setActiveCategory}
-              onSelect={onSelect}
+              savedTemplates={savedTemplates}
+              onSelectPreset={onSelectPreset}
+              onSelectSaved={onSelectSaved}
+              onDeleteSaved={onDeleteSaved}
               onClose={() => onOpenChange(false)}
             />
           </div>
@@ -140,7 +230,10 @@ export function TemplateLibrary({ open, onOpenChange, onSelect }: TemplateLibrar
         <TemplateList
           activeCategory={activeCategory}
           setActiveCategory={setActiveCategory}
-          onSelect={onSelect}
+          savedTemplates={savedTemplates}
+          onSelectPreset={onSelectPreset}
+          onSelectSaved={onSelectSaved}
+          onDeleteSaved={onDeleteSaved}
           onClose={() => onOpenChange(false)}
         />
       </DialogContent>

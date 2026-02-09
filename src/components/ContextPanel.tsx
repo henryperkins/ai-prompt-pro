@@ -5,6 +5,7 @@ import { ContextSourceChips } from "@/components/ContextSourceChips";
 import { StructuredContextForm } from "@/components/StructuredContextForm";
 import { ContextInterview } from "@/components/ContextInterview";
 import { ProjectNotes } from "@/components/ProjectNotes";
+import { ContextIntegrations } from "@/components/ContextIntegrations";
 import { ContextQualityMeter } from "@/components/ContextQualityMeter";
 import {
   Collapsible,
@@ -13,11 +14,20 @@ import {
 } from "@/components/ui/collapsible";
 import { ChevronRight } from "lucide-react";
 import { useState } from "react";
-import type { ContextConfig, ContextSource, StructuredContext, InterviewAnswer } from "@/lib/context-types";
+import type {
+  ContextConfig,
+  ContextSource,
+  StructuredContext,
+  InterviewAnswer,
+  DatabaseConnection,
+  RagParameters,
+} from "@/lib/context-types";
 
 interface ContextPanelProps {
   contextConfig: ContextConfig;
   onUpdateSources: (sources: ContextSource[]) => void;
+  onUpdateDatabaseConnections: (connections: DatabaseConnection[]) => void;
+  onUpdateRag: (updates: Partial<RagParameters>) => void;
   onUpdateStructured: (updates: Partial<StructuredContext>) => void;
   onUpdateInterview: (answers: InterviewAnswer[]) => void;
   onUpdateProjectNotes: (notes: string) => void;
@@ -55,6 +65,8 @@ function SectionCollapsible({
 export function ContextPanel({
   contextConfig,
   onUpdateSources,
+  onUpdateDatabaseConnections,
+  onUpdateRag,
   onUpdateStructured,
   onUpdateInterview,
   onUpdateProjectNotes,
@@ -76,6 +88,8 @@ export function ContextPanel({
   const interviewCount = contextConfig.interviewAnswers.filter(
     (a) => a.answer.trim().length > 0
   ).length;
+  const integrationCount =
+    contextConfig.databaseConnections.length + (contextConfig.rag.enabled ? 1 : 0);
 
   return (
     <div className="space-y-1">
@@ -100,6 +114,24 @@ export function ContextPanel({
         <StructuredContextForm
           values={contextConfig.structured}
           onUpdate={onUpdateStructured}
+        />
+      </SectionCollapsible>
+
+      <SectionCollapsible
+        title="Integrations"
+        badge={
+          integrationCount > 0 ? (
+            <Badge variant="secondary" className="text-[10px]">
+              {integrationCount} active
+            </Badge>
+          ) : undefined
+        }
+      >
+        <ContextIntegrations
+          databaseConnections={contextConfig.databaseConnections}
+          rag={contextConfig.rag}
+          onUpdateDatabaseConnections={onUpdateDatabaseConnections}
+          onUpdateRag={onUpdateRag}
         />
       </SectionCollapsible>
 

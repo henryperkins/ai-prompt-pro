@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { lazy, Suspense, useState, useEffect, useCallback } from "react";
 import { Header } from "@/components/Header";
 import { PromptInput } from "@/components/PromptInput";
 import { BuilderTabs } from "@/components/BuilderTabs";
@@ -6,8 +6,6 @@ import { ContextPanel } from "@/components/ContextPanel";
 import { ToneControls } from "@/components/ToneControls";
 import { QualityScore } from "@/components/QualityScore";
 import { OutputPanel } from "@/components/OutputPanel";
-import { TemplateLibrary } from "@/components/TemplateLibrary";
-import { VersionHistory } from "@/components/VersionHistory";
 import { usePromptBuilder } from "@/hooks/usePromptBuilder";
 import { streamEnhance } from "@/lib/ai-client";
 import { useToast } from "@/hooks/use-toast";
@@ -28,6 +26,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Loader2, Eye, Target, Layout as LayoutIcon, MessageSquare, BarChart3 } from "lucide-react";
+
+const TemplateLibrary = lazy(async () => {
+  const module = await import("@/components/TemplateLibrary");
+  return { default: module.TemplateLibrary };
+});
+
+const VersionHistory = lazy(async () => {
+  const module = await import("@/components/VersionHistory");
+  return { default: module.VersionHistory };
+});
 
 const Index = () => {
   const [isDark, setIsDark] = useState(() => {
@@ -55,7 +63,13 @@ const Index = () => {
     versions,
     saveVersion,
     loadTemplate,
+    saveAsTemplate,
+    loadSavedTemplate,
+    deleteSavedTemplate,
+    templateSummaries,
     updateContextSources,
+    updateDatabaseConnections,
+    updateRagParameters,
     updateContextStructured,
     updateContextInterview,
     updateProjectNotes,
@@ -99,6 +113,65 @@ const Index = () => {
     [loadTemplate, toast]
   );
 
+  const handleSelectSavedTemplate = useCallback(
+    (id: string) => {
+      const loaded = loadSavedTemplate(id);
+      if (!loaded) {
+        toast({ title: "Template not found", variant: "destructive" });
+        return;
+      }
+      toast({
+        title: `Template loaded: ${loaded.record.metadata.name}`,
+        description:
+          loaded.warnings.length > 0
+            ? `${loaded.warnings.length} context warning(s). Review integrations before running.`
+            : "Template restored successfully.",
+      });
+    },
+    [loadSavedTemplate, toast]
+  );
+
+  const handleDeleteSavedTemplate = useCallback(
+    (id: string) => {
+      const deleted = deleteSavedTemplate(id);
+      if (!deleted) {
+        toast({ title: "Template not found", variant: "destructive" });
+        return;
+      }
+      toast({ title: "Saved template deleted" });
+    },
+    [deleteSavedTemplate, toast]
+  );
+
+  const handleSaveAsTemplate = useCallback(
+    (input: { name: string; description?: string }) => {
+      try {
+        const result = saveAsTemplate(input);
+        const warningText =
+          result.warnings.length > 0
+            ? ` ${result.warnings.length} validation warning(s) were recorded.`
+            : "";
+        const verb =
+          result.outcome === "created"
+            ? "saved"
+            : result.outcome === "updated"
+              ? "updated"
+              : "unchanged";
+        toast({
+          title: `Template ${verb}: ${result.record.metadata.name}`,
+          description: `Revision r${result.record.metadata.revision}.${warningText}`,
+        });
+      } catch (error) {
+        toast({
+          title: "Failed to save template",
+          description: error instanceof Error ? error.message : "Unexpected error",
+          variant: "destructive",
+        });
+      }
+    },
+    [saveAsTemplate, toast]
+  );
+
   // Keyboard shortcut: Ctrl+Enter to enhance
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -114,6 +187,12 @@ const Index = () => {
   // Status indicators for accordion triggers
   const sourceCount = config.contextConfig.sources.length;
   const displayPrompt = enhancedPrompt || builtPrompt;
+  const canSaveTemplate =
+    !!config.task.trim() ||
+    !!config.originalPrompt.trim() ||
+    config.contextConfig.sources.length > 0 ||
+    config.contextConfig.databaseConnections.length > 0 ||
+    !!config.contextConfig.rag.vectorStoreRef.trim();
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -187,6 +266,8 @@ const Index = () => {
                   <ContextPanel
                     contextConfig={config.contextConfig}
                     onUpdateSources={updateContextSources}
+                    onUpdateDatabaseConnections={updateDatabaseConnections}
+                    onUpdateRag={updateRagParameters}
                     onUpdateStructured={updateContextStructured}
                     onUpdateInterview={updateContextInterview}
                     onUpdateProjectNotes={updateProjectNotes}
@@ -245,6 +326,8 @@ const Index = () => {
                 isEnhancing={isEnhancing}
                 onEnhance={handleEnhance}
                 onSaveVersion={saveVersion}
+                onSaveTemplate={handleSaveAsTemplate}
+                canSaveTemplate={canSaveTemplate}
               />
               <p className="text-xs text-muted-foreground text-center mt-3">
                 Press <kbd className="px-1.5 py-0.5 text-[10px] bg-muted rounded border border-border font-mono">Ctrl+Enter</kbd> to enhance
@@ -306,6 +389,8 @@ const Index = () => {
                 isEnhancing={isEnhancing}
                 onEnhance={handleEnhance}
                 onSaveVersion={saveVersion}
+                onSaveTemplate={handleSaveAsTemplate}
+                canSaveTemplate={canSaveTemplate}
                 hideEnhanceButton
               />
             </div>
@@ -316,21 +401,30 @@ const Index = () => {
       {/* Add bottom padding on mobile for sticky bar */}
       {isMobile && <div className="h-20" />}
 
-      <TemplateLibrary
-        open={templatesOpen}
-        onOpenChange={setTemplatesOpen}
-        onSelect={handleSelectTemplate}
-      />
+      <Suspense fallback={null}>
+        {templatesOpen && (
+          <TemplateLibrary
+            open={templatesOpen}
+            onOpenChange={setTemplatesOpen}
+            savedTemplates={templateSummaries}
+            onSelectPreset={handleSelectTemplate}
+            onSelectSaved={handleSelectSavedTemplate}
+            onDeleteSaved={handleDeleteSavedTemplate}
+          />
+        )}
 
-      <VersionHistory
-        open={historyOpen}
-        onOpenChange={setHistoryOpen}
-        versions={versions}
-        onRestore={(prompt) => {
-          setEnhancedPrompt(prompt);
-          toast({ title: "Version restored" });
-        }}
-      />
+        {historyOpen && (
+          <VersionHistory
+            open={historyOpen}
+            onOpenChange={setHistoryOpen}
+            versions={versions}
+            onRestore={(prompt) => {
+              setEnhancedPrompt(prompt);
+              toast({ title: "Version restored" });
+            }}
+          />
+        )}
+      </Suspense>
     </div>
   );
 };
