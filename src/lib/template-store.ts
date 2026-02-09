@@ -72,6 +72,7 @@ export interface TemplateSummary {
   id: string;
   name: string;
   description: string;
+  tags: string[];
   updatedAt: number;
   createdAt: number;
   revision: number;
@@ -536,6 +537,7 @@ export function listTemplateSummaries(): TemplateSummary[] {
     id: record.metadata.id,
     name: record.metadata.name,
     description: record.metadata.description,
+    tags: record.metadata.tags,
     updatedAt: record.metadata.updatedAt,
     createdAt: record.metadata.createdAt,
     revision: record.metadata.revision,

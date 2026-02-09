@@ -25,7 +25,7 @@ interface OutputPanelProps {
   isEnhancing: boolean;
   onEnhance: () => void;
   onSaveVersion: () => void;
-  onSaveTemplate: (input: { name: string; description?: string }) => void;
+  onSaveTemplate: (input: { name: string; description?: string; tags?: string[] }) => void;
   canSaveTemplate: boolean;
   hideEnhanceButton?: boolean;
   enhancePhase?: EnhancePhase;
@@ -47,6 +47,7 @@ export function OutputPanel({
   const [compareDialogOpen, setCompareDialogOpen] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [templateDescription, setTemplateDescription] = useState("");
+  const [templateTags, setTemplateTags] = useState("");
   const { toast } = useToast();
   const displayPrompt = enhancedPrompt || builtPrompt;
   const isStreamingVisual = enhancePhase === "starting" || enhancePhase === "streaming";
@@ -96,13 +97,24 @@ export function OutputPanel({
 
   const handleSaveTemplate = () => {
     if (!templateName.trim()) return;
+    const tags = Array.from(
+      new Set(
+        templateTags
+          .split(",")
+          .map((tag) => tag.trim().toLowerCase())
+          .filter(Boolean),
+      ),
+    ).slice(0, 8);
+
     onSaveTemplate({
       name: templateName.trim(),
       description: templateDescription.trim() || undefined,
+      tags: tags.length > 0 ? tags : undefined,
     });
     setTemplateDialogOpen(false);
     setTemplateName("");
     setTemplateDescription("");
+    setTemplateTags("");
   };
 
   return (
@@ -177,6 +189,15 @@ export function OutputPanel({
                   placeholder="Description (optional)"
                   className="min-h-[90px] bg-background"
                 />
+                <Input
+                  value={templateTags}
+                  onChange={(event) => setTemplateTags(event.target.value)}
+                  placeholder="Tags (comma-separated, optional)"
+                  className="bg-background"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Example: marketing, seo, long-form
+                </p>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setTemplateDialogOpen(false)}>

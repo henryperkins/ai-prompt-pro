@@ -8,6 +8,7 @@ import { QualityScore } from "@/components/QualityScore";
 import { OutputPanel, type EnhancePhase } from "@/components/OutputPanel";
 import { usePromptBuilder } from "@/hooks/usePromptBuilder";
 import { streamEnhance } from "@/lib/ai-client";
+import { getSectionHealth, type SectionHealthState } from "@/lib/section-health";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { PromptTemplate } from "@/lib/templates";
@@ -25,7 +26,20 @@ import {
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Loader2, Eye, Target, Layout as LayoutIcon, MessageSquare, BarChart3, Check } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import {
+  Sparkles,
+  Loader2,
+  Eye,
+  Target,
+  Layout as LayoutIcon,
+  MessageSquare,
+  BarChart3,
+  Check,
+  CircleDashed,
+  Gauge,
+  CheckCircle2,
+} from "lucide-react";
 
 const TemplateLibrary = lazy(async () => {
   const module = await import("@/components/TemplateLibrary");
@@ -36,6 +50,42 @@ const VersionHistory = lazy(async () => {
   const module = await import("@/components/VersionHistory");
   return { default: module.VersionHistory };
 });
+
+const healthBadgeStyles: Record<
+  SectionHealthState,
+  { label: string; className: string; icon: LucideIcon }
+> = {
+  empty: {
+    label: "Empty",
+    className: "border-border/80 bg-muted/50 text-muted-foreground",
+    icon: CircleDashed,
+  },
+  in_progress: {
+    label: "In progress",
+    className: "border-primary/30 bg-primary/10 text-primary",
+    icon: Gauge,
+  },
+  complete: {
+    label: "Complete",
+    className: "border-emerald-500/35 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+    icon: CheckCircle2,
+  },
+};
+
+function SectionHealthBadge({ state }: { state: SectionHealthState }) {
+  const meta = healthBadgeStyles[state];
+  const Icon = meta.icon;
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${meta.className}`}
+      title={meta.label}
+    >
+      <Icon className="h-3 w-3" />
+      <span className="hidden sm:inline">{meta.label}</span>
+    </span>
+  );
+}
 
 const Index = () => {
   const [isDark, setIsDark] = useState(() => {
@@ -178,7 +228,7 @@ const Index = () => {
   );
 
   const handleSaveAsTemplate = useCallback(
-    (input: { name: string; description?: string }) => {
+    (input: { name: string; description?: string; tags?: string[] }) => {
       try {
         const result = saveAsTemplate(input);
         const warningText =
@@ -220,6 +270,8 @@ const Index = () => {
 
   // Status indicators for accordion triggers
   const sourceCount = config.contextConfig.sources.length;
+  const sectionHealth = getSectionHealth(config, score.total);
+  const selectedRole = config.customRole || config.role;
   const displayPrompt = enhancedPrompt || builtPrompt;
   const canSaveTemplate =
     !!config.task.trim() ||
@@ -282,11 +334,14 @@ const Index = () => {
                     <Target className="w-3.5 h-3.5 text-muted-foreground" />
                     Builder
                   </span>
-                  {config.role && (
-                    <Badge variant="secondary" className="ml-auto mr-2 text-[10px]">
-                      {config.customRole || config.role}
-                    </Badge>
-                  )}
+                  <span className="ml-auto mr-2 flex items-center gap-1.5">
+                    {selectedRole && (
+                      <Badge variant="secondary" className="max-w-[120px] truncate text-[10px]">
+                        {selectedRole}
+                      </Badge>
+                    )}
+                    <SectionHealthBadge state={sectionHealth.builder} />
+                  </span>
                 </AccordionTrigger>
                 <AccordionContent>
                   <BuilderTabs config={config} onUpdate={updateConfig} />
@@ -299,11 +354,14 @@ const Index = () => {
                     <LayoutIcon className="w-3.5 h-3.5 text-muted-foreground" />
                     Context & Sources
                   </span>
-                  {sourceCount > 0 && (
-                    <Badge variant="secondary" className="ml-auto mr-2 text-[10px]">
-                      {sourceCount}
-                    </Badge>
-                  )}
+                  <span className="ml-auto mr-2 flex items-center gap-1.5">
+                    {sourceCount > 0 && (
+                      <Badge variant="secondary" className="text-[10px]">
+                        {sourceCount} src
+                      </Badge>
+                    )}
+                    <SectionHealthBadge state={sectionHealth.context} />
+                  </span>
                 </AccordionTrigger>
                 <AccordionContent>
                   <ContextPanel
@@ -325,11 +383,14 @@ const Index = () => {
                     <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
                     Tone & Style
                   </span>
-                  {config.tone && (
-                    <Badge variant="secondary" className="ml-auto mr-2 text-[10px]">
-                      {config.tone}
-                    </Badge>
-                  )}
+                  <span className="ml-auto mr-2 flex items-center gap-1.5">
+                    {config.tone && (
+                      <Badge variant="secondary" className="text-[10px]">
+                        {config.tone}
+                      </Badge>
+                    )}
+                    <SectionHealthBadge state={sectionHealth.tone} />
+                  </span>
                 </AccordionTrigger>
                 <AccordionContent>
                   <ToneControls
@@ -346,12 +407,15 @@ const Index = () => {
                     <BarChart3 className="w-3.5 h-3.5 text-muted-foreground" />
                     Quality Score
                   </span>
-                  <Badge
-                    variant={score.total >= 75 ? "default" : "secondary"}
-                    className="ml-auto mr-2 text-[10px]"
-                  >
-                    {score.total}/100
-                  </Badge>
+                  <span className="ml-auto mr-2 flex items-center gap-1.5">
+                    <Badge
+                      variant={score.total >= 75 ? "default" : "secondary"}
+                      className="text-[10px]"
+                    >
+                      {score.total}/100
+                    </Badge>
+                    <SectionHealthBadge state={sectionHealth.quality} />
+                  </span>
                 </AccordionTrigger>
                 <AccordionContent>
                   <QualityScore score={score} />

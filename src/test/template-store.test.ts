@@ -59,8 +59,8 @@ describe("template-store", () => {
       },
     });
 
-    const created = saveTemplateSnapshot({ name: "Ops Template", config });
-    const unchanged = saveTemplateSnapshot({ name: "Ops Template", config });
+    const created = saveTemplateSnapshot({ name: "Ops Template", tags: ["ops", "deploy"], config });
+    const unchanged = saveTemplateSnapshot({ name: "Ops Template", tags: ["ops"], config });
     const updated = saveTemplateSnapshot({
       name: "Ops Template",
       config: buildConfig({ ...config, task: "Build a safer deployment checklist" }),
@@ -71,6 +71,9 @@ describe("template-store", () => {
     expect(unchanged.record.metadata.revision).toBe(1);
     expect(updated.outcome).toBe("updated");
     expect(updated.record.metadata.revision).toBe(2);
+
+    const summaries = listTemplateSummaries();
+    expect(summaries[0].tags).toEqual(["ops", "deploy"]);
   });
 
   it("stores external sources as references and strips raw payloads", () => {
