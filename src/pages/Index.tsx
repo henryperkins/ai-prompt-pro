@@ -198,39 +198,55 @@ const Index = () => {
   );
 
   const handleSelectSavedTemplate = useCallback(
-    (id: string) => {
-      const loaded = loadSavedTemplate(id);
-      if (!loaded) {
-        toast({ title: "Preset not found", variant: "destructive" });
-        return;
+    async (id: string) => {
+      try {
+        const loaded = await loadSavedTemplate(id);
+        if (!loaded) {
+          toast({ title: "Preset not found", variant: "destructive" });
+          return;
+        }
+        toast({
+          title: `Preset loaded: ${loaded.record.metadata.name}`,
+          description:
+            loaded.warnings.length > 0
+              ? `${loaded.warnings.length} context warning(s). Review integrations before running.`
+              : "Preset restored successfully.",
+        });
+      } catch (error) {
+        toast({
+          title: "Failed to load preset",
+          description: error instanceof Error ? error.message : "Unexpected error",
+          variant: "destructive",
+        });
       }
-      toast({
-        title: `Preset loaded: ${loaded.record.metadata.name}`,
-        description:
-          loaded.warnings.length > 0
-            ? `${loaded.warnings.length} context warning(s). Review integrations before running.`
-            : "Preset restored successfully.",
-      });
     },
     [loadSavedTemplate, toast]
   );
 
   const handleDeleteSavedTemplate = useCallback(
-    (id: string) => {
-      const deleted = deleteSavedTemplate(id);
-      if (!deleted) {
-        toast({ title: "Preset not found", variant: "destructive" });
-        return;
+    async (id: string) => {
+      try {
+        const deleted = await deleteSavedTemplate(id);
+        if (!deleted) {
+          toast({ title: "Preset not found", variant: "destructive" });
+          return;
+        }
+        toast({ title: "Saved preset deleted" });
+      } catch (error) {
+        toast({
+          title: "Failed to delete preset",
+          description: error instanceof Error ? error.message : "Unexpected error",
+          variant: "destructive",
+        });
       }
-      toast({ title: "Saved preset deleted" });
     },
     [deleteSavedTemplate, toast]
   );
 
   const handleSaveAsTemplate = useCallback(
-    (input: { name: string; description?: string; tags?: string[] }) => {
+    async (input: { name: string; description?: string; tags?: string[] }) => {
       try {
-        const result = saveAsTemplate(input);
+        const result = await saveAsTemplate(input);
         const warningText =
           result.warnings.length > 0
             ? ` ${result.warnings.length} validation warning(s) were recorded.`

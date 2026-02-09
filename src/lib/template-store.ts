@@ -185,7 +185,7 @@ function mergeContextConfig(input?: ContextConfig): ContextConfig {
   };
 }
 
-function normalizePromptConfig(config: PromptConfig): PromptConfig {
+export function normalizeTemplateConfig(config: PromptConfig): PromptConfig {
   const merged: PromptConfig = {
     ...defaultConfig,
     ...config,
@@ -203,7 +203,7 @@ function normalizePromptConfig(config: PromptConfig): PromptConfig {
   };
 }
 
-function fingerprintFromConfig(config: PromptConfig): string {
+export function computeTemplateFingerprint(config: PromptConfig): string {
   const canonical = cloneDeep(config);
   canonical.contextConfig.sources = canonical.contextConfig.sources.map((source) => ({
     ...source,
@@ -312,7 +312,7 @@ function validateRag(rag: RagParameters): string[] {
   return warnings;
 }
 
-function collectWarnings(config: PromptConfig): string[] {
+export function collectTemplateWarnings(config: PromptConfig): string[] {
   const warnings: string[] = [];
   config.contextConfig.sources.forEach((source) => {
     if (source.validation?.status === "invalid") {
@@ -328,7 +328,7 @@ function collectWarnings(config: PromptConfig): string[] {
   return warnings;
 }
 
-function externalReferencesFromConfig(config: PromptConfig): TemplateExternalReference[] {
+export function deriveExternalReferencesFromConfig(config: PromptConfig): TemplateExternalReference[] {
   const sourceRefs: TemplateExternalReference[] = config.contextConfig.sources
     .filter((source) => source.type !== "text")
     .map((source) => ({
@@ -429,7 +429,7 @@ function parseEnvelope(raw: string | null): TemplateEnvelope {
 
 function migrateLegacyV1(legacy: LegacyTemplateRecordV1): TemplateRecord {
   const now = Date.now();
-  const config: PromptConfig = normalizePromptConfig({
+  const config: PromptConfig = normalizeTemplateConfig({
     ...defaultConfig,
     role: legacy.role || "",
     task: legacy.task || "",
@@ -441,7 +441,7 @@ function migrateLegacyV1(legacy: LegacyTemplateRecordV1): TemplateRecord {
     constraints: Array.isArray(legacy.constraints) ? legacy.constraints : [],
     examples: legacy.examples || "",
   });
-  const fingerprint = fingerprintFromConfig(config);
+  const fingerprint = computeTemplateFingerprint(config);
   return {
     metadata: {
       id: legacy.id || generateId("tpl"),
@@ -456,7 +456,7 @@ function migrateLegacyV1(legacy: LegacyTemplateRecordV1): TemplateRecord {
     },
     state: {
       promptConfig: config,
-      externalReferences: externalReferencesFromConfig(config),
+      externalReferences: deriveExternalReferencesFromConfig(config),
     },
   };
 }
@@ -468,10 +468,10 @@ function parseTemplateRecord(raw: unknown): TemplateRecord | null {
     const metadata = raw.metadata;
     const state = raw.state;
     if (typeof metadata.name !== "string" || typeof metadata.id !== "string") return null;
-    const normalizedConfig = normalizePromptConfig((state.promptConfig || defaultConfig) as PromptConfig);
+    const normalizedConfig = normalizeTemplateConfig((state.promptConfig || defaultConfig) as PromptConfig);
     const externalReferences = Array.isArray(state.externalReferences)
       ? (state.externalReferences as TemplateExternalReference[])
-      : externalReferencesFromConfig(normalizedConfig);
+      : deriveExternalReferencesFromConfig(normalizedConfig);
 
     return {
       metadata: {
@@ -485,7 +485,7 @@ function parseTemplateRecord(raw: unknown): TemplateRecord | null {
         fingerprint:
           typeof metadata.fingerprint === "string"
             ? metadata.fingerprint
-            : fingerprintFromConfig(normalizedConfig),
+            : computeTemplateFingerprint(normalizedConfig),
         createdAt: typeof metadata.createdAt === "number" ? metadata.createdAt : Date.now(),
         updatedAt: typeof metadata.updatedAt === "number" ? metadata.updatedAt : Date.now(),
       },
@@ -542,7 +542,7 @@ function clipText(value: string, limit: number): string {
   return `${value.slice(0, limit - 3).trimEnd()}...`;
 }
 
-function inferStarterPrompt(config: PromptConfig): string {
+export function inferTemplateStarterPrompt(config: PromptConfig): string {
   const candidates = [
     config.task,
     config.originalPrompt,
@@ -562,7 +562,7 @@ export function listTemplateSummaries(): TemplateSummary[] {
     name: record.metadata.name,
     description: record.metadata.description,
     tags: record.metadata.tags,
-    starterPrompt: inferStarterPrompt(record.state.promptConfig),
+    starterPrompt: inferTemplateStarterPrompt(record.state.promptConfig),
     updatedAt: record.metadata.updatedAt,
     createdAt: record.metadata.createdAt,
     revision: record.metadata.revision,
@@ -579,7 +579,7 @@ export function loadTemplateById(id: string): TemplateLoadResult | null {
   if (!record) return null;
   return {
     record: cloneDeep(record),
-    warnings: collectWarnings(record.state.promptConfig),
+    warnings: collectTemplateWarnings(record.state.promptConfig),
   };
 }
 
@@ -588,9 +588,10 @@ export function saveTemplateSnapshot(input: TemplateSaveInput): SaveTemplateResu
   if (!name) throw new Error("Preset name is required.");
 
   const now = Date.now();
-  const normalizedConfig = normalizePromptConfig(input.config);
-  const fingerprint = fingerprintFromConfig(normalizedConfig);
-  const warnings = collectWarnings(normalizedConfig);
+  const normalizedConfig = normalizeTemplateConfig(input.config);
+  const normalizedDescription = input.description === undefined ? undefined : input.description.trim();
+  const fingerprint = computeTemplateFingerprint(normalizedConfig);
+  const warnings = collectTemplateWarnings(normalizedConfig);
   const records = readAllRecords();
   const existingIndex = records.findIndex((record) => record.metadata.name.toLowerCase() === name.toLowerCase());
 
@@ -607,7 +608,7 @@ export function saveTemplateSnapshot(input: TemplateSaveInput): SaveTemplateResu
     const updated: TemplateRecord = {
       metadata: {
         ...existing.metadata,
-        description: input.description?.trim() || existing.metadata.description,
+        description: normalizedDescription ?? existing.metadata.description,
         tags: Array.isArray(input.tags) ? input.tags.map((tag) => tag.trim()).filter(Boolean) : existing.metadata.tags,
         revision: existing.metadata.revision + 1,
         fingerprint,
@@ -615,7 +616,7 @@ export function saveTemplateSnapshot(input: TemplateSaveInput): SaveTemplateResu
       },
       state: {
         promptConfig: normalizedConfig,
-        externalReferences: externalReferencesFromConfig(normalizedConfig),
+        externalReferences: deriveExternalReferencesFromConfig(normalizedConfig),
       },
     };
 
@@ -629,7 +630,7 @@ export function saveTemplateSnapshot(input: TemplateSaveInput): SaveTemplateResu
     metadata: {
       id: generateId("tpl"),
       name,
-      description: input.description?.trim() || "",
+      description: normalizedDescription ?? "",
       tags: Array.isArray(input.tags) ? input.tags.map((tag) => tag.trim()).filter(Boolean) : [],
       schemaVersion: CURRENT_SCHEMA_VERSION,
       revision: 1,
@@ -639,7 +640,7 @@ export function saveTemplateSnapshot(input: TemplateSaveInput): SaveTemplateResu
     },
     state: {
       promptConfig: normalizedConfig,
-      externalReferences: externalReferencesFromConfig(normalizedConfig),
+      externalReferences: deriveExternalReferencesFromConfig(normalizedConfig),
     },
   };
 

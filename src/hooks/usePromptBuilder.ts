@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { PromptConfig, defaultConfig, buildPrompt, scorePrompt } from "@/lib/prompt-builder";
 import type {
   ContextSource,
@@ -9,16 +9,19 @@ import type {
 } from "@/lib/context-types";
 import { defaultContextConfig } from "@/lib/context-types";
 import {
-  deleteTemplateById,
-  listTemplateSummaries,
-  loadTemplateById,
-  saveTemplateSnapshot,
+  listTemplateSummaries as listLocalTemplateSummaries,
   type SaveTemplateResult,
   type TemplateLoadResult,
   type TemplateSummary,
 } from "@/lib/template-store";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import * as persistence from "@/lib/persistence";
 
 const STORAGE_KEY = "promptforge-draft";
+const LOCAL_VERSIONS_KEY = "promptforge-local-versions";
+const DRAFT_AUTOSAVE_DELAY_MS = 700;
+const MAX_LOCAL_VERSIONS = 50;
 
 function hydrateConfig(raw: unknown): PromptConfig {
   if (!raw || typeof raw !== "object") return defaultConfig;
@@ -53,46 +56,262 @@ function hydrateConfig(raw: unknown): PromptConfig {
   };
 }
 
-export function usePromptBuilder() {
-  const [config, setConfig] = useState<PromptConfig>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      return saved ? hydrateConfig(JSON.parse(saved)) : defaultConfig;
-    } catch {
-      return defaultConfig;
-    }
-  });
+function loadLocalDraft(): PromptConfig {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved ? hydrateConfig(JSON.parse(saved)) : defaultConfig;
+  } catch {
+    return defaultConfig;
+  }
+}
 
+function isPromptVersion(value: unknown): value is persistence.PromptVersion {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.id === "string" &&
+    typeof candidate.name === "string" &&
+    typeof candidate.prompt === "string" &&
+    typeof candidate.timestamp === "number"
+  );
+}
+
+function loadLocalVersions(): persistence.PromptVersion[] {
+  try {
+    const saved = localStorage.getItem(LOCAL_VERSIONS_KEY);
+    if (!saved) return [];
+    const parsed = JSON.parse(saved);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(isPromptVersion).sort((a, b) => b.timestamp - a.timestamp).slice(0, MAX_LOCAL_VERSIONS);
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalVersions(versions: persistence.PromptVersion[]): void {
+  try {
+    localStorage.setItem(LOCAL_VERSIONS_KEY, JSON.stringify(versions.slice(0, MAX_LOCAL_VERSIONS)));
+  } catch {
+    // quota errors are intentionally ignored to keep the UI responsive
+  }
+}
+
+function clearLocalVersions(): void {
+  try {
+    localStorage.removeItem(LOCAL_VERSIONS_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+export function usePromptBuilder() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const userId = user?.id ?? null;
+  const [config, setConfig] = useState<PromptConfig>(loadLocalDraft);
   const [enhancedPrompt, setEnhancedPrompt] = useState("");
   const [isEnhancing, setIsEnhancing] = useState(false);
-  const [versions, setVersions] = useState<{ id: string; name: string; prompt: string; timestamp: number }[]>([]);
-  const [templateSummaries, setTemplateSummaries] = useState<TemplateSummary[]>(() => listTemplateSummaries());
+  const [versions, setVersions] = useState<persistence.PromptVersion[]>(loadLocalVersions);
+  const [templateSummaries, setTemplateSummaries] = useState<TemplateSummary[]>(() =>
+    listLocalTemplateSummaries(),
+  );
+  const [isDraftDirty, setIsDraftDirty] = useState(false);
+  const [isCloudHydrated, setIsCloudHydrated] = useState(false);
 
-  const refreshTemplateSummaries = useCallback(() => {
-    setTemplateSummaries(listTemplateSummaries());
+  const prevUserId = useRef<string | null>(null);
+  const draftSaveError = useRef<string | null>(null);
+  const authLoadToken = useRef(0);
+  const autosaveToken = useRef(0);
+  const editsSinceAuthChange = useRef(false);
+
+  const showPersistenceError = useCallback(
+    (title: string, error: unknown, fallback: string) => {
+      toast({
+        title,
+        description: persistence.getPersistenceErrorMessage(error, fallback),
+        variant: "destructive",
+      });
+    },
+    [toast],
+  );
+
+  const markDraftDirty = useCallback(() => {
+    editsSinceAuthChange.current = true;
+    setIsDraftDirty(true);
   }, []);
 
-  // Auto-save
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
-      } catch {
-        // Ignore quota errors to avoid runtime crashes.
-      }
-    }, 500);
-    return () => clearTimeout(timeout);
-  }, [config]);
+    if (userId) return;
+    saveLocalVersions(versions);
+  }, [userId, versions]);
 
-  const updateConfig = useCallback((updates: Partial<PromptConfig>) => {
-    setConfig((prev) => ({ ...prev, ...updates }));
-  }, []);
+  // Load draft/templates/versions when the auth identity changes.
+  useEffect(() => {
+    const previousUserId = prevUserId.current;
+    if (userId === previousUserId) return;
+    prevUserId.current = userId;
+    draftSaveError.current = null;
+    editsSinceAuthChange.current = false;
+    setIsDraftDirty(false);
+    setEnhancedPrompt("");
+    setConfig(defaultConfig);
+    setTemplateSummaries([]);
+    setVersions([]);
+
+    const token = ++authLoadToken.current;
+
+    if (!userId) {
+      setIsCloudHydrated(true);
+      setConfig(loadLocalDraft());
+      setTemplateSummaries(listLocalTemplateSummaries());
+      setVersions(loadLocalVersions());
+      return;
+    }
+
+    const migrateVersionsFromGuestToCloud = !previousUserId
+      ? async () => {
+          const localVersions = loadLocalVersions();
+          if (localVersions.length === 0) return;
+
+          const migration = await Promise.allSettled(
+            localVersions.map((version) => persistence.saveVersion(userId, version.name, version.prompt)),
+          );
+          const failedVersions = localVersions.filter((_, index) => migration[index]?.status === "rejected");
+          const failedCount = failedVersions.length;
+          if (failedCount > 0) {
+            saveLocalVersions(failedVersions);
+            toast({
+              title: "Some local versions were not migrated",
+              description:
+                failedCount === 1
+                  ? "1 local version could not be copied to cloud history."
+                  : `${failedCount} local versions could not be copied to cloud history.`,
+              variant: "destructive",
+            });
+            return;
+          }
+          clearLocalVersions();
+        }
+      : async () => {};
+
+    setIsCloudHydrated(false);
+
+    void Promise.allSettled([
+      persistence.loadDraft(userId),
+      persistence.loadTemplates(userId),
+      (async () => {
+        await migrateVersionsFromGuestToCloud();
+        return persistence.loadVersions(userId);
+      })(),
+    ]).then(([draftResult, templatesResult, versionsResult]) => {
+      if (token !== authLoadToken.current) return;
+
+      if (draftResult.status === "fulfilled") {
+        if (draftResult.value && !editsSinceAuthChange.current) {
+          setConfig(hydrateConfig(draftResult.value));
+        } else if (draftResult.value && editsSinceAuthChange.current) {
+          toast({
+            title: "Cloud draft was not applied",
+            description: "You started editing before cloud draft finished loading, so your current edits were kept.",
+          });
+        }
+      } else {
+        showPersistenceError("Failed to load draft", draftResult.reason, "Failed to load draft.");
+      }
+
+      if (templatesResult.status === "fulfilled") {
+        setTemplateSummaries(templatesResult.value);
+      } else {
+        setTemplateSummaries([]);
+        showPersistenceError("Failed to load presets", templatesResult.reason, "Failed to load presets.");
+      }
+
+      if (versionsResult.status === "fulfilled") {
+        setVersions(versionsResult.value);
+      } else {
+        setVersions([]);
+        showPersistenceError(
+          "Failed to load version history",
+          versionsResult.reason,
+          "Failed to load version history.",
+        );
+      }
+
+      setIsCloudHydrated(true);
+      if (!editsSinceAuthChange.current) {
+        setIsDraftDirty(false);
+      }
+    });
+  }, [userId, showPersistenceError, toast]);
+
+  const refreshTemplateSummaries = useCallback(async () => {
+    if (userId) {
+      try {
+        const summaries = await persistence.loadTemplates(userId);
+        setTemplateSummaries(summaries);
+      } catch (error) {
+        showPersistenceError("Failed to refresh presets", error, "Failed to refresh presets.");
+      }
+    } else {
+      setTemplateSummaries(listLocalTemplateSummaries());
+    }
+  }, [userId, showPersistenceError]);
+
+  const saveDraftSafely = useCallback(
+    async (nextConfig: PromptConfig, saveToken: number) => {
+      try {
+        await persistence.saveDraft(userId, nextConfig);
+        draftSaveError.current = null;
+        if (saveToken === autosaveToken.current) {
+          setIsDraftDirty(false);
+        }
+      } catch (error) {
+        const message = persistence.getPersistenceErrorMessage(error, "Failed to save draft.");
+        if (draftSaveError.current !== message) {
+          draftSaveError.current = message;
+          toast({
+            title: "Draft auto-save failed",
+            description: message,
+            variant: "destructive",
+          });
+        }
+      }
+    },
+    [userId, toast],
+  );
+
+  // Auto-save draft (debounced)
+  useEffect(() => {
+    if (!isDraftDirty) return;
+    if (userId && !isCloudHydrated) return;
+
+    const saveToken = ++autosaveToken.current;
+    const timeout = setTimeout(() => {
+      void saveDraftSafely(config, saveToken);
+    }, DRAFT_AUTOSAVE_DELAY_MS);
+
+    return () => clearTimeout(timeout);
+  }, [config, isDraftDirty, userId, isCloudHydrated, saveDraftSafely]);
+
+  const updateConfig = useCallback(
+    (updates: Partial<PromptConfig>) => {
+      setConfig((prev) => ({ ...prev, ...updates }));
+      markDraftDirty();
+    },
+    [markDraftDirty],
+  );
 
   const resetConfig = useCallback(() => {
     setConfig(defaultConfig);
     setEnhancedPrompt("");
-    localStorage.removeItem(STORAGE_KEY);
-  }, []);
+    if (!userId) {
+      persistence.clearLocalDraft();
+      setIsDraftDirty(false);
+      editsSinceAuthChange.current = false;
+      return;
+    }
+    markDraftDirty();
+  }, [userId, markDraftDirty]);
 
   const clearOriginalPrompt = useCallback(() => {
     setConfig((prev) => ({
@@ -100,63 +319,92 @@ export function usePromptBuilder() {
       originalPrompt: "",
     }));
     setEnhancedPrompt("");
-  }, []);
+    markDraftDirty();
+  }, [markDraftDirty]);
 
   // Context-specific updaters
-  const updateContextSources = useCallback((sources: ContextSource[]) => {
-    setConfig((prev) => ({
-      ...prev,
-      contextConfig: { ...prev.contextConfig, sources },
-    }));
-  }, []);
+  const updateContextSources = useCallback(
+    (sources: ContextSource[]) => {
+      setConfig((prev) => ({
+        ...prev,
+        contextConfig: { ...prev.contextConfig, sources },
+      }));
+      markDraftDirty();
+    },
+    [markDraftDirty],
+  );
 
-  const updateDatabaseConnections = useCallback((databaseConnections: DatabaseConnection[]) => {
-    setConfig((prev) => ({
-      ...prev,
-      contextConfig: { ...prev.contextConfig, databaseConnections },
-    }));
-  }, []);
+  const updateDatabaseConnections = useCallback(
+    (databaseConnections: DatabaseConnection[]) => {
+      setConfig((prev) => ({
+        ...prev,
+        contextConfig: { ...prev.contextConfig, databaseConnections },
+      }));
+      markDraftDirty();
+    },
+    [markDraftDirty],
+  );
 
-  const updateRagParameters = useCallback((ragUpdates: Partial<RagParameters>) => {
-    setConfig((prev) => ({
-      ...prev,
-      contextConfig: {
-        ...prev.contextConfig,
-        rag: { ...prev.contextConfig.rag, ...ragUpdates },
-      },
-    }));
-  }, []);
+  const updateRagParameters = useCallback(
+    (ragUpdates: Partial<RagParameters>) => {
+      setConfig((prev) => ({
+        ...prev,
+        contextConfig: {
+          ...prev.contextConfig,
+          rag: { ...prev.contextConfig.rag, ...ragUpdates },
+        },
+      }));
+      markDraftDirty();
+    },
+    [markDraftDirty],
+  );
 
-  const updateContextStructured = useCallback((updates: Partial<StructuredContext>) => {
-    setConfig((prev) => ({
-      ...prev,
-      contextConfig: {
-        ...prev.contextConfig,
-        structured: { ...prev.contextConfig.structured, ...updates },
-      },
-    }));
-  }, []);
+  const updateContextStructured = useCallback(
+    (updates: Partial<StructuredContext>) => {
+      setConfig((prev) => ({
+        ...prev,
+        contextConfig: {
+          ...prev.contextConfig,
+          structured: { ...prev.contextConfig.structured, ...updates },
+        },
+      }));
+      markDraftDirty();
+    },
+    [markDraftDirty],
+  );
 
-  const updateContextInterview = useCallback((answers: InterviewAnswer[]) => {
-    setConfig((prev) => ({
-      ...prev,
-      contextConfig: { ...prev.contextConfig, interviewAnswers: answers },
-    }));
-  }, []);
+  const updateContextInterview = useCallback(
+    (answers: InterviewAnswer[]) => {
+      setConfig((prev) => ({
+        ...prev,
+        contextConfig: { ...prev.contextConfig, interviewAnswers: answers },
+      }));
+      markDraftDirty();
+    },
+    [markDraftDirty],
+  );
 
-  const updateProjectNotes = useCallback((notes: string) => {
-    setConfig((prev) => ({
-      ...prev,
-      contextConfig: { ...prev.contextConfig, projectNotes: notes },
-    }));
-  }, []);
+  const updateProjectNotes = useCallback(
+    (notes: string) => {
+      setConfig((prev) => ({
+        ...prev,
+        contextConfig: { ...prev.contextConfig, projectNotes: notes },
+      }));
+      markDraftDirty();
+    },
+    [markDraftDirty],
+  );
 
-  const toggleDelimiters = useCallback((value: boolean) => {
-    setConfig((prev) => ({
-      ...prev,
-      contextConfig: { ...prev.contextConfig, useDelimiters: value },
-    }));
-  }, []);
+  const toggleDelimiters = useCallback(
+    (value: boolean) => {
+      setConfig((prev) => ({
+        ...prev,
+        contextConfig: { ...prev.contextConfig, useDelimiters: value },
+      }));
+      markDraftDirty();
+    },
+    [markDraftDirty],
+  );
 
   const builtPrompt = buildPrompt(config);
   const score = scorePrompt(config);
@@ -165,15 +413,28 @@ export function usePromptBuilder() {
     (name?: string) => {
       const promptToSave = enhancedPrompt || builtPrompt;
       if (!promptToSave) return;
-      const version = {
-        id: Date.now().toString(),
-        name: name || `Version ${versions.length + 1}`,
-        prompt: promptToSave,
-        timestamp: Date.now(),
-      };
-      setVersions((prev) => [version, ...prev]);
+      const versionName = name || `Version ${versions.length + 1}`;
+
+      if (userId) {
+        void persistence
+          .saveVersion(userId, versionName, promptToSave)
+          .then((saved) => {
+            if (saved) setVersions((prev) => [saved, ...prev]);
+          })
+          .catch((error) => {
+            showPersistenceError("Failed to save version", error, "Failed to save version.");
+          });
+      } else {
+        const version: persistence.PromptVersion = {
+          id: Date.now().toString(),
+          name: versionName,
+          prompt: promptToSave,
+          timestamp: Date.now(),
+        };
+        setVersions((prev) => [version, ...prev].slice(0, MAX_LOCAL_VERSIONS));
+      }
     },
-    [enhancedPrompt, builtPrompt, versions.length]
+    [enhancedPrompt, builtPrompt, versions.length, userId, showPersistenceError],
   );
 
   const loadTemplate = useCallback(
@@ -201,37 +462,43 @@ export function usePromptBuilder() {
         examples: template.examples,
       });
       setEnhancedPrompt("");
+      markDraftDirty();
     },
-    []
+    [markDraftDirty],
   );
 
   const saveAsTemplate = useCallback(
-    (input: { name: string; description?: string; tags?: string[] }): SaveTemplateResult => {
-      const result = saveTemplateSnapshot({
-        ...input,
-        config,
-      });
-      refreshTemplateSummaries();
+    async (input: {
+      name: string;
+      description?: string;
+      tags?: string[];
+    }): Promise<SaveTemplateResult> => {
+      const result = await persistence.saveTemplate(userId, { ...input, config });
+      await refreshTemplateSummaries();
       return result;
     },
-    [config, refreshTemplateSummaries]
+    [config, userId, refreshTemplateSummaries],
   );
 
-  const loadSavedTemplate = useCallback((id: string): TemplateLoadResult | null => {
-    const loaded = loadTemplateById(id);
-    if (!loaded) return null;
-    setConfig(hydrateConfig(loaded.record.state.promptConfig));
-    setEnhancedPrompt("");
-    return loaded;
-  }, []);
+  const loadSavedTemplate = useCallback(
+    async (id: string): Promise<TemplateLoadResult | null> => {
+      const loaded = await persistence.loadTemplateById(userId, id);
+      if (!loaded) return null;
+      setConfig(hydrateConfig(loaded.record.state.promptConfig));
+      setEnhancedPrompt("");
+      markDraftDirty();
+      return loaded;
+    },
+    [userId, markDraftDirty],
+  );
 
   const deleteSavedTemplate = useCallback(
-    (id: string): boolean => {
-      const deleted = deleteTemplateById(id);
-      if (deleted) refreshTemplateSummaries();
+    async (id: string): Promise<boolean> => {
+      const deleted = await persistence.deleteTemplate(userId, id);
+      if (deleted) await refreshTemplateSummaries();
       return deleted;
     },
-    [refreshTemplateSummaries]
+    [userId, refreshTemplateSummaries],
   );
 
   return {
