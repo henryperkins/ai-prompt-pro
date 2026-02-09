@@ -4,8 +4,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+import { badgeVariants } from "@/components/ui/badge";
 import { User, Target, Layout, Lightbulb, Shield } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   PromptConfig,
   roles,
@@ -37,23 +38,23 @@ export function BuilderTabs({ config, onUpdate }: BuilderTabsProps) {
   return (
     <Tabs defaultValue="role" className="w-full">
       <TabsList className="w-full grid grid-cols-5 h-auto gap-1 bg-muted/30 p-1">
-        <TabsTrigger value="role" className="gap-1 text-xs px-2">
+        <TabsTrigger value="role" aria-label="Role tab" className="interactive-chip gap-1 text-xs px-2">
           <User className="w-3 h-3" />
           <span className="hidden sm:inline">Role</span>
         </TabsTrigger>
-        <TabsTrigger value="task" className="gap-1 text-xs px-2">
+        <TabsTrigger value="task" aria-label="Task tab" className="interactive-chip gap-1 text-xs px-2">
           <Target className="w-3 h-3" />
           <span className="hidden sm:inline">Task</span>
         </TabsTrigger>
-        <TabsTrigger value="format" className="gap-1 text-xs px-2">
+        <TabsTrigger value="format" aria-label="Format tab" className="interactive-chip gap-1 text-xs px-2">
           <Layout className="w-3 h-3" />
           <span className="hidden sm:inline">Format</span>
         </TabsTrigger>
-        <TabsTrigger value="examples" className="gap-1 text-xs px-2">
+        <TabsTrigger value="examples" aria-label="Examples tab" className="interactive-chip gap-1 text-xs px-2">
           <Lightbulb className="w-3 h-3" />
           <span className="hidden sm:inline">Examples</span>
         </TabsTrigger>
-        <TabsTrigger value="constraints" className="gap-1 text-xs px-2">
+        <TabsTrigger value="constraints" aria-label="Rules tab" className="interactive-chip gap-1 text-xs px-2">
           <Shield className="w-3 h-3" />
           <span className="hidden sm:inline">Rules</span>
         </TabsTrigger>
@@ -97,14 +98,20 @@ export function BuilderTabs({ config, onUpdate }: BuilderTabsProps) {
         <p className="text-xs text-muted-foreground">How should the answer be structured?</p>
         <div className="flex flex-wrap gap-2">
           {formatOptions.map((format) => (
-            <Badge
+            <button
+              type="button"
               key={format}
-              variant={config.format.includes(format) ? "default" : "outline"}
-              className="cursor-pointer select-none transition-all"
+              className={cn(
+                badgeVariants({
+                  variant: config.format.includes(format) ? "default" : "outline",
+                }),
+                "interactive-chip cursor-pointer select-none"
+              )}
               onClick={() => toggleFormat(format)}
+              aria-pressed={config.format.includes(format)}
             >
               {format}
-            </Badge>
+            </button>
           ))}
         </div>
         <Input

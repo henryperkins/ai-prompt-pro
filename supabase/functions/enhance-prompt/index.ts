@@ -59,9 +59,10 @@ serve(async (req) => {
       );
     }
 
+    const dailyKey = auth.isAnonymous ? `${auth.userId}:${clientIp}` : auth.userId;
     const dailyLimit = await applyRateLimit({
       scope: "enhance-day",
-      key: auth.userId,
+      key: dailyKey,
       limit: ENHANCE_PER_DAY,
       windowMs: 86_400_000,
     });

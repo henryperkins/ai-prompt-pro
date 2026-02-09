@@ -94,6 +94,14 @@ export function usePromptBuilder() {
     localStorage.removeItem(STORAGE_KEY);
   }, []);
 
+  const clearOriginalPrompt = useCallback(() => {
+    setConfig((prev) => ({
+      ...prev,
+      originalPrompt: "",
+    }));
+    setEnhancedPrompt("");
+  }, []);
+
   // Context-specific updaters
   const updateContextSources = useCallback((sources: ContextSource[]) => {
     setConfig((prev) => ({
@@ -230,6 +238,7 @@ export function usePromptBuilder() {
     config,
     updateConfig,
     resetConfig,
+    clearOriginalPrompt,
     builtPrompt,
     score,
     enhancedPrompt,

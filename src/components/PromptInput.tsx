@@ -5,10 +5,10 @@ import { RotateCcw } from "lucide-react";
 interface PromptInputProps {
   value: string;
   onChange: (value: string) => void;
-  onReset: () => void;
+  onClear: () => void;
 }
 
-export function PromptInput({ value, onChange, onReset }: PromptInputProps) {
+export function PromptInput({ value, onChange, onClear }: PromptInputProps) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -16,9 +16,15 @@ export function PromptInput({ value, onChange, onReset }: PromptInputProps) {
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">{value.length} chars</span>
           {value && (
-            <Button variant="ghost" size="sm" onClick={onReset} className="h-6 px-2 text-xs gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClear}
+              aria-label="Clear prompt text"
+              className="interactive-chip h-6 px-2 text-xs gap-1"
+            >
               <RotateCcw className="w-3 h-3" />
-              Clear
+              Clear Prompt
             </Button>
           )}
         </div>

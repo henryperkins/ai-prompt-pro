@@ -91,6 +91,12 @@ All colors MUST be HSL.
     --tracking-normal: 0em;
 
     --spacing: 0.25rem;
+
+    --delight-warm: 161 90% 36%;
+    --delight-cool: 189 78% 42%;
+    --delight-glow: 161 95% 34%;
+    --delight-surface: 0 0% 100%;
+    --motion-snap: cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 
   .dark {
@@ -143,6 +149,10 @@ All colors MUST be HSL.
     --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 4px 6px -1px hsl(0 0% 0% / 0.1);
     --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 8px 10px -1px hsl(0 0% 0% / 0.1);
     --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+    --delight-warm: 158 72% 54%;
+    --delight-cool: 188 82% 56%;
+    --delight-glow: 160 85% 58%;
+    --delight-surface: 0 0% 16%;
   }
 }
 
@@ -153,5 +163,170 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    background-image:
+      radial-gradient(1100px 520px at -6% -12%, hsl(var(--delight-warm) / 0.17), transparent 58%),
+      radial-gradient(900px 500px at 102% -8%, hsl(var(--delight-cool) / 0.12), transparent 56%),
+      linear-gradient(180deg, hsl(var(--background)), hsl(var(--background)));
+    background-attachment: fixed;
+  }
+}
+
+@keyframes delight-hero-drift {
+  0%,
+  100% {
+    background-position: 0% 0%, 100% 0%;
+  }
+  50% {
+    background-position: 6% 12%, 94% -8%;
+  }
+}
+
+@keyframes delight-enhance-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 hsl(var(--delight-glow) / 0.3), 0 16px 36px -24px hsl(var(--delight-glow) / 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 8px hsl(var(--delight-glow) / 0), 0 20px 42px -22px hsl(var(--delight-glow) / 0.78);
+  }
+}
+
+@keyframes delight-enhance-sheen {
+  from {
+    transform: translateX(-130%);
+  }
+  to {
+    transform: translateX(130%);
+  }
+}
+
+@keyframes delight-settle {
+  0% {
+    transform: translateY(2px) scale(0.995);
+    box-shadow: 0 0 0 0 hsl(var(--delight-glow) / 0);
+  }
+  60% {
+    transform: translateY(-1px) scale(1.003);
+    box-shadow: 0 0 0 6px hsl(var(--delight-glow) / 0.08);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    box-shadow: 0 10px 26px -18px hsl(var(--delight-glow) / 0.4);
+  }
+}
+
+@layer components {
+  .delight-hero {
+    @apply rounded-2xl border border-border/70 px-4 py-5 sm:px-6 sm:py-7 shadow-sm;
+    background-image:
+      radial-gradient(480px 180px at 8% -12%, hsl(var(--delight-warm) / 0.2), transparent 58%),
+      radial-gradient(420px 180px at 90% -20%, hsl(var(--delight-cool) / 0.16), transparent 54%),
+      linear-gradient(180deg, hsl(var(--delight-surface) / 0.6), hsl(var(--card) / 0.85));
+    backdrop-filter: blur(8px);
+    animation: delight-hero-drift 18s ease-in-out infinite;
+  }
+
+  .interactive-chip {
+    transition:
+      transform 180ms var(--motion-snap),
+      box-shadow 180ms var(--motion-snap),
+      background-color 180ms var(--motion-snap),
+      border-color 180ms var(--motion-snap),
+      color 180ms var(--motion-snap);
+    box-shadow: 0 4px 14px -14px hsl(var(--foreground) / 0.65);
+  }
+
+  .interactive-chip:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 9px 20px -16px hsl(var(--foreground) / 0.78);
+  }
+
+  .interactive-chip:active {
+    transform: translateY(0) scale(0.98);
+  }
+
+  .interactive-card {
+    transition:
+      transform 220ms var(--motion-snap),
+      box-shadow 220ms var(--motion-snap),
+      border-color 220ms var(--motion-snap);
+    box-shadow: 0 8px 22px -24px hsl(var(--foreground) / 0.86);
+  }
+
+  .interactive-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 16px 40px -30px hsl(var(--foreground) / 0.8);
+  }
+
+  .interactive-card:active {
+    transform: translateY(0) scale(0.995);
+  }
+
+  .enhance-output-frame {
+    @apply border-border/90;
+    transition:
+      border-color 220ms var(--motion-snap),
+      box-shadow 220ms var(--motion-snap),
+      background-color 220ms var(--motion-snap);
+  }
+
+  .enhance-output-streaming {
+    position: relative;
+    isolation: isolate;
+    box-shadow: 0 20px 34px -32px hsl(var(--delight-glow) / 0.62);
+    border-color: hsl(var(--delight-glow) / 0.45);
+  }
+
+  .enhance-output-streaming::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    z-index: -1;
+    background: linear-gradient(
+      110deg,
+      transparent 34%,
+      hsl(var(--delight-glow) / 0.12) 49%,
+      transparent 64%
+    );
+    animation: delight-enhance-sheen 1700ms linear infinite;
+    pointer-events: none;
+  }
+
+  .enhance-output-complete {
+    animation: delight-settle 420ms var(--motion-snap) both;
+    border-color: hsl(var(--delight-glow) / 0.55);
+  }
+
+  .signature-enhance-button {
+    position: relative;
+    isolation: isolate;
+    box-shadow: 0 14px 30px -20px hsl(var(--delight-glow) / 0.62);
+  }
+
+  .signature-enhance-button[data-phase="starting"],
+  .signature-enhance-button[data-phase="streaming"] {
+    animation: delight-enhance-pulse 1100ms ease-in-out infinite;
+  }
+
+  .signature-enhance-button[data-phase="done"] {
+    border-color: hsl(var(--delight-glow) / 0.62);
+    box-shadow: 0 14px 34px -22px hsl(var(--delight-glow) / 0.72);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .delight-hero,
+  .enhance-output-streaming::after,
+  .signature-enhance-button[data-phase="starting"],
+  .signature-enhance-button[data-phase="streaming"],
+  .enhance-output-complete {
+    animation: none !important;
+  }
+
+  .interactive-chip:hover,
+  .interactive-chip:active,
+  .interactive-card:hover,
+  .interactive-card:active {
+    transform: none !important;
   }
 }

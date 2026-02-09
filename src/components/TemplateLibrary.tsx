@@ -87,14 +87,17 @@ function TemplateList({
         {savedTemplates.map((template) => (
           <Card
             key={template.id}
-            className="p-3 hover:border-primary/50 transition-all cursor-pointer group"
-            onClick={() => {
-              onSelectSaved(template.id);
-              onClose();
-            }}
+            className="interactive-card p-3 hover:border-primary/50 group"
           >
             <div className="flex items-start justify-between gap-2">
-              <div className="space-y-1 min-w-0">
+              <button
+                type="button"
+                className="space-y-1 min-w-0 flex-1 text-left rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onClick={() => {
+                  onSelectSaved(template.id);
+                  onClose();
+                }}
+              >
                 <div className="flex items-center gap-2 flex-wrap">
                   <h4 className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
                     {template.name}
@@ -113,11 +116,11 @@ function TemplateList({
                   <span>•</span>
                   <span>{template.ragEnabled ? "RAG on" : "RAG off"}</span>
                 </div>
-              </div>
+              </button>
               <Button
                 variant="ghost"
                 size="icon"
-                className="w-7 h-7 opacity-0 group-hover:opacity-100"
+                className="w-7 h-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
                 onClick={(event) => {
                   event.stopPropagation();
                   onDeleteSaved(template.id);
@@ -138,7 +141,7 @@ function TemplateList({
             variant={activeCategory === cat ? "default" : "outline"}
             size="sm"
             onClick={() => setActiveCategory(cat)}
-            className="gap-1.5 text-xs capitalize h-7 sm:h-8"
+            className="interactive-chip gap-1.5 text-xs capitalize h-7 sm:h-8"
           >
             {cat !== "all" && categoryIcons[cat]}
             {cat === "all" ? "All" : categoryLabels[cat]}
@@ -150,36 +153,41 @@ function TemplateList({
         {filtered.map((template) => (
           <Card
             key={template.id}
-            className="p-3 sm:p-4 hover:border-primary/50 transition-all cursor-pointer group"
-            onClick={() => {
-              onSelectPreset(template);
-              onClose();
-            }}
+            className="interactive-card hover:border-primary/50 group"
           >
-            <div className="flex items-start justify-between gap-2 sm:gap-3">
-              <div className="space-y-1 flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">
-                    {template.name}
-                  </h3>
-                  <Badge variant="outline" className="text-[10px] capitalize">
-                    {template.category}
-                  </Badge>
+            <button
+              type="button"
+              className="w-full p-3 sm:p-4 text-left rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              onClick={() => {
+                onSelectPreset(template);
+                onClose();
+              }}
+            >
+              <div className="flex items-start justify-between gap-2 sm:gap-3">
+                <div className="space-y-1 flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">
+                      {template.name}
+                    </h3>
+                    <Badge variant="outline" className="text-[10px] capitalize">
+                      {template.category}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground line-clamp-2">{template.description}</p>
+                  <div className="flex gap-1 mt-1.5">
+                    <Badge variant="secondary" className="text-[10px]">
+                      {template.tone}
+                    </Badge>
+                    <Badge variant="secondary" className="text-[10px]">
+                      {template.complexity}
+                    </Badge>
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground line-clamp-2">{template.description}</p>
-                <div className="flex gap-1 mt-1.5">
-                  <Badge variant="secondary" className="text-[10px]">
-                    {template.tone}
-                  </Badge>
-                  <Badge variant="secondary" className="text-[10px]">
-                    {template.complexity}
-                  </Badge>
-                </div>
+                <span className="shrink-0 text-xs opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex items-center rounded-md border border-primary/20 bg-accent text-accent-foreground px-2.5 h-8">
+                  Use
+                </span>
               </div>
-              <Button variant="soft" size="sm" className="shrink-0 text-xs opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex">
-                Use
-              </Button>
-            </div>
+            </button>
           </Card>
         ))}
       </div>

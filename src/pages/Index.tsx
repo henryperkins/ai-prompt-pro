@@ -1,11 +1,11 @@
-import { lazy, Suspense, useState, useEffect, useCallback } from "react";
+import { lazy, Suspense, useState, useEffect, useCallback, useRef } from "react";
 import { Header } from "@/components/Header";
 import { PromptInput } from "@/components/PromptInput";
 import { BuilderTabs } from "@/components/BuilderTabs";
 import { ContextPanel } from "@/components/ContextPanel";
 import { ToneControls } from "@/components/ToneControls";
 import { QualityScore } from "@/components/QualityScore";
-import { OutputPanel } from "@/components/OutputPanel";
+import { OutputPanel, type EnhancePhase } from "@/components/OutputPanel";
 import { usePromptBuilder } from "@/hooks/usePromptBuilder";
 import { streamEnhance } from "@/lib/ai-client";
 import { useToast } from "@/hooks/use-toast";
@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Loader2, Eye, Target, Layout as LayoutIcon, MessageSquare, BarChart3 } from "lucide-react";
+import { Sparkles, Loader2, Eye, Target, Layout as LayoutIcon, MessageSquare, BarChart3, Check } from "lucide-react";
 
 const TemplateLibrary = lazy(async () => {
   const module = await import("@/components/TemplateLibrary");
@@ -47,13 +47,15 @@ const Index = () => {
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [enhancePhase, setEnhancePhase] = useState<EnhancePhase>("idle");
+  const enhancePhaseTimers = useRef<number[]>([]);
   const { toast } = useToast();
   const isMobile = useIsMobile();
 
   const {
     config,
     updateConfig,
-    resetConfig,
+    clearOriginalPrompt,
     builtPrompt,
     score,
     enhancedPrompt,
@@ -80,30 +82,62 @@ const Index = () => {
     document.documentElement.classList.toggle("dark", isDark);
   }, [isDark]);
 
+  const clearEnhanceTimers = useCallback(() => {
+    enhancePhaseTimers.current.forEach((timer) => window.clearTimeout(timer));
+    enhancePhaseTimers.current = [];
+  }, []);
+
+  useEffect(() => {
+    return () => clearEnhanceTimers();
+  }, [clearEnhanceTimers]);
+
   const handleEnhance = useCallback(() => {
     if (!builtPrompt || isEnhancing) return;
+    clearEnhanceTimers();
+    setEnhancePhase("starting");
     setIsEnhancing(true);
     setEnhancedPrompt("");
 
     if (isMobile) setDrawerOpen(true);
 
     let accumulated = "";
+    let hasReceivedDelta = false;
     streamEnhance({
       prompt: builtPrompt,
       onDelta: (text) => {
+        if (!hasReceivedDelta) {
+          hasReceivedDelta = true;
+          setEnhancePhase("streaming");
+        }
         accumulated += text;
         setEnhancedPrompt(accumulated);
       },
       onDone: () => {
         setIsEnhancing(false);
+        setEnhancePhase("settling");
+        const doneTimer = window.setTimeout(() => {
+          setEnhancePhase("done");
+        }, 260);
+        const idleTimer = window.setTimeout(() => {
+          setEnhancePhase("idle");
+        }, 1800);
+        enhancePhaseTimers.current.push(doneTimer, idleTimer);
         toast({ title: "Prompt enhanced!", description: "Your prompt has been optimized by AI." });
       },
       onError: (error) => {
+        clearEnhanceTimers();
         setIsEnhancing(false);
+        setEnhancePhase("idle");
         toast({ title: "Enhancement failed", description: error, variant: "destructive" });
       },
     });
-  }, [builtPrompt, isEnhancing, setIsEnhancing, setEnhancedPrompt, toast, isMobile]);
+  }, [builtPrompt, clearEnhanceTimers, isEnhancing, setIsEnhancing, setEnhancedPrompt, toast, isMobile]);
+
+  useEffect(() => {
+    if (isEnhancing) return;
+    clearEnhanceTimers();
+    setEnhancePhase("idle");
+  }, [builtPrompt, clearEnhanceTimers, isEnhancing]);
 
   const handleSelectTemplate = useCallback(
     (template: PromptTemplate) => {
@@ -193,6 +227,15 @@ const Index = () => {
     config.contextConfig.sources.length > 0 ||
     config.contextConfig.databaseConnections.length > 0 ||
     !!config.contextConfig.rag.vectorStoreRef.trim();
+  const mobileEnhanceLabel = isEnhancing
+    ? enhancePhase === "starting"
+      ? "Starting…"
+      : enhancePhase === "settling"
+        ? "Finalizing…"
+        : "Enhancing…"
+    : enhancePhase === "done"
+      ? "Enhanced"
+      : "Enhance";
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -205,7 +248,7 @@ const Index = () => {
 
       <main className="flex-1 container mx-auto px-4 py-3 sm:py-6">
         {/* Hero — compact on mobile */}
-        <div className="text-center mb-4 sm:mb-8">
+        <div className="delight-hero text-center mb-4 sm:mb-8">
           <h1 className="text-xl sm:text-3xl md:text-4xl font-bold text-foreground mb-1 sm:mb-2 tracking-tight">
             Transform Basic Prompts into
             <span className="text-primary"> Pro-Level Instructions</span>
@@ -223,8 +266,8 @@ const Index = () => {
             {/* Prompt input always visible */}
             <PromptInput
               value={config.originalPrompt}
-              onChange={(v) => updateConfig({ originalPrompt: v, task: v })}
-              onReset={resetConfig}
+              onChange={(v) => updateConfig({ originalPrompt: v })}
+              onClear={clearOriginalPrompt}
             />
 
             {/* Accordion sections */}
@@ -324,6 +367,7 @@ const Index = () => {
                 builtPrompt={builtPrompt}
                 enhancedPrompt={enhancedPrompt}
                 isEnhancing={isEnhancing}
+                enhancePhase={enhancePhase}
                 onEnhance={handleEnhance}
                 onSaveVersion={saveVersion}
                 onSaveTemplate={handleSaveAsTemplate}
@@ -345,17 +389,18 @@ const Index = () => {
             size="default"
             onClick={handleEnhance}
             disabled={isEnhancing || !builtPrompt}
-            className="flex-1 gap-2"
+            className="signature-enhance-button flex-1 gap-2"
+            data-phase={enhancePhase}
           >
             {isEnhancing ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Enhancing…
+                {mobileEnhanceLabel}
               </>
             ) : (
               <>
-                <Sparkles className="w-4 h-4" />
-                Enhance
+                {enhancePhase === "done" ? <Check className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
+                {mobileEnhanceLabel}
               </>
             )}
           </Button>
@@ -387,6 +432,7 @@ const Index = () => {
                 builtPrompt={builtPrompt}
                 enhancedPrompt={enhancedPrompt}
                 isEnhancing={isEnhancing}
+                enhancePhase={enhancePhase}
                 onEnhance={handleEnhance}
                 onSaveVersion={saveVersion}
                 onSaveTemplate={handleSaveAsTemplate}

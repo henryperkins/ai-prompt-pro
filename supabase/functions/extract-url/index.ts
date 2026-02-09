@@ -104,9 +104,10 @@ serve(async (req) => {
       );
     }
 
+    const dailyKey = auth.isAnonymous ? `${auth.userId}:${clientIp}` : auth.userId;
     const dailyLimit = await applyRateLimit({
       scope: "extract-day",
-      key: auth.userId,
+      key: dailyKey,
       limit: EXTRACT_PER_DAY,
       windowMs: 86_400_000,
     });

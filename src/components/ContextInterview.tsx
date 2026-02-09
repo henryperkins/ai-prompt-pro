@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Badge, badgeVariants } from "@/components/ui/badge";
 import { MessageSquareText, ChevronRight, Check } from "lucide-react";
 import { interviewQuestions } from "@/lib/context-types";
 import type { InterviewAnswer } from "@/lib/context-types";
+import { cn } from "@/lib/utils";
 
 interface ContextInterviewProps {
   answers: InterviewAnswer[];
@@ -31,7 +32,7 @@ export function ContextInterview({ answers, onUpdate }: ContextInterviewProps) {
         <Button
           variant="outline"
           size="sm"
-          className="w-full gap-2 text-xs justify-between"
+          className="interactive-chip w-full gap-2 text-xs justify-between"
           onClick={() => setExpanded(true)}
         >
           <span className="flex items-center gap-2">
@@ -60,7 +61,7 @@ export function ContextInterview({ answers, onUpdate }: ContextInterviewProps) {
         <Button
           variant="ghost"
           size="sm"
-          className="h-6 text-xs"
+          className="interactive-chip h-6 text-xs"
           onClick={() => setExpanded(false)}
         >
           Minimize
@@ -74,15 +75,19 @@ export function ContextInterview({ answers, onUpdate }: ContextInterviewProps) {
           {currentQ.options.map((opt) => {
             const selected = getAnswer(currentQ.id) === opt;
             return (
-              <Badge
+              <button
+                type="button"
                 key={opt}
-                variant={selected ? "default" : "outline"}
-                className="cursor-pointer select-none text-xs transition-all"
+                className={cn(
+                  badgeVariants({ variant: selected ? "default" : "outline" }),
+                  "interactive-chip cursor-pointer select-none text-xs"
+                )}
                 onClick={() => setAnswer(currentQ.id, currentQ.question, selected ? "" : opt)}
+                aria-pressed={selected}
               >
                 {selected && <Check className="w-3 h-3 mr-1" />}
                 {opt}
-              </Badge>
+              </button>
             );
           })}
         </div>
@@ -99,7 +104,7 @@ export function ContextInterview({ answers, onUpdate }: ContextInterviewProps) {
         <Button
           variant="ghost"
           size="sm"
-          className="text-xs"
+          className="interactive-chip text-xs"
           disabled={currentStep === 0}
           onClick={() => setCurrentStep((s) => s - 1)}
         >
@@ -109,7 +114,7 @@ export function ContextInterview({ answers, onUpdate }: ContextInterviewProps) {
           <Button
             variant="outline"
             size="sm"
-            className="text-xs gap-1"
+            className="interactive-chip text-xs gap-1"
             onClick={() => setCurrentStep((s) => s + 1)}
           >
             Next
@@ -118,7 +123,7 @@ export function ContextInterview({ answers, onUpdate }: ContextInterviewProps) {
         ) : (
           <Button
             size="sm"
-            className="text-xs gap-1"
+            className="interactive-chip text-xs gap-1"
             onClick={() => setExpanded(false)}
           >
             <Check className="w-3 h-3" />

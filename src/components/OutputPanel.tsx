@@ -15,6 +15,9 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { buildLineDiff, type DiffLine } from "@/lib/text-diff";
+import { cn } from "@/lib/utils";
+
+export type EnhancePhase = "idle" | "starting" | "streaming" | "settling" | "done";
 
 interface OutputPanelProps {
   builtPrompt: string;
@@ -25,6 +28,7 @@ interface OutputPanelProps {
   onSaveTemplate: (input: { name: string; description?: string }) => void;
   canSaveTemplate: boolean;
   hideEnhanceButton?: boolean;
+  enhancePhase?: EnhancePhase;
 }
 
 export function OutputPanel({
@@ -36,6 +40,7 @@ export function OutputPanel({
   onSaveTemplate,
   canSaveTemplate,
   hideEnhanceButton = false,
+  enhancePhase = "idle",
 }: OutputPanelProps) {
   const [copied, setCopied] = useState(false);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
@@ -44,6 +49,27 @@ export function OutputPanel({
   const [templateDescription, setTemplateDescription] = useState("");
   const { toast } = useToast();
   const displayPrompt = enhancedPrompt || builtPrompt;
+  const isStreamingVisual = enhancePhase === "starting" || enhancePhase === "streaming";
+  const isSettledVisual = enhancePhase === "settling" || enhancePhase === "done";
+  const statusLabel =
+    enhancePhase === "starting"
+      ? "Starting"
+      : enhancePhase === "streaming"
+        ? "Streaming"
+        : enhancePhase === "settling"
+          ? "Finalizing"
+          : enhancePhase === "done"
+            ? "Ready"
+            : null;
+  const enhanceLabel = isEnhancing
+    ? enhancePhase === "starting"
+      ? "Priming..."
+      : enhancePhase === "settling"
+        ? "Finalizing..."
+        : "Enhancing..."
+    : enhancePhase === "done"
+      ? "Enhanced"
+      : "Enhance with AI";
   const hasCompare = Boolean(
     builtPrompt.trim() && enhancedPrompt.trim() && builtPrompt.trim() !== enhancedPrompt.trim()
   );
@@ -54,10 +80,18 @@ export function OutputPanel({
 
   const handleCopy = async () => {
     if (!displayPrompt) return;
-    await navigator.clipboard.writeText(displayPrompt);
-    setCopied(true);
-    toast({ title: "Copied to clipboard!", description: "Paste it into your favorite AI tool." });
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(displayPrompt);
+      setCopied(true);
+      toast({ title: "Copied to clipboard!", description: "Paste it into your favorite AI tool." });
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast({
+        title: "Copy failed",
+        description: "Clipboard access is blocked. Copy manually from the preview.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSaveTemplate = () => {
@@ -74,9 +108,16 @@ export function OutputPanel({
   return (
     <div className="space-y-4 h-full flex flex-col">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-medium text-foreground">
-          {enhancedPrompt ? "✨ Enhanced Prompt" : "📝 Preview"}
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-medium text-foreground">
+            {enhancedPrompt ? "✨ Enhanced Prompt" : "📝 Preview"}
+          </h2>
+          {statusLabel && (
+            <span className="interactive-chip inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+              {statusLabel}
+            </span>
+          )}
+        </div>
         <div className="flex gap-2">
           <Dialog open={compareDialogOpen} onOpenChange={setCompareDialogOpen}>
             <DialogTrigger asChild>
@@ -158,7 +199,13 @@ export function OutputPanel({
         </div>
       </div>
 
-      <Card className="flex-1 p-4 bg-card border-border overflow-auto">
+      <Card
+        className={cn(
+          "enhance-output-frame flex-1 p-4 bg-card overflow-auto",
+          isStreamingVisual && "enhance-output-streaming",
+          isSettledVisual && "enhance-output-complete"
+        )}
+      >
         {displayPrompt ? (
           <pre className="whitespace-pre-wrap text-sm font-mono text-foreground leading-relaxed">
             {displayPrompt}
@@ -180,17 +227,18 @@ export function OutputPanel({
           size="lg"
           onClick={onEnhance}
           disabled={isEnhancing || !builtPrompt}
-          className="w-full gap-2"
+          className="signature-enhance-button w-full gap-2"
+          data-phase={enhancePhase}
         >
           {isEnhancing ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              Enhancing...
+              {enhanceLabel}
             </>
           ) : (
             <>
-              <Sparkles className="w-4 h-4" />
-              Enhance with AI
+              {enhancePhase === "done" ? <Check className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
+              {enhanceLabel}
             </>
           )}
         </Button>

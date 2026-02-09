@@ -110,12 +110,38 @@ function decodeJwtPayload(token: string): Record<string, unknown> | null {
   }
 }
 
+function isPublishableKeyLike(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  return trimmed.startsWith("sb_publishable_");
+}
+
+function isLegacyAnonJwt(value: string): boolean {
+  const claims = decodeJwtPayload(value.trim());
+  if (!claims) return false;
+  return claims.role === "anon";
+}
+
+function isProjectApiKeyLike(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  return isPublishableKeyLike(trimmed) || isLegacyAnonJwt(trimmed);
+}
+
 export function requireAuthenticatedUser(req: Request):
-  | { ok: true; userId: string }
+  | { ok: true; userId: string; isAnonymous: boolean }
   | { ok: false; status: number; error: string } {
   const authHeader = req.headers.get("authorization") || "";
   const match = authHeader.match(/^Bearer\s+(.+)$/i);
   if (!match) {
+    const apiKey = req.headers.get("apikey")?.trim() || "";
+    if (isProjectApiKeyLike(apiKey)) {
+      return {
+        ok: true,
+        userId: "anon",
+        isAnonymous: true,
+      };
+    }
     return {
       ok: false,
       status: 401,
@@ -123,8 +149,17 @@ export function requireAuthenticatedUser(req: Request):
     };
   }
 
-  const claims = decodeJwtPayload(match[1]);
+  const bearerToken = match[1].trim();
+  const claims = decodeJwtPayload(bearerToken);
   if (!claims) {
+    const apiKey = req.headers.get("apikey")?.trim() || "";
+    if (apiKey && apiKey === bearerToken && isProjectApiKeyLike(apiKey)) {
+      return {
+        ok: true,
+        userId: "anon",
+        isAnonymous: true,
+      };
+    }
     return {
       ok: false,
       status: 401,
@@ -134,17 +169,28 @@ export function requireAuthenticatedUser(req: Request):
 
   const role = typeof claims.role === "string" ? claims.role : "";
   const sub = typeof claims.sub === "string" ? claims.sub : "";
-  if (role !== "authenticated" || !sub) {
+  if (role === "authenticated" && sub) {
     return {
-      ok: false,
-      status: 401,
-      error: "Authenticated Supabase session is required.",
+      ok: true,
+      userId: sub,
+      isAnonymous: false,
+    };
+  }
+
+  // Allow requests signed with the project publishable key (role=anon).
+  // This keeps AI features available when anonymous auth sign-ins are disabled.
+  if (role === "anon") {
+    return {
+      ok: true,
+      userId: "anon",
+      isAnonymous: true,
     };
   }
 
   return {
-    ok: true,
-    userId: sub,
+    ok: false,
+    status: 401,
+    error: "Authenticated Supabase session is required.",
   };
 }
 
