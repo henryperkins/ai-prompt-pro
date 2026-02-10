@@ -9,6 +9,7 @@ const SUPABASE_PUBLISHABLE_KEY =
 
 let bootstrapTokenPromise: Promise<string> | null = null;
 const ANON_AUTH_DISABLED_KEY = "ai-prompt-pro:anon-auth-disabled";
+const ACCESS_TOKEN_REFRESH_GRACE_SECONDS = 30;
 
 function readAnonAuthDisabled(): boolean {
   if (typeof window === "undefined") return false;
@@ -33,6 +34,29 @@ function persistAnonAuthDisabled(value: boolean): void {
 }
 
 let anonAuthDisabled = readAnonAuthDisabled();
+
+function sessionExpiresSoon(expiresAt: number | null | undefined): boolean {
+  if (typeof expiresAt !== "number" || !Number.isFinite(expiresAt)) return false;
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  return expiresAt <= nowSeconds + ACCESS_TOKEN_REFRESH_GRACE_SECONDS;
+}
+
+async function refreshSessionAccessToken(): Promise<string | null> {
+  const {
+    data: { session },
+    error,
+  } = await supabase.auth.refreshSession();
+  if (error) return null;
+  return session?.access_token ?? null;
+}
+
+async function clearLocalSupabaseSession(): Promise<void> {
+  try {
+    await supabase.auth.signOut({ scope: "local" });
+  } catch {
+    // Ignore local sign-out failures and continue with fallback auth.
+  }
+}
 
 function shouldPersistAnonAuthDisabled(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
@@ -67,8 +91,19 @@ function functionUrl(name: "enhance-prompt" | "extract-url"): string {
   return `${SUPABASE_URL}/functions/v1/${name}`;
 }
 
-async function getAccessToken(): Promise<string> {
+async function getAccessToken({
+  forceRefresh = false,
+  allowSessionToken = true,
+}: {
+  forceRefresh?: boolean;
+  allowSessionToken?: boolean;
+} = {}): Promise<string> {
   assertSupabaseEnv();
+
+  if (forceRefresh) {
+    const forcedToken = await refreshSessionAccessToken();
+    if (forcedToken) return forcedToken;
+  }
 
   const {
     data: { session },
@@ -78,7 +113,15 @@ async function getAccessToken(): Promise<string> {
     throw new Error(`Could not read auth session: ${sessionError.message}`);
   }
   if (session?.access_token) {
-    return session.access_token;
+    if (!allowSessionToken) {
+      await clearLocalSupabaseSession();
+    } else {
+      if (sessionExpiresSoon(session.expires_at)) {
+        const refreshedToken = await refreshSessionAccessToken();
+        if (refreshedToken) return refreshedToken;
+      }
+      return session.access_token;
+    }
   }
 
   if (!anonAuthDisabled) {
@@ -100,7 +143,18 @@ async function getAccessToken(): Promise<string> {
   return SUPABASE_PUBLISHABLE_KEY as string;
 }
 
-async function getAccessTokenWithBootstrap(): Promise<string> {
+async function getAccessTokenWithBootstrap({
+  forceRefresh = false,
+  allowSessionToken = true,
+}: {
+  forceRefresh?: boolean;
+  allowSessionToken?: boolean;
+} = {}): Promise<string> {
+  if (forceRefresh || !allowSessionToken) {
+    bootstrapTokenPromise = null;
+    return getAccessToken({ forceRefresh, allowSessionToken });
+  }
+
   if (!bootstrapTokenPromise) {
     bootstrapTokenPromise = getAccessToken().finally(() => {
       bootstrapTokenPromise = null;
@@ -109,14 +163,50 @@ async function getAccessTokenWithBootstrap(): Promise<string> {
   return bootstrapTokenPromise;
 }
 
-async function functionHeaders(): Promise<Record<string, string>> {
+async function functionHeaders({
+  forceRefresh = false,
+  allowSessionToken = true,
+}: {
+  forceRefresh?: boolean;
+  allowSessionToken?: boolean;
+} = {}): Promise<Record<string, string>> {
   assertSupabaseEnv();
-  const accessToken = await getAccessTokenWithBootstrap();
+  const accessToken = await getAccessTokenWithBootstrap({ forceRefresh, allowSessionToken });
   return {
     "Content-Type": "application/json",
     apikey: SUPABASE_PUBLISHABLE_KEY as string,
     Authorization: `Bearer ${accessToken}`,
   };
+}
+
+async function readFunctionError(resp: Response): Promise<string> {
+  const fallbackMessage = `Error: ${resp.status}`;
+  const errorData = await resp.json().catch(() => null);
+  if (!errorData || typeof errorData !== "object") {
+    return fallbackMessage;
+  }
+
+  const maybeError = (errorData as { error?: unknown }).error;
+  if (typeof maybeError === "string" && maybeError.trim()) {
+    return maybeError.trim();
+  }
+
+  const maybeDetail = (errorData as { detail?: unknown }).detail;
+  if (typeof maybeDetail === "string" && maybeDetail.trim()) {
+    return maybeDetail.trim();
+  }
+
+  return fallbackMessage;
+}
+
+function isInvalidSupabaseSessionError(status: number, errorMessage: string): boolean {
+  if (status !== 401) return false;
+  const normalized = errorMessage.toLowerCase();
+  return (
+    normalized.includes("invalid or expired supabase session") ||
+    (normalized.includes("invalid") && normalized.includes("session")) ||
+    (normalized.includes("expired") && normalized.includes("session"))
+  );
 }
 
 function extractSseError(payload: unknown): string | null {
@@ -145,14 +235,71 @@ function extractTextValue(value: unknown): string | null {
   return null;
 }
 
-function extractSseText(payload: unknown): string | null {
+function isItemDeltaEventType(eventType: string | null): boolean {
+  if (!eventType) return false;
+  if (eventType === "item/delta" || eventType === "item.delta") return true;
+  if (/^item\/[^/]+\/delta$/.test(eventType)) return true;
+  if (/^item\.[^.]+\.delta$/.test(eventType)) return true;
+  return false;
+}
+
+function isItemCompletedEventType(eventType: string | null): boolean {
+  if (!eventType) return false;
+  if (eventType === "item/completed" || eventType === "item.completed") return true;
+  if (/^item\/[^/]+\/completed$/.test(eventType)) return true;
+  if (/^item\.[^.]+\.completed$/.test(eventType)) return true;
+  return false;
+}
+
+function isResponseOutputTextDelta(responseType: string | null): boolean {
+  return responseType === "response.output_text.delta";
+}
+
+function isResponseOutputTextDone(responseType: string | null): boolean {
+  return responseType === "response.output_text.done";
+}
+
+function isRenderableItemType(itemType: string | null): boolean {
+  if (!itemType) return true;
+  const normalized = itemType.trim().toLowerCase();
+  if (!normalized) return true;
+
+  return (
+    normalized === "agent_message" ||
+    normalized === "assistant_message" ||
+    normalized === "enhancement" ||
+    normalized === "output_text" ||
+    normalized === "text" ||
+    normalized === "message"
+  );
+}
+
+function shouldEmitSseText(meta: {
+  eventType: string | null;
+  responseType: string | null;
+  itemType: string | null;
+}): boolean {
+  if (isResponseOutputTextDelta(meta.responseType) || isResponseOutputTextDone(meta.responseType)) {
+    return true;
+  }
+
+  if (isItemDeltaEventType(meta.eventType) || isItemCompletedEventType(meta.eventType)) {
+    return isRenderableItemType(meta.itemType);
+  }
+
+  return true;
+}
+
+export function extractSseText(payload: unknown): string | null {
   if (!payload || typeof payload !== "object") return null;
   const data = payload as {
     choices?: Array<{ delta?: { content?: unknown } }>;
+    event?: unknown;
     type?: unknown;
     delta?: unknown;
     output_text?: unknown;
     text?: unknown;
+    payload?: unknown;
     item?: unknown;
   };
 
@@ -162,26 +309,38 @@ function extractSseText(payload: unknown): string | null {
   }
 
   // Codex-style turn/item streaming event shape.
-  if (typeof data.type === "string") {
-    const eventType = data.type;
-    if (eventType === "item/delta" || eventType === "item.delta") {
-      return (
-        extractTextValue(data.delta) ||
-        extractTextValue((data.item as { delta?: unknown } | undefined)?.delta) ||
-        extractTextValue(data.item)
-      );
-    }
-    if (eventType === "item/completed" || eventType === "item.completed") {
-      return (
-        extractTextValue(data.text) ||
-        extractTextValue((data.item as { text?: unknown } | undefined)?.text) ||
-        extractTextValue(data.output_text)
-      );
-    }
+  const eventType =
+    typeof data.event === "string"
+      ? data.event
+      : typeof data.type === "string"
+        ? data.type
+        : null;
+  const responseType = typeof data.type === "string" ? data.type : null;
+
+  if (isItemDeltaEventType(eventType) || isResponseOutputTextDelta(responseType)) {
+    return (
+      extractTextValue(data.delta) ||
+      extractTextValue((data.item as { delta?: unknown } | undefined)?.delta) ||
+      extractTextValue((data.payload as { delta?: unknown } | undefined)?.delta) ||
+      extractTextValue(data.item)
+    );
+  }
+
+  if (isItemCompletedEventType(eventType) || isResponseOutputTextDone(responseType)) {
+    return (
+      extractTextValue(data.text) ||
+      extractTextValue((data.payload as { text?: unknown; output_text?: unknown } | undefined)?.text) ||
+      extractTextValue(
+        (data.payload as { text?: unknown; output_text?: unknown } | undefined)?.output_text,
+      ) ||
+      extractTextValue((data.item as { text?: unknown; output_text?: unknown } | undefined)?.text) ||
+      extractTextValue((data.item as { text?: unknown; output_text?: unknown } | undefined)?.output_text) ||
+      extractTextValue(data.output_text)
+    );
   }
 
   // Responses API streaming event shape.
-  if (data.type === "response.output_text.delta" && typeof data.delta === "string" && data.delta) {
+  if (isResponseOutputTextDelta(responseType) && typeof data.delta === "string" && data.delta) {
     return data.delta;
   }
 
@@ -193,29 +352,112 @@ function extractSseText(payload: unknown): string | null {
   return null;
 }
 
+export function readSseEventMeta(payload: unknown): {
+  eventType: string | null;
+  responseType: string | null;
+  threadId: string | null;
+  turnId: string | null;
+  itemId: string | null;
+  itemType: string | null;
+} {
+  if (!payload || typeof payload !== "object") {
+    return {
+      eventType: null,
+      responseType: null,
+      threadId: null,
+      turnId: null,
+      itemId: null,
+      itemType: null,
+    };
+  }
+
+  const data = payload as {
+    event?: unknown;
+    type?: unknown;
+    thread_id?: unknown;
+    turn_id?: unknown;
+    item_id?: unknown;
+    item_type?: unknown;
+    item?: unknown;
+  };
+  const responseType =
+    typeof data.type === "string" && data.type.startsWith("response.") ? data.type : null;
+  const eventType =
+    typeof data.event === "string"
+      ? data.event
+      : responseType ||
+          (typeof data.type === "string"
+            ? data.type
+            : null);
+
+  const threadId = typeof data.thread_id === "string" ? data.thread_id : null;
+  const turnId = typeof data.turn_id === "string" ? data.turn_id : null;
+
+  const itemId =
+    typeof data.item_id === "string"
+      ? data.item_id
+      : typeof (data.item as { id?: unknown } | undefined)?.id === "string"
+        ? ((data.item as { id?: unknown } | undefined)?.id as string)
+        : null;
+
+  const itemType =
+    typeof data.item_type === "string"
+      ? data.item_type
+      : typeof (data.item as { type?: unknown } | undefined)?.type === "string"
+        ? ((data.item as { type?: unknown } | undefined)?.type as string)
+        : null;
+
+  return { eventType, responseType, threadId, turnId, itemId, itemType };
+}
+
+
 export async function streamEnhance({
   prompt,
   onDelta,
   onDone,
   onError,
+  onEvent,
 }: {
   prompt: string;
   onDelta: (text: string) => void;
   onDone: () => void;
   onError: (error: string) => void;
+  onEvent?: (event: {
+    eventType: string | null;
+    responseType: string | null;
+    threadId: string | null;
+    turnId: string | null;
+    itemId: string | null;
+    itemType: string | null;
+    payload: unknown;
+  }) => void;
 }) {
   try {
-    const headers = await functionHeaders();
-    const resp = await fetch(functionUrl("enhance-prompt"), {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ prompt }),
-    });
+    const requestEnhance = (headers: Record<string, string>) =>
+      fetch(functionUrl("enhance-prompt"), {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ prompt }),
+      });
+
+    let headers = await functionHeaders();
+    let resp = await requestEnhance(headers);
 
     if (!resp.ok) {
-      const errorData = await resp.json().catch(() => ({ error: "Enhancement failed" }));
-      onError(errorData.error || `Error: ${resp.status}`);
-      return;
+      let errorMessage = await readFunctionError(resp);
+
+      if (resp.status === 401 || isInvalidSupabaseSessionError(resp.status, errorMessage)) {
+        headers = await functionHeaders({ forceRefresh: true, allowSessionToken: false });
+        resp = await requestEnhance(headers);
+        if (!resp.ok) {
+          errorMessage = await readFunctionError(resp);
+          onError(errorMessage);
+          return;
+        }
+      } else {
+        onError(errorMessage);
+        return;
+      }
     }
 
     if (!resp.body) {
@@ -228,6 +470,7 @@ export async function streamEnhance({
     let textBuffer = "";
     let streamDone = false;
     let terminalError: string | null = null;
+    const deltaItemIds = new Set<string>();
 
     while (!streamDone) {
       const { done, value } = await reader.read();
@@ -256,6 +499,24 @@ export async function streamEnhance({
             terminalError = parsedError;
             streamDone = true;
             break;
+          }
+
+          const meta = readSseEventMeta(parsed);
+          onEvent?.({ ...meta, payload: parsed });
+
+          if (isItemDeltaEventType(meta.eventType) || isResponseOutputTextDelta(meta.responseType)) {
+            if (meta.itemId) deltaItemIds.add(meta.itemId);
+          }
+          if (
+            (isItemCompletedEventType(meta.eventType) || isResponseOutputTextDone(meta.responseType)) &&
+            meta.itemId &&
+            deltaItemIds.has(meta.itemId)
+          ) {
+            continue;
+          }
+
+          if (!shouldEmitSseText(meta)) {
+            continue;
           }
 
           const content = extractSseText(parsed);
@@ -288,6 +549,25 @@ export async function streamEnhance({
             terminalError = parsedError;
             break;
           }
+
+          const meta = readSseEventMeta(parsed);
+          onEvent?.({ ...meta, payload: parsed });
+
+          if (isItemDeltaEventType(meta.eventType) || isResponseOutputTextDelta(meta.responseType)) {
+            if (meta.itemId) deltaItemIds.add(meta.itemId);
+          }
+          if (
+            (isItemCompletedEventType(meta.eventType) || isResponseOutputTextDone(meta.responseType)) &&
+            meta.itemId &&
+            deltaItemIds.has(meta.itemId)
+          ) {
+            continue;
+          }
+
+          if (!shouldEmitSseText(meta)) {
+            continue;
+          }
+
           const content = extractSseText(parsed);
           if (content) onDelta(content);
         } catch {
