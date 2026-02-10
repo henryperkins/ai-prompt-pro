@@ -119,6 +119,7 @@ function toPromptSummary(template: TemplateSummary): persistence.PromptSummary {
     ...template,
     category: "general",
     isShared: false,
+    communityPostId: null,
     targetModel: "",
     useCase: "",
     remixedFrom: null,

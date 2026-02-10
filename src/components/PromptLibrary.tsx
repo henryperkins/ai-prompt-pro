@@ -50,7 +50,9 @@ import {
   Lock,
   GitBranch,
   MessageCircle,
+  ExternalLink,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 interface PromptLibraryProps {
   open: boolean;
@@ -429,6 +431,7 @@ function PromptList({
                 {prompt.isShared && (
                   <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                     <span>▲ {prompt.upvoteCount}</span>
+                    <span>✓ {prompt.verifiedCount}</span>
                     <span>🔀 {prompt.remixCount}</span>
                     <span className="inline-flex items-center gap-1">
                       <MessageCircle className="w-3 h-3" />
@@ -438,6 +441,19 @@ function PromptList({
                 )}
               </button>
               <div className="flex flex-col gap-1">
+                {prompt.isShared && prompt.communityPostId && (
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-[11px]"
+                  >
+                    <Link to={`/community/${prompt.communityPostId}`}>
+                      Open
+                      <ExternalLink className="w-3 h-3" />
+                    </Link>
+                  </Button>
+                )}
                 {prompt.isShared ? (
                   <Button
                     variant="outline"

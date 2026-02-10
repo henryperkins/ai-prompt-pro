@@ -1,6 +1,7 @@
 import { formatDistanceToNow } from "date-fns";
 import {
   ArrowUp,
+  BookmarkPlus,
   CheckCircle2,
   Copy,
   ExternalLink,
@@ -28,6 +29,8 @@ interface CommunityPostDetailProps {
   voteState?: VoteState;
   onCommentAdded: (postId: string) => void;
   canVote: boolean;
+  canSaveToLibrary: boolean;
+  onSaveToLibrary: (postId: string) => void;
 }
 
 function getInitials(name: string): string {
@@ -44,6 +47,65 @@ function renderAuthor(authorById: Record<string, CommunityProfile>, authorId: st
   return authorById[authorId]?.displayName || "Community member";
 }
 
+interface RemixDiffDisplay {
+  changes: Array<{
+    field: string;
+    from: string | string[];
+    to: string | string[];
+  }>;
+  added_tags: string[];
+  removed_tags: string[];
+  category_changed: boolean;
+}
+
+function parseRemixDiff(value: unknown): RemixDiffDisplay | null {
+  if (!value || typeof value !== "object") return null;
+  const candidate = value as Record<string, unknown>;
+
+  const rawChanges = Array.isArray(candidate.changes) ? candidate.changes : [];
+  const changes = rawChanges
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") return null;
+      const row = entry as Record<string, unknown>;
+      const field = typeof row.field === "string" ? row.field : null;
+      const fromValue = row.from;
+      const toValue = row.to;
+      if (!field) return null;
+      const from = Array.isArray(fromValue)
+        ? fromValue.map((item) => String(item))
+        : String(fromValue ?? "");
+      const to = Array.isArray(toValue)
+        ? toValue.map((item) => String(item))
+        : String(toValue ?? "");
+      return { field, from, to };
+    })
+    .filter((entry): entry is RemixDiffDisplay["changes"][number] => !!entry);
+
+  const addedTags = Array.isArray(candidate.added_tags)
+    ? candidate.added_tags.map((tag) => String(tag))
+    : [];
+  const removedTags = Array.isArray(candidate.removed_tags)
+    ? candidate.removed_tags.map((tag) => String(tag))
+    : [];
+  const categoryChanged = Boolean(candidate.category_changed);
+
+  if (!changes.length && !addedTags.length && !removedTags.length && !categoryChanged) {
+    return null;
+  }
+
+  return {
+    changes,
+    added_tags: addedTags,
+    removed_tags: removedTags,
+    category_changed: categoryChanged,
+  };
+}
+
+function stringifyDiffValue(value: string | string[]): string {
+  if (Array.isArray(value)) return value.join(", ");
+  return value;
+}
+
 export function CommunityPostDetail({
   post,
   authorName,
@@ -56,8 +118,11 @@ export function CommunityPostDetail({
   voteState,
   onCommentAdded,
   canVote,
+  canSaveToLibrary,
+  onSaveToLibrary,
 }: CommunityPostDetailProps) {
   const createdAgo = formatDistanceToNow(new Date(post.createdAt), { addSuffix: true });
+  const remixDiff = parseRemixDiff(post.remixDiff);
 
   return (
     <div className="space-y-4">
@@ -76,6 +141,17 @@ export function CommunityPostDetail({
           <div className="flex items-center gap-2">
             <Button asChild variant="ghost" size="sm" className="h-8 text-xs">
               <Link to={`/?remix=${post.id}`}>Remix</Link>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 text-xs"
+              disabled={!canSaveToLibrary}
+              onClick={() => onSaveToLibrary(post.id)}
+            >
+              <BookmarkPlus className="h-3.5 w-3.5" />
+              Save to Library
             </Button>
             <Button
               type="button"
@@ -101,6 +177,39 @@ export function CommunityPostDetail({
             <Link to={`/community/${parentPost.id}`} className="underline underline-offset-2">
               {parentPost.title}
             </Link>
+          </div>
+        )}
+
+        {remixDiff && (
+          <div className="space-y-2 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs">
+            <p className="font-medium text-primary">Remix diff</p>
+            {remixDiff.changes.length > 0 && (
+              <div className="space-y-1 text-muted-foreground">
+                {remixDiff.changes.map((change) => (
+                  <p key={`${post.id}-${change.field}`}>
+                    <span className="font-medium text-foreground">{change.field}:</span>{" "}
+                    {stringifyDiffValue(change.from)} → {stringifyDiffValue(change.to)}
+                  </p>
+                ))}
+              </div>
+            )}
+            {remixDiff.added_tags.length > 0 && (
+              <p className="text-muted-foreground">
+                <span className="font-medium text-foreground">Added tags:</span>{" "}
+                {remixDiff.added_tags.join(", ")}
+              </p>
+            )}
+            {remixDiff.removed_tags.length > 0 && (
+              <p className="text-muted-foreground">
+                <span className="font-medium text-foreground">Removed tags:</span>{" "}
+                {remixDiff.removed_tags.join(", ")}
+              </p>
+            )}
+            {remixDiff.category_changed && (
+              <p className="text-muted-foreground">
+                <span className="font-medium text-foreground">Category:</span> changed from parent
+              </p>
+            )}
           </div>
         )}
 

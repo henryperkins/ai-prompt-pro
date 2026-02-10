@@ -14,6 +14,7 @@ import {
   loadPost,
   loadProfilesByIds,
   loadRemixes,
+  remixToLibrary,
   loadMyVotes,
   toggleVote,
   type VoteState,
@@ -168,6 +169,30 @@ const CommunityPost = () => {
     });
   }, []);
 
+  const handleSaveToLibrary = useCallback(
+    async (targetId: string) => {
+      if (!user || user.is_anonymous) {
+        toast({ title: "Sign in required", description: "Create an account to save remixes." });
+        return;
+      }
+
+      try {
+        const saved = await remixToLibrary(targetId);
+        toast({
+          title: "Saved to Library",
+          description: `“${saved.title}” is now in your private prompts.`,
+        });
+      } catch (error) {
+        toast({
+          title: "Failed to save remix",
+          description: error instanceof Error ? error.message : "Unexpected error",
+          variant: "destructive",
+        });
+      }
+    },
+    [toast, user],
+  );
+
   const postAuthor = post ? authorById[post.authorId] : null;
   const postAuthorName = postAuthor?.displayName || "Community member";
 
@@ -222,6 +247,8 @@ const CommunityPost = () => {
             voteState={voteState ?? undefined}
             onCommentAdded={handleCommentAdded}
             canVote={Boolean(user)}
+            canSaveToLibrary={Boolean(user && !user.is_anonymous)}
+            onSaveToLibrary={handleSaveToLibrary}
           />
         )}
       </main>

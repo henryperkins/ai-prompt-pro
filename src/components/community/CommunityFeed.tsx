@@ -14,6 +14,9 @@ interface CommunityFeedProps {
   voteStateByPost: Record<string, VoteState>;
   onCommentAdded: (postId: string) => void;
   canVote: boolean;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
+  onLoadMore?: () => void;
 }
 
 function LoadingCard() {
@@ -48,6 +51,9 @@ export function CommunityFeed({
   voteStateByPost,
   onCommentAdded,
   canVote,
+  hasMore = false,
+  isLoadingMore = false,
+  onLoadMore,
 }: CommunityFeedProps) {
   if (loading) {
     return (
@@ -96,6 +102,18 @@ export function CommunityFeed({
           />
         );
       })}
+      {hasMore && onLoadMore && (
+        <div className="flex justify-center pt-1">
+          <button
+            type="button"
+            onClick={onLoadMore}
+            disabled={isLoadingMore}
+            className="interactive-chip h-8 rounded-md border border-border px-3 text-xs text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isLoadingMore ? "Loading..." : "Load more"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

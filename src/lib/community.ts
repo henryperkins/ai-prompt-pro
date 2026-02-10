@@ -112,6 +112,7 @@ export interface LoadFeedInput {
   category?: string;
   search?: string;
   cursor?: string;
+  page?: number;
   limit?: number;
 }
 
@@ -399,7 +400,7 @@ export async function savePrompt(input: SavePromptInput): Promise<SavePromptResu
   const normalizedCategory = normalizePromptCategory(input.category) ?? "general";
   const normalizedTags = normalizePromptTags(input.tags);
   const normalizedTargetModel = clampText(input.targetModel, 80);
-  const normalizedUseCase = clampText(input.useCase, 500);
+  const normalizedUseCase = clampText(input.useCase, 1000);
   const normalizedBuiltPrompt = input.builtPrompt || "";
   const normalizedEnhancedPrompt = input.enhancedPrompt || "";
   const normalizedRemixNote = clampText(input.remixNote, 500);
@@ -582,14 +583,16 @@ export async function unsharePrompt(savedPromptId: string): Promise<boolean> {
 }
 
 export async function loadFeed(input: LoadFeedInput = {}): Promise<CommunityPost[]> {
-  const { sort = "new", category, search, cursor, limit = 25 } = input;
+  const { sort = "new", category, search, cursor, page = 0, limit = 25 } = input;
+  const normalizedLimit = Math.min(Math.max(limit, 1), 100);
+  const normalizedPage = Math.max(page, 0);
 
   try {
     let builder = supabase
       .from("community_posts")
       .select(COMMUNITY_POST_SELECT_COLUMNS)
       .eq("is_public", true)
-      .limit(Math.min(Math.max(limit, 1), 100));
+      .limit(normalizedLimit);
 
     if (category && category !== "all") {
       builder = builder.eq("category", category);
@@ -602,6 +605,9 @@ export async function loadFeed(input: LoadFeedInput = {}): Promise<CommunityPost
 
     if (cursor) {
       builder = builder.lt("created_at", cursor);
+    } else if (normalizedPage > 0) {
+      const start = normalizedPage * normalizedLimit;
+      builder = builder.range(start, start + normalizedLimit - 1);
     }
 
     if (sort === "popular") {
@@ -872,7 +878,7 @@ export async function remixToLibrary(
         fingerprint: computeTemplateFingerprint(config),
         is_shared: false,
         target_model: clampText(post.targetModel, 80),
-        use_case: clampText(post.useCase, 500),
+        use_case: clampText(post.useCase, 1000),
         remixed_from: post.id,
         remix_note: clampText(options?.remixNote, 500),
         remix_diff: null,

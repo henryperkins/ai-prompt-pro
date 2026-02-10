@@ -2,6 +2,7 @@ import json
 import os
 from functools import lru_cache
 from typing import Annotated, Any, AsyncIterator, Mapping
+from uuid import uuid4
 
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import StreamingResponse
@@ -292,25 +293,137 @@ def _validate_service_token(header_token: str | None) -> None:
         raise HTTPException(status_code=401, detail="Invalid or missing service token.")
 
 
+def _encode_sse(payload: Mapping[str, object]) -> str:
+    return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+
 async def _stream_sse(prompt: str) -> AsyncIterator[str]:
     agent = get_agent()
     message = f"Please enhance this prompt:\n\n{prompt}"
     run_options = _build_run_options()
+    thread_id = f"thread_{uuid4().hex}"
+    turn_id = f"turn_{uuid4().hex}"
+    user_prompt_item_id = f"item_{uuid4().hex}"
+    enhancement_item_id = f"item_{uuid4().hex}"
+    accumulated: list[str] = []
 
     try:
+        yield _encode_sse(
+            {
+                "event": "thread/started",
+                "type": "thread/started",
+                "thread_id": thread_id,
+            }
+        )
+        yield _encode_sse(
+            {
+                "event": "turn/started",
+                "type": "response.created",
+                "turn_id": turn_id,
+                "thread_id": thread_id,
+                "kind": "enhance",
+            }
+        )
+        yield _encode_sse(
+            {
+                "event": "item/started",
+                "type": "response.output_item.added",
+                "turn_id": turn_id,
+                "thread_id": thread_id,
+                "item_id": user_prompt_item_id,
+                "item_type": "user_prompt",
+                "item": {
+                    "id": user_prompt_item_id,
+                    "type": "user_prompt",
+                },
+            }
+        )
+        yield _encode_sse(
+            {
+                "event": "item/completed",
+                "type": "response.output_item.done",
+                "turn_id": turn_id,
+                "thread_id": thread_id,
+                "item_id": user_prompt_item_id,
+                "item_type": "user_prompt",
+                "payload": {"text": prompt},
+                "item": {
+                    "id": user_prompt_item_id,
+                    "type": "user_prompt",
+                    "text": prompt,
+                },
+            }
+        )
+        yield _encode_sse(
+            {
+                "event": "item/started",
+                "type": "response.output_item.added",
+                "turn_id": turn_id,
+                "thread_id": thread_id,
+                "item_id": enhancement_item_id,
+                "item_type": "enhancement",
+                "item": {
+                    "id": enhancement_item_id,
+                    "type": "enhancement",
+                },
+            }
+        )
+
         async for chunk in agent.run_stream(message, options=run_options):
             text = getattr(chunk, "text", None)
             if not text:
                 continue
+            accumulated.append(text)
 
-            # Emit a Chat Completions-compatible SSE chunk so the existing client parser keeps working.
-            payload = {"choices": [{"delta": {"content": text}}]}
-            yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+            # Emit an event envelope plus Chat Completions-compatible delta in one payload.
+            payload = {
+                "event": "item/agent_message/delta",
+                "type": "response.output_text.delta",
+                "turn_id": turn_id,
+                "thread_id": thread_id,
+                "item_id": enhancement_item_id,
+                "item_type": "agent_message",
+                "delta": text,
+                "choices": [{"delta": {"content": text}}],
+            }
+            yield _encode_sse(payload)
 
+        final_text = "".join(accumulated)
+        yield _encode_sse(
+            {
+                "event": "item/completed",
+                "type": "response.output_text.done",
+                "turn_id": turn_id,
+                "thread_id": thread_id,
+                "item_id": enhancement_item_id,
+                "item_type": "agent_message",
+                "payload": {"text": final_text},
+                "text": final_text,
+                "output_text": final_text,
+            }
+        )
+        yield _encode_sse(
+            {
+                "event": "turn/completed",
+                "type": "response.completed",
+                "turn_id": turn_id,
+                "thread_id": thread_id,
+                "response": {
+                    "id": turn_id,
+                    "status": "completed",
+                },
+            }
+        )
         yield "data: [DONE]\n\n"
     except Exception as exc:  # pragma: no cover - defensive streaming fallback
-        error_payload = {"error": str(exc)}
-        yield f"data: {json.dumps(error_payload, ensure_ascii=False)}\n\n"
+        error_payload = {
+            "event": "turn/error",
+            "type": "turn/error",
+            "turn_id": turn_id,
+            "thread_id": thread_id,
+            "error": str(exc),
+        }
+        yield _encode_sse(error_payload)
         yield "data: [DONE]\n\n"
 
 

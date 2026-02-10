@@ -33,6 +33,7 @@ const CATEGORY_OPTIONS = [
   { value: "all", label: "All" },
   ...PROMPT_CATEGORY_OPTIONS,
 ];
+const FEED_PAGE_SIZE = 20;
 
 function toProfileMap(profiles: CommunityProfile[]): Record<string, CommunityProfile> {
   return profiles.reduce<Record<string, CommunityProfile>>((map, profile) => {
@@ -64,6 +65,9 @@ const Community = () => {
   const [queryInput, setQueryInput] = useState("");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [page, setPage] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const requestToken = useRef(0);
   const { toast } = useToast();
@@ -80,41 +84,67 @@ const Community = () => {
     document.documentElement.classList.toggle("dark", isDark);
   }, [isDark]);
 
+  const hydrateFeedContext = useCallback(
+    async (
+      targetPosts: CommunityPost[],
+      token: number,
+      mode: "replace" | "merge" = "replace",
+    ) => {
+      const authorIds = Array.from(new Set(targetPosts.map((post) => post.authorId)));
+      const parentIds = Array.from(
+        new Set(targetPosts.map((post) => post.remixedFrom).filter((value): value is string => !!value)),
+      );
+
+      const [authorProfiles, parentPosts, voteStates] = await Promise.all([
+        loadProfilesByIds(authorIds),
+        loadPostsByIds(parentIds),
+        loadMyVotes(targetPosts.map((post) => post.id)),
+      ]);
+
+      if (token !== requestToken.current) return;
+
+      const nextAuthors = toProfileMap(authorProfiles);
+      const nextParentTitles = toParentTitleMap(parentPosts);
+      if (mode === "merge") {
+        setAuthorById((previous) => ({ ...previous, ...nextAuthors }));
+        setParentTitleById((previous) => ({ ...previous, ...nextParentTitles }));
+        setVoteStateByPost((previous) => ({ ...previous, ...voteStates }));
+        return;
+      }
+
+      setAuthorById(nextAuthors);
+      setParentTitleById(nextParentTitles);
+      setVoteStateByPost(voteStates);
+    },
+    [],
+  );
+
   useEffect(() => {
     const token = ++requestToken.current;
     setLoading(true);
+    setIsLoadingMore(false);
     setErrorMessage(null);
 
     void (async () => {
       try {
-        const nextPosts = await loadFeed({
+        const firstPage = await loadFeed({
           sort,
           category,
           search: query || undefined,
-          limit: 60,
+          limit: FEED_PAGE_SIZE,
+          page: 0,
         });
         if (token !== requestToken.current) return;
 
-        setPosts(nextPosts);
-
-        const authorIds = Array.from(new Set(nextPosts.map((post) => post.authorId)));
-        const parentIds = Array.from(
-          new Set(nextPosts.map((post) => post.remixedFrom).filter((value): value is string => !!value)),
-        );
-
-        const [authorProfiles, parentPosts, voteStates] = await Promise.all([
-          loadProfilesByIds(authorIds),
-          loadPostsByIds(parentIds),
-          loadMyVotes(nextPosts.map((post) => post.id)),
-        ]);
-
-        if (token !== requestToken.current) return;
-        setAuthorById(toProfileMap(authorProfiles));
-        setParentTitleById(toParentTitleMap(parentPosts));
-        setVoteStateByPost(voteStates);
+        setPosts(firstPage);
+        setPage(0);
+        setHasMore(firstPage.length === FEED_PAGE_SIZE);
+        await hydrateFeedContext(firstPage, token);
       } catch (error) {
         if (token !== requestToken.current) return;
         setPosts([]);
+        setPage(0);
+        setHasMore(false);
         setAuthorById({});
         setParentTitleById({});
         setVoteStateByPost({});
@@ -125,7 +155,63 @@ const Community = () => {
         }
       }
     })();
-  }, [sort, category, query, user?.id]);
+  }, [sort, category, query, user?.id, hydrateFeedContext]);
+
+  const handleLoadMore = useCallback(() => {
+    if (loading || isLoadingMore || !hasMore) return;
+    const token = requestToken.current;
+    const nextPage = page + 1;
+    setIsLoadingMore(true);
+
+    void (async () => {
+      try {
+        const nextPagePosts = await loadFeed({
+          sort,
+          category,
+          search: query || undefined,
+          limit: FEED_PAGE_SIZE,
+          page: nextPage,
+        });
+        if (token !== requestToken.current) return;
+
+        const seenIds = new Set(posts.map((post) => post.id));
+        const dedupedNewPosts = nextPagePosts.filter((post) => !seenIds.has(post.id));
+
+        setPosts((previous) => {
+          const previousIds = new Set(previous.map((post) => post.id));
+          const dedupedAgainstPrevious = nextPagePosts.filter((post) => !previousIds.has(post.id));
+          return [...previous, ...dedupedAgainstPrevious];
+        });
+        setPage(nextPage);
+        setHasMore(nextPagePosts.length === FEED_PAGE_SIZE);
+        if (dedupedNewPosts.length > 0) {
+          await hydrateFeedContext(dedupedNewPosts, token, "merge");
+        }
+      } catch (error) {
+        if (token !== requestToken.current) return;
+        toast({
+          title: "Could not load more posts",
+          description: error instanceof Error ? error.message : "Unexpected error",
+          variant: "destructive",
+        });
+      } finally {
+        if (token === requestToken.current) {
+          setIsLoadingMore(false);
+        }
+      }
+    })();
+  }, [
+    loading,
+    isLoadingMore,
+    hasMore,
+    page,
+    sort,
+    category,
+    query,
+    posts,
+    hydrateFeedContext,
+    toast,
+  ]);
 
   const handleCopyPrompt = useCallback(
     async (post: CommunityPost) => {
@@ -265,6 +351,9 @@ const Community = () => {
           voteStateByPost={voteStateByPost}
           onCommentAdded={handleCommentAdded}
           canVote={Boolean(user)}
+          hasMore={hasMore}
+          isLoadingMore={isLoadingMore}
+          onLoadMore={handleLoadMore}
         />
       </main>
     </div>

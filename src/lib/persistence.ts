@@ -49,6 +49,7 @@ export class PersistenceError extends Error {
 export interface PromptSummary extends TemplateSummary {
   category: string;
   isShared: boolean;
+  communityPostId: string | null;
   targetModel: string;
   useCase: string;
   remixedFrom: string | null;
@@ -122,7 +123,7 @@ function normalizeDescription(description?: string): string | undefined {
 
 function normalizeUseCase(useCase?: string): string | undefined {
   if (useCase === undefined) return undefined;
-  return useCase.trim().slice(0, 500);
+  return useCase.trim().slice(0, 1000);
 }
 
 function normalizeTargetModel(targetModel?: string): string | undefined {
@@ -211,6 +212,7 @@ export async function loadPrompts(userId: string | null): Promise<PromptSummary[
       ...template,
       category: "general",
       isShared: false,
+      communityPostId: null,
       targetModel: "",
       useCase: "",
       remixedFrom: null,
@@ -238,6 +240,7 @@ export async function loadPrompts(userId: string | null): Promise<PromptSummary[
     const metricsByPromptId = new Map<
       string,
       {
+        community_post_id: string;
         upvote_count: number;
         verified_count: number;
         remix_count: number;
@@ -248,13 +251,14 @@ export async function loadPrompts(userId: string | null): Promise<PromptSummary[
     if (promptIds.length > 0) {
       const { data: postMetrics, error: postMetricsError } = await supabase
         .from("community_posts")
-        .select("saved_prompt_id, upvote_count, verified_count, remix_count, comment_count")
+        .select("id, saved_prompt_id, upvote_count, verified_count, remix_count, comment_count")
         .in("saved_prompt_id", promptIds)
         .eq("is_public", true);
 
       if (!postMetricsError && postMetrics) {
         postMetrics.forEach((post) => {
           metricsByPromptId.set(post.saved_prompt_id, {
+            community_post_id: post.id,
             upvote_count: post.upvote_count,
             verified_count: post.verified_count,
             remix_count: post.remix_count,
@@ -282,6 +286,7 @@ export async function loadPrompts(userId: string | null): Promise<PromptSummary[
         ragEnabled: cfg.contextConfig.rag.enabled,
         category: savedRow.category,
         isShared: savedRow.is_shared,
+        communityPostId: metrics?.community_post_id ?? null,
         targetModel: savedRow.target_model,
         useCase: savedRow.use_case,
         remixedFrom: savedRow.remixed_from,
