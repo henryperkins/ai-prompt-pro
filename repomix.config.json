@@ -1,0 +1,73 @@
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "input": {
+    "maxFileSize": 52428800
+  },
+  "output": {
+    "filePath": "repomix-output.md",
+    "style": "markdown",
+    "parsableStyle": false,
+    "fileSummary": true,
+    "directoryStructure": true,
+    "files": true,
+    "removeComments": false,
+    "removeEmptyLines": false,
+    "compress": false,
+    "topFilesLength": 10,
+    "showLineNumbers": false,
+    "truncateBase64": true,
+    "copyToClipboard": false,
+    "includeFullDirectoryStructure": false,
+    "tokenCountTree": true,
+    "git": {
+      "sortByChanges": true,
+      "sortByChangesMaxCommits": 100,
+      "includeDiffs": false,
+      "includeLogs": false,
+      "includeLogsCount": 50
+    }
+  },
+  "include": [
+    "src/**",
+    "supabase/functions/**",
+
+    "agent_service/**",
+    "index.html",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "tsconfig*.json",
+    "tailwind.config.ts",
+    "postcss.config.js",
+    "eslint.config.js",
+    "components.json",
+    "package.json"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDotIgnore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "node_modules/**",
+      "dist/**",
+      ".venv/**",
+      "__pycache__/**",
+      "*.pyc",
+      "bun.lockb",
+      "package-lock.json",
+      "src/components/ui/**",
+      "*.log",
+      "*.local",
+      ".env*",
+      "!.env.example",
+      "clip*.md",
+      "product-spec.md",
+      "repomix-output.md"
+    ]
+  },
+  "security": {
+    "enableSecurityCheck": true
+  },
+  "tokenCount": {
+    "encoding": "o200k_base"
+  }
+}

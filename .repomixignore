@@ -1,0 +1,24 @@
+# Lock files & generated output
+bun.lockb
+package-lock.json
+repomix-output.md
+
+# shadcn/ui primitives (generated, not project-specific)
+src/components/ui/
+
+# Build & cache artifacts
+dist/
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+
+# Scratch / session notes
+clip*.md
+product-spec.md
+copilot-session-*.md
+
+# Env files (security)
+.env
+.env.*
+!.env.example

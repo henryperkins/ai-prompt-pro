@@ -74,6 +74,21 @@ export function CommunityComments({
     setSubmitting(true);
     try {
       const created = await addComment(postId, content);
+      if (user && !(user.id in authorById)) {
+        const displayName =
+          user.user_metadata?.display_name ||
+          user.user_metadata?.full_name ||
+          user.email ||
+          "You";
+        setAuthorById((prev) => ({
+          ...prev,
+          [user.id]: {
+            id: user.id,
+            displayName,
+            avatarUrl: user.user_metadata?.avatar_url || null,
+          },
+        }));
+      }
       setComments((prev) => [created, ...prev].slice(0, limit));
       setDraft("");
       onCommentAdded?.(postId);
@@ -86,7 +101,7 @@ export function CommunityComments({
     } finally {
       setSubmitting(false);
     }
-  }, [draft, limit, onCommentAdded, postId, toast]);
+  }, [authorById, draft, limit, onCommentAdded, postId, toast, user]);
 
   const canComment = Boolean(user);
 

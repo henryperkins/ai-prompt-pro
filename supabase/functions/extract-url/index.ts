@@ -11,6 +11,88 @@ const MAX_URL_CHARS = Number(Deno.env.get("MAX_URL_CHARS") || "2048");
 const EXTRACT_PER_MINUTE = Number(Deno.env.get("EXTRACT_PER_MINUTE") || "6");
 const EXTRACT_PER_DAY = Number(Deno.env.get("EXTRACT_PER_DAY") || "120");
 const FETCH_TIMEOUT_MS = Number(Deno.env.get("EXTRACT_FETCH_TIMEOUT_MS") || "15000");
+const MAX_RESPONSE_BYTES = Number(Deno.env.get("EXTRACT_MAX_RESPONSE_BYTES") || String(1024 * 1024));
+
+const ALLOWED_CONTENT_TYPES = [
+  "text/html",
+  "application/xhtml+xml",
+  "text/plain",
+  "application/xml",
+  "text/xml",
+];
+
+function isPrivateHost(hostname: string): boolean {
+  // Block well-known metadata endpoints
+  if (
+    hostname === "metadata.google.internal" ||
+    hostname === "metadata.google" ||
+    hostname.endsWith(".internal")
+  ) {
+    return true;
+  }
+
+  // IPv6
+  const bare = hostname.startsWith("[") && hostname.endsWith("]")
+    ? hostname.slice(1, -1)
+    : hostname;
+  if (bare === "::1" || bare === "::" || bare.startsWith("fe80:") || bare.startsWith("fc00:") || bare.startsWith("fd")) {
+    return true;
+  }
+
+  // IPv4
+  const ipv4Match = bare.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipv4Match) {
+    const [, a, b] = ipv4Match.map(Number);
+    if (a === 127) return true;                         // 127.0.0.0/8 loopback
+    if (a === 10) return true;                          // 10.0.0.0/8
+    if (a === 172 && b >= 16 && b <= 31) return true;   // 172.16.0.0/12
+    if (a === 192 && b === 168) return true;             // 192.168.0.0/16
+    if (a === 169 && b === 254) return true;             // 169.254.0.0/16 link-local / cloud metadata
+    if (a === 0) return true;                           // 0.0.0.0/8
+    return false;
+  }
+
+  // Hostnames resolving to localhost
+  if (hostname === "localhost" || hostname.endsWith(".localhost")) {
+    return true;
+  }
+
+  return false;
+}
+
+function hasAllowedContentType(resp: Response): boolean {
+  const ct = resp.headers.get("content-type") || "";
+  const mime = ct.split(";")[0].trim().toLowerCase();
+  return ALLOWED_CONTENT_TYPES.some((allowed) => mime === allowed);
+}
+
+async function readBodyWithLimit(resp: Response, maxBytes: number): Promise<string> {
+  if (!resp.body) return "";
+
+  const contentLength = resp.headers.get("content-length");
+  if (contentLength && Number(contentLength) > maxBytes) {
+    resp.body.cancel();
+    throw new Error(`Response too large (${contentLength} bytes).`);
+  }
+
+  const reader = resp.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    totalBytes += value.byteLength;
+    if (totalBytes > maxBytes) {
+      reader.cancel();
+      throw new Error("Response too large.");
+    }
+    chunks.push(value);
+  }
+
+  const decoder = new TextDecoder();
+  return chunks.map((c) => decoder.decode(c, { stream: true })).join("") + decoder.decode();
+}
 
 function stripHtml(html: string): string {
   // Remove script and style blocks entirely
@@ -148,6 +230,10 @@ serve(async (req) => {
       return jsonResponse({ error: "Invalid URL format." }, 400, cors.headers);
     }
 
+    if (isPrivateHost(parsedUrl.hostname)) {
+      return jsonResponse({ error: "URLs pointing to private or internal hosts are not allowed." }, 400, cors.headers);
+    }
+
     console.log("Fetching URL:", parsedUrl.href);
 
     let pageResp: Response;
@@ -180,7 +266,24 @@ serve(async (req) => {
       );
     }
 
-    const html = await pageResp.text();
+    if (!hasAllowedContentType(pageResp)) {
+      return jsonResponse(
+        { error: "URL did not return an HTML or text content type." },
+        422,
+        cors.headers,
+      );
+    }
+
+    let html: string;
+    try {
+      html = await readBodyWithLimit(pageResp, MAX_RESPONSE_BYTES);
+    } catch {
+      return jsonResponse(
+        { error: "Response body is too large to process." },
+        413,
+        cors.headers,
+      );
+    }
     const title = extractTitle(html, parsedUrl.href);
     let plainText = stripHtml(html);
 

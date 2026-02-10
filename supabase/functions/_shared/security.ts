@@ -315,7 +315,7 @@ export async function requireAuthenticatedUser(
   const authConfig = getSupabaseAuthConfig();
   const anonKey = authConfig.anonKey;
   const isAnonKey = (value: string) =>
-    anonKey ? value.trim() === anonKey.trim() : isProjectApiKeyLike(value);
+    (anonKey ? value.trim() === anonKey.trim() : false) || isProjectApiKeyLike(value);
   const authHeader = req.headers.get("authorization") || "";
   const match = authHeader.match(/^Bearer\s+(.+)$/i);
   if (!match) {
