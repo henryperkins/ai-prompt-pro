@@ -172,11 +172,20 @@ async function functionHeaders({
 } = {}): Promise<Record<string, string>> {
   assertSupabaseEnv();
   const accessToken = await getAccessTokenWithBootstrap({ forceRefresh, allowSessionToken });
+  return functionHeadersWithAccessToken(accessToken);
+}
+
+function functionHeadersWithAccessToken(accessToken: string): Record<string, string> {
+  assertSupabaseEnv();
   return {
     "Content-Type": "application/json",
     apikey: SUPABASE_PUBLISHABLE_KEY as string,
     Authorization: `Bearer ${accessToken}`,
   };
+}
+
+function functionHeadersWithPublishableKey(): Record<string, string> {
+  return functionHeadersWithAccessToken(SUPABASE_PUBLISHABLE_KEY as string);
 }
 
 async function readFunctionError(resp: Response): Promise<string> {
@@ -207,6 +216,46 @@ function isInvalidSupabaseSessionError(status: number, errorMessage: string): bo
     (normalized.includes("invalid") && normalized.includes("session")) ||
     (normalized.includes("expired") && normalized.includes("session"))
   );
+}
+
+async function postFunctionWithAuthRecovery(
+  name: "enhance-prompt" | "extract-url",
+  payload: Record<string, unknown>,
+): Promise<Response> {
+  const request = (headers: Record<string, string>) =>
+    fetch(functionUrl(name), {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+    });
+
+  let response = await request(await functionHeaders());
+  if (response.ok) return response;
+
+  let errorMessage = await readFunctionError(response);
+  const firstFailureWasAuth =
+    response.status === 401 || isInvalidSupabaseSessionError(response.status, errorMessage);
+  if (!firstFailureWasAuth) {
+    throw new Error(errorMessage);
+  }
+
+  response = await request(await functionHeaders({ forceRefresh: true, allowSessionToken: false }));
+  if (response.ok) return response;
+
+  errorMessage = await readFunctionError(response);
+  const secondFailureWasAuth =
+    response.status === 401 || isInvalidSupabaseSessionError(response.status, errorMessage);
+  if (!secondFailureWasAuth) {
+    throw new Error(errorMessage);
+  }
+
+  // If refresh returned another unusable session token, force a deterministic anon-key retry.
+  await clearLocalSupabaseSession();
+  response = await request(functionHeadersWithPublishableKey());
+  if (response.ok) return response;
+
+  errorMessage = await readFunctionError(response);
+  throw new Error(errorMessage);
 }
 
 function extractSseError(payload: unknown): string | null {
@@ -433,32 +482,7 @@ export async function streamEnhance({
   }) => void;
 }) {
   try {
-    const requestEnhance = (headers: Record<string, string>) =>
-      fetch(functionUrl("enhance-prompt"), {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ prompt }),
-      });
-
-    let headers = await functionHeaders();
-    let resp = await requestEnhance(headers);
-
-    if (!resp.ok) {
-      let errorMessage = await readFunctionError(resp);
-
-      if (resp.status === 401 || isInvalidSupabaseSessionError(resp.status, errorMessage)) {
-        headers = await functionHeaders({ forceRefresh: true, allowSessionToken: false });
-        resp = await requestEnhance(headers);
-        if (!resp.ok) {
-          errorMessage = await readFunctionError(resp);
-          onError(errorMessage);
-          return;
-        }
-      } else {
-        onError(errorMessage);
-        return;
-      }
-    }
+    const resp = await postFunctionWithAuthRecovery("enhance-prompt", { prompt });
 
     if (!resp.body) {
       onError("No response body");
@@ -589,17 +613,7 @@ export async function streamEnhance({
 }
 
 export async function extractUrl(url: string): Promise<{ title: string; content: string }> {
-  const headers = await functionHeaders();
-  const resp = await fetch(functionUrl("extract-url"), {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ url }),
-  });
-
-  if (!resp.ok) {
-    const errorData = await resp.json().catch(() => ({ error: "Extraction failed" }));
-    throw new Error(errorData.error || `Error: ${resp.status}`);
-  }
+  const resp = await postFunctionWithAuthRecovery("extract-url", { url });
 
   return resp.json();
 }

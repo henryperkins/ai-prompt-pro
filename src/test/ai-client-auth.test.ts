@@ -283,4 +283,73 @@ describe("ai-client auth recovery", () => {
     expect(onDelta).toHaveBeenCalledWith("fallback");
     expect(onDone).toHaveBeenCalledTimes(1);
   });
+
+  it("falls back to publishable key when refreshed token also fails with invalid-session 401", async () => {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "stale-token",
+          expires_at: nowSeconds + 3600,
+        },
+      },
+      error: null,
+    });
+
+    mocks.refreshSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "still-invalid-token",
+          expires_at: nowSeconds + 3600,
+        },
+      },
+      error: null,
+    });
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "Invalid or expired Supabase session." }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "Invalid or expired Supabase session." }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(streamingResponse("third-try-success"));
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { streamEnhance } = await import("@/lib/ai-client");
+
+    const onDelta = vi.fn();
+    const onDone = vi.fn();
+    const onError = vi.fn();
+
+    await streamEnhance({
+      prompt: "Improve this",
+      onDelta,
+      onDone,
+      onError,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+
+    const firstHeaders = (fetchMock.mock.calls[0]?.[1] as RequestInit).headers as Record<string, string>;
+    const secondHeaders = (fetchMock.mock.calls[1]?.[1] as RequestInit).headers as Record<string, string>;
+    const thirdHeaders = (fetchMock.mock.calls[2]?.[1] as RequestInit).headers as Record<string, string>;
+
+    expect(firstHeaders.Authorization).toBe("Bearer stale-token");
+    expect(secondHeaders.Authorization).toBe("Bearer still-invalid-token");
+    expect(thirdHeaders.Authorization).toBe("Bearer sb_publishable_test");
+    expect(mocks.signOut).toHaveBeenCalledTimes(1);
+    expect(onError).not.toHaveBeenCalled();
+    expect(onDelta).toHaveBeenCalledWith("third-try-success");
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
 });
