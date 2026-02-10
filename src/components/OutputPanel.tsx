@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Copy, Check, Sparkles, Save, Loader2, GitCompare, Share2 } from "lucide-react";
+import { Copy, Check, Sparkles, Save, Loader2, GitCompare, Share2, Terminal } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -20,7 +20,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import {
+  CODEX_DEFAULT_SKILL_NAME,
+  generateAgentsMdFromPrompt,
+  generateAgentsOverrideMdFromPrompt,
+  generateCodexAppServerSendMessageV2CommandBash,
+  generateCodexExecCommandBash,
+  generateCodexSkillScaffoldCommandBash,
+  generateCodexTuiCommandBash,
+  generateSkillMdFromPrompt,
+} from "@/lib/codex-export";
 import { PROMPT_CATEGORY_OPTIONS } from "@/lib/prompt-categories";
 import { buildLineDiff, type DiffLine } from "@/lib/text-diff";
 import { cn } from "@/lib/utils";
@@ -104,6 +120,99 @@ export function OutputPanel({
 
   const { toast } = useToast();
   const displayPrompt = enhancedPrompt || builtPrompt;
+  const downloadTextFile = (filename: string, content: string) => {
+    const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const handleCopyCodex = async (variant: "exec" | "tui" | "appServer") => {
+    if (!displayPrompt) return;
+
+    const command =
+      variant === "exec"
+        ? generateCodexExecCommandBash(displayPrompt)
+        : variant === "tui"
+          ? generateCodexTuiCommandBash(displayPrompt)
+          : generateCodexAppServerSendMessageV2CommandBash(displayPrompt);
+
+    try {
+      await navigator.clipboard.writeText(command);
+      toast({
+        title: "Copied for Codex",
+        description:
+          variant === "exec"
+            ? "Copied `codex exec` stdin command."
+            : variant === "tui"
+              ? "Copied `codex` TUI command."
+              : "Copied app-server debug command.",
+      });
+    } catch (error) {
+      toast({
+        title: "Copy failed",
+        description: error instanceof Error ? error.message : "Clipboard access is blocked.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDownloadAgents = (variant: "agents" | "override") => {
+    if (!displayPrompt) return;
+
+    const content =
+      variant === "override"
+        ? generateAgentsOverrideMdFromPrompt(displayPrompt)
+        : generateAgentsMdFromPrompt(displayPrompt);
+    const filename = variant === "override" ? "AGENTS.override.md" : "AGENTS.md";
+
+    downloadTextFile(filename, content);
+    toast({
+      title: "Downloaded",
+      description: `${filename} generated from the current output.`,
+    });
+  };
+
+  const handleCopyCodexSkillScaffold = async () => {
+    if (!displayPrompt) return;
+
+    const command = generateCodexSkillScaffoldCommandBash(displayPrompt, {
+      skillName: CODEX_DEFAULT_SKILL_NAME,
+    });
+
+    try {
+      await navigator.clipboard.writeText(command);
+      toast({
+        title: "Copied for Codex",
+        description: `Copied command to scaffold .agents/skills/${CODEX_DEFAULT_SKILL_NAME}/SKILL.md.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Copy failed",
+        description: error instanceof Error ? error.message : "Clipboard access is blocked.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDownloadSkill = () => {
+    if (!displayPrompt) return;
+
+    const content = generateSkillMdFromPrompt(displayPrompt, {
+      skillName: CODEX_DEFAULT_SKILL_NAME,
+    });
+    downloadTextFile("SKILL.md", content);
+    toast({
+      title: "Downloaded",
+      description: `SKILL.md generated for skill name "${CODEX_DEFAULT_SKILL_NAME}".`,
+    });
+  };
+
   const isStreamingVisual = enhancePhase === "starting" || enhancePhase === "streaming";
   const isSettledVisual = enhancePhase === "settling" || enhancePhase === "done";
   const statusLabel =
@@ -426,6 +535,43 @@ export function OutputPanel({
             {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
             {copied ? "Copied" : "Copy"}
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={!displayPrompt}
+                className="gap-1 text-xs"
+                title="Export for Codex"
+              >
+                <Terminal className="w-3 h-3" />
+                Codex
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => void handleCopyCodex("exec")}>
+                Copy `codex exec` (stdin)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void handleCopyCodex("tui")}>
+                Copy `codex` (TUI prefilled)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void handleCopyCodex("appServer")}>
+                Copy app-server send-message-v2
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void handleCopyCodexSkillScaffold()}>
+                Copy skill scaffold command
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleDownloadSkill()}>
+                Download SKILL.md
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleDownloadAgents("agents")}>
+                Download AGENTS.md
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleDownloadAgents("override")}>
+                Download AGENTS.override.md
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
