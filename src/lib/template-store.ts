@@ -89,18 +89,28 @@ interface TemplateEnvelope {
 }
 
 interface LegacyTemplateRecordV1 {
-  id: string;
   name: string;
-  description?: string;
   role: string;
   task: string;
   context: string;
-  format: string[];
-  lengthPreference: string;
-  tone: string;
-  complexity: string;
-  constraints: string[];
-  examples: string;
+  id?: string;
+  description?: string;
+  format?: string[];
+  lengthPreference?: string;
+  tone?: string;
+  complexity?: string;
+  constraints?: string[];
+  examples?: string;
+}
+
+function isLegacyTemplateRecordV1(value: unknown): value is LegacyTemplateRecordV1 {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.name === "string" &&
+    typeof value.role === "string" &&
+    typeof value.task === "string" &&
+    typeof value.context === "string"
+  );
 }
 
 export const TEMPLATE_JSON_SCHEMA = {
@@ -496,13 +506,8 @@ function parseTemplateRecord(raw: unknown): TemplateRecord | null {
     };
   }
 
-  const looksLegacy =
-    typeof raw.name === "string" &&
-    typeof raw.role === "string" &&
-    typeof raw.task === "string" &&
-    typeof raw.context === "string";
-  if (looksLegacy) {
-    return migrateLegacyV1(raw as LegacyTemplateRecordV1);
+  if (isLegacyTemplateRecordV1(raw)) {
+    return migrateLegacyV1(raw);
   }
   return null;
 }

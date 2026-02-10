@@ -1,0 +1,7 @@
+# <contextstream>
+# ContextStream managed rules reference
+read:
+  - .contextstream/rules.md
+# </contextstream>
+
+###

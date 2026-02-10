@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Copy, Check, Sparkles, Save, Loader2, GitCompare } from "lucide-react";
+import { Copy, Check, Sparkles, Save, Loader2, GitCompare, Share2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -13,11 +13,32 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { PROMPT_CATEGORY_OPTIONS } from "@/lib/prompt-categories";
 import { buildLineDiff, type DiffLine } from "@/lib/text-diff";
 import { cn } from "@/lib/utils";
 
 export type EnhancePhase = "idle" | "starting" | "streaming" | "settling" | "done";
+
+interface SavePromptInput {
+  name: string;
+  description?: string;
+  tags?: string[];
+  category?: string;
+  remixNote?: string;
+}
+
+interface SaveAndSharePromptInput extends SavePromptInput {
+  useCase: string;
+  targetModel?: string;
+}
 
 interface OutputPanelProps {
   builtPrompt: string;
@@ -25,10 +46,26 @@ interface OutputPanelProps {
   isEnhancing: boolean;
   onEnhance: () => void;
   onSaveVersion: () => void;
-  onSaveTemplate: (input: { name: string; description?: string; tags?: string[] }) => void;
-  canSaveTemplate: boolean;
+  onSavePrompt: (input: SavePromptInput) => void;
+  onSaveAndSharePrompt: (input: SaveAndSharePromptInput) => void;
+  canSavePrompt: boolean;
+  canSharePrompt: boolean;
   hideEnhanceButton?: boolean;
   enhancePhase?: EnhancePhase;
+  remixContext?: { title: string; authorName: string };
+}
+
+function parseTags(value: string): string[] | undefined {
+  const tags = Array.from(
+    new Set(
+      value
+        .split(",")
+        .map((tag) => tag.trim().toLowerCase())
+        .filter(Boolean),
+    ),
+  ).slice(0, 8);
+
+  return tags.length > 0 ? tags : undefined;
 }
 
 export function OutputPanel({
@@ -37,17 +74,34 @@ export function OutputPanel({
   isEnhancing,
   onEnhance,
   onSaveVersion,
-  onSaveTemplate,
-  canSaveTemplate,
+  onSavePrompt,
+  onSaveAndSharePrompt,
+  canSavePrompt,
+  canSharePrompt,
   hideEnhanceButton = false,
   enhancePhase = "idle",
+  remixContext,
 }: OutputPanelProps) {
   const [copied, setCopied] = useState(false);
-  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [promptDialogOpen, setPromptDialogOpen] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [compareDialogOpen, setCompareDialogOpen] = useState(false);
-  const [templateName, setTemplateName] = useState("");
-  const [templateDescription, setTemplateDescription] = useState("");
-  const [templateTags, setTemplateTags] = useState("");
+
+  const [promptName, setPromptName] = useState("");
+  const [promptDescription, setPromptDescription] = useState("");
+  const [promptTags, setPromptTags] = useState("");
+  const [promptCategory, setPromptCategory] = useState("general");
+  const [promptRemixNote, setPromptRemixNote] = useState("");
+
+  const [shareName, setShareName] = useState("");
+  const [shareDescription, setShareDescription] = useState("");
+  const [shareTags, setShareTags] = useState("");
+  const [shareCategory, setShareCategory] = useState("general");
+  const [shareUseCase, setShareUseCase] = useState("");
+  const [shareTargetModel, setShareTargetModel] = useState("");
+  const [shareConfirmedSafe, setShareConfirmedSafe] = useState(false);
+  const [shareRemixNote, setShareRemixNote] = useState("");
+
   const { toast } = useToast();
   const displayPrompt = enhancedPrompt || builtPrompt;
   const isStreamingVisual = enhancePhase === "starting" || enhancePhase === "streaming";
@@ -74,10 +128,25 @@ export function OutputPanel({
   const hasCompare = Boolean(
     builtPrompt.trim() && enhancedPrompt.trim() && builtPrompt.trim() !== enhancedPrompt.trim()
   );
+
   const diff = useMemo(() => {
     if (!hasCompare) return null;
     return buildLineDiff(builtPrompt, enhancedPrompt);
   }, [hasCompare, builtPrompt, enhancedPrompt]);
+
+  useEffect(() => {
+    if (remixContext) {
+      if (!promptName.trim()) {
+        setPromptName(`Remix of ${remixContext.title}`);
+      }
+      if (!shareName.trim()) {
+        setShareName(`Remix of ${remixContext.title}`);
+      }
+    } else {
+      setPromptRemixNote("");
+      setShareRemixNote("");
+    }
+  }, [remixContext, promptName, shareName]);
 
   const handleCopy = async () => {
     if (!displayPrompt) return;
@@ -95,26 +164,48 @@ export function OutputPanel({
     }
   };
 
-  const handleSaveTemplate = () => {
-    if (!templateName.trim()) return;
-    const tags = Array.from(
-      new Set(
-        templateTags
-          .split(",")
-          .map((tag) => tag.trim().toLowerCase())
-          .filter(Boolean),
-      ),
-    ).slice(0, 8);
+  const handleSavePrompt = () => {
+    if (!promptName.trim()) return;
 
-    onSaveTemplate({
-      name: templateName.trim(),
-      description: templateDescription.trim() || undefined,
-      tags: tags.length > 0 ? tags : undefined,
+    onSavePrompt({
+      name: promptName.trim(),
+      description: promptDescription.trim() || undefined,
+      tags: parseTags(promptTags),
+      category: promptCategory,
+      remixNote: remixContext ? promptRemixNote.trim() || undefined : undefined,
     });
-    setTemplateDialogOpen(false);
-    setTemplateName("");
-    setTemplateDescription("");
-    setTemplateTags("");
+
+    setPromptDialogOpen(false);
+    setPromptName("");
+    setPromptDescription("");
+    setPromptTags("");
+    setPromptCategory("general");
+    setPromptRemixNote("");
+  };
+
+  const handleSaveAndSharePrompt = () => {
+    if (!canSharePrompt) return;
+    if (!shareName.trim() || !shareUseCase.trim() || !shareConfirmedSafe) return;
+
+    onSaveAndSharePrompt({
+      name: shareName.trim(),
+      description: shareDescription.trim() || undefined,
+      tags: parseTags(shareTags),
+      category: shareCategory,
+      useCase: shareUseCase.trim(),
+      targetModel: shareTargetModel.trim() || undefined,
+      remixNote: remixContext ? shareRemixNote.trim() || undefined : undefined,
+    });
+
+    setShareDialogOpen(false);
+    setShareName("");
+    setShareDescription("");
+    setShareTags("");
+    setShareCategory("general");
+    setShareUseCase("");
+    setShareTargetModel("");
+    setShareConfirmedSafe(false);
+    setShareRemixNote("");
   };
 
   return (
@@ -162,56 +253,174 @@ export function OutputPanel({
               </div>
             </DialogContent>
           </Dialog>
-          <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+
+          <Dialog open={promptDialogOpen} onOpenChange={setPromptDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="ghost" size="sm" disabled={!canSaveTemplate} className="gap-1 text-xs">
+              <Button variant="ghost" size="sm" disabled={!canSavePrompt} className="gap-1 text-xs">
                 <Save className="w-3 h-3" />
-                Save Preset
+                Save Prompt
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Save as Preset</DialogTitle>
+                <DialogTitle>Save Prompt</DialogTitle>
                 <DialogDescription>
-                  Snapshot the full prompt and context configuration for reuse.
+                  Save a private prompt snapshot to your library.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-3">
+                {remixContext && (
+                  <div className="rounded-md border border-primary/25 bg-primary/10 px-3 py-2 text-xs text-primary">
+                    Remixing {remixContext.authorName}’s “{remixContext.title}”
+                  </div>
+                )}
                 <Input
-                  value={templateName}
-                  onChange={(event) => setTemplateName(event.target.value)}
-                  placeholder="Preset name"
+                  value={promptName}
+                  onChange={(event) => setPromptName(event.target.value)}
+                  placeholder="Prompt title"
                   className="bg-background"
                 />
+                <Select value={promptCategory} onValueChange={setPromptCategory}>
+                  <SelectTrigger className="bg-background">
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PROMPT_CATEGORY_OPTIONS.map((category) => (
+                      <SelectItem key={category.value} value={category.value}>
+                        {category.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Textarea
-                  value={templateDescription}
-                  onChange={(event) => setTemplateDescription(event.target.value)}
+                  value={promptDescription}
+                  onChange={(event) => setPromptDescription(event.target.value)}
                   placeholder="Description (optional)"
                   className="min-h-[90px] bg-background"
                 />
                 <Input
-                  value={templateTags}
-                  onChange={(event) => setTemplateTags(event.target.value)}
+                  value={promptTags}
+                  onChange={(event) => setPromptTags(event.target.value)}
                   placeholder="Tags (comma-separated, optional)"
                   className="bg-background"
                 />
-                <p className="text-[11px] text-muted-foreground">
-                  Example: marketing, seo, long-form
-                </p>
+                {remixContext && (
+                  <Textarea
+                    value={promptRemixNote}
+                    onChange={(event) => setPromptRemixNote(event.target.value)}
+                    placeholder="Remix note (optional)"
+                    className="min-h-[80px] bg-background"
+                  />
+                )}
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setTemplateDialogOpen(false)}>
+                <Button variant="outline" onClick={() => setPromptDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleSaveTemplate} disabled={!templateName.trim()}>
-                  Save Preset
+                <Button onClick={handleSavePrompt} disabled={!promptName.trim()}>
+                  Save Prompt
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="sm" disabled={!canSharePrompt} className="gap-1 text-xs">
+                <Share2 className="w-3 h-3" />
+                Save & Share
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md max-h-[85vh] overflow-auto">
+              <DialogHeader>
+                <DialogTitle>Save & Share Prompt</DialogTitle>
+                <DialogDescription>
+                  Publish this prompt recipe to the community feed.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3">
+                {remixContext && (
+                  <div className="rounded-md border border-primary/25 bg-primary/10 px-3 py-2 text-xs text-primary">
+                    Remixing {remixContext.authorName}’s “{remixContext.title}”
+                  </div>
+                )}
+                <Input
+                  value={shareName}
+                  onChange={(event) => setShareName(event.target.value)}
+                  placeholder="Prompt title"
+                  className="bg-background"
+                />
+                <Select value={shareCategory} onValueChange={setShareCategory}>
+                  <SelectTrigger className="bg-background">
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PROMPT_CATEGORY_OPTIONS.map((category) => (
+                      <SelectItem key={category.value} value={category.value}>
+                        {category.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Textarea
+                  value={shareDescription}
+                  onChange={(event) => setShareDescription(event.target.value)}
+                  placeholder="Description (optional)"
+                  className="min-h-[80px] bg-background"
+                />
+                <Input
+                  value={shareTags}
+                  onChange={(event) => setShareTags(event.target.value)}
+                  placeholder="Tags (comma-separated, optional)"
+                  className="bg-background"
+                />
+                <Textarea
+                  value={shareUseCase}
+                  onChange={(event) => setShareUseCase(event.target.value)}
+                  placeholder="Use case (required)"
+                  className="min-h-[90px] bg-background"
+                />
+                <Input
+                  value={shareTargetModel}
+                  onChange={(event) => setShareTargetModel(event.target.value)}
+                  placeholder="Target model (optional)"
+                  className="bg-background"
+                />
+                {remixContext && (
+                  <Textarea
+                    value={shareRemixNote}
+                    onChange={(event) => setShareRemixNote(event.target.value)}
+                    placeholder="Remix note (optional)"
+                    className="min-h-[80px] bg-background"
+                  />
+                )}
+                <label className="flex items-start gap-2 text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={shareConfirmedSafe}
+                    onChange={(event) => setShareConfirmedSafe(event.target.checked)}
+                    className="mt-0.5"
+                  />
+                  <span>I confirm this prompt contains no secrets or private data.</span>
+                </label>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShareDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveAndSharePrompt}
+                  disabled={!shareName.trim() || !shareUseCase.trim() || !shareConfirmedSafe}
+                >
+                  Save & Share
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <Button variant="ghost" size="sm" onClick={onSaveVersion} disabled={!displayPrompt} className="gap-1 text-xs">
             <Save className="w-3 h-3" />
-            Save
+            Save Version
           </Button>
           <Button variant="ghost" size="sm" onClick={handleCopy} disabled={!displayPrompt} className="gap-1 text-xs">
             {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
@@ -236,7 +445,7 @@ export function OutputPanel({
             <p className="text-sm text-muted-foreground text-center">
               Your enhanced prompt will appear here.
               <br />
-              Start by entering a prompt or choosing a preset.
+              Start by entering a prompt or choosing a template.
             </p>
           </div>
         )}

@@ -1,7 +1,7 @@
 import json
 import os
 from functools import lru_cache
-from typing import Annotated, AsyncIterator, Mapping
+from typing import Annotated, Any, AsyncIterator, Mapping
 
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import StreamingResponse
@@ -9,7 +9,19 @@ from pydantic import BaseModel, Field
 
 from agent_framework import HostedWebSearchTool
 from agent_framework.azure import AzureOpenAIResponsesClient
+from agent_framework.observability import configure_otel_providers
 from azure.identity import AzureCliCredential
+
+# ---------------------------------------------------------------------------
+# Observability – OpenTelemetry auto-instrumentation for agent spans/metrics.
+# Reads standard OpenTelemetry env vars automatically:
+#   ENABLE_INSTRUMENTATION=true        – master switch (disabled by default)
+#   ENABLE_CONSOLE_EXPORTERS=true      – emit spans/metrics to stdout
+#   OTEL_EXPORTER_OTLP_ENDPOINT=…      – send to an OTLP collector
+#   ENABLE_SENSITIVE_DATA=true          – include prompt/completion text in spans
+# ---------------------------------------------------------------------------
+if os.getenv("ENABLE_INSTRUMENTATION", "").strip().lower() in {"1", "true", "yes", "on"}:
+    configure_otel_providers()
 
 MAX_PROMPT_CHARS = int(os.getenv("MAX_PROMPT_CHARS", "16000"))
 
@@ -162,9 +174,24 @@ def _resolve_deployment_name() -> str:
     return os.getenv("AZURE_OPENAI_RESPONSES_DEPLOYMENT_NAME", "gpt-5.2")
 
 
+def _derive_responses_base_url(endpoint: str) -> str:
+    normalized = endpoint.strip()
+    if not normalized:
+        raise RuntimeError("AZURE_OPENAI_ENDPOINT must not be empty when provided.")
+    if normalized.endswith("/openai/v1/"):
+        return normalized
+    if normalized.endswith("/openai/v1"):
+        return f"{normalized}/"
+    return f"{normalized.rstrip('/')}/openai/v1/"
+
+
 def _build_responses_client() -> AzureOpenAIResponsesClient:
     endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
     base_url = os.getenv("AZURE_OPENAI_BASE_URL")
+    if endpoint is not None:
+        endpoint = endpoint.strip() or None
+    if base_url is not None:
+        base_url = base_url.strip() or None
     api_version = os.getenv("AZURE_OPENAI_API_VERSION", "preview")
     deployment_name = _resolve_deployment_name()
     api_key = os.getenv("AZURE_OPENAI_API_KEY")
@@ -177,6 +204,11 @@ def _build_responses_client() -> AzureOpenAIResponsesClient:
 
     if not endpoint and not base_url:
         raise RuntimeError("Either AZURE_OPENAI_ENDPOINT or AZURE_OPENAI_BASE_URL is required.")
+
+    # Agent Framework may build a deployment-scoped base URL from endpoint-only config.
+    # For Responses API we want the v1 base URL when no explicit base_url is supplied.
+    if endpoint and not base_url:
+        base_url = _derive_responses_base_url(endpoint)
 
     default_headers: Mapping[str, str] | None = None
     if default_headers_raw and default_headers_raw.strip():
@@ -192,7 +224,7 @@ def _build_responses_client() -> AzureOpenAIResponsesClient:
             )
         default_headers = parsed
 
-    client_kwargs: dict[str, object] = {
+    client_kwargs: dict[str, Any] = {
         "deployment_name": deployment_name,
         "api_version": api_version,
     }
@@ -223,12 +255,34 @@ def _build_responses_client() -> AzureOpenAIResponsesClient:
 
 
 @lru_cache(maxsize=1)
-def get_agent():
+def get_agent() -> Any:
     client = _build_responses_client()
-    return client.create_agent(
-        name="PromptEnhancer",
-        instructions=PROMPT_ENHANCER_INSTRUCTIONS,
-        tools=_build_agent_tools(),
+    agent_kwargs = {
+        "name": "PromptEnhancer",
+        "instructions": PROMPT_ENHANCER_INSTRUCTIONS,
+        "tools": _build_agent_tools(),
+    }
+
+    as_agent = getattr(client, "as_agent", None)
+    if callable(as_agent):
+        return as_agent(**agent_kwargs)
+
+    # Backward-compat fallback for older agent-framework-core releases.
+    create_agent = getattr(client, "create_agent", None)
+    if callable(create_agent):
+        try:
+            return create_agent(**agent_kwargs)
+        except TypeError:
+            # Some legacy versions used positional parameters for these fields.
+            return create_agent(
+                agent_kwargs["name"],
+                agent_kwargs["instructions"],
+                agent_kwargs["tools"],
+            )
+
+    raise RuntimeError(
+        "Installed agent-framework-core client does not provide as_agent/create_agent. "
+        "Upgrade agent-framework-core to a supported version."
     )
 
 

@@ -14,24 +14,202 @@ export type Database = {
   }
   public: {
     Tables: {
-      drafts: {
+      community_comments: {
         Row: {
+          body: string
+          created_at: string
           id: string
-          user_id: string
-          config: Json
+          post_id: string
           updated_at: string
+          user_id: string
         }
         Insert: {
+          body: string
+          created_at?: string
           id?: string
-          user_id: string
-          config?: Json
+          post_id: string
           updated_at?: string
+          user_id: string
         }
         Update: {
+          body?: string
+          created_at?: string
           id?: string
-          user_id?: string
-          config?: Json
+          post_id?: string
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "community_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_posts: {
+        Row: {
+          author_id: string
+          category: string
+          comment_count: number
+          created_at: string
+          description: string
+          enhanced_prompt: string
+          id: string
+          is_public: boolean
+          public_config: Json
+          remix_count: number
+          remix_diff: Json | null
+          remix_note: string
+          remixed_from: string | null
+          saved_prompt_id: string
+          starter_prompt: string
+          tags: string[]
+          target_model: string
+          title: string
+          updated_at: string
+          upvote_count: number
+          use_case: string
+          verified_count: number
+        }
+        Insert: {
+          author_id: string
+          category?: string
+          comment_count?: number
+          created_at?: string
+          description?: string
+          enhanced_prompt: string
+          id?: string
+          is_public?: boolean
+          public_config?: Json
+          remix_count?: number
+          remix_diff?: Json | null
+          remix_note?: string
+          remixed_from?: string | null
+          saved_prompt_id: string
+          starter_prompt?: string
+          tags?: string[]
+          target_model?: string
+          title: string
+          updated_at?: string
+          upvote_count?: number
+          use_case?: string
+          verified_count?: number
+        }
+        Update: {
+          author_id?: string
+          category?: string
+          comment_count?: number
+          created_at?: string
+          description?: string
+          enhanced_prompt?: string
+          id?: string
+          is_public?: boolean
+          public_config?: Json
+          remix_count?: number
+          remix_diff?: Json | null
+          remix_note?: string
+          remixed_from?: string | null
+          saved_prompt_id?: string
+          starter_prompt?: string
+          tags?: string[]
+          target_model?: string
+          title?: string
+          updated_at?: string
+          upvote_count?: number
+          use_case?: string
+          verified_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_posts_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_posts_remixed_from_fkey"
+            columns: ["remixed_from"]
+            isOneToOne: false
+            referencedRelation: "community_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_posts_saved_prompt_id_fkey"
+            columns: ["saved_prompt_id"]
+            isOneToOne: true
+            referencedRelation: "saved_prompts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_votes: {
+        Row: {
+          created_at: string
+          id: string
+          post_id: string
+          user_id: string
+          vote_type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_id: string
+          user_id: string
+          vote_type: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_id?: string
+          user_id?: string
+          vote_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_votes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "community_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_votes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      drafts: {
+        Row: {
+          config: Json
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          config?: Json
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          config?: Json
+          id?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: [
           {
@@ -45,24 +223,24 @@ export type Database = {
       }
       profiles: {
         Row: {
-          id: string
-          display_name: string | null
           avatar_url: string | null
           created_at: string
+          display_name: string | null
+          id: string
           updated_at: string
         }
         Insert: {
-          id: string
-          display_name?: string | null
           avatar_url?: string | null
           created_at?: string
+          display_name?: string | null
+          id: string
           updated_at?: string
         }
         Update: {
-          id?: string
-          display_name?: string | null
           avatar_url?: string | null
           created_at?: string
+          display_name?: string | null
+          id?: string
           updated_at?: string
         }
         Relationships: [
@@ -77,25 +255,25 @@ export type Database = {
       }
       prompt_versions: {
         Row: {
+          created_at: string
           id: string
-          user_id: string
           name: string
           prompt: string
-          created_at: string
+          user_id: string
         }
         Insert: {
+          created_at?: string
           id?: string
-          user_id: string
           name: string
           prompt: string
-          created_at?: string
+          user_id: string
         }
         Update: {
+          created_at?: string
           id?: string
-          user_id?: string
           name?: string
           prompt?: string
-          created_at?: string
+          user_id?: string
         }
         Relationships: [
           {
@@ -107,42 +285,123 @@ export type Database = {
           },
         ]
       }
-      templates: {
+      saved_prompts: {
         Row: {
-          id: string
-          user_id: string
-          name: string
-          description: string
-          tags: string[]
+          built_prompt: string
+          category: string
           config: Json
-          fingerprint: string | null
-          revision: number
           created_at: string
+          description: string
+          enhanced_prompt: string
+          fingerprint: string | null
+          id: string
+          is_shared: boolean
+          remix_diff: Json | null
+          remix_note: string
+          remixed_from: string | null
+          revision: number
+          tags: string[]
+          target_model: string
+          title: string
           updated_at: string
+          use_case: string
+          user_id: string
         }
         Insert: {
-          id?: string
-          user_id: string
-          name: string
-          description?: string
-          tags?: string[]
+          built_prompt?: string
+          category?: string
           config?: Json
-          fingerprint?: string | null
-          revision?: number
           created_at?: string
+          description?: string
+          enhanced_prompt?: string
+          fingerprint?: string | null
+          id?: string
+          is_shared?: boolean
+          remix_diff?: Json | null
+          remix_note?: string
+          remixed_from?: string | null
+          revision?: number
+          tags?: string[]
+          target_model?: string
+          title: string
           updated_at?: string
+          use_case?: string
+          user_id: string
         }
         Update: {
-          id?: string
-          user_id?: string
-          name?: string
-          description?: string
-          tags?: string[]
+          built_prompt?: string
+          category?: string
           config?: Json
-          fingerprint?: string | null
-          revision?: number
           created_at?: string
+          description?: string
+          enhanced_prompt?: string
+          fingerprint?: string | null
+          id?: string
+          is_shared?: boolean
+          remix_diff?: Json | null
+          remix_note?: string
+          remixed_from?: string | null
+          revision?: number
+          tags?: string[]
+          target_model?: string
+          title?: string
           updated_at?: string
+          use_case?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_prompts_remixed_from_fkey"
+            columns: ["remixed_from"]
+            isOneToOne: false
+            referencedRelation: "community_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saved_prompts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      templates: {
+        Row: {
+          config: Json
+          created_at: string
+          description: string
+          fingerprint: string | null
+          id: string
+          name: string
+          revision: number
+          tags: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          description?: string
+          fingerprint?: string | null
+          id?: string
+          name: string
+          revision?: number
+          tags?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          description?: string
+          fingerprint?: string | null
+          id?: string
+          name?: string
+          revision?: number
+          tags?: string[]
+          updated_at?: string
+          user_id?: string
         }
         Relationships: [
           {
@@ -159,7 +418,32 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      community_profiles_by_ids: {
+        Args: {
+          input_ids: string[]
+        }
+        Returns: {
+          avatar_url: string | null
+          display_name: string | null
+          id: string
+        }[]
+      }
+      is_non_anonymous_account: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      refresh_community_post_metrics: {
+        Args: {
+          target_post_id: string
+        }
+        Returns: undefined
+      }
+      strip_sensitive_prompt_config: {
+        Args: {
+          input_config: Json
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

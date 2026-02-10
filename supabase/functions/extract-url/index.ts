@@ -81,7 +81,7 @@ serve(async (req) => {
   }
 
   try {
-    const auth = requireAuthenticatedUser(req);
+    const auth = await requireAuthenticatedUser(req);
     if (!auth.ok) {
       return jsonResponse({ error: auth.error }, auth.status, cors.headers);
     }

@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState, useEffect, useCallback, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { PromptInput } from "@/components/PromptInput";
 import { BuilderTabs } from "@/components/BuilderTabs";
@@ -12,6 +13,8 @@ import { getSectionHealth, type SectionHealthState } from "@/lib/section-health"
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { PromptTemplate } from "@/lib/templates";
+import type { PromptShareInput } from "@/lib/persistence";
+import { loadPost, loadProfilesByIds } from "@/lib/community";
 import {
   Accordion,
   AccordionContent,
@@ -26,6 +29,7 @@ import {
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import type { LucideIcon } from "lucide-react";
 import {
   Sparkles,
@@ -39,11 +43,12 @@ import {
   CircleDashed,
   Gauge,
   CheckCircle2,
+  X,
 } from "lucide-react";
 
-const TemplateLibrary = lazy(async () => {
-  const module = await import("@/components/TemplateLibrary");
-  return { default: module.TemplateLibrary };
+const PromptLibrary = lazy(async () => {
+  const module = await import("@/components/PromptLibrary");
+  return { default: module.PromptLibrary };
 });
 
 const VersionHistory = lazy(async () => {
@@ -94,6 +99,9 @@ const Index = () => {
     }
     return false;
   });
+  const [searchParams, setSearchParams] = useSearchParams();
+  const remixId = searchParams.get("remix");
+  const remixLoadToken = useRef(0);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -112,13 +120,20 @@ const Index = () => {
     setEnhancedPrompt,
     isEnhancing,
     setIsEnhancing,
+    isSignedIn,
     versions,
     saveVersion,
     loadTemplate,
-    saveAsTemplate,
+    savePrompt,
+    saveAndSharePrompt,
+    shareSavedPrompt,
+    unshareSavedPrompt,
     loadSavedTemplate,
     deleteSavedTemplate,
     templateSummaries,
+    remixContext,
+    startRemix,
+    clearRemix,
     updateContextSources,
     updateDatabaseConnections,
     updateRagParameters,
@@ -131,6 +146,50 @@ const Index = () => {
   useEffect(() => {
     document.documentElement.classList.toggle("dark", isDark);
   }, [isDark]);
+
+  useEffect(() => {
+    if (!remixId) return;
+    if (remixContext?.postId === remixId) return;
+    const token = ++remixLoadToken.current;
+
+    void (async () => {
+      try {
+        const post = await loadPost(remixId);
+        if (token !== remixLoadToken.current) return;
+        if (!post) {
+          toast({ title: "Remix unavailable", description: "That community prompt could not be loaded." });
+          return;
+        }
+        const [author] = await loadProfilesByIds([post.authorId]);
+        if (token !== remixLoadToken.current) return;
+
+        startRemix({
+          postId: post.id,
+          title: post.title,
+          authorName: author?.displayName,
+          publicConfig: post.publicConfig,
+          parentTags: post.tags,
+          parentCategory: post.category,
+        });
+        toast({ title: "Remix ready", description: `Loaded “${post.title}” into the builder.` });
+      } catch (error) {
+        if (token !== remixLoadToken.current) return;
+        toast({
+          title: "Failed to load remix",
+          description: error instanceof Error ? error.message : "Unexpected error",
+          variant: "destructive",
+        });
+      }
+    })();
+  }, [remixId, remixContext?.postId, startRemix, toast]);
+
+  const handleClearRemix = useCallback(() => {
+    clearRemix();
+    if (!remixId) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete("remix");
+    setSearchParams(next, { replace: true });
+  }, [clearRemix, remixId, searchParams, setSearchParams]);
 
   const clearEnhanceTimers = useCallback(() => {
     enhancePhaseTimers.current.forEach((timer) => window.clearTimeout(timer));
@@ -192,7 +251,7 @@ const Index = () => {
   const handleSelectTemplate = useCallback(
     (template: PromptTemplate) => {
       loadTemplate(template);
-      toast({ title: `Preset loaded: ${template.name}` });
+      toast({ title: `Template loaded: ${template.name}` });
     },
     [loadTemplate, toast]
   );
@@ -202,19 +261,19 @@ const Index = () => {
       try {
         const loaded = await loadSavedTemplate(id);
         if (!loaded) {
-          toast({ title: "Preset not found", variant: "destructive" });
+          toast({ title: "Prompt not found", variant: "destructive" });
           return;
         }
         toast({
-          title: `Preset loaded: ${loaded.record.metadata.name}`,
+          title: `Prompt loaded: ${loaded.record.metadata.name}`,
           description:
             loaded.warnings.length > 0
               ? `${loaded.warnings.length} context warning(s). Review integrations before running.`
-              : "Preset restored successfully.",
+              : "Prompt restored successfully.",
         });
       } catch (error) {
         toast({
-          title: "Failed to load preset",
+          title: "Failed to load prompt",
           description: error instanceof Error ? error.message : "Unexpected error",
           variant: "destructive",
         });
@@ -228,13 +287,13 @@ const Index = () => {
       try {
         const deleted = await deleteSavedTemplate(id);
         if (!deleted) {
-          toast({ title: "Preset not found", variant: "destructive" });
+          toast({ title: "Prompt not found", variant: "destructive" });
           return;
         }
-        toast({ title: "Saved preset deleted" });
+        toast({ title: "Saved prompt deleted" });
       } catch (error) {
         toast({
-          title: "Failed to delete preset",
+          title: "Failed to delete prompt",
           description: error instanceof Error ? error.message : "Unexpected error",
           variant: "destructive",
         });
@@ -243,10 +302,61 @@ const Index = () => {
     [deleteSavedTemplate, toast]
   );
 
-  const handleSaveAsTemplate = useCallback(
-    async (input: { name: string; description?: string; tags?: string[] }) => {
+  const handleShareSavedPrompt = useCallback(
+    async (id: string, input?: PromptShareInput) => {
+      if (!isSignedIn) {
+        toast({ title: "Sign in required", description: "Sign in to share prompts.", variant: "destructive" });
+        return;
+      }
+
       try {
-        const result = await saveAsTemplate(input);
+        const shared = await shareSavedPrompt(id, input);
+        if (!shared) {
+          toast({ title: "Prompt not found", variant: "destructive" });
+          return;
+        }
+        toast({ title: "Prompt shared to community" });
+      } catch (error) {
+        toast({
+          title: "Failed to share prompt",
+          description: error instanceof Error ? error.message : "Unexpected error",
+          variant: "destructive",
+        });
+      }
+    },
+    [isSignedIn, shareSavedPrompt, toast],
+  );
+
+  const handleUnshareSavedPrompt = useCallback(
+    async (id: string) => {
+      try {
+        const unshared = await unshareSavedPrompt(id);
+        if (!unshared) {
+          toast({ title: "Prompt not found", variant: "destructive" });
+          return;
+        }
+        toast({ title: "Prompt removed from community" });
+      } catch (error) {
+        toast({
+          title: "Failed to unshare prompt",
+          description: error instanceof Error ? error.message : "Unexpected error",
+          variant: "destructive",
+        });
+      }
+    },
+    [unshareSavedPrompt, toast],
+  );
+
+  const handleSavePrompt = useCallback(
+    async (input: { name: string; description?: string; tags?: string[]; category?: string; remixNote?: string }) => {
+      try {
+        const result = await savePrompt({
+          title: input.name,
+          description: input.description,
+          tags: input.tags,
+          category: input.category,
+          remixNote: input.remixNote,
+        });
         const warningText =
           result.warnings.length > 0
             ? ` ${result.warnings.length} validation warning(s) were recorded.`
@@ -258,18 +368,64 @@ const Index = () => {
               ? "updated"
               : "unchanged";
         toast({
-          title: `Preset ${verb}: ${result.record.metadata.name}`,
+          title: `Prompt ${verb}: ${result.record.metadata.name}`,
           description: `Revision r${result.record.metadata.revision}.${warningText}`,
         });
+        if (remixContext) {
+          handleClearRemix();
+        }
       } catch (error) {
         toast({
-          title: "Failed to save preset",
+          title: "Failed to save prompt",
           description: error instanceof Error ? error.message : "Unexpected error",
           variant: "destructive",
         });
       }
     },
-    [saveAsTemplate, toast]
+    [savePrompt, toast, remixContext, handleClearRemix]
+  );
+
+  const handleSaveAndSharePrompt = useCallback(
+    async (input: {
+      name: string;
+      description?: string;
+      tags?: string[];
+      category?: string;
+      useCase: string;
+      targetModel?: string;
+      remixNote?: string;
+    }) => {
+      if (!isSignedIn) {
+        toast({ title: "Sign in required", description: "Sign in to share prompts.", variant: "destructive" });
+        return;
+      }
+
+      try {
+        const result = await saveAndSharePrompt({
+          title: input.name,
+          description: input.description,
+          tags: input.tags,
+          category: input.category,
+          useCase: input.useCase,
+          targetModel: input.targetModel,
+          remixNote: input.remixNote,
+        });
+        toast({
+          title: `Prompt shared: ${result.record.metadata.name}`,
+          description: `Revision r${result.record.metadata.revision}.`,
+        });
+        if (remixContext) {
+          handleClearRemix();
+        }
+      } catch (error) {
+        toast({
+          title: "Failed to save & share prompt",
+          description: error instanceof Error ? error.message : "Unexpected error",
+          variant: "destructive",
+        });
+      }
+    },
+    [isSignedIn, saveAndSharePrompt, toast, remixContext, handleClearRemix]
   );
 
   // Keyboard shortcut: Ctrl+Enter to enhance
@@ -289,12 +445,13 @@ const Index = () => {
   const sectionHealth = getSectionHealth(config, score.total);
   const selectedRole = config.customRole || config.role;
   const displayPrompt = enhancedPrompt || builtPrompt;
-  const canSaveTemplate =
+  const canSavePrompt =
     !!config.task.trim() ||
     !!config.originalPrompt.trim() ||
     config.contextConfig.sources.length > 0 ||
     config.contextConfig.databaseConnections.length > 0 ||
     !!config.contextConfig.rag.vectorStoreRef.trim();
+  const canSharePrompt = canSavePrompt && isSignedIn;
   const mobileEnhanceLabel = isEnhancing
     ? enhancePhase === "starting"
       ? "Starting…"
@@ -326,6 +483,26 @@ const Index = () => {
             No prompt engineering expertise required.
           </p>
         </div>
+
+        {remixContext && (
+          <Card className="mb-4 border-primary/30 bg-primary/5 p-3 sm:p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="space-y-1">
+                <p className="text-[10px] uppercase tracking-wide text-primary">Remix mode</p>
+                <p className="text-sm font-medium text-foreground">
+                  Remixing {remixContext.parentAuthor}’s “{remixContext.parentTitle}”
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Your changes will be attributed when you save or share.
+                </p>
+              </div>
+              <Button variant="ghost" size="sm" onClick={handleClearRemix} className="gap-1 text-xs">
+                <X className="h-3 w-3" />
+                Clear remix
+              </Button>
+            </div>
+          </Card>
+        )}
 
         {/* Split layout */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
@@ -450,8 +627,15 @@ const Index = () => {
                 enhancePhase={enhancePhase}
                 onEnhance={handleEnhance}
                 onSaveVersion={saveVersion}
-                onSaveTemplate={handleSaveAsTemplate}
-                canSaveTemplate={canSaveTemplate}
+                onSavePrompt={handleSavePrompt}
+                onSaveAndSharePrompt={handleSaveAndSharePrompt}
+                canSavePrompt={canSavePrompt}
+                canSharePrompt={canSharePrompt}
+                remixContext={
+                  remixContext
+                    ? { title: remixContext.parentTitle, authorName: remixContext.parentAuthor }
+                    : undefined
+                }
               />
               <p className="text-xs text-muted-foreground text-center mt-3">
                 Press <kbd className="px-1.5 py-0.5 text-[10px] bg-muted rounded border border-border font-mono">Ctrl+Enter</kbd> to enhance
@@ -515,9 +699,16 @@ const Index = () => {
                 enhancePhase={enhancePhase}
                 onEnhance={handleEnhance}
                 onSaveVersion={saveVersion}
-                onSaveTemplate={handleSaveAsTemplate}
-                canSaveTemplate={canSaveTemplate}
+                onSavePrompt={handleSavePrompt}
+                onSaveAndSharePrompt={handleSaveAndSharePrompt}
+                canSavePrompt={canSavePrompt}
+                canSharePrompt={canSharePrompt}
                 hideEnhanceButton
+                remixContext={
+                  remixContext
+                    ? { title: remixContext.parentTitle, authorName: remixContext.parentAuthor }
+                    : undefined
+                }
               />
             </div>
           </DrawerContent>
@@ -529,13 +720,16 @@ const Index = () => {
 
       <Suspense fallback={null}>
         {templatesOpen && (
-          <TemplateLibrary
+          <PromptLibrary
             open={templatesOpen}
             onOpenChange={setTemplatesOpen}
-            savedTemplates={templateSummaries}
-            onSelectPreset={handleSelectTemplate}
+            savedPrompts={templateSummaries}
+            onSelectTemplate={handleSelectTemplate}
             onSelectSaved={handleSelectSavedTemplate}
             onDeleteSaved={handleDeleteSavedTemplate}
+            onShareSaved={handleShareSavedPrompt}
+            onUnshareSaved={handleUnshareSavedPrompt}
+            canShareSavedPrompts={isSignedIn}
           />
         )}
 

@@ -17,11 +17,21 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import * as persistence from "@/lib/persistence";
+import { computeRemixDiff } from "@/lib/community";
 
 const STORAGE_KEY = "promptforge-draft";
 const LOCAL_VERSIONS_KEY = "promptforge-local-versions";
 const DRAFT_AUTOSAVE_DELAY_MS = 700;
 const MAX_LOCAL_VERSIONS = 50;
+
+interface RemixContext {
+  postId: string;
+  parentTitle: string;
+  parentAuthor: string;
+  parentConfig: PromptConfig;
+  parentTags: string[];
+  parentCategory: string;
+}
 
 function hydrateConfig(raw: unknown): PromptConfig {
   if (!raw || typeof raw !== "object") return defaultConfig;
@@ -104,6 +114,23 @@ function clearLocalVersions(): void {
   }
 }
 
+function toPromptSummary(template: TemplateSummary): persistence.PromptSummary {
+  return {
+    ...template,
+    category: "general",
+    isShared: false,
+    targetModel: "",
+    useCase: "",
+    remixedFrom: null,
+    builtPrompt: "",
+    enhancedPrompt: "",
+    upvoteCount: 0,
+    verifiedCount: 0,
+    remixCount: 0,
+    commentCount: 0,
+  };
+}
+
 export function usePromptBuilder() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -112,11 +139,12 @@ export function usePromptBuilder() {
   const [enhancedPrompt, setEnhancedPrompt] = useState("");
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [versions, setVersions] = useState<persistence.PromptVersion[]>(loadLocalVersions);
-  const [templateSummaries, setTemplateSummaries] = useState<TemplateSummary[]>(() =>
-    listLocalTemplateSummaries(),
+  const [templateSummaries, setTemplateSummaries] = useState<persistence.PromptSummary[]>(() =>
+    listLocalTemplateSummaries().map(toPromptSummary),
   );
   const [isDraftDirty, setIsDraftDirty] = useState(false);
   const [isCloudHydrated, setIsCloudHydrated] = useState(false);
+  const [remixContext, setRemixContext] = useState<RemixContext | null>(null);
 
   const prevUserId = useRef<string | null>(null);
   const draftSaveError = useRef<string | null>(null);
@@ -145,7 +173,7 @@ export function usePromptBuilder() {
     saveLocalVersions(versions);
   }, [userId, versions]);
 
-  // Load draft/templates/versions when the auth identity changes.
+  // Load draft/prompts/versions when the auth identity changes.
   useEffect(() => {
     const previousUserId = prevUserId.current;
     if (userId === previousUserId) return;
@@ -157,13 +185,14 @@ export function usePromptBuilder() {
     setConfig(defaultConfig);
     setTemplateSummaries([]);
     setVersions([]);
+    setRemixContext(null);
 
     const token = ++authLoadToken.current;
 
     if (!userId) {
       setIsCloudHydrated(true);
       setConfig(loadLocalDraft());
-      setTemplateSummaries(listLocalTemplateSummaries());
+      setTemplateSummaries(listLocalTemplateSummaries().map(toPromptSummary));
       setVersions(loadLocalVersions());
       return;
     }
@@ -198,12 +227,12 @@ export function usePromptBuilder() {
 
     void Promise.allSettled([
       persistence.loadDraft(userId),
-      persistence.loadTemplates(userId),
+      persistence.loadPrompts(userId),
       (async () => {
         await migrateVersionsFromGuestToCloud();
         return persistence.loadVersions(userId);
       })(),
-    ]).then(([draftResult, templatesResult, versionsResult]) => {
+    ]).then(([draftResult, promptsResult, versionsResult]) => {
       if (token !== authLoadToken.current) return;
 
       if (draftResult.status === "fulfilled") {
@@ -219,11 +248,11 @@ export function usePromptBuilder() {
         showPersistenceError("Failed to load draft", draftResult.reason, "Failed to load draft.");
       }
 
-      if (templatesResult.status === "fulfilled") {
-        setTemplateSummaries(templatesResult.value);
+      if (promptsResult.status === "fulfilled") {
+        setTemplateSummaries(promptsResult.value);
       } else {
         setTemplateSummaries([]);
-        showPersistenceError("Failed to load presets", templatesResult.reason, "Failed to load presets.");
+        showPersistenceError("Failed to load prompts", promptsResult.reason, "Failed to load prompts.");
       }
 
       if (versionsResult.status === "fulfilled") {
@@ -247,13 +276,13 @@ export function usePromptBuilder() {
   const refreshTemplateSummaries = useCallback(async () => {
     if (userId) {
       try {
-        const summaries = await persistence.loadTemplates(userId);
+        const summaries = await persistence.loadPrompts(userId);
         setTemplateSummaries(summaries);
       } catch (error) {
-        showPersistenceError("Failed to refresh presets", error, "Failed to refresh presets.");
+        showPersistenceError("Failed to refresh prompts", error, "Failed to refresh prompts.");
       }
     } else {
-      setTemplateSummaries(listLocalTemplateSummaries());
+      setTemplateSummaries(listLocalTemplateSummaries().map(toPromptSummary));
     }
   }, [userId, showPersistenceError]);
 
@@ -304,6 +333,7 @@ export function usePromptBuilder() {
   const resetConfig = useCallback(() => {
     setConfig(defaultConfig);
     setEnhancedPrompt("");
+    setRemixContext(null);
     if (!userId) {
       persistence.clearLocalDraft();
       setIsDraftDirty(false);
@@ -462,9 +492,155 @@ export function usePromptBuilder() {
         examples: template.examples,
       });
       setEnhancedPrompt("");
+      setRemixContext(null);
       markDraftDirty();
     },
     [markDraftDirty],
+  );
+
+  const startRemix = useCallback(
+    (input: {
+      postId: string;
+      title: string;
+      authorName?: string;
+      publicConfig: PromptConfig;
+      parentTags?: string[];
+      parentCategory?: string;
+    }) => {
+      setConfig(hydrateConfig(input.publicConfig));
+      setEnhancedPrompt("");
+      setRemixContext({
+        postId: input.postId,
+        parentTitle: input.title,
+        parentAuthor: input.authorName || "Community member",
+        parentConfig: hydrateConfig(input.publicConfig),
+        parentTags: input.parentTags ?? [],
+        parentCategory: input.parentCategory ?? "general",
+      });
+      markDraftDirty();
+    },
+    [markDraftDirty],
+  );
+
+  const clearRemix = useCallback(() => {
+    setRemixContext(null);
+  }, []);
+
+  const savePrompt = useCallback(
+    async (input: {
+      title: string;
+      description?: string;
+      tags?: string[];
+      category?: string;
+      targetModel?: string;
+      useCase?: string;
+      remixNote?: string;
+    }): Promise<SaveTemplateResult> => {
+      const remixPayload = remixContext
+        ? {
+            remixedFrom: remixContext.postId,
+            remixNote: input.remixNote,
+            remixDiff: computeRemixDiff(remixContext.parentConfig, config, {
+              parentTags: remixContext.parentTags,
+              childTags: input.tags,
+              parentCategory: remixContext.parentCategory,
+              childCategory: input.category,
+            }),
+          }
+        : {};
+      const result = await persistence.savePrompt(userId, {
+        name: input.title,
+        description: input.description,
+        tags: input.tags,
+        category: input.category,
+        targetModel: input.targetModel,
+        useCase: input.useCase,
+        config,
+        builtPrompt: builtPrompt || "",
+        enhancedPrompt: enhancedPrompt || "",
+        ...remixPayload,
+      });
+      await refreshTemplateSummaries();
+      if (remixContext) setRemixContext(null);
+      return result;
+    },
+    [config, builtPrompt, enhancedPrompt, userId, refreshTemplateSummaries, remixContext],
+  );
+
+  const saveAndSharePrompt = useCallback(
+    async (input: {
+      title: string;
+      description?: string;
+      tags?: string[];
+      category?: string;
+      targetModel?: string;
+      useCase: string;
+      remixNote?: string;
+    }): Promise<SaveTemplateResult> => {
+      if (!userId) {
+        throw new Error("Sign in to share prompts.");
+      }
+
+      const remixPayload = remixContext
+        ? {
+            remixedFrom: remixContext.postId,
+            remixNote: input.remixNote,
+            remixDiff: computeRemixDiff(remixContext.parentConfig, config, {
+              parentTags: remixContext.parentTags,
+              childTags: input.tags,
+              parentCategory: remixContext.parentCategory,
+              childCategory: input.category,
+            }),
+          }
+        : {};
+      const result = await persistence.savePrompt(userId, {
+        name: input.title,
+        description: input.description,
+        tags: input.tags,
+        category: input.category,
+        targetModel: input.targetModel,
+        useCase: input.useCase,
+        config,
+        builtPrompt: builtPrompt || "",
+        enhancedPrompt: enhancedPrompt || "",
+        ...remixPayload,
+      });
+
+      const shared = await persistence.sharePrompt(userId, result.record.metadata.id, {
+        title: input.title,
+        description: input.description,
+        category: input.category,
+        tags: input.tags,
+        targetModel: input.targetModel,
+        useCase: input.useCase,
+      });
+      if (!shared) {
+        throw new Error("Prompt was saved but could not be shared.");
+      }
+
+      await refreshTemplateSummaries();
+      if (remixContext) setRemixContext(null);
+      return result;
+    },
+    [config, builtPrompt, enhancedPrompt, userId, refreshTemplateSummaries, remixContext],
+  );
+
+  const shareSavedPrompt = useCallback(
+    async (id: string, input?: persistence.PromptShareInput): Promise<boolean> => {
+      const shared = await persistence.sharePrompt(userId, id, input);
+      if (shared) await refreshTemplateSummaries();
+      return shared;
+    },
+    [userId, refreshTemplateSummaries],
+  );
+
+  const unshareSavedPrompt = useCallback(
+    async (id: string): Promise<boolean> => {
+      const unshared = await persistence.unsharePrompt(userId, id);
+      if (unshared) await refreshTemplateSummaries();
+      return unshared;
+    },
+    [userId, refreshTemplateSummaries],
   );
 
   const saveAsTemplate = useCallback(
@@ -473,19 +649,22 @@ export function usePromptBuilder() {
       description?: string;
       tags?: string[];
     }): Promise<SaveTemplateResult> => {
-      const result = await persistence.saveTemplate(userId, { ...input, config });
-      await refreshTemplateSummaries();
-      return result;
+      return savePrompt({
+        title: input.name,
+        description: input.description,
+        tags: input.tags,
+      });
     },
-    [config, userId, refreshTemplateSummaries],
+    [savePrompt],
   );
 
   const loadSavedTemplate = useCallback(
     async (id: string): Promise<TemplateLoadResult | null> => {
-      const loaded = await persistence.loadTemplateById(userId, id);
+      const loaded = await persistence.loadPromptById(userId, id);
       if (!loaded) return null;
       setConfig(hydrateConfig(loaded.record.state.promptConfig));
       setEnhancedPrompt("");
+      setRemixContext(null);
       markDraftDirty();
       return loaded;
     },
@@ -494,7 +673,7 @@ export function usePromptBuilder() {
 
   const deleteSavedTemplate = useCallback(
     async (id: string): Promise<boolean> => {
-      const deleted = await persistence.deleteTemplate(userId, id);
+      const deleted = await persistence.deletePrompt(userId, id);
       if (deleted) await refreshTemplateSummaries();
       return deleted;
     },
@@ -512,13 +691,21 @@ export function usePromptBuilder() {
     setEnhancedPrompt,
     isEnhancing,
     setIsEnhancing,
+    isSignedIn: Boolean(userId),
     versions,
     saveVersion,
     loadTemplate,
+    savePrompt,
+    saveAndSharePrompt,
+    shareSavedPrompt,
+    unshareSavedPrompt,
     saveAsTemplate,
     loadSavedTemplate,
     deleteSavedTemplate,
     templateSummaries,
+    remixContext,
+    startRemix,
+    clearRemix,
     // Context-specific
     updateContextSources,
     updateDatabaseConnections,

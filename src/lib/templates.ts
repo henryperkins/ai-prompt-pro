@@ -1,7 +1,21 @@
+export type PromptCategory =
+  | "general"
+  | "frontend"
+  | "backend"
+  | "fullstack"
+  | "devops"
+  | "data"
+  | "ml-ai"
+  | "security"
+  | "testing"
+  | "api"
+  | "automation"
+  | "docs";
+
 export interface PromptTemplate {
   id: string;
   name: string;
-  category: "content" | "analysis" | "creative" | "business" | "education";
+  category: PromptCategory;
   description: string;
   starterPrompt: string;
   role: string;
@@ -19,7 +33,7 @@ export const templates: PromptTemplate[] = [
   {
     id: "blog-post",
     name: "Blog Post Writer",
-    category: "content",
+    category: "docs",
     description: "Create engaging blog posts on any topic with SEO optimization",
     starterPrompt: "Write a 1,200-word blog post about edge AI for small businesses.",
     role: "Expert Copywriter & SEO Specialist",
@@ -35,7 +49,7 @@ export const templates: PromptTemplate[] = [
   {
     id: "social-media",
     name: "Social Media Post",
-    category: "content",
+    category: "general",
     description: "Craft attention-grabbing social media content",
     starterPrompt: "Create 3 LinkedIn posts announcing our spring product launch.",
     role: "Social Media Marketing Expert",
@@ -51,7 +65,7 @@ export const templates: PromptTemplate[] = [
   {
     id: "email-campaign",
     name: "Email Campaign",
-    category: "content",
+    category: "general",
     description: "Write persuasive email sequences",
     starterPrompt: "Draft a 4-email onboarding sequence for new trial users.",
     role: "Email Marketing Strategist",
@@ -67,7 +81,7 @@ export const templates: PromptTemplate[] = [
   {
     id: "data-analysis",
     name: "Data Analysis Report",
-    category: "analysis",
+    category: "data",
     description: "Analyze datasets and provide actionable insights",
     starterPrompt: "Analyze this churn dataset and summarize the top 5 retention risks.",
     role: "Senior Data Analyst",
@@ -83,7 +97,7 @@ export const templates: PromptTemplate[] = [
   {
     id: "code-review",
     name: "Code Review",
-    category: "analysis",
+    category: "testing",
     description: "Thorough code review with improvement suggestions",
     starterPrompt: "Review this TypeScript API handler for bugs, security, and performance.",
     role: "Senior Software Engineer",
@@ -99,7 +113,7 @@ export const templates: PromptTemplate[] = [
   {
     id: "brainstorm",
     name: "Brainstorming Session",
-    category: "creative",
+    category: "general",
     description: "Generate creative ideas and explore possibilities",
     starterPrompt: "Brainstorm 20 campaign ideas for a zero-budget local fitness app launch.",
     role: "Creative Director & Innovation Consultant",
@@ -115,7 +129,7 @@ export const templates: PromptTemplate[] = [
   {
     id: "story-writing",
     name: "Story Writing",
-    category: "creative",
+    category: "general",
     description: "Craft compelling narratives and stories",
     starterPrompt: "Write a short sci-fi story about a city powered by memories.",
     role: "Published Fiction Author",
@@ -131,7 +145,7 @@ export const templates: PromptTemplate[] = [
   {
     id: "business-proposal",
     name: "Business Proposal",
-    category: "business",
+    category: "general",
     description: "Create professional business proposals",
     starterPrompt: "Draft a proposal to redesign a retailer's ecommerce checkout flow.",
     role: "Business Development Consultant",
@@ -147,7 +161,7 @@ export const templates: PromptTemplate[] = [
   {
     id: "lesson-plan",
     name: "Lesson Plan",
-    category: "education",
+    category: "docs",
     description: "Design structured educational lesson plans",
     starterPrompt: "Create a 45-minute lesson plan to teach photosynthesis to 8th graders.",
     role: "Experienced Educator & Curriculum Designer",
@@ -163,7 +177,7 @@ export const templates: PromptTemplate[] = [
   {
     id: "explainer",
     name: "Concept Explainer",
-    category: "education",
+    category: "docs",
     description: "Explain complex topics in simple terms",
     starterPrompt: "Explain how neural networks work using simple everyday analogies.",
     role: "Expert Teacher & Science Communicator",
@@ -178,18 +192,32 @@ export const templates: PromptTemplate[] = [
   },
 ];
 
-export const categoryLabels: Record<string, string> = {
-  content: "Content Creation",
-  analysis: "Analysis",
-  creative: "Creative",
-  business: "Business",
-  education: "Education",
+export const categoryLabels: Record<PromptCategory, string> = {
+  general: "General",
+  frontend: "Frontend",
+  backend: "Backend",
+  fullstack: "Fullstack",
+  devops: "DevOps",
+  data: "Data",
+  "ml-ai": "ML / AI",
+  security: "Security",
+  testing: "Testing",
+  api: "API",
+  automation: "Automation",
+  docs: "Docs",
 };
 
-export const categoryColors: Record<string, string> = {
-  content: "bg-primary/10 text-primary",
-  analysis: "bg-accent text-accent-foreground",
-  creative: "bg-destructive/10 text-destructive",
-  business: "bg-secondary/20 text-secondary-foreground",
-  education: "bg-primary/20 text-primary",
+export const categoryColors: Record<PromptCategory, string> = {
+  general: "bg-primary/10 text-primary",
+  frontend: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
+  backend: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+  fullstack: "bg-violet-500/10 text-violet-700 dark:text-violet-300",
+  devops: "bg-slate-500/10 text-slate-700 dark:text-slate-300",
+  data: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  "ml-ai": "bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300",
+  security: "bg-red-500/10 text-red-700 dark:text-red-300",
+  testing: "bg-lime-500/10 text-lime-700 dark:text-lime-300",
+  api: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300",
+  automation: "bg-teal-500/10 text-teal-700 dark:text-teal-300",
+  docs: "bg-orange-500/10 text-orange-700 dark:text-orange-300",
 };

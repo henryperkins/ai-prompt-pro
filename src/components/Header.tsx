@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Moon, Sun, Zap, BookOpen, History, LogIn, LogOut } from "lucide-react";
+import { Moon, Sun, Zap, BookOpen, History, LogIn, LogOut, Users, PenSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -8,19 +8,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { AuthDialog } from "@/components/AuthDialog";
 
 interface HeaderProps {
   isDark: boolean;
   onToggleTheme: () => void;
-  onOpenTemplates: () => void;
-  onOpenHistory: () => void;
+  onOpenTemplates?: () => void;
+  onOpenHistory?: () => void;
 }
 
 export function Header({ isDark, onToggleTheme, onOpenTemplates, onOpenHistory }: HeaderProps) {
   const { user, signOut } = useAuth();
+  const location = useLocation();
   const [authOpen, setAuthOpen] = useState(false);
+  const isCommunityRoute = location.pathname.startsWith("/community");
 
   const initials = user?.user_metadata?.full_name
     ? (user.user_metadata.full_name as string)
@@ -45,25 +48,40 @@ export function Header({ isDark, onToggleTheme, onOpenTemplates, onOpenHistory }
           </div>
 
           <nav className="flex items-center gap-0.5 sm:gap-1">
+            {onOpenTemplates && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onOpenTemplates}
+                aria-label="Open prompt library"
+                className="interactive-chip gap-1.5 sm:gap-2 h-8 sm:h-9 px-2 sm:px-3"
+              >
+                <BookOpen className="w-4 h-4" />
+                <span className="hidden sm:inline text-sm">Library</span>
+              </Button>
+            )}
+            {onOpenHistory && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onOpenHistory}
+                aria-label="Open version history"
+                className="interactive-chip gap-1.5 sm:gap-2 h-8 sm:h-9 px-2 sm:px-3"
+              >
+                <History className="w-4 h-4" />
+                <span className="hidden sm:inline text-sm">History</span>
+              </Button>
+            )}
             <Button
-              variant="ghost"
+              asChild
+              variant={isCommunityRoute ? "outline" : "ghost"}
               size="sm"
-              onClick={onOpenTemplates}
-              aria-label="Open presets"
               className="interactive-chip gap-1.5 sm:gap-2 h-8 sm:h-9 px-2 sm:px-3"
             >
-              <BookOpen className="w-4 h-4" />
-              <span className="hidden sm:inline text-sm">Presets</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onOpenHistory}
-              aria-label="Open version history"
-              className="interactive-chip gap-1.5 sm:gap-2 h-8 sm:h-9 px-2 sm:px-3"
-            >
-              <History className="w-4 h-4" />
-              <span className="hidden sm:inline text-sm">History</span>
+              <Link to={isCommunityRoute ? "/" : "/community"} aria-label={isCommunityRoute ? "Open builder" : "Open community"}>
+                {isCommunityRoute ? <PenSquare className="w-4 h-4" /> : <Users className="w-4 h-4" />}
+                <span className="hidden sm:inline text-sm">{isCommunityRoute ? "Builder" : "Community"}</span>
+              </Link>
             </Button>
             <Button
               variant="ghost"

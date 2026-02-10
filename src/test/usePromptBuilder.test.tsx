@@ -10,10 +10,12 @@ const mocks = vi.hoisted(() => ({
   loadDraft: vi.fn(),
   saveDraft: vi.fn(),
   clearLocalDraft: vi.fn(),
-  loadTemplates: vi.fn(),
-  saveTemplate: vi.fn(),
-  loadTemplateById: vi.fn(),
-  deleteTemplate: vi.fn(),
+  loadPrompts: vi.fn(),
+  savePrompt: vi.fn(),
+  sharePrompt: vi.fn(),
+  unsharePrompt: vi.fn(),
+  loadPromptById: vi.fn(),
+  deletePrompt: vi.fn(),
   loadVersions: vi.fn(),
   saveVersion: vi.fn(),
   getPersistenceErrorMessage: vi.fn((_error: unknown, fallback: string) => fallback),
@@ -41,10 +43,12 @@ vi.mock("@/lib/persistence", () => ({
   loadDraft: (...args: unknown[]) => mocks.loadDraft(...args),
   saveDraft: (...args: unknown[]) => mocks.saveDraft(...args),
   clearLocalDraft: (...args: unknown[]) => mocks.clearLocalDraft(...args),
-  loadTemplates: (...args: unknown[]) => mocks.loadTemplates(...args),
-  saveTemplate: (...args: unknown[]) => mocks.saveTemplate(...args),
-  loadTemplateById: (...args: unknown[]) => mocks.loadTemplateById(...args),
-  deleteTemplate: (...args: unknown[]) => mocks.deleteTemplate(...args),
+  loadPrompts: (...args: unknown[]) => mocks.loadPrompts(...args),
+  savePrompt: (...args: unknown[]) => mocks.savePrompt(...args),
+  sharePrompt: (...args: unknown[]) => mocks.sharePrompt(...args),
+  unsharePrompt: (...args: unknown[]) => mocks.unsharePrompt(...args),
+  loadPromptById: (...args: unknown[]) => mocks.loadPromptById(...args),
+  deletePrompt: (...args: unknown[]) => mocks.deletePrompt(...args),
   loadVersions: (...args: unknown[]) => mocks.loadVersions(...args),
   saveVersion: (...args: unknown[]) => mocks.saveVersion(...args),
   getPersistenceErrorMessage: (...args: unknown[]) => mocks.getPersistenceErrorMessage(...args),
@@ -78,12 +82,14 @@ describe("usePromptBuilder", () => {
     localStorage.clear();
     mocks.authUser.current = { id: "user_a" };
     mocks.loadDraft.mockResolvedValue(buildConfig({ role: "User A role" }));
-    mocks.loadTemplates.mockResolvedValue([]);
+    mocks.loadPrompts.mockResolvedValue([]);
     mocks.loadVersions.mockResolvedValue([]);
     mocks.saveDraft.mockResolvedValue(undefined);
-    mocks.saveTemplate.mockResolvedValue(null);
-    mocks.loadTemplateById.mockResolvedValue(null);
-    mocks.deleteTemplate.mockResolvedValue(false);
+    mocks.savePrompt.mockResolvedValue(null);
+    mocks.sharePrompt.mockResolvedValue(false);
+    mocks.unsharePrompt.mockResolvedValue(false);
+    mocks.loadPromptById.mockResolvedValue(null);
+    mocks.deletePrompt.mockResolvedValue(false);
     mocks.saveVersion.mockResolvedValue(null);
   });
 
@@ -102,7 +108,7 @@ describe("usePromptBuilder", () => {
 
     mocks.authUser.current = { id: "user_b" };
     mocks.loadDraft.mockRejectedValueOnce(new Error("Failed to load draft"));
-    mocks.loadTemplates.mockResolvedValueOnce([]);
+    mocks.loadPrompts.mockResolvedValueOnce([]);
     mocks.loadVersions.mockResolvedValueOnce([]);
 
     rerender();
@@ -145,7 +151,7 @@ describe("usePromptBuilder", () => {
 
     mocks.authUser.current = { id: "user_b" };
     mocks.loadDraft.mockResolvedValueOnce(buildConfig({ role: "Cloud role" }));
-    mocks.loadTemplates.mockResolvedValueOnce([]);
+    mocks.loadPrompts.mockResolvedValueOnce([]);
     mocks.loadVersions.mockResolvedValueOnce([
       {
         id: "cloud-1",
@@ -178,7 +184,7 @@ describe("usePromptBuilder", () => {
     const deferredDraft = createDeferred<PromptConfig | null>();
     mocks.authUser.current = { id: "user_b" };
     mocks.loadDraft.mockReturnValueOnce(deferredDraft.promise);
-    mocks.loadTemplates.mockResolvedValueOnce([]);
+    mocks.loadPrompts.mockResolvedValueOnce([]);
     mocks.loadVersions.mockResolvedValueOnce([]);
 
     rerender();
@@ -198,5 +204,21 @@ describe("usePromptBuilder", () => {
         title: "Cloud draft was not applied",
       }),
     );
+  });
+
+  it("rejects save-and-share for signed-out users before any save attempt", async () => {
+    mocks.authUser.current = null;
+    const { usePromptBuilder } = await import("@/hooks/usePromptBuilder");
+    const { result } = renderHook(() => usePromptBuilder());
+
+    await expect(
+      result.current.saveAndSharePrompt({
+        title: "Share me",
+        useCase: "A valid use case",
+      }),
+    ).rejects.toThrow("Sign in to share prompts.");
+
+    expect(mocks.savePrompt).not.toHaveBeenCalled();
+    expect(mocks.sharePrompt).not.toHaveBeenCalled();
   });
 });

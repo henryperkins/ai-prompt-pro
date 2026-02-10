@@ -8,6 +8,51 @@ const SUPABASE_PUBLISHABLE_KEY =
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 let bootstrapTokenPromise: Promise<string> | null = null;
+const ANON_AUTH_DISABLED_KEY = "ai-prompt-pro:anon-auth-disabled";
+
+function readAnonAuthDisabled(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(ANON_AUTH_DISABLED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function persistAnonAuthDisabled(value: boolean): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (value) {
+      window.localStorage.setItem(ANON_AUTH_DISABLED_KEY, "1");
+    } else {
+      window.localStorage.removeItem(ANON_AUTH_DISABLED_KEY);
+    }
+  } catch {
+    // Ignore storage errors (private mode, disabled storage, etc.).
+  }
+}
+
+let anonAuthDisabled = readAnonAuthDisabled();
+
+function shouldPersistAnonAuthDisabled(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as { message?: unknown; status?: unknown; code?: unknown };
+  const message = typeof candidate.message === "string" ? candidate.message.toLowerCase() : "";
+  const code = typeof candidate.code === "string" ? candidate.code.toLowerCase() : "";
+  const status = typeof candidate.status === "number" ? candidate.status : null;
+
+  if (code.includes("anonymous") || code.includes("provider_disabled")) {
+    return true;
+  }
+
+  if (!message) return false;
+  const suggestsAnonymousIsDisabled =
+    message.includes("anonymous") &&
+    (message.includes("disabled") || message.includes("not enabled") || message.includes("unsupported"));
+
+  if (!suggestsAnonymousIsDisabled) return false;
+  return status === null || status >= 400;
+}
 
 function assertSupabaseEnv(): void {
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
@@ -36,9 +81,18 @@ async function getAccessToken(): Promise<string> {
     return session.access_token;
   }
 
-  const { data, error } = await supabase.auth.signInAnonymously();
-  if (!error && data.session?.access_token) {
-    return data.session.access_token;
+  if (!anonAuthDisabled) {
+    const { data, error } = await supabase.auth.signInAnonymously();
+    if (!error && data.session?.access_token) {
+      anonAuthDisabled = false;
+      persistAnonAuthDisabled(false);
+      return data.session.access_token;
+    }
+    if (error && shouldPersistAnonAuthDisabled(error)) {
+      // Anonymous sign-ins are disabled in this project — stop retrying across refreshes.
+      anonAuthDisabled = true;
+      persistAnonAuthDisabled(true);
+    }
   }
 
   // Fallback for projects where anonymous auth is disabled:
@@ -80,6 +134,17 @@ function extractSseError(payload: unknown): string | null {
   return null;
 }
 
+function extractTextValue(value: unknown): string | null {
+  if (typeof value === "string" && value) return value;
+  if (!value || typeof value !== "object") return null;
+  const obj = value as { text?: unknown; content?: unknown; output_text?: unknown; delta?: unknown };
+  if (typeof obj.text === "string" && obj.text) return obj.text;
+  if (typeof obj.content === "string" && obj.content) return obj.content;
+  if (typeof obj.output_text === "string" && obj.output_text) return obj.output_text;
+  if (typeof obj.delta === "string" && obj.delta) return obj.delta;
+  return null;
+}
+
 function extractSseText(payload: unknown): string | null {
   if (!payload || typeof payload !== "object") return null;
   const data = payload as {
@@ -87,11 +152,32 @@ function extractSseText(payload: unknown): string | null {
     type?: unknown;
     delta?: unknown;
     output_text?: unknown;
+    text?: unknown;
+    item?: unknown;
   };
 
   const chatCompletionsDelta = data.choices?.[0]?.delta?.content;
   if (typeof chatCompletionsDelta === "string" && chatCompletionsDelta) {
     return chatCompletionsDelta;
+  }
+
+  // Codex-style turn/item streaming event shape.
+  if (typeof data.type === "string") {
+    const eventType = data.type;
+    if (eventType === "item/delta" || eventType === "item.delta") {
+      return (
+        extractTextValue(data.delta) ||
+        extractTextValue((data.item as { delta?: unknown } | undefined)?.delta) ||
+        extractTextValue(data.item)
+      );
+    }
+    if (eventType === "item/completed" || eventType === "item.completed") {
+      return (
+        extractTextValue(data.text) ||
+        extractTextValue((data.item as { text?: unknown } | undefined)?.text) ||
+        extractTextValue(data.output_text)
+      );
+    }
   }
 
   // Responses API streaming event shape.

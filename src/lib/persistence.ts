@@ -1,8 +1,17 @@
 import type { PostgrestError } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
+import type { RemixDiff } from "@/lib/community";
+import { normalizePromptCategory } from "@/lib/prompt-categories";
 import type { PromptConfig } from "@/lib/prompt-builder";
 import { defaultConfig } from "@/lib/prompt-builder";
+import {
+  escapePostgrestLikePattern,
+  isPostgrestError,
+  normalizePromptTagsOptional,
+  type SavedPromptListRow,
+  type SavedPromptRow,
+} from "@/lib/saved-prompt-shared";
 import {
   collectTemplateWarnings,
   computeTemplateFingerprint,
@@ -20,8 +29,10 @@ import {
 } from "@/lib/template-store";
 
 const DRAFT_KEY = "promptforge-draft";
-const TEMPLATE_SELECT_COLUMNS =
-  "id, name, description, tags, config, fingerprint, revision, created_at, updated_at";
+const SAVED_PROMPT_FULL_SELECT_COLUMNS =
+  "id, user_id, title, description, category, tags, config, built_prompt, enhanced_prompt, fingerprint, revision, is_shared, target_model, use_case, remixed_from, remix_note, remix_diff, created_at, updated_at";
+const SAVED_PROMPT_LIST_SELECT_COLUMNS =
+  "id, user_id, title, description, category, tags, config, fingerprint, revision, is_shared, target_model, use_case, remixed_from, created_at, updated_at";
 
 type PersistenceErrorCode = "unauthorized" | "conflict" | "network" | "unknown";
 
@@ -35,15 +46,44 @@ export class PersistenceError extends Error {
   }
 }
 
+export interface PromptSummary extends TemplateSummary {
+  category: string;
+  isShared: boolean;
+  targetModel: string;
+  useCase: string;
+  remixedFrom: string | null;
+  builtPrompt: string;
+  enhancedPrompt: string;
+  upvoteCount: number;
+  verifiedCount: number;
+  remixCount: number;
+  commentCount: number;
+}
+
+export interface PromptSaveInput extends TemplateSaveInput {
+  category?: string;
+  builtPrompt?: string;
+  enhancedPrompt?: string;
+  targetModel?: string;
+  useCase?: string;
+  isShared?: boolean;
+  remixedFrom?: string | null;
+  remixNote?: string;
+  remixDiff?: RemixDiff | null;
+}
+
+export interface PromptShareInput {
+  title?: string;
+  description?: string;
+  category?: string;
+  tags?: string[];
+  targetModel?: string;
+  useCase?: string;
+}
+
 export function getPersistenceErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message.trim()) return error.message;
   return fallback;
-}
-
-function isPostgrestError(value: unknown): value is PostgrestError {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Record<string, unknown>;
-  return typeof candidate.message === "string" && typeof candidate.code === "string";
 }
 
 function mapPostgrestError(error: PostgrestError, fallback: string): PersistenceError {
@@ -75,31 +115,30 @@ function toPersistenceError(error: unknown, fallback: string): PersistenceError 
   return new PersistenceError("unknown", fallback, { cause: error });
 }
 
-function normalizeTags(tags?: string[]): string[] | undefined {
-  if (!Array.isArray(tags)) return undefined;
-  return tags.map((tag) => tag.trim()).filter(Boolean);
-}
-
 function normalizeDescription(description?: string): string | undefined {
   if (description === undefined) return undefined;
-  return description.trim();
+  return description.trim().slice(0, 500);
 }
 
-function escapeLikePattern(value: string): string {
-  return value.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+function normalizeUseCase(useCase?: string): string | undefined {
+  if (useCase === undefined) return undefined;
+  return useCase.trim().slice(0, 500);
 }
 
-type TemplateRow = {
-  id: string;
-  name: string;
-  description: string;
-  tags: string[] | null;
-  config: Json | null;
-  fingerprint: string | null;
-  revision: number;
-  created_at: string;
-  updated_at: string;
-};
+function normalizeTargetModel(targetModel?: string): string | undefined {
+  if (targetModel === undefined) return undefined;
+  return targetModel.trim().slice(0, 80);
+}
+
+function normalizeRemixNote(remixNote?: string): string | undefined {
+  if (remixNote === undefined) return undefined;
+  return remixNote.trim().slice(0, 500);
+}
+
+function toPresetName(value: string): string {
+  const normalized = value.trim().slice(0, 200);
+  return normalized || "Untitled Prompt";
+}
 
 // ---------------------------------------------------------------------------
 // Draft persistence
@@ -163,99 +202,198 @@ export function clearLocalDraft(): void {
 }
 
 // ---------------------------------------------------------------------------
-// Template / Preset persistence
+// Prompt persistence (saved_prompts)
 // ---------------------------------------------------------------------------
 
-export async function loadTemplates(userId: string | null): Promise<TemplateSummary[]> {
-  if (!userId) return listLocalTemplates();
+export async function loadPrompts(userId: string | null): Promise<PromptSummary[]> {
+  if (!userId) {
+    return listLocalTemplates().map((template) => ({
+      ...template,
+      category: "general",
+      isShared: false,
+      targetModel: "",
+      useCase: "",
+      remixedFrom: null,
+      builtPrompt: "",
+      enhancedPrompt: "",
+      upvoteCount: 0,
+      verifiedCount: 0,
+      remixCount: 0,
+      commentCount: 0,
+    }));
+  }
 
   try {
     const { data, error } = await supabase
-      .from("templates")
-      .select(TEMPLATE_SELECT_COLUMNS)
+      .from("saved_prompts")
+      .select(SAVED_PROMPT_LIST_SELECT_COLUMNS)
       .eq("user_id", userId)
       .order("updated_at", { ascending: false });
 
-    if (error) throw mapPostgrestError(error, "Failed to load presets.");
+    if (error) throw mapPostgrestError(error, "Failed to load prompts.");
     if (!data) return [];
 
-    return data.map((row) => {
-      const cfg = normalizeTemplateConfig((row.config ?? defaultConfig) as unknown as PromptConfig);
+    const savedRows = data as SavedPromptListRow[];
+    const promptIds = savedRows.map((row) => row.id);
+    const metricsByPromptId = new Map<
+      string,
+      {
+        upvote_count: number;
+        verified_count: number;
+        remix_count: number;
+        comment_count: number;
+      }
+    >();
+
+    if (promptIds.length > 0) {
+      const { data: postMetrics, error: postMetricsError } = await supabase
+        .from("community_posts")
+        .select("saved_prompt_id, upvote_count, verified_count, remix_count, comment_count")
+        .in("saved_prompt_id", promptIds)
+        .eq("is_public", true);
+
+      if (!postMetricsError && postMetrics) {
+        postMetrics.forEach((post) => {
+          metricsByPromptId.set(post.saved_prompt_id, {
+            upvote_count: post.upvote_count,
+            verified_count: post.verified_count,
+            remix_count: post.remix_count,
+            comment_count: post.comment_count,
+          });
+        });
+      }
+    }
+
+    return savedRows.map((savedRow) => {
+      const metrics = metricsByPromptId.get(savedRow.id);
+      const cfg = normalizeTemplateConfig((savedRow.config ?? defaultConfig) as unknown as PromptConfig);
       return {
-        id: row.id,
-        name: row.name,
-        description: row.description,
-        tags: row.tags ?? [],
+        id: savedRow.id,
+        name: savedRow.title,
+        description: savedRow.description,
+        tags: savedRow.tags ?? [],
         starterPrompt: inferTemplateStarterPrompt(cfg),
-        updatedAt: new Date(row.updated_at).getTime(),
-        createdAt: new Date(row.created_at).getTime(),
-        revision: row.revision,
+        updatedAt: new Date(savedRow.updated_at).getTime(),
+        createdAt: new Date(savedRow.created_at).getTime(),
+        revision: savedRow.revision,
         schemaVersion: 2,
         sourceCount: cfg.contextConfig.sources.length,
         databaseCount: cfg.contextConfig.databaseConnections.length,
         ragEnabled: cfg.contextConfig.rag.enabled,
-      };
+        category: savedRow.category,
+        isShared: savedRow.is_shared,
+        targetModel: savedRow.target_model,
+        useCase: savedRow.use_case,
+        remixedFrom: savedRow.remixed_from,
+        builtPrompt: "",
+        enhancedPrompt: "",
+        upvoteCount: metrics?.upvote_count ?? 0,
+        verifiedCount: metrics?.verified_count ?? 0,
+        remixCount: metrics?.remix_count ?? 0,
+        commentCount: metrics?.comment_count ?? 0,
+      } satisfies PromptSummary;
     });
   } catch (error) {
-    throw toPersistenceError(error, "Failed to load presets.");
+    throw toPersistenceError(error, "Failed to load prompts.");
   }
 }
 
-export async function loadTemplateById(
-  userId: string | null,
-  id: string,
-): Promise<TemplateLoadResult | null> {
+export async function loadPromptById(userId: string | null, id: string): Promise<TemplateLoadResult | null> {
   if (!userId) return loadLocalTemplate(id);
 
   try {
     const { data, error } = await supabase
-      .from("templates")
-      .select(TEMPLATE_SELECT_COLUMNS)
+      .from("saved_prompts")
+      .select(SAVED_PROMPT_FULL_SELECT_COLUMNS)
       .eq("id", id)
       .eq("user_id", userId)
       .maybeSingle();
 
-    if (error) throw mapPostgrestError(error, "Failed to load preset.");
+    if (error) throw mapPostgrestError(error, "Failed to load prompt.");
     if (!data) return null;
 
-    const cfg = normalizeTemplateConfig((data.config ?? defaultConfig) as unknown as PromptConfig);
+    const row = data as SavedPromptRow;
+    const cfg = normalizeTemplateConfig((row.config ?? defaultConfig) as unknown as PromptConfig);
     return {
-      record: rowToRecord(data, cfg),
+      record: rowToRecord(row, cfg),
       warnings: collectTemplateWarnings(cfg),
     };
   } catch (error) {
-    throw toPersistenceError(error, "Failed to load preset.");
+    throw toPersistenceError(error, "Failed to load prompt.");
   }
 }
 
-export async function saveTemplate(
-  userId: string | null,
-  input: TemplateSaveInput,
-): Promise<SaveTemplateResult> {
-  if (!userId) return saveLocalTemplate(input);
+function hasMetadataChanges(existing: SavedPromptRow, input: PromptSaveInput): boolean {
+  const normalizedDescription = normalizeDescription(input.description);
+  const normalizedTags = normalizePromptTagsOptional(input.tags);
+  const normalizedCategory = normalizePromptCategory(input.category);
+  const normalizedUseCase = normalizeUseCase(input.useCase);
+  const normalizedTargetModel = normalizeTargetModel(input.targetModel);
+  const normalizedRemixNote = normalizeRemixNote(input.remixNote);
 
-  const name = input.name.trim();
-  if (!name) throw new PersistenceError("unknown", "Preset name is required.");
+  if (normalizedDescription !== undefined && normalizedDescription !== existing.description) return true;
+  if (normalizedCategory !== undefined && normalizedCategory !== existing.category) return true;
+  if (normalizedUseCase !== undefined && normalizedUseCase !== existing.use_case) return true;
+  if (normalizedTargetModel !== undefined && normalizedTargetModel !== existing.target_model) return true;
+  if (normalizedRemixNote !== undefined && normalizedRemixNote !== existing.remix_note) return true;
+
+  if (normalizedTags !== undefined) {
+    const existingTags = existing.tags ?? [];
+    if (
+      normalizedTags.length !== existingTags.length ||
+      normalizedTags.some((tag, index) => tag !== existingTags[index])
+    ) {
+      return true;
+    }
+  }
+
+  if (input.builtPrompt !== undefined && input.builtPrompt !== existing.built_prompt) return true;
+  if (input.enhancedPrompt !== undefined && input.enhancedPrompt !== existing.enhanced_prompt) return true;
+  if (input.isShared !== undefined && input.isShared !== existing.is_shared) return true;
+  if (input.remixedFrom !== undefined && input.remixedFrom !== existing.remixed_from) return true;
+  if (input.remixDiff !== undefined && JSON.stringify(input.remixDiff) !== JSON.stringify(existing.remix_diff)) {
+    return true;
+  }
+
+  return false;
+}
+
+export async function savePrompt(userId: string | null, input: PromptSaveInput): Promise<SaveTemplateResult> {
+  if (!userId) {
+    return saveLocalTemplate({
+      name: toPresetName(input.name || ""),
+      description: input.description,
+      tags: input.tags,
+      config: input.config,
+    });
+  }
+
+  const name = toPresetName(input.name || "");
+  if (!name) throw new PersistenceError("unknown", "Prompt title is required.");
 
   const normalizedConfig = normalizeTemplateConfig(input.config);
   const normalizedDescription = normalizeDescription(input.description);
+  const normalizedCategory = normalizePromptCategory(input.category) ?? "general";
+  const normalizedTargetModel = normalizeTargetModel(input.targetModel);
+  const normalizedUseCase = normalizeUseCase(input.useCase);
+  const normalizedRemixNote = normalizeRemixNote(input.remixNote);
   const fingerprint = computeTemplateFingerprint(normalizedConfig);
   const warnings = collectTemplateWarnings(normalizedConfig);
-  const tags = normalizeTags(input.tags);
+  const tags = normalizePromptTagsOptional(input.tags);
 
   try {
     const { data: existingRows, error: lookupError } = await supabase
-      .from("templates")
-      .select(TEMPLATE_SELECT_COLUMNS)
+      .from("saved_prompts")
+      .select(SAVED_PROMPT_FULL_SELECT_COLUMNS)
       .eq("user_id", userId)
-      .ilike("name", escapeLikePattern(name))
+      .ilike("title", escapePostgrestLikePattern(name))
       .order("updated_at", { ascending: false })
       .limit(1);
 
-    if (lookupError) throw mapPostgrestError(lookupError, "Failed to save preset.");
-    const existing = existingRows?.[0] ?? null;
+    if (lookupError) throw mapPostgrestError(lookupError, "Failed to save prompt.");
+    const existing = (existingRows?.[0] as SavedPromptRow | null) ?? null;
 
-    if (existing?.fingerprint === fingerprint) {
+    if (existing?.fingerprint === fingerprint && !hasMetadataChanges(existing, input)) {
       return {
         outcome: "unchanged",
         record: rowToRecord(existing, normalizedConfig),
@@ -265,6 +403,7 @@ export async function saveTemplate(
 
     if (existing) {
       const updatePayload: Record<string, unknown> = {
+        title: name,
         tags: tags ?? existing.tags ?? [],
         config: normalizedConfig as unknown as Json,
         fingerprint,
@@ -273,71 +412,182 @@ export async function saveTemplate(
       if (normalizedDescription !== undefined) {
         updatePayload.description = normalizedDescription;
       }
+      if (input.category !== undefined) {
+        updatePayload.category = normalizedCategory;
+      }
+      if (input.builtPrompt !== undefined) {
+        updatePayload.built_prompt = input.builtPrompt;
+      }
+      if (input.enhancedPrompt !== undefined) {
+        updatePayload.enhanced_prompt = input.enhancedPrompt;
+      }
+      if (normalizedTargetModel !== undefined) {
+        updatePayload.target_model = normalizedTargetModel;
+      }
+      if (normalizedUseCase !== undefined) {
+        updatePayload.use_case = normalizedUseCase;
+      }
+      if (input.isShared !== undefined) {
+        updatePayload.is_shared = input.isShared;
+      }
+      if (input.remixedFrom !== undefined) {
+        updatePayload.remixed_from = input.remixedFrom;
+      }
+      if (normalizedRemixNote !== undefined) {
+        updatePayload.remix_note = normalizedRemixNote;
+      }
+      if (input.remixDiff !== undefined) {
+        updatePayload.remix_diff = input.remixDiff as unknown as Json;
+      }
 
       const { data: updated, error } = await supabase
-        .from("templates")
+        .from("saved_prompts")
         .update(updatePayload)
         .eq("id", existing.id)
         .eq("user_id", userId)
         .eq("revision", existing.revision)
-        .select(TEMPLATE_SELECT_COLUMNS)
+        .select(SAVED_PROMPT_FULL_SELECT_COLUMNS)
         .maybeSingle();
 
-      if (error) throw mapPostgrestError(error, "Failed to update preset.");
+      if (error) throw mapPostgrestError(error, "Failed to update prompt.");
       if (!updated) {
-        throw new PersistenceError("conflict", "Preset was modified elsewhere. Please refresh and try again.");
+        throw new PersistenceError("conflict", "Prompt was modified elsewhere. Please refresh and try again.");
       }
       return {
         outcome: "updated",
-        record: rowToRecord(updated, normalizedConfig),
+        record: rowToRecord(updated as SavedPromptRow, normalizedConfig),
         warnings,
       };
     }
 
     const { data: created, error: insertError } = await supabase
-      .from("templates")
+      .from("saved_prompts")
       .insert({
         user_id: userId,
-        name,
+        title: name,
         description: normalizedDescription ?? "",
+        category: normalizedCategory,
         tags: tags ?? [],
         config: normalizedConfig as unknown as Json,
+        built_prompt: input.builtPrompt ?? "",
+        enhanced_prompt: input.enhancedPrompt ?? "",
         fingerprint,
+        is_shared: input.isShared ?? false,
+        target_model: normalizedTargetModel ?? "",
+        use_case: normalizedUseCase ?? "",
+        remixed_from: input.remixedFrom ?? null,
+        remix_note: normalizedRemixNote ?? "",
+        remix_diff: (input.remixDiff as unknown as Json) ?? null,
       })
-      .select(TEMPLATE_SELECT_COLUMNS)
+      .select(SAVED_PROMPT_FULL_SELECT_COLUMNS)
       .single();
 
     if (insertError) {
-      throw mapPostgrestError(insertError, "Failed to save preset.");
+      throw mapPostgrestError(insertError, "Failed to save prompt.");
     }
-    if (!created) throw new PersistenceError("unknown", "Preset save returned no data.");
+    if (!created) throw new PersistenceError("unknown", "Prompt save returned no data.");
 
     return {
       outcome: "created",
-      record: rowToRecord(created, normalizedConfig),
+      record: rowToRecord(created as SavedPromptRow, normalizedConfig),
       warnings,
     };
   } catch (error) {
-    throw toPersistenceError(error, "Failed to save preset.");
+    throw toPersistenceError(error, "Failed to save prompt.");
   }
 }
 
-export async function deleteTemplate(userId: string | null, id: string): Promise<boolean> {
+export async function sharePrompt(
+  userId: string | null,
+  id: string,
+  input: PromptShareInput = {},
+): Promise<boolean> {
+  if (!userId) {
+    throw new PersistenceError("unauthorized", "Sign in to share prompts.");
+  }
+
+  try {
+    const { data: existing, error: existingError } = await supabase
+      .from("saved_prompts")
+      .select("id, use_case")
+      .eq("id", id)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (existingError) throw mapPostgrestError(existingError, "Failed to share prompt.");
+    if (!existing) return false;
+
+    const normalizedUseCaseInput = input.useCase !== undefined
+      ? normalizeUseCase(input.useCase) ?? ""
+      : undefined;
+    const effectiveUseCase = (normalizedUseCaseInput ?? existing.use_case ?? "").trim();
+    if (!effectiveUseCase) {
+      throw new PersistenceError("unknown", "Use case is required before sharing.");
+    }
+
+    const updatePayload: Record<string, unknown> = {
+      is_shared: true,
+      use_case: effectiveUseCase,
+    };
+
+    if (input.title !== undefined) updatePayload.title = toPresetName(input.title);
+    if (input.description !== undefined) updatePayload.description = normalizeDescription(input.description) ?? "";
+    if (input.category !== undefined) updatePayload.category = normalizePromptCategory(input.category) ?? "general";
+    if (input.tags !== undefined) updatePayload.tags = normalizePromptTagsOptional(input.tags) ?? [];
+    if (input.targetModel !== undefined) updatePayload.target_model = normalizeTargetModel(input.targetModel) ?? "";
+
+    const { data, error } = await supabase
+      .from("saved_prompts")
+      .update(updatePayload)
+      .eq("id", id)
+      .eq("user_id", userId)
+      .select("id")
+      .maybeSingle();
+
+    if (error) throw mapPostgrestError(error, "Failed to share prompt.");
+    return !!data;
+  } catch (error) {
+    throw toPersistenceError(error, "Failed to share prompt.");
+  }
+}
+
+export async function unsharePrompt(userId: string | null, id: string): Promise<boolean> {
+  if (!userId) {
+    throw new PersistenceError("unauthorized", "Sign in to unshare prompts.");
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("saved_prompts")
+      .update({ is_shared: false })
+      .eq("id", id)
+      .eq("user_id", userId)
+      .select("id")
+      .maybeSingle();
+
+    if (error) throw mapPostgrestError(error, "Failed to unshare prompt.");
+    return !!data;
+  } catch (error) {
+    throw toPersistenceError(error, "Failed to unshare prompt.");
+  }
+}
+
+export async function deletePrompt(userId: string | null, id: string): Promise<boolean> {
   if (!userId) return deleteLocalTemplate(id);
 
   try {
     const { data, error } = await supabase
-      .from("templates")
+      .from("saved_prompts")
       .delete()
       .eq("id", id)
       .eq("user_id", userId)
       .select("id")
       .maybeSingle();
 
-    if (error) throw mapPostgrestError(error, "Failed to delete preset.");
+    if (error) throw mapPostgrestError(error, "Failed to delete prompt.");
     return !!data;
   } catch (error) {
-    throw toPersistenceError(error, "Failed to delete preset.");
+    throw toPersistenceError(error, "Failed to delete prompt.");
   }
 }
 
@@ -409,12 +659,12 @@ export async function saveVersion(
 // Helpers
 // ---------------------------------------------------------------------------
 
-function rowToRecord(row: TemplateRow, normalizedConfig?: PromptConfig) {
+function rowToRecord(row: SavedPromptRow, normalizedConfig?: PromptConfig) {
   const cfg = normalizedConfig || normalizeTemplateConfig((row.config ?? defaultConfig) as unknown as PromptConfig);
   return {
     metadata: {
       id: row.id,
-      name: row.name,
+      name: row.title,
       description: row.description,
       tags: row.tags ?? [],
       schemaVersion: 2,
@@ -422,6 +672,13 @@ function rowToRecord(row: TemplateRow, normalizedConfig?: PromptConfig) {
       fingerprint: row.fingerprint ?? "",
       createdAt: new Date(row.created_at).getTime(),
       updatedAt: new Date(row.updated_at).getTime(),
+      category: row.category,
+      isShared: row.is_shared,
+      targetModel: row.target_model,
+      useCase: row.use_case,
+      remixedFrom: row.remixed_from,
+      builtPrompt: row.built_prompt,
+      enhancedPrompt: row.enhanced_prompt,
     },
     state: {
       promptConfig: cfg,

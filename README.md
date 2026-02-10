@@ -108,6 +108,8 @@ uvicorn agent_service.main:app --host 0.0.0.0 --port 8001 --reload
 2. Configure the `enhance-prompt` Supabase function secrets:
 ```sh
 supabase secrets set AGENT_SERVICE_URL="http://host.docker.internal:8001"
+supabase secrets set SUPABASE_URL="https://<project-ref>.supabase.co"
+supabase secrets set SUPABASE_ANON_KEY="<project-anon-or-publishable-key>"
 ```
 
 Optional hardening:
@@ -116,7 +118,17 @@ supabase secrets set AGENT_SERVICE_TOKEN="<shared-secret>"
 export AGENT_SERVICE_TOKEN="<shared-secret>"
 ```
 
+Local dev note:
+- `ALLOW_UNVERIFIED_JWT_FALLBACK=true` enables decoded-JWT fallback only when Supabase Auth config/service is unavailable.
+- Use this for local development only and keep it disabled in production.
+
 3. Run the frontend as usual:
 ```sh
 npm run dev
 ```
+
+## Database rollout notes
+
+- Migration `20260210010000_phase1_community_schema.sql` backfills `public.templates` into `public.saved_prompts`.
+- During rollout, `public.templates` is intentionally retained for compatibility and rollback safety.
+- Active prompt persistence paths in the app now target `public.saved_prompts`; plan a follow-up migration to drop `public.templates` after rollout validation.

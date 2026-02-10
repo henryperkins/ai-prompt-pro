@@ -36,7 +36,7 @@ serve(async (req) => {
   }
 
   try {
-    const auth = requireAuthenticatedUser(req);
+    const auth = await requireAuthenticatedUser(req);
     if (!auth.ok) {
       return jsonResponse({ error: auth.error }, auth.status, cors.headers);
     }
@@ -116,6 +116,7 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
+      const trimmedErrorText = errorText.trim();
       let errorMessage = "AI enhancement failed. Please try again.";
       try {
         const parsed = JSON.parse(errorText) as { detail?: unknown; error?: unknown };
@@ -125,7 +126,15 @@ serve(async (req) => {
           errorMessage = parsed.error.trim();
         }
       } catch {
-        if (errorText.trim()) errorMessage = errorText.trim();
+        if (trimmedErrorText) errorMessage = trimmedErrorText;
+      }
+
+      if (
+        response.status >= 500 &&
+        (!errorMessage || errorMessage === "Internal Server Error")
+      ) {
+        errorMessage =
+          "Agent service returned a 500 error. Check AGENT_SERVICE_URL and the agent service logs.";
       }
 
       console.error("Agent service error:", response.status, errorMessage);

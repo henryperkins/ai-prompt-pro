@@ -13,8 +13,17 @@ type AllowedOrigins =
   | { mode: "any" }
   | { mode: "set"; origins: Set<string> };
 
+function getEnvValue(name: string): string | undefined {
+  const denoEnv = (globalThis as { Deno?: { env?: { get?: (key: string) => string | undefined } } }).Deno?.env;
+  if (denoEnv?.get) {
+    return denoEnv.get(name);
+  }
+  const nodeEnv = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
+  return nodeEnv?.[name];
+}
+
 function parseAllowedOrigins(): AllowedOrigins {
-  const configured = Deno.env.get("ALLOWED_ORIGINS");
+  const configured = getEnvValue("ALLOWED_ORIGINS");
   if (!configured || !configured.trim()) {
     return { mode: "any" };
   }
@@ -128,14 +137,190 @@ function isProjectApiKeyLike(value: string): boolean {
   return isPublishableKeyLike(trimmed) || isLegacyAnonJwt(trimmed);
 }
 
-export function requireAuthenticatedUser(req: Request):
-  | { ok: true; userId: string; isAnonymous: boolean }
-  | { ok: false; status: number; error: string } {
+type SupabaseAuthConfig = {
+  supabaseUrl: string | null;
+  anonKey: string | null;
+};
+
+type SupabaseUserFetchResult =
+  | { ok: true; id: string; isAnonymous: boolean }
+  | { ok: false; reason: "invalid_token" | "unavailable" };
+
+let hasLoggedAuthConfigWarning = false;
+let hasLoggedJwtFallbackWarning = false;
+let hasLoggedJwtFallbackProductionWarning = false;
+
+function getSupabaseUrl(): string | null {
+  const raw = getEnvValue("SUPABASE_URL") || getEnvValue("SUPABASE_PROJECT_URL");
+  if (!raw) return null;
+  return raw.endsWith("/") ? raw.slice(0, -1) : raw;
+}
+
+function getSupabaseAnonKey(): string | null {
+  return (
+    getEnvValue("SUPABASE_ANON_KEY") ||
+    getEnvValue("SUPABASE_PUBLISHABLE_KEY") ||
+    getEnvValue("SUPABASE_KEY")
+  );
+}
+
+function getSupabaseAuthConfig(): SupabaseAuthConfig {
+  return {
+    supabaseUrl: getSupabaseUrl(),
+    anonKey: getSupabaseAnonKey(),
+  };
+}
+
+function isTruthyEnv(value: string | undefined): boolean {
+  if (!value) return false;
+  const normalized = value.trim().toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+}
+
+function isProductionEnvironment(): boolean {
+  if (getEnvValue("DENO_DEPLOYMENT_ID")) return true;
+
+  const envValue = (
+    getEnvValue("APP_ENV") ||
+    getEnvValue("ENVIRONMENT") ||
+    getEnvValue("NODE_ENV") ||
+    ""
+  )
+    .trim()
+    .toLowerCase();
+
+  return envValue === "prod" || envValue === "production";
+}
+
+function allowUnverifiedJwtFallback(): boolean {
+  if (!isTruthyEnv(getEnvValue("ALLOW_UNVERIFIED_JWT_FALLBACK"))) {
+    return false;
+  }
+
+  if (!isProductionEnvironment()) {
+    return true;
+  }
+
+  if (isTruthyEnv(getEnvValue("ALLOW_UNVERIFIED_JWT_FALLBACK_IN_PRODUCTION"))) {
+    return true;
+  }
+
+  if (!hasLoggedJwtFallbackProductionWarning) {
+    hasLoggedJwtFallbackProductionWarning = true;
+    console.error(
+      "ALLOW_UNVERIFIED_JWT_FALLBACK is ignored in production by default. "
+        + "Set ALLOW_UNVERIFIED_JWT_FALLBACK_IN_PRODUCTION=true only for emergency recovery scenarios.",
+    );
+  }
+
+  return false;
+}
+
+function numericClaim(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function objectBooleanFlag(source: unknown, key: string): boolean {
+  if (!source || typeof source !== "object") return false;
+  return (source as Record<string, unknown>)[key] === true;
+}
+
+function decodeUserFromJwt(token: string): { id: string; isAnonymous: boolean } | null {
+  const claims = decodeJwtPayload(token.trim());
+  if (!claims) return null;
+
+  const subject = typeof claims.sub === "string" ? claims.sub.trim() : "";
+  if (!subject) return null;
+
+  const exp = numericClaim(claims.exp);
+  if (exp !== null && Date.now() >= exp * 1000) return null;
+
+  const isAnonymous =
+    claims.role === "anon" ||
+    claims.is_anonymous === true ||
+    objectBooleanFlag(claims.app_metadata, "is_anonymous") ||
+    objectBooleanFlag(claims.user_metadata, "is_anonymous");
+
+  return {
+    id: subject,
+    isAnonymous,
+  };
+}
+
+function tryDecodeUserFromJwtFallback(
+  bearerToken: string,
+  reason: "missing_config" | "auth_unavailable",
+): { id: string; isAnonymous: boolean } | null {
+  if (!allowUnverifiedJwtFallback()) return null;
+  const decodedUser = decodeUserFromJwt(bearerToken);
+  if (!decodedUser) return null;
+
+  if (!hasLoggedJwtFallbackWarning) {
+    hasLoggedJwtFallbackWarning = true;
+    console.warn(
+      `ALLOW_UNVERIFIED_JWT_FALLBACK is enabled; accepting decoded JWT claims without signature verification (${reason}).`,
+    );
+  }
+
+  return decodedUser;
+}
+
+async function fetchSupabaseUser(
+  bearerToken: string,
+  config: { supabaseUrl: string; anonKey: string },
+): Promise<SupabaseUserFetchResult> {
+  try {
+    const response = await fetch(`${config.supabaseUrl}/auth/v1/user`, {
+      headers: {
+        Authorization: `Bearer ${bearerToken}`,
+        apikey: config.anonKey,
+      },
+    });
+
+    if (response.status === 401 || response.status === 403) {
+      return { ok: false, reason: "invalid_token" };
+    }
+    if (!response.ok) {
+      return { ok: false, reason: "unavailable" };
+    }
+
+    const data = (await response.json()) as {
+      id?: string;
+      is_anonymous?: boolean;
+      app_metadata?: { is_anonymous?: boolean };
+      user_metadata?: { is_anonymous?: boolean };
+    };
+
+    if (!data?.id) {
+      return { ok: false, reason: "invalid_token" };
+    }
+
+    const isAnonymous =
+      Boolean(data.is_anonymous) ||
+      Boolean(data.app_metadata?.is_anonymous) ||
+      Boolean(data.user_metadata?.is_anonymous);
+
+    return { ok: true, id: data.id, isAnonymous };
+  } catch {
+    return { ok: false, reason: "unavailable" };
+  }
+}
+
+export async function requireAuthenticatedUser(
+  req: Request,
+): Promise<{ ok: true; userId: string; isAnonymous: boolean } | { ok: false; status: number; error: string }> {
+  const authConfig = getSupabaseAuthConfig();
+  const anonKey = authConfig.anonKey;
+  const isAnonKey = (value: string) =>
+    anonKey ? value.trim() === anonKey.trim() : isProjectApiKeyLike(value);
   const authHeader = req.headers.get("authorization") || "";
   const match = authHeader.match(/^Bearer\s+(.+)$/i);
   if (!match) {
     const apiKey = req.headers.get("apikey")?.trim() || "";
-    if (isProjectApiKeyLike(apiKey)) {
+    if (isAnonKey(apiKey)) {
       return {
         ok: true,
         userId: "anon",
@@ -150,36 +335,11 @@ export function requireAuthenticatedUser(req: Request):
   }
 
   const bearerToken = match[1].trim();
-  const claims = decodeJwtPayload(bearerToken);
-  if (!claims) {
-    const apiKey = req.headers.get("apikey")?.trim() || "";
-    if (apiKey && apiKey === bearerToken && isProjectApiKeyLike(apiKey)) {
-      return {
-        ok: true,
-        userId: "anon",
-        isAnonymous: true,
-      };
-    }
-    return {
-      ok: false,
-      status: 401,
-      error: "Invalid bearer token.",
-    };
-  }
-
-  const role = typeof claims.role === "string" ? claims.role : "";
-  const sub = typeof claims.sub === "string" ? claims.sub : "";
-  if (role === "authenticated" && sub) {
-    return {
-      ok: true,
-      userId: sub,
-      isAnonymous: false,
-    };
-  }
-
-  // Allow requests signed with the project publishable key (role=anon).
-  // This keeps AI features available when anonymous auth sign-ins are disabled.
-  if (role === "anon") {
+  const apiKey = req.headers.get("apikey")?.trim() || "";
+  if (
+    isAnonKey(bearerToken) ||
+    (apiKey && apiKey === bearerToken && isAnonKey(apiKey))
+  ) {
     return {
       ok: true,
       userId: "anon",
@@ -187,10 +347,64 @@ export function requireAuthenticatedUser(req: Request):
     };
   }
 
+  if (!authConfig.supabaseUrl || !authConfig.anonKey) {
+    const fallbackUser = tryDecodeUserFromJwtFallback(bearerToken, "missing_config");
+    if (fallbackUser) {
+      return {
+        ok: true,
+        userId: fallbackUser.id,
+        isAnonymous: fallbackUser.isAnonymous,
+      };
+    }
+
+    if (!hasLoggedAuthConfigWarning) {
+      hasLoggedAuthConfigWarning = true;
+      console.error(
+        "SUPABASE_URL and SUPABASE_ANON_KEY are required to validate bearer tokens. "
+          + "Set those env vars or enable ALLOW_UNVERIFIED_JWT_FALLBACK for local development only.",
+      );
+    }
+
+    return {
+      ok: false,
+      status: 503,
+      error: "Authentication service is unavailable because Supabase auth is not configured.",
+    };
+  }
+
+  const supabaseUser = await fetchSupabaseUser(bearerToken, {
+    supabaseUrl: authConfig.supabaseUrl,
+    anonKey: authConfig.anonKey,
+  });
+  if (supabaseUser.ok) {
+    return {
+      ok: true,
+      userId: supabaseUser.id,
+      isAnonymous: supabaseUser.isAnonymous,
+    };
+  }
+
+  if (supabaseUser.reason === "unavailable") {
+    const fallbackUser = tryDecodeUserFromJwtFallback(bearerToken, "auth_unavailable");
+    if (fallbackUser) {
+      return {
+        ok: true,
+        userId: fallbackUser.id,
+        isAnonymous: fallbackUser.isAnonymous,
+      };
+    }
+
+    return {
+      ok: false,
+      status: 503,
+      error: "Authentication service is temporarily unavailable. Please try again.",
+    };
+  }
+
   return {
     ok: false,
     status: 401,
-    error: "Authenticated Supabase session is required.",
+    error: "Invalid or expired Supabase session.",
   };
 }
 
