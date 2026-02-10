@@ -430,6 +430,17 @@ async def _stream_sse(prompt: str) -> AsyncIterator[str]:
 app = FastAPI(title="Prompt Enhancer Agent Service", version="1.0.0")
 
 
+@app.get("/")
+async def root() -> dict[str, str]:
+    return {
+        "service": "ai-prompt-pro-agent",
+        "status": "running",
+        "health": "/health",
+        "docs": "/docs",
+        "openapi": "/openapi.json",
+    }
+
+
 @app.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
     return HealthResponse(ok=True, deployment=_resolve_deployment_name())
