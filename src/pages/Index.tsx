@@ -10,6 +10,7 @@ import { OutputPanel, type EnhancePhase } from "@/components/OutputPanel";
 import { usePromptBuilder } from "@/hooks/usePromptBuilder";
 import { streamEnhance } from "@/lib/ai-client";
 import { getSectionHealth, type SectionHealthState } from "@/lib/section-health";
+import { hasPromptInput } from "@/lib/prompt-builder";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { PromptTemplate } from "@/lib/templates";
@@ -445,12 +446,7 @@ const Index = () => {
   const sectionHealth = getSectionHealth(config, score.total);
   const selectedRole = config.customRole || config.role;
   const displayPrompt = enhancedPrompt || builtPrompt;
-  const canSavePrompt =
-    !!config.task.trim() ||
-    !!config.originalPrompt.trim() ||
-    config.contextConfig.sources.length > 0 ||
-    config.contextConfig.databaseConnections.length > 0 ||
-    !!config.contextConfig.rag.vectorStoreRef.trim();
+  const canSavePrompt = hasPromptInput(config);
   const canSharePrompt = canSavePrompt && isSignedIn;
   const mobileEnhanceLabel = isEnhancing
     ? enhancePhase === "starting"

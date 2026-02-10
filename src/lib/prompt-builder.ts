@@ -35,6 +35,42 @@ export const defaultConfig: PromptConfig = {
   complexity: "Moderate",
 };
 
+const hasText = (value: string): boolean => value.trim().length > 0;
+
+export function hasPromptInput(config: PromptConfig): boolean {
+  const hasStructuredContext = Object.values(config.contextConfig.structured).some(
+    (value) => typeof value === "string" && hasText(value),
+  );
+  const hasInterviewAnswers = config.contextConfig.interviewAnswers.some((answer) => hasText(answer.answer));
+  const hasRagDocumentRefs = config.contextConfig.rag.documentRefs.some((reference) => hasText(reference));
+  const hasRagSignal =
+    config.contextConfig.rag.enabled ||
+    hasText(config.contextConfig.rag.vectorStoreRef) ||
+    hasRagDocumentRefs;
+
+  return (
+    hasText(config.originalPrompt) ||
+    hasText(config.task) ||
+    hasText(config.role) ||
+    hasText(config.customRole) ||
+    hasText(config.context) ||
+    config.contextConfig.sources.length > 0 ||
+    config.contextConfig.databaseConnections.length > 0 ||
+    hasRagSignal ||
+    hasStructuredContext ||
+    hasInterviewAnswers ||
+    hasText(config.contextConfig.projectNotes) ||
+    config.format.length > 0 ||
+    hasText(config.customFormat) ||
+    config.lengthPreference !== defaultConfig.lengthPreference ||
+    hasText(config.examples) ||
+    config.constraints.length > 0 ||
+    hasText(config.customConstraint) ||
+    config.tone !== defaultConfig.tone ||
+    config.complexity !== defaultConfig.complexity
+  );
+}
+
 export const roles = [
   "Expert Copywriter",
   "Data Analyst",
