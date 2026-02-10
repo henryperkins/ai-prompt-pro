@@ -234,7 +234,7 @@ describe("requireAuthenticatedUser", () => {
   it("accepts anonymous access via apikey when no bearer token", async () => {
     stubDenoEnv({
       SUPABASE_URL: "https://project.supabase.co",
-      SUPABASE_ANON_KEY: "anon-key",
+      SUPABASE_ANON_KEY: "\"anon-key\"",
     });
 
     const fetchMock = vi.fn();

@@ -36,6 +36,14 @@ export AZURE_OPENAI_REASONING_SUMMARY="auto"     # auto|concise|detailed
 export AZURE_OPENAI_TEXT_VERBOSITY="low"         # low|medium|high
 ```
 
+Optional 429 retry tuning (Azure throttling):
+
+```bash
+export AZURE_429_MAX_RETRIES="2"                 # retries before surfacing failure
+export AZURE_429_BACKOFF_BASE_SECONDS="1.0"      # exponential base delay
+export AZURE_429_BACKOFF_MAX_SECONDS="20.0"      # upper bound per retry sleep
+```
+
 Optional hosted web search tool:
 
 ```bash

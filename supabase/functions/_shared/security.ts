@@ -15,11 +15,22 @@ type AllowedOrigins =
 
 function getEnvValue(name: string): string | undefined {
   const denoEnv = (globalThis as { Deno?: { env?: { get?: (key: string) => string | undefined } } }).Deno?.env;
-  if (denoEnv?.get) {
-    return denoEnv.get(name);
+  const rawValue = denoEnv?.get
+    ? denoEnv.get(name)
+    : (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.[name];
+  if (typeof rawValue !== "string") return undefined;
+
+  const trimmed = rawValue.trim();
+  if (!trimmed) return undefined;
+
+  const hasDoubleQuotes = trimmed.startsWith("\"") && trimmed.endsWith("\"");
+  const hasSingleQuotes = trimmed.startsWith("'") && trimmed.endsWith("'");
+  if (hasDoubleQuotes || hasSingleQuotes) {
+    const unquoted = trimmed.slice(1, -1).trim();
+    return unquoted || undefined;
   }
-  const nodeEnv = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
-  return nodeEnv?.[name];
+
+  return trimmed;
 }
 
 function parseAllowedOrigins(): AllowedOrigins {

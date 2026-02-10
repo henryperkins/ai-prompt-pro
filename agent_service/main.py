@@ -1,6 +1,10 @@
+import asyncio
 import json
 import os
+import random
+import time
 from functools import lru_cache
+from email.utils import parsedate_to_datetime
 from typing import Annotated, Any, AsyncIterator, Mapping
 from uuid import uuid4
 
@@ -25,6 +29,12 @@ if os.getenv("ENABLE_INSTRUMENTATION", "").strip().lower() in {"1", "true", "yes
     configure_otel_providers()
 
 MAX_PROMPT_CHARS = int(os.getenv("MAX_PROMPT_CHARS", "16000"))
+AZURE_429_MAX_RETRIES = max(0, int(os.getenv("AZURE_429_MAX_RETRIES", "2")))
+AZURE_429_BACKOFF_BASE_SECONDS = max(0.1, float(os.getenv("AZURE_429_BACKOFF_BASE_SECONDS", "1.0")))
+AZURE_429_BACKOFF_MAX_SECONDS = max(
+    AZURE_429_BACKOFF_BASE_SECONDS,
+    float(os.getenv("AZURE_429_BACKOFF_MAX_SECONDS", "20.0")),
+)
 
 PROMPT_ENHANCER_INSTRUCTIONS = """You are an expert prompt engineer. Your job is to take a structured prompt and enhance it to be more effective, clear, and optimized for large language models.
 
@@ -297,6 +307,156 @@ def _encode_sse(payload: Mapping[str, object]) -> str:
     return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
 
+def _parse_retry_after_seconds(value: str | None) -> float | None:
+    if not value:
+        return None
+
+    raw = value.strip()
+    if not raw:
+        return None
+
+    try:
+        parsed_seconds = float(raw)
+        if parsed_seconds >= 0:
+            return parsed_seconds
+    except ValueError:
+        pass
+
+    try:
+        retry_at = parsedate_to_datetime(raw).timestamp()
+        delay = retry_at - time.time()
+        if delay >= 0:
+            return delay
+    except Exception:
+        return None
+
+    return None
+
+
+def _iter_exception_chain(exc: BaseException) -> list[BaseException]:
+    chain: list[BaseException] = []
+    seen: set[int] = set()
+    queue: list[BaseException] = [exc]
+
+    while queue:
+        current = queue.pop(0)
+        marker = id(current)
+        if marker in seen:
+            continue
+        seen.add(marker)
+        chain.append(current)
+
+        linked: list[BaseException] = []
+        for attr_name in ("__cause__", "__context__", "inner_exception", "exception", "cause"):
+            candidate = getattr(current, attr_name, None)
+            if isinstance(candidate, BaseException):
+                linked.append(candidate)
+
+        for arg in getattr(current, "args", ()):
+            if isinstance(arg, BaseException):
+                linked.append(arg)
+
+        queue.extend(linked)
+
+    return chain
+
+
+def _extract_retry_after_seconds(exc: Exception) -> float | None:
+    for candidate in _iter_exception_chain(exc):
+        header_sources: list[Any] = []
+        headers = getattr(candidate, "headers", None)
+        if headers is not None:
+            header_sources.append(headers)
+
+        response = getattr(candidate, "response", None)
+        response_headers = getattr(response, "headers", None)
+        if response_headers is not None:
+            header_sources.append(response_headers)
+
+        for source in header_sources:
+            try:
+                retry_after = source.get("retry-after") or source.get("Retry-After")
+            except Exception:
+                continue
+
+            parsed = _parse_retry_after_seconds(retry_after)
+            if parsed is not None:
+                return parsed
+
+    return None
+
+
+def _is_rate_limit_error(exc: Exception) -> bool:
+    for candidate in _iter_exception_chain(exc):
+        if _is_single_rate_limit_error(candidate):
+            return True
+    return False
+
+
+def _is_single_rate_limit_error(exc: BaseException) -> bool:
+    status_candidates = [
+        getattr(exc, "status_code", None),
+        getattr(getattr(exc, "response", None), "status_code", None),
+        getattr(getattr(exc, "response", None), "status", None),
+    ]
+    if any(status == 429 for status in status_candidates if isinstance(status, int)):
+        return True
+
+    code = getattr(exc, "code", None)
+    if isinstance(code, str) and "rate" in code.lower() and "limit" in code.lower():
+        return True
+
+    name = exc.__class__.__name__.lower()
+    if "ratelimit" in name or "rate_limit" in name:
+        return True
+
+    message = str(exc).lower()
+    return (
+        "too many requests" in message
+        or "rate limit" in message
+        or "rate-limit" in message
+        or "throttl" in message
+        or "status code: 429" in message
+    )
+
+
+async def _stream_agent_with_429_retries(
+    agent: Any,
+    message: str,
+    run_options: Mapping[str, object],
+) -> AsyncIterator[Any]:
+    attempt = 0
+
+    while True:
+        emitted_chunk = False
+        try:
+            async for chunk in agent.run_stream(message, options=run_options):
+                emitted_chunk = True
+                yield chunk
+            return
+        except Exception as exc:
+            if (
+                emitted_chunk
+                or not _is_rate_limit_error(exc)
+                or attempt >= AZURE_429_MAX_RETRIES
+            ):
+                raise
+
+            retry_after_seconds = _extract_retry_after_seconds(exc)
+            exponential_backoff = AZURE_429_BACKOFF_BASE_SECONDS * (2**attempt)
+            # Full-jitter keeps concurrent clients from synchronized retry bursts.
+            jittered_delay = random.uniform(0, exponential_backoff)
+            delay_seconds = retry_after_seconds if retry_after_seconds is not None else jittered_delay
+            delay_seconds = min(delay_seconds, AZURE_429_BACKOFF_MAX_SECONDS)
+
+            print(
+                "Azure Responses 429 received; retrying "
+                f"(attempt {attempt + 1}/{AZURE_429_MAX_RETRIES}) after {delay_seconds:.2f}s"
+            )
+            await asyncio.sleep(delay_seconds)
+            attempt += 1
+
+
 async def _stream_sse(prompt: str) -> AsyncIterator[str]:
     agent = get_agent()
     message = f"Please enhance this prompt:\n\n{prompt}"
@@ -369,7 +529,7 @@ async def _stream_sse(prompt: str) -> AsyncIterator[str]:
             }
         )
 
-        async for chunk in agent.run_stream(message, options=run_options):
+        async for chunk in _stream_agent_with_429_retries(agent, message, run_options):
             text = getattr(chunk, "text", None)
             if not text:
                 continue

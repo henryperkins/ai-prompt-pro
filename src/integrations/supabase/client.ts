@@ -2,12 +2,28 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+function normalizeEnvValue(value?: string): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  const hasDoubleQuotes = trimmed.startsWith("\"") && trimmed.endsWith("\"");
+  const hasSingleQuotes = trimmed.startsWith("'") && trimmed.endsWith("'");
+  if (hasDoubleQuotes || hasSingleQuotes) {
+    const unquoted = trimmed.slice(1, -1).trim();
+    return unquoted || undefined;
+  }
+
+  return trimmed;
+}
+
+const SUPABASE_PROJECT_ID = normalizeEnvValue(import.meta.env.VITE_SUPABASE_PROJECT_ID);
 const SUPABASE_URL =
-  import.meta.env.VITE_SUPABASE_URL ||
+  normalizeEnvValue(import.meta.env.VITE_SUPABASE_URL) ||
   (SUPABASE_PROJECT_ID ? `https://${SUPABASE_PROJECT_ID}.supabase.co` : undefined);
 const SUPABASE_PUBLISHABLE_KEY =
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
+  normalizeEnvValue(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY)
+  || normalizeEnvValue(import.meta.env.VITE_SUPABASE_ANON_KEY);
 
 if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
   throw new Error(

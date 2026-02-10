@@ -42,7 +42,7 @@ describe("ai-client auth recovery", () => {
     vi.resetModules();
     vi.clearAllMocks();
     vi.stubEnv("VITE_SUPABASE_URL", "https://project.supabase.co");
-    vi.stubEnv("VITE_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
+    vi.stubEnv("VITE_SUPABASE_PUBLISHABLE_KEY", "\"sb_publishable_test\"");
 
     mocks.signInAnonymously.mockResolvedValue({
       data: { session: null },
