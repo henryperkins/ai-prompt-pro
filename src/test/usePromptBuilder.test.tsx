@@ -279,6 +279,15 @@ describe("usePromptBuilder", () => {
       prompt: string;
       timestamp: number;
     } | null>();
+    const loadVersionsDeferred = createDeferred<
+      {
+        id: string;
+        name: string;
+        prompt: string;
+        timestamp: number;
+      }[]
+    >();
+    mocks.loadVersions.mockReturnValueOnce(loadVersionsDeferred.promise);
     mocks.saveVersion.mockReturnValueOnce(deferred.promise);
 
     const { usePromptBuilder } = await import("@/hooks/usePromptBuilder");
@@ -347,6 +356,48 @@ describe("usePromptBuilder", () => {
         title: "Cloud draft was not applied",
       }),
     );
+  });
+
+  it("preserves preset config when auth hydrates after loadTemplate", async () => {
+    // Start as guest so the first auth effect is a no-op (null === null).
+    mocks.authUser.current = null;
+    mocks.loadDraft.mockResolvedValue(buildConfig({ role: "Cloud role" }));
+
+    const { usePromptBuilder } = await import("@/hooks/usePromptBuilder");
+    const { result, rerender } = renderHook(() => usePromptBuilder());
+
+    // Simulate preset loaded while still a guest.
+    act(() => {
+      result.current.loadTemplate({
+        role: "Preset Role",
+        task: "Preset Task",
+        context: "Preset context",
+        format: ["Markdown"],
+        lengthPreference: "detailed",
+        tone: "Professional",
+        complexity: "Moderate",
+        constraints: [],
+        examples: "",
+      });
+    });
+
+    expect(result.current.config.role).toBe("Preset Role");
+    expect(result.current.config.task).toBe("Preset Task");
+
+    // Auth resolves — userId changes from null → "user_a".
+    mocks.authUser.current = { id: "user_a" };
+    mocks.loadPrompts.mockResolvedValueOnce([]);
+    mocks.loadVersions.mockResolvedValueOnce([]);
+    rerender();
+
+    // Wait for cloud hydration to complete.
+    await waitFor(() => {
+      expect(mocks.loadDraft).toHaveBeenCalledWith("user_a");
+    });
+
+    // Preset config must survive auth hydration.
+    expect(result.current.config.role).toBe("Preset Role");
+    expect(result.current.config.task).toBe("Preset Task");
   });
 
   it("rejects save-and-share for signed-out users before any save attempt", async () => {

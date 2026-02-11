@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Menu, Moon, Sun, Zap, LogIn, LogOut } from "lucide-react";
+import { Bell, Menu, Moon, Sun, Zap, LogIn, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -7,11 +7,17 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useNotifications } from "@/hooks/useNotifications";
 import { AuthDialog } from "@/components/AuthDialog";
+import { NotificationPanel } from "@/components/NotificationPanel";
 import { APP_ROUTE_NAV_ITEMS, isRouteActive } from "@/lib/navigation";
 
 interface HeaderProps {
@@ -21,8 +27,20 @@ interface HeaderProps {
 
 export function Header({ isDark, onToggleTheme }: HeaderProps) {
   const { user, signOut } = useAuth();
+  const {
+    notifications,
+    unreadCount,
+    loading: notificationsLoading,
+    refresh: refreshNotifications,
+    markAsRead: markNotificationAsRead,
+    markAllAsRead: markAllNotificationsAsRead,
+  } = useNotifications();
   const location = useLocation();
   const [authOpen, setAuthOpen] = useState(false);
+  const [desktopNotificationsOpen, setDesktopNotificationsOpen] = useState(false);
+  const [mobileNotificationsOpen, setMobileNotificationsOpen] = useState(false);
+
+  const unreadCountLabel = unreadCount > 99 ? "99+" : String(unreadCount);
 
   const initials = user?.user_metadata?.full_name
     ? (user.user_metadata.full_name as string)
@@ -59,6 +77,41 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="sm:hidden min-w-[220px]">
+                {user && (
+                  <>
+                    <DropdownMenuSub
+                      open={mobileNotificationsOpen}
+                      onOpenChange={(open) => {
+                        setMobileNotificationsOpen(open);
+                        if (open) {
+                          void refreshNotifications();
+                        }
+                      }}
+                    >
+                      <DropdownMenuSubTrigger className="gap-2">
+                        <Bell className="w-4 h-4" />
+                        Notifications
+                        {unreadCount > 0 && (
+                          <span className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold leading-none text-primary-foreground">
+                            {unreadCountLabel}
+                          </span>
+                        )}
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className="border-none bg-transparent p-0 shadow-none">
+                        <NotificationPanel
+                          notifications={notifications}
+                          unreadCount={unreadCount}
+                          loading={notificationsLoading}
+                          onMarkAsRead={markNotificationAsRead}
+                          onMarkAllAsRead={markAllNotificationsAsRead}
+                          onRefresh={refreshNotifications}
+                          onNavigate={() => setMobileNotificationsOpen(false)}
+                        />
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 <DropdownMenuItem
                   onSelect={(event) => {
                     event.preventDefault();
@@ -111,6 +164,48 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
                 </Link>
               </Button>
             ))}
+            {user && (
+              <Popover
+                open={desktopNotificationsOpen}
+                onOpenChange={(open) => {
+                  setDesktopNotificationsOpen(open);
+                  if (open) {
+                    void refreshNotifications();
+                  }
+                }}
+              >
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Open notifications"
+                    className="interactive-chip hidden sm:inline-flex relative w-11 h-11 sm:w-9 sm:h-9"
+                  >
+                    <Bell className="w-4 h-4" />
+                    {unreadCount > 0 && (
+                      <span className="absolute -right-0.5 -top-0.5 inline-flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 py-0.5 text-[10px] font-semibold leading-none text-destructive-foreground">
+                        {unreadCountLabel}
+                      </span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="end"
+                  sideOffset={8}
+                  className="w-auto border-none bg-transparent p-0 shadow-none"
+                >
+                  <NotificationPanel
+                    notifications={notifications}
+                    unreadCount={unreadCount}
+                    loading={notificationsLoading}
+                    onMarkAsRead={markNotificationAsRead}
+                    onMarkAllAsRead={markAllNotificationsAsRead}
+                    onRefresh={refreshNotifications}
+                    onNavigate={() => setDesktopNotificationsOpen(false)}
+                  />
+                </PopoverContent>
+              </Popover>
+            )}
             <Button
               variant="ghost"
               size="icon"

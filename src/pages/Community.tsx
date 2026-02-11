@@ -1,19 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { CommunityFeed } from "@/components/community/CommunityFeed";
-import { PageShell, PageHero } from "@/components/PageShell";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { PageShell } from "@/components/PageShell";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -29,10 +18,11 @@ import {
   toggleVote,
 } from "@/lib/community";
 import { PROMPT_CATEGORY_OPTIONS } from "@/lib/prompt-categories";
+import { cn } from "@/lib/utils";
 
 const SORT_OPTIONS: Array<{ label: string; value: CommunitySort }> = [
-  { label: "New", value: "new" },
-  { label: "Popular", value: "popular" },
+  { label: "Trending", value: "popular" },
+  { label: "Newest", value: "new" },
   { label: "Most Remixed", value: "most_remixed" },
   { label: "Verified", value: "verified" },
 ];
@@ -74,7 +64,6 @@ const Community = () => {
   const requestToken = useRef(0);
   const { toast } = useToast();
   const { user } = useAuth();
-  const isMobile = useIsMobile();
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -277,119 +266,62 @@ const Community = () => {
     );
   }, []);
 
-  const activeSortLabel = useMemo(
-    () => SORT_OPTIONS.find((option) => option.value === sort)?.label ?? "New",
-    [sort],
-  );
-
   return (
     <PageShell>
-        <PageHero
-          title="Community Prompt Feed"
-          subtitle="Browse developer-focused prompt recipes, filter by domain, and open any post to copy or remix."
-        />
-
-        <Card className="mb-4 space-y-3 border-border/80 bg-card/85 p-3 sm:mb-5 sm:p-4">
+        {/* Search bar with inline category chips */}
+        <div className="mb-3 overflow-hidden rounded-xl border border-border bg-card/85 shadow-sm">
           <div className="relative">
             <label htmlFor="community-feed-search" className="sr-only">
               Search community posts
             </label>
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               id="community-feed-search"
               value={queryInput}
               onChange={(event) => setQueryInput(event.target.value)}
-              placeholder="Search by title or use case"
-              className="h-9 pl-8 text-sm"
+              placeholder="Search prompts by title or use case..."
+              className="h-10 border-0 bg-transparent pl-9 text-sm shadow-none focus-visible:ring-0"
             />
           </div>
-
-          {isMobile ? (
-            <div className="space-y-2">
-              <div className="space-y-1">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Sort</p>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {SORT_OPTIONS.map((option) => (
-                    <Button
-                      key={option.value}
-                      type="button"
-                      size="sm"
-                      variant={sort === option.value ? "default" : "outline"}
-                      className="h-9 px-3 text-xs"
-                      onClick={() => setSort(option.value)}
-                    >
-                      {option.label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label htmlFor="community-category-select" className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                  Category
-                </label>
-                <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger
-                    id="community-category-select"
-                    className="h-9 bg-background text-sm"
-                    aria-label="Filter category"
-                  >
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORY_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          <div className="border-t border-border/40 px-2 py-2">
+            <div className="flex items-center gap-1.5 overflow-x-auto">
+              {CATEGORY_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setCategory(option.value)}
+                  className={cn(
+                    "shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
+                    category === option.value
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  {option.label}
+                </button>
+              ))}
             </div>
-          ) : (
-            <>
-              <div className="flex flex-wrap items-center gap-1.5">
-                {SORT_OPTIONS.map((option) => (
-                  <Button
-                    key={option.value}
-                    type="button"
-                    size="sm"
-                    variant={sort === option.value ? "default" : "outline"}
-                    className="h-8 text-xs"
-                    onClick={() => setSort(option.value)}
-                  >
-                    {option.label}
-                  </Button>
-                ))}
-              </div>
-
-              <div className="category-scroll-fade relative">
-                <div className="overflow-x-auto">
-                  <div className="flex min-w-max items-center gap-1.5 pb-1">
-                    {CATEGORY_OPTIONS.map((option) => (
-                      <Button
-                        key={option.value}
-                        type="button"
-                        size="sm"
-                        variant={category === option.value ? "soft" : "ghost"}
-                        className="interactive-chip h-7 text-xs"
-                        onClick={() => setCategory(option.value)}
-                      >
-                        {option.label}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <Badge variant="secondary">{posts.length} posts</Badge>
-            <span>Sorted by {activeSortLabel}</span>
-            {query && <span>Search: “{query}”</span>}
           </div>
-        </Card>
+        </div>
+
+        {/* Sort segmented control */}
+        <div className="mb-4 flex rounded-lg bg-muted p-1">
+          {SORT_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setSort(option.value)}
+              className={cn(
+                "flex-1 rounded-md py-1.5 text-xs font-medium transition-all",
+                sort === option.value
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
 
         <CommunityFeed
           posts={posts}

@@ -74,18 +74,29 @@ export function usePromptBuilder() {
     const previousUserId = prevUserId.current;
     if (userId === previousUserId) return;
     prevUserId.current = userId;
+
+    // Capture whether the user (or a preset/remix) made edits before auth
+    // resolved, so we don't overwrite them with defaultConfig or a cloud draft.
+    const hadPendingEdits = editsSinceAuthChange.current;
+
     resetDraftState();
     setEnhancedPrompt("");
-    setConfig(defaultConfig);
+    if (!hadPendingEdits) {
+      setConfig(defaultConfig);
+    }
     setTemplateSummaries([]);
     setVersions(userId ? loadCachedCloudVersions(userId) : loadLocalVersions());
-    setRemixContext(null);
+    if (!hadPendingEdits) {
+      setRemixContext(null);
+    }
 
     const token = ++authLoadToken.current;
 
     if (!userId) {
       setIsCloudHydrated(true);
-      setConfig(loadLocalDraft());
+      if (!hadPendingEdits) {
+        setConfig(loadLocalDraft());
+      }
       setTemplateSummaries(listLocalTemplateSummaries().map(toPromptSummary));
       setVersions(loadLocalVersions());
       return;
@@ -130,9 +141,9 @@ export function usePromptBuilder() {
       if (token !== authLoadToken.current) return;
 
       if (draftResult.status === "fulfilled") {
-        if (draftResult.value && !editsSinceAuthChange.current) {
+        if (draftResult.value && !editsSinceAuthChange.current && !hadPendingEdits) {
           setConfig(hydrateConfig(draftResult.value));
-        } else if (draftResult.value && editsSinceAuthChange.current) {
+        } else if (draftResult.value && (editsSinceAuthChange.current || hadPendingEdits)) {
           toast({
             title: "Cloud draft was not applied",
             description: "You started editing before cloud draft finished loading, so your current edits were kept.",
