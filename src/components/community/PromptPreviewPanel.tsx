@@ -33,7 +33,7 @@ export function PromptPreviewPanel({ text, mode = "compact", className }: Prompt
           {normalized || "No prompt content available yet."}
         </pre>
         {isCollapsed && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 rounded-b-lg bg-gradient-to-t from-muted/95 via-muted/70 to-transparent" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 rounded-b-lg bg-gradient-to-t from-[hsl(var(--muted)/0.35)] via-[hsl(var(--muted)/0.2)] to-transparent" />
         )}
       </div>
       {canExpand && (

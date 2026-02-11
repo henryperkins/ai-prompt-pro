@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useTheme } from "@/hooks/useTheme";
 import {
   type CommunityPost,
   type CommunityProfile,
@@ -50,12 +51,7 @@ function toParentTitleMap(posts: CommunityPost[]): Record<string, string> {
 }
 
 const Community = () => {
-  const [isDark, setIsDark] = useState(() => {
-    if (typeof window !== "undefined") {
-      return document.documentElement.classList.contains("dark");
-    }
-    return false;
-  });
+  const { isDark, toggleTheme } = useTheme();
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [authorById, setAuthorById] = useState<Record<string, CommunityProfile>>({});
   const [parentTitleById, setParentTitleById] = useState<Record<string, string>>({});
@@ -79,10 +75,6 @@ const Community = () => {
     }, 250);
     return () => window.clearTimeout(timer);
   }, [queryInput]);
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", isDark);
-  }, [isDark]);
 
   const hydrateFeedContext = useCallback(
     async (
@@ -280,7 +272,7 @@ const Community = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Header isDark={isDark} onToggleTheme={() => setIsDark((prev) => !prev)} />
+      <Header isDark={isDark} onToggleTheme={toggleTheme} />
 
       <main className="flex-1 container mx-auto px-4 py-4 sm:py-6">
         <div className="delight-hero mb-4 text-center sm:mb-6">
@@ -316,20 +308,22 @@ const Community = () => {
             ))}
           </div>
 
-          <div className="overflow-x-auto">
-            <div className="flex min-w-max items-center gap-1.5 pb-1">
-              {CATEGORY_OPTIONS.map((option) => (
-                <Button
-                  key={option.value}
-                  type="button"
-                  size="sm"
-                  variant={category === option.value ? "soft" : "ghost"}
-                  className="interactive-chip h-7 text-[11px]"
-                  onClick={() => setCategory(option.value)}
-                >
-                  {option.label}
-                </Button>
-              ))}
+          <div className="category-scroll-fade relative">
+            <div className="overflow-x-auto">
+              <div className="flex min-w-max items-center gap-1.5 pb-1">
+                {CATEGORY_OPTIONS.map((option) => (
+                  <Button
+                    key={option.value}
+                    type="button"
+                    size="sm"
+                    variant={category === option.value ? "soft" : "ghost"}
+                    className="interactive-chip h-7 text-[11px]"
+                    onClick={() => setCategory(option.value)}
+                  >
+                    {option.label}
+                  </Button>
+                ))}
+              </div>
             </div>
           </div>
 

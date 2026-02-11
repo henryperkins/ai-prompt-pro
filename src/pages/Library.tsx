@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { PromptLibraryContent } from "@/components/PromptLibrary";
@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { usePromptBuilder } from "@/hooks/usePromptBuilder";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useTheme } from "@/hooks/useTheme";
 import { defaultConfig, type PromptConfig } from "@/lib/prompt-builder";
 import { type PromptTemplate } from "@/lib/templates";
 import * as persistence from "@/lib/persistence";
@@ -26,12 +27,7 @@ function toTemplateConfig(template: PromptTemplate): PromptConfig {
 }
 
 const Library = () => {
-  const [isDark, setIsDark] = useState(() => {
-    if (typeof window !== "undefined") {
-      return document.documentElement.classList.contains("dark");
-    }
-    return false;
-  });
+  const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -43,10 +39,6 @@ const Library = () => {
     shareSavedPrompt,
     unshareSavedPrompt,
   } = usePromptBuilder();
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", isDark);
-  }, [isDark]);
 
   const handleSelectTemplate = useCallback(
     async (template: PromptTemplate) => {
@@ -161,7 +153,7 @@ const Library = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Header isDark={isDark} onToggleTheme={() => setIsDark((prev) => !prev)} />
+      <Header isDark={isDark} onToggleTheme={toggleTheme} />
 
       <main className="flex-1 container mx-auto px-4 py-4 sm:py-6">
         <div className="delight-hero mb-4 text-center sm:mb-6">

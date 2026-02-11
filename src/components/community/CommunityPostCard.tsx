@@ -72,7 +72,7 @@ export function CommunityPostCard({
       style={{ animationDelay: `${animationDelayMs}ms` }}
     >
       <div className="space-y-3">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
           <div className="flex min-w-0 items-center gap-2">
             <Avatar className="h-8 w-8 border border-border/60">
               <AvatarImage src={authorAvatarUrl ?? undefined} alt={authorName} />
@@ -83,7 +83,7 @@ export function CommunityPostCard({
               <p className="text-[11px] text-muted-foreground">{createdAgo}</p>
             </div>
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-1">
+          <div className="flex flex-wrap items-center gap-1 self-start sm:self-auto sm:justify-end">
             {post.targetModel && (
               <Badge variant="secondary" className="h-5 px-1.5 text-[11px] font-mono">
                 {post.targetModel}

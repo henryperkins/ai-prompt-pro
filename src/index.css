@@ -334,6 +334,18 @@ All colors MUST be HSL.
     animation: community-feed-enter 420ms var(--motion-snap) both;
   }
 
+  .category-scroll-fade::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 2rem;
+    background: linear-gradient(to right, transparent, hsl(var(--card)));
+    pointer-events: none;
+    z-index: 1;
+  }
+
   .enhance-output-frame {
     @apply border-border/90;
     transition:

@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Copy, Check, Sparkles, Save, Loader2, MoreHorizontal } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -39,6 +40,7 @@ import {
 import { PROMPT_CATEGORY_OPTIONS } from "@/lib/prompt-categories";
 import { buildLineDiff, type DiffLine } from "@/lib/text-diff";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export type EnhancePhase = "idle" | "starting" | "streaming" | "settling" | "done";
 
@@ -553,15 +555,20 @@ export function OutputPanel({
                 className="min-h-[80px] bg-background"
               />
             )}
-            <label className="flex items-start gap-2 text-xs text-muted-foreground">
-              <input
-                type="checkbox"
+            <div className="flex items-start gap-2">
+              <Checkbox
+                id="share-confirm-safe"
                 checked={shareConfirmedSafe}
-                onChange={(event) => setShareConfirmedSafe(event.target.checked)}
+                onCheckedChange={(checked) => setShareConfirmedSafe(checked === true)}
                 className="mt-0.5"
               />
-              <span>I confirm this prompt contains no secrets or private data.</span>
-            </label>
+              <Label
+                htmlFor="share-confirm-safe"
+                className="cursor-pointer text-xs leading-snug text-muted-foreground"
+              >
+                I confirm this prompt contains no secrets or private data.
+              </Label>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShareDialogOpen(false)}>

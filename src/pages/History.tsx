@@ -1,26 +1,18 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { VersionHistoryContent } from "@/components/VersionHistory";
 import { Card } from "@/components/ui/card";
 import { usePromptBuilder } from "@/hooks/usePromptBuilder";
 import { useToast } from "@/hooks/use-toast";
+import { useTheme } from "@/hooks/useTheme";
 import { queueRestoredVersionPrompt } from "@/lib/history-restore";
 
 const History = () => {
-  const [isDark, setIsDark] = useState(() => {
-    if (typeof window !== "undefined") {
-      return document.documentElement.classList.contains("dark");
-    }
-    return false;
-  });
+  const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { versions } = usePromptBuilder();
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", isDark);
-  }, [isDark]);
 
   const handleRestore = useCallback(
     (prompt: string) => {
@@ -41,7 +33,7 @@ const History = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Header isDark={isDark} onToggleTheme={() => setIsDark((prev) => !prev)} />
+      <Header isDark={isDark} onToggleTheme={toggleTheme} />
 
       <main className="flex-1 container mx-auto px-4 py-4 sm:py-6">
         <div className="delight-hero mb-4 text-center sm:mb-6">

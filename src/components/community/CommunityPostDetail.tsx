@@ -143,15 +143,15 @@ export function CommunityPostDetail({
               <p className="text-xs text-muted-foreground">{createdAgo}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button asChild variant="ghost" size="sm" className="h-8 text-xs">
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+            <Button asChild variant="ghost" size="sm" className="h-8 w-full text-xs sm:w-auto">
               <Link to={`/?remix=${post.id}`}>Remix</Link>
             </Button>
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              className="h-8 text-xs"
+              className="h-8 w-full text-xs sm:w-auto"
               disabled={!canSaveToLibrary}
               onClick={() => onSaveToLibrary(post.id)}
             >
@@ -162,7 +162,7 @@ export function CommunityPostDetail({
               type="button"
               variant="outline"
               size="sm"
-              className="h-8 text-xs"
+              className="h-8 w-full text-xs sm:w-auto"
               onClick={() => onCopyPrompt(post)}
             >
               <Copy className="h-3.5 w-3.5" />

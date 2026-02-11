@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useTheme } from "@/hooks/useTheme";
 import {
   type CommunityPost as CommunityPostType,
   type CommunityProfile,
@@ -33,12 +34,7 @@ const CommunityPost = () => {
   const requestToken = useRef(0);
   const { toast } = useToast();
   const { user } = useAuth();
-  const [isDark, setIsDark] = useState(() => {
-    if (typeof window !== "undefined") {
-      return document.documentElement.classList.contains("dark");
-    }
-    return false;
-  });
+  const { isDark, toggleTheme } = useTheme();
   const [post, setPost] = useState<CommunityPostType | null>(null);
   const [parentPost, setParentPost] = useState<CommunityPostType | null>(null);
   const [remixes, setRemixes] = useState<CommunityPostType[]>([]);
@@ -46,10 +42,6 @@ const CommunityPost = () => {
   const [voteState, setVoteState] = useState<VoteState | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", isDark);
-  }, [isDark]);
 
   useEffect(() => {
     if (!postId) {
@@ -198,7 +190,7 @@ const CommunityPost = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Header isDark={isDark} onToggleTheme={() => setIsDark((prev) => !prev)} />
+      <Header isDark={isDark} onToggleTheme={toggleTheme} />
 
       <main className="flex-1 container mx-auto px-4 py-4 sm:py-6">
         <div className="mb-4 flex flex-wrap items-center gap-2">

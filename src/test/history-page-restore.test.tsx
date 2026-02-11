@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
+import { ThemeProvider } from "@/hooks/useTheme";
 import History from "@/pages/History";
 
 const mocks = vi.hoisted(() => ({
@@ -51,9 +52,11 @@ describe("History restore behavior", () => {
     mocks.queueRestoredVersionPrompt.mockReturnValue(false);
 
     render(
-      <MemoryRouter>
-        <History />
-      </MemoryRouter>,
+      <ThemeProvider>
+        <MemoryRouter>
+          <History />
+        </MemoryRouter>
+      </ThemeProvider>,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Restore" }));
@@ -71,9 +74,11 @@ describe("History restore behavior", () => {
     mocks.queueRestoredVersionPrompt.mockReturnValue(true);
 
     render(
-      <MemoryRouter>
-        <History />
-      </MemoryRouter>,
+      <ThemeProvider>
+        <MemoryRouter>
+          <History />
+        </MemoryRouter>
+      </ThemeProvider>,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Restore" }));

@@ -1,4 +1,5 @@
 import type { CommunityPost, CommunityProfile, VoteState, VoteType } from "@/lib/community";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CommunityPostCard } from "@/components/community/CommunityPostCard";
@@ -107,14 +108,16 @@ export function CommunityFeed({
       })}
       {hasMore && onLoadMore && (
         <div className="flex justify-center pt-1 lg:col-span-2">
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={onLoadMore}
             disabled={isLoadingMore}
-            className="interactive-chip h-8 rounded-md border border-border px-3 text-xs text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+            className="h-8 text-xs"
           >
             {isLoadingMore ? "Loading..." : "Load more"}
-          </button>
+          </Button>
         </div>
       )}
     </div>

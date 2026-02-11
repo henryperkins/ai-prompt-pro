@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "react-router-dom";
 import { MessageCircle, Send } from "lucide-react";
@@ -105,10 +105,8 @@ export function CommunityComments({
 
   const canComment = Boolean(user);
 
-  const sortedComments = useMemo(() => comments, [comments]);
-
   return (
-    <Card className={cn("interactive-card space-y-3 border-border/80 bg-card/85 p-3", className)}>
+    <Card className={cn("space-y-3 border-border/80 bg-card/85 p-3", className)}>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-xs font-medium text-foreground">
           <MessageCircle className="h-3.5 w-3.5" />
@@ -126,13 +124,13 @@ export function CommunityComments({
         </div>
       )}
 
-      {!loading && sortedComments.length === 0 && (
+      {!loading && comments.length === 0 && (
         <p className="text-xs text-muted-foreground">Be the first to comment.</p>
       )}
 
-      {!loading && sortedComments.length > 0 && (
+      {!loading && comments.length > 0 && (
         <div className="space-y-2">
-          {sortedComments.map((comment) => {
+          {comments.map((comment) => {
             const author = authorById[comment.userId];
             const displayName = author?.displayName || "Community member";
             const createdAt = formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true });
@@ -149,7 +147,7 @@ export function CommunityComments({
         </div>
       )}
 
-      {compact && totalCount > sortedComments.length && (
+      {compact && totalCount > comments.length && (
         <Link
           to={`/community/${postId}`}
           className="text-xs font-medium text-primary underline-offset-2 hover:underline"
@@ -170,10 +168,10 @@ export function CommunityComments({
           <Button
             type="button"
             size="sm"
-            variant="outline"
+            variant="default"
             onClick={handleSubmit}
             disabled={!canComment || submitting || !draft.trim()}
-            className="interactive-chip gap-1 text-xs"
+            className="gap-1 text-xs"
           >
             <Send className="h-3.5 w-3.5" />
             Post comment

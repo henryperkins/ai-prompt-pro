@@ -13,6 +13,7 @@ import { getSectionHealth, type SectionHealthState } from "@/lib/section-health"
 import { hasPromptInput } from "@/lib/prompt-builder";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useTheme } from "@/hooks/useTheme";
 import { loadPost, loadProfilesByIds } from "@/lib/community";
 import { consumeRestoredVersionPrompt } from "@/lib/history-restore";
 import {
@@ -85,12 +86,7 @@ function SectionHealthBadge({ state }: { state: SectionHealthState }) {
 type BuilderSection = "builder" | "context" | "tone" | "quality";
 
 const Index = () => {
-  const [isDark, setIsDark] = useState(() => {
-    if (typeof window !== "undefined") {
-      return document.documentElement.classList.contains("dark");
-    }
-    return false;
-  });
+  const { isDark, toggleTheme } = useTheme();
   const [searchParams, setSearchParams] = useSearchParams();
   const remixId = searchParams.get("remix");
   const remixLoadToken = useRef(0);
@@ -126,10 +122,6 @@ const Index = () => {
     updateProjectNotes,
     toggleDelimiters,
   } = usePromptBuilder();
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", isDark);
-  }, [isDark]);
 
   useEffect(() => {
     const restoredPrompt = consumeRestoredVersionPrompt();
@@ -340,6 +332,12 @@ const Index = () => {
   const sectionHealth = getSectionHealth(config, score.total);
   const selectedRole = config.customRole || config.role;
   const displayPrompt = enhancedPrompt || builtPrompt;
+  const hasEnhancedOnce = enhancedPrompt.trim().length > 0;
+  const allSectionsComplete =
+    sectionHealth.builder === "complete" &&
+    sectionHealth.context === "complete" &&
+    sectionHealth.tone === "complete";
+  const showEnhanceFirstCard = !hasEnhancedOnce && !allSectionsComplete;
   const canSavePrompt = hasPromptInput(config);
   const canSharePrompt = canSavePrompt && isSignedIn;
   const mobileEnhanceLabel = isEnhancing
@@ -403,7 +401,7 @@ const Index = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <Header
         isDark={isDark}
-        onToggleTheme={() => setIsDark(!isDark)}
+        onToggleTheme={toggleTheme}
       />
 
       <main className="flex-1 container mx-auto px-4 py-3 sm:py-6">
@@ -450,26 +448,28 @@ const Index = () => {
               onClear={clearOriginalPrompt}
             />
 
-            <Card className="border-border/70 bg-card/80 p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="text-xs font-medium text-foreground">Enhance first, refine after</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    Start with a rough prompt, run Enhance, then apply targeted improvements.
-                  </p>
+            {showEnhanceFirstCard && (
+              <Card className="border-border/70 bg-card/80 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-medium text-foreground">Enhance first, refine after</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Start with a rough prompt, run Enhance, then apply targeted improvements.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-xs"
+                    onClick={handleEnhance}
+                    disabled={isEnhancing || !builtPrompt}
+                  >
+                    {isEnhancing ? "Enhancing..." : "Enhance now"}
+                  </Button>
                 </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-8 text-xs"
-                  onClick={handleEnhance}
-                  disabled={isEnhancing || !builtPrompt}
-                >
-                  {isEnhancing ? "Enhancing..." : "Enhance now"}
-                </Button>
-              </div>
-            </Card>
+              </Card>
+            )}
 
             {showRefineSuggestions && (
               <Card className="border-primary/25 bg-primary/5 p-3">

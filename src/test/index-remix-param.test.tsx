@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
+import { ThemeProvider } from "@/hooks/useTheme";
 import { defaultConfig } from "@/lib/prompt-builder";
 
 const mocks = vi.hoisted(() => ({
@@ -171,19 +172,21 @@ function LocationSearch() {
 async function renderIndexAtRemixUrl() {
   const { default: Index } = await import("@/pages/Index");
   render(
-    <MemoryRouter initialEntries={["/?remix=post_1"]}>
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <>
-              <Index />
-              <LocationSearch />
-            </>
-          }
-        />
-      </Routes>
-    </MemoryRouter>,
+    <ThemeProvider>
+      <MemoryRouter initialEntries={["/?remix=post_1"]}>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <>
+                <Index />
+                <LocationSearch />
+              </>
+            }
+          />
+        </Routes>
+      </MemoryRouter>
+    </ThemeProvider>,
   );
 }
 
