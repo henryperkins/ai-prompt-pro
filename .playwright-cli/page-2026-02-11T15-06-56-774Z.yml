@@ -1,0 +1,71 @@
+- generic [ref=e2]:
+  - region "Notifications (F8)":
+    - list
+  - region "Notifications alt+T"
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - img [ref=e8]
+          - generic [ref=e10]: PromptForge
+        - navigation [ref=e11]:
+          - link "Open builder" [ref=e12] [cursor=pointer]:
+            - /url: /
+            - img
+            - generic [ref=e13]: Builder
+          - link "Open community" [ref=e14] [cursor=pointer]:
+            - /url: /community
+            - img
+            - generic [ref=e15]: Community
+          - link "Open prompt library" [ref=e16] [cursor=pointer]:
+            - /url: /library
+            - img
+            - generic [ref=e17]: Library
+          - link "Open version history" [ref=e18] [cursor=pointer]:
+            - /url: /history
+            - img
+            - generic [ref=e19]: History
+          - button "Toggle theme" [ref=e20] [cursor=pointer]:
+            - img
+          - button "Sign in" [ref=e21] [cursor=pointer]:
+            - img
+            - generic [ref=e22]: Sign in
+    - main [ref=e23]:
+      - generic [ref=e24]:
+        - heading "Library Workspace" [level=1] [ref=e25]
+        - paragraph [ref=e26]: Saved prompts now live in a dedicated workspace. Presets and starter templates stay in Builder.
+      - generic [ref=e27]:
+        - generic [ref=e29]:
+          - generic [ref=e30]:
+            - paragraph [ref=e31]: Separated from templates
+            - paragraph [ref=e32]: Edit and organize your saved prompts here without touching preset/template sources.
+          - link "Open Builder Presets" [ref=e33] [cursor=pointer]:
+            - /url: /
+            - img
+            - text: Open Builder Presets
+        - generic [ref=e34]:
+          - generic [ref=e35]:
+            - generic [ref=e36]:
+              - generic [ref=e37]: Search saved prompts
+              - img [ref=e38]
+              - textbox "Search saved prompts" [ref=e41]:
+                - /placeholder: Search prompts by name, description, tags, or starter text
+            - combobox "Filter category" [ref=e42] [cursor=pointer]:
+              - generic: all
+              - img [ref=e43]
+            - generic [ref=e45]:
+              - img [ref=e46]
+              - combobox "Sort saved prompts" [ref=e49] [cursor=pointer]:
+                - generic: Most Recent
+                - img [ref=e50]
+          - generic [ref=e52]:
+            - generic [ref=e54]:
+              - generic [ref=e55]:
+                - checkbox "Select all filtered prompts" [ref=e56] [cursor=pointer]
+                - generic [ref=e57]: 0 selected for bulk edit
+                - generic [ref=e58]: 0 shown
+              - button "Open Bulk Edit" [disabled]
+            - generic [ref=e59]:
+              - paragraph [ref=e60]: No saved prompts yet. Create one in Builder, then save it to your library.
+              - link "Go to Builder" [ref=e62] [cursor=pointer]:
+                - /url: /

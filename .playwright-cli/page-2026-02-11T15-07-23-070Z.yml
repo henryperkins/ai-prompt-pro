@@ -1,0 +1,45 @@
+- generic [ref=e2]:
+  - region "Notifications (F8)":
+    - list
+  - region "Notifications alt+T"
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - img [ref=e8]
+          - generic [ref=e10]: PromptForge
+        - navigation [ref=e11]:
+          - button "Open navigation menu" [ref=e12] [cursor=pointer]:
+            - img
+          - button "Toggle theme" [ref=e13] [cursor=pointer]:
+            - img
+          - button "Sign in" [ref=e14] [cursor=pointer]:
+            - img
+            - generic [ref=e15]: Sign in
+    - main [ref=e16]:
+      - generic [ref=e17]:
+        - paragraph [ref=e18]: Error 404
+        - heading "Page not found" [level=1] [ref=e19]
+        - paragraph [ref=e20]: The page /does-not-exist does not exist or was moved.
+        - generic [ref=e21]:
+          - link "Back to Builder" [ref=e22] [cursor=pointer]:
+            - /url: /
+          - link "Open Community" [ref=e23] [cursor=pointer]:
+            - /url: /community
+    - navigation "Mobile navigation" [ref=e24]:
+      - link "Builder" [ref=e25] [cursor=pointer]:
+        - /url: /
+        - img [ref=e26]
+        - text: Builder
+      - link "Community" [ref=e29] [cursor=pointer]:
+        - /url: /community
+        - img [ref=e30]
+        - text: Community
+      - link "Library" [ref=e35] [cursor=pointer]:
+        - /url: /library
+        - img [ref=e36]
+        - text: Library
+      - link "History" [ref=e38] [cursor=pointer]:
+        - /url: /history
+        - img [ref=e39]
+        - text: History

@@ -21,10 +21,10 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <ThemeProvider>
-          <BrowserRouter>
+        <BrowserRouter>
+          <ThemeProvider>
+            <Toaster />
+            <Sonner />
             <Suspense
               fallback={
                 <div className="min-h-screen bg-background flex items-center justify-center px-4 text-sm text-muted-foreground">
@@ -43,8 +43,8 @@ const App = () => (
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
-          </BrowserRouter>
-        </ThemeProvider>
+          </ThemeProvider>
+        </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>

@@ -1,0 +1,72 @@
+- generic [ref=e2]:
+  - region "Notifications (F8)":
+    - list
+  - region "Notifications alt+T"
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - img [ref=e8]
+          - generic [ref=e10]: PromptForge
+        - navigation [ref=e11]:
+          - button "Open navigation menu" [ref=e12] [cursor=pointer]:
+            - img
+          - button "Toggle theme" [ref=e13] [cursor=pointer]:
+            - img
+          - button "Sign in" [ref=e14] [cursor=pointer]:
+            - img
+            - generic [ref=e15]: Sign in
+    - main [ref=e16]:
+      - generic [ref=e17]:
+        - heading "Community Prompt Feed" [level=1] [ref=e18]
+        - paragraph [ref=e19]: Browse developer-focused prompt recipes, filter by domain, and open any post to copy or remix.
+      - generic [ref=e20]:
+        - generic [ref=e21]:
+          - generic [ref=e22]: Search community posts
+          - img
+          - textbox "Search community posts" [ref=e23]:
+            - /placeholder: Search by title or use case
+        - generic [ref=e24]:
+          - button "New" [ref=e25] [cursor=pointer]
+          - button "Popular" [ref=e26] [cursor=pointer]
+          - button "Most Remixed" [ref=e27] [cursor=pointer]
+          - button "Verified" [ref=e28] [cursor=pointer]
+        - generic [ref=e31]:
+          - button "All" [ref=e32] [cursor=pointer]
+          - button "General" [ref=e33] [cursor=pointer]
+          - button "Frontend" [ref=e34] [cursor=pointer]
+          - button "Backend" [ref=e35] [cursor=pointer]
+          - button "Fullstack" [ref=e36] [cursor=pointer]
+          - button "DevOps" [ref=e37] [cursor=pointer]
+          - button "Data" [ref=e38] [cursor=pointer]
+          - button "ML / AI" [ref=e39] [cursor=pointer]
+          - button "Security" [ref=e40] [cursor=pointer]
+          - button "Testing" [ref=e41] [cursor=pointer]
+          - button "API" [ref=e42] [cursor=pointer]
+          - button "Automation" [ref=e43] [cursor=pointer]
+          - button "Docs" [ref=e44] [cursor=pointer]
+          - button "Content" [ref=e45] [cursor=pointer]
+          - button "Analysis" [ref=e46] [cursor=pointer]
+          - button "Creative" [ref=e47] [cursor=pointer]
+          - button "Business" [ref=e48] [cursor=pointer]
+          - button "Education" [ref=e49] [cursor=pointer]
+        - generic [ref=e50]:
+          - generic [ref=e51]: 0 posts
+          - generic [ref=e52]: Sorted by New
+    - navigation "Mobile navigation" [ref=e90]:
+      - link "Builder" [ref=e91] [cursor=pointer]:
+        - /url: /
+        - img [ref=e92]
+        - text: Builder
+      - link "Community" [ref=e95] [cursor=pointer]:
+        - /url: /community
+        - img [ref=e96]
+        - text: Community
+      - link "Library" [ref=e101] [cursor=pointer]:
+        - /url: /library
+        - img [ref=e102]
+        - text: Library
+      - link "History" [ref=e104] [cursor=pointer]:
+        - /url: /history
+        - img [ref=e105]
+        - text: History

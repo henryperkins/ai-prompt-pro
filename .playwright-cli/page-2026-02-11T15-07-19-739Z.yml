@@ -1,0 +1,45 @@
+- generic [ref=e2]:
+  - region "Notifications (F8)":
+    - list
+  - region "Notifications alt+T"
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - img [ref=e8]
+          - generic [ref=e10]: PromptForge
+        - navigation [ref=e11]:
+          - button "Open navigation menu" [ref=e12] [cursor=pointer]:
+            - img
+          - button "Toggle theme" [ref=e13] [cursor=pointer]:
+            - img
+          - button "Sign in" [ref=e14] [cursor=pointer]:
+            - img
+            - generic [ref=e15]: Sign in
+    - main [ref=e16]:
+      - generic [ref=e17]:
+        - heading "Version History" [level=1] [ref=e18]
+        - paragraph [ref=e19]: Restore any previously saved prompt version back into the Builder.
+      - generic [ref=e22]:
+        - img [ref=e23]
+        - paragraph [ref=e26]: No saved versions yet.
+        - paragraph [ref=e27]: Save a prompt to see it here.
+        - link "Go to Builder" [ref=e29] [cursor=pointer]:
+          - /url: /
+    - navigation "Mobile navigation" [ref=e30]:
+      - link "Builder" [ref=e31] [cursor=pointer]:
+        - /url: /
+        - img [ref=e32]
+        - text: Builder
+      - link "Community" [ref=e35] [cursor=pointer]:
+        - /url: /community
+        - img [ref=e36]
+        - text: Community
+      - link "Library" [ref=e41] [cursor=pointer]:
+        - /url: /library
+        - img [ref=e42]
+        - text: Library
+      - link "History" [ref=e44] [cursor=pointer]:
+        - /url: /history
+        - img [ref=e45]
+        - text: History

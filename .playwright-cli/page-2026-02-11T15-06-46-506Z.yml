@@ -1,0 +1,135 @@
+- generic [ref=e2]:
+  - region "Notifications (F8)":
+    - list
+  - region "Notifications alt+T"
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - img [ref=e8]
+          - generic [ref=e10]: PromptForge
+        - navigation [ref=e11]:
+          - link "Open builder" [ref=e12] [cursor=pointer]:
+            - /url: /
+            - img
+            - generic [ref=e13]: Builder
+          - link "Open community" [ref=e14] [cursor=pointer]:
+            - /url: /community
+            - img
+            - generic [ref=e15]: Community
+          - link "Open prompt library" [ref=e16] [cursor=pointer]:
+            - /url: /library
+            - img
+            - generic [ref=e17]: Library
+          - link "Open version history" [ref=e18] [cursor=pointer]:
+            - /url: /history
+            - img
+            - generic [ref=e19]: History
+          - button "Toggle theme" [ref=e20] [cursor=pointer]:
+            - img
+          - button "Sign in" [ref=e21] [cursor=pointer]:
+            - img
+            - generic [ref=e22]: Sign in
+    - main [ref=e23]:
+      - generic [ref=e24]:
+        - heading "Transform Basic Prompts into Pro-Level Instructions" [level=1] [ref=e25]
+        - paragraph [ref=e26]: Build structured, effective prompts that get better AI results—every time. No prompt engineering expertise required.
+      - generic [ref=e27]:
+        - generic [ref=e28]:
+          - generic [ref=e29]:
+            - generic [ref=e30]:
+              - generic [ref=e31]: Your Prompt
+              - generic [ref=e33]: 0 chars
+            - textbox "Original prompt input" [ref=e34]:
+              - /placeholder: Enter your basic prompt here... (e.g., 'Write a blog post about AI')
+          - generic [ref=e36]:
+            - paragraph [ref=e37]: Enhance first, refine after
+            - paragraph [ref=e38]: Start with a rough prompt, then use the main Enhance button to generate your first draft.
+          - generic [ref=e39]:
+            - generic [ref=e40]:
+              - heading "Builder Empty" [level=3] [ref=e41]:
+                - button "Builder Empty" [expanded] [ref=e42] [cursor=pointer]:
+                  - generic [ref=e43]:
+                    - img [ref=e44]
+                    - text: Builder
+                  - generic "Empty" [ref=e49]:
+                    - img [ref=e50]
+                    - generic [ref=e59]: Empty
+                  - img [ref=e60]
+              - region "Builder Empty" [ref=e62]:
+                - generic [ref=e64]:
+                  - tablist [ref=e65]:
+                    - tab "Role tab" [selected] [ref=e66] [cursor=pointer]:
+                      - img [ref=e67]
+                      - generic [ref=e70]: Role
+                    - tab "Task tab" [ref=e71] [cursor=pointer]:
+                      - img [ref=e72]
+                      - generic [ref=e76]: Task
+                    - tab "Format tab" [ref=e77] [cursor=pointer]:
+                      - img [ref=e78]
+                      - generic [ref=e80]: Format
+                    - tab "Examples tab" [ref=e81] [cursor=pointer]:
+                      - img [ref=e82]
+                      - generic [ref=e84]: Examples
+                    - tab "Rules tab" [ref=e85] [cursor=pointer]:
+                      - img [ref=e86]
+                      - generic [ref=e88]: Rules
+                  - tabpanel "Role tab" [ref=e89]:
+                    - paragraph [ref=e90]: Who should the AI be?
+                    - combobox "Select role" [ref=e91] [cursor=pointer]:
+                      - generic: Select a role...
+                      - img [ref=e92]
+                    - textbox "Custom role input" [ref=e94]:
+                      - /placeholder: Or type a custom role...
+            - heading "Context & Sources Empty" [level=3] [ref=e96]:
+              - button "Context & Sources Empty" [ref=e97] [cursor=pointer]:
+                - generic [ref=e98]:
+                  - img [ref=e99]
+                  - text: Context & Sources
+                - generic "Empty" [ref=e102]:
+                  - img [ref=e103]
+                  - generic [ref=e112]: Empty
+                - img [ref=e113]
+            - heading "Tone & Style Professional Empty" [level=3] [ref=e116]:
+              - button "Tone & Style Professional Empty" [ref=e117] [cursor=pointer]:
+                - generic [ref=e118]:
+                  - img [ref=e119]
+                  - text: Tone & Style
+                - generic [ref=e121]:
+                  - generic [ref=e122]: Professional
+                  - generic "Empty" [ref=e123]:
+                    - img [ref=e124]
+                    - generic [ref=e133]: Empty
+                - img [ref=e134]
+            - heading "Quality Score 15/100 Empty" [level=3] [ref=e137]:
+              - button "Quality Score 15/100 Empty" [ref=e138] [cursor=pointer]:
+                - generic [ref=e139]:
+                  - img [ref=e140]
+                  - text: Quality Score
+                - generic [ref=e142]:
+                  - generic [ref=e143]: 15/100
+                  - generic "Empty" [ref=e144]:
+                    - img [ref=e145]
+                    - generic [ref=e154]: Empty
+                - img [ref=e155]
+        - generic [ref=e157]:
+          - generic [ref=e158]:
+            - generic [ref=e159]:
+              - heading "📝 Preview" [level=2] [ref=e161]
+              - generic [ref=e162]:
+                - button "Copy" [disabled]:
+                  - img
+                  - text: Copy
+                - button "Save" [disabled]:
+                  - img
+                  - text: Save
+                - button "More" [ref=e163] [cursor=pointer]:
+                  - img
+                  - text: More
+            - paragraph [ref=e166]:
+              - text: Your enhanced prompt will appear here.
+              - text: Start by entering a prompt or choosing a template.
+            - button "Enhance with AI" [disabled]:
+              - img
+              - text: Enhance with AI
+          - paragraph [ref=e167]: Press Ctrl+Enter to enhance
