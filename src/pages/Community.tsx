@@ -56,6 +56,7 @@ const Community = () => {
   const [category, setCategory] = useState("all");
   const [queryInput, setQueryInput] = useState("");
   const [query, setQuery] = useState("");
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -64,6 +65,10 @@ const Community = () => {
   const requestToken = useRef(0);
   const { toast } = useToast();
   const { user } = useAuth();
+  const showCategorySuggestions = isSearchFocused;
+  const categoryPanelId = "community-search-categories";
+  const selectedCategoryLabel =
+    CATEGORY_OPTIONS.find((option) => option.value === category)?.label ?? "All";
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -268,8 +273,8 @@ const Community = () => {
 
   return (
     <PageShell>
-        {/* Search bar with inline category chips */}
-        <div className="mb-3 overflow-hidden rounded-xl border border-border bg-card/85 shadow-sm">
+        {/* Search bar with inline category filters */}
+        <div className="relative mb-3 rounded-xl border border-border bg-card/85 shadow-sm">
           <div className="relative">
             <label htmlFor="community-feed-search" className="sr-only">
               Search community posts
@@ -279,29 +284,62 @@ const Community = () => {
               id="community-feed-search"
               value={queryInput}
               onChange={(event) => setQueryInput(event.target.value)}
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={() => setIsSearchFocused(false)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  setIsSearchFocused(false);
+                  (event.target as HTMLInputElement).blur();
+                }
+              }}
               placeholder="Search prompts by title or use case..."
               className="h-10 border-0 bg-transparent pl-9 text-sm shadow-none focus-visible:ring-0"
+              aria-expanded={showCategorySuggestions}
+              aria-controls={showCategorySuggestions ? categoryPanelId : undefined}
             />
           </div>
-          <div className="border-t border-border/40 px-2 py-2">
-            <div className="flex items-center gap-1.5 overflow-x-auto">
-              {CATEGORY_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setCategory(option.value)}
-                  className={cn(
-                    "shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
-                    category === option.value
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                  )}
-                >
-                  {option.label}
-                </button>
-              ))}
+          {showCategorySuggestions && (
+            <div
+              id={categoryPanelId}
+              className="absolute left-0 right-0 top-full z-20 mt-2 rounded-xl border border-border/70 bg-popover p-2 text-sm shadow-lg"
+              role="listbox"
+              aria-label="Category filters"
+            >
+              <div className="flex items-center justify-between px-2 py-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+                <span>Categories</span>
+                <span>Action</span>
+              </div>
+              <div className="mt-1 flex flex-col gap-1">
+                {CATEGORY_OPTIONS.map((option) => {
+                  const isSelected = category === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => setCategory(option.value)}
+                      className={cn(
+                        "flex items-center justify-between rounded-md px-2 py-2 text-sm transition-colors",
+                        isSelected
+                          ? "bg-accent text-accent-foreground"
+                          : "text-foreground hover:bg-muted",
+                      )}
+                    >
+                      <span>{option.label}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {isSelected ? "Selected" : "Filter"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="px-2 pt-2 text-[11px] text-muted-foreground">
+                Current: <span className="font-medium text-foreground">{selectedCategoryLabel}</span>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Sort segmented control */}
