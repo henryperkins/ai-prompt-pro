@@ -22,6 +22,10 @@ import {
   type VoteType,
 } from "@/lib/community";
 
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
 function toProfileMap(profiles: CommunityProfile[]): Record<string, CommunityProfile> {
   return profiles.reduce<Record<string, CommunityProfile>>((map, profile) => {
     map[profile.id] = profile;
@@ -44,9 +48,18 @@ const CommunityPost = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!postId) {
+    const resetPostState = () => {
+      setPost(null);
+      setParentPost(null);
+      setRemixes([]);
+      setAuthorById({});
+      setVoteState(null);
+    };
+
+    if (!postId || !isUuid(postId)) {
+      resetPostState();
       setLoading(false);
-      setErrorMessage("Missing community post id.");
+      setErrorMessage("This link is invalid or expired.");
       return;
     }
 
@@ -60,10 +73,7 @@ const CommunityPost = () => {
         if (token !== requestToken.current) return;
 
         if (!loadedPost) {
-          setPost(null);
-          setParentPost(null);
-          setRemixes([]);
-          setAuthorById({});
+          resetPostState();
           setErrorMessage("This community post is unavailable.");
           return;
         }
@@ -93,12 +103,12 @@ const CommunityPost = () => {
         setVoteState(voteStates[loadedPost.id] ?? { upvote: false, verified: false });
       } catch (error) {
         if (token !== requestToken.current) return;
-        setPost(null);
-        setParentPost(null);
-        setRemixes([]);
-        setAuthorById({});
-        setVoteState(null);
-        setErrorMessage(error instanceof Error ? error.message : "Failed to load this post.");
+        resetPostState();
+        setErrorMessage(
+          error instanceof Error && error.message === "This link is invalid or expired."
+            ? error.message
+            : "Failed to load this post right now. Please try again.",
+        );
       } finally {
         if (token === requestToken.current) {
           setLoading(false);

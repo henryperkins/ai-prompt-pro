@@ -27,16 +27,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import {
-  CODEX_DEFAULT_SKILL_NAME,
-  generateAgentsMdFromPrompt,
-  generateAgentsOverrideMdFromPrompt,
-  generateCodexAppServerSendMessageV2CommandBash,
-  generateCodexExecCommandBash,
-  generateCodexSkillScaffoldCommandBash,
-  generateCodexTuiCommandBash,
-  generateSkillMdFromPrompt,
-} from "@/lib/codex-export";
 import { PROMPT_CATEGORY_OPTIONS } from "@/lib/prompt-categories";
 import { buildLineDiff, type DiffLine } from "@/lib/text-diff";
 import { cn } from "@/lib/utils";
@@ -70,6 +60,12 @@ interface OutputPanelProps {
   hideEnhanceButton?: boolean;
   enhancePhase?: EnhancePhase;
   remixContext?: { title: string; authorName: string };
+}
+
+type CodexExportModule = typeof import("@/lib/codex-export");
+
+async function loadCodexExport(): Promise<CodexExportModule> {
+  return import("@/lib/codex-export");
 }
 
 function parseTags(value: string): string[] | undefined {
@@ -136,14 +132,14 @@ export function OutputPanel({
   const handleCopyCodex = async (variant: "exec" | "tui" | "appServer") => {
     if (!displayPrompt) return;
 
-    const command =
-      variant === "exec"
-        ? generateCodexExecCommandBash(displayPrompt)
-        : variant === "tui"
-          ? generateCodexTuiCommandBash(displayPrompt)
-          : generateCodexAppServerSendMessageV2CommandBash(displayPrompt);
-
     try {
+      const codexExport = await loadCodexExport();
+      const command =
+        variant === "exec"
+          ? codexExport.generateCodexExecCommandBash(displayPrompt)
+          : variant === "tui"
+            ? codexExport.generateCodexTuiCommandBash(displayPrompt)
+            : codexExport.generateCodexAppServerSendMessageV2CommandBash(displayPrompt);
       await navigator.clipboard.writeText(command);
       toast({
         title: "Copied for Codex",
@@ -157,61 +153,78 @@ export function OutputPanel({
     } catch (error) {
       toast({
         title: "Copy failed",
-        description: error instanceof Error ? error.message : "Clipboard access is blocked.",
+        description: error instanceof Error ? error.message : "Codex command generation is unavailable.",
         variant: "destructive",
       });
     }
   };
 
-  const handleDownloadAgents = (variant: "agents" | "override") => {
+  const handleDownloadAgents = async (variant: "agents" | "override") => {
     if (!displayPrompt) return;
 
-    const content =
-      variant === "override"
-        ? generateAgentsOverrideMdFromPrompt(displayPrompt)
-        : generateAgentsMdFromPrompt(displayPrompt);
-    const filename = variant === "override" ? "AGENTS.override.md" : "AGENTS.md";
-
-    downloadTextFile(filename, content);
-    toast({
-      title: "Downloaded",
-      description: `${filename} generated from the current output.`,
-    });
+    try {
+      const codexExport = await loadCodexExport();
+      const content =
+        variant === "override"
+          ? codexExport.generateAgentsOverrideMdFromPrompt(displayPrompt)
+          : codexExport.generateAgentsMdFromPrompt(displayPrompt);
+      const filename = variant === "override" ? "AGENTS.override.md" : "AGENTS.md";
+      downloadTextFile(filename, content);
+      toast({
+        title: "Downloaded",
+        description: `${filename} generated from the current output.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Download failed",
+        description: error instanceof Error ? error.message : "AGENTS file generation is unavailable.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleCopyCodexSkillScaffold = async () => {
     if (!displayPrompt) return;
 
-    const command = generateCodexSkillScaffoldCommandBash(displayPrompt, {
-      skillName: CODEX_DEFAULT_SKILL_NAME,
-    });
-
     try {
+      const codexExport = await loadCodexExport();
+      const command = codexExport.generateCodexSkillScaffoldCommandBash(displayPrompt, {
+        skillName: codexExport.CODEX_DEFAULT_SKILL_NAME,
+      });
       await navigator.clipboard.writeText(command);
       toast({
         title: "Copied for Codex",
-        description: `Copied command to scaffold .agents/skills/${CODEX_DEFAULT_SKILL_NAME}/SKILL.md.`,
+        description: `Copied command to scaffold .agents/skills/${codexExport.CODEX_DEFAULT_SKILL_NAME}/SKILL.md.`,
       });
     } catch (error) {
       toast({
         title: "Copy failed",
-        description: error instanceof Error ? error.message : "Clipboard access is blocked.",
+        description: error instanceof Error ? error.message : "Codex scaffold generation is unavailable.",
         variant: "destructive",
       });
     }
   };
 
-  const handleDownloadSkill = () => {
+  const handleDownloadSkill = async () => {
     if (!displayPrompt) return;
 
-    const content = generateSkillMdFromPrompt(displayPrompt, {
-      skillName: CODEX_DEFAULT_SKILL_NAME,
-    });
-    downloadTextFile("SKILL.md", content);
-    toast({
-      title: "Downloaded",
-      description: `SKILL.md generated for skill name "${CODEX_DEFAULT_SKILL_NAME}".`,
-    });
+    try {
+      const codexExport = await loadCodexExport();
+      const content = codexExport.generateSkillMdFromPrompt(displayPrompt, {
+        skillName: codexExport.CODEX_DEFAULT_SKILL_NAME,
+      });
+      downloadTextFile("SKILL.md", content);
+      toast({
+        title: "Downloaded",
+        description: `SKILL.md generated for skill name "${codexExport.CODEX_DEFAULT_SKILL_NAME}".`,
+      });
+    } catch (error) {
+      toast({
+        title: "Download failed",
+        description: error instanceof Error ? error.message : "SKILL.md generation is unavailable.",
+        variant: "destructive",
+      });
+    }
   };
 
   const isStreamingVisual = enhancePhase === "starting" || enhancePhase === "streaming";
@@ -387,13 +400,13 @@ export function OutputPanel({
               <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodexSkillScaffold()}>
                 Copy skill scaffold command
               </DropdownMenuItem>
-              <DropdownMenuItem disabled={!displayPrompt} onSelect={() => handleDownloadSkill()}>
+              <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleDownloadSkill()}>
                 Download SKILL.md
               </DropdownMenuItem>
-              <DropdownMenuItem disabled={!displayPrompt} onSelect={() => handleDownloadAgents("agents")}>
+              <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleDownloadAgents("agents")}>
                 Download AGENTS.md
               </DropdownMenuItem>
-              <DropdownMenuItem disabled={!displayPrompt} onSelect={() => handleDownloadAgents("override")}>
+              <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleDownloadAgents("override")}>
                 Download AGENTS.override.md
               </DropdownMenuItem>
             </DropdownMenuContent>

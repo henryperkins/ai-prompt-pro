@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CommunityPostCard } from "@/components/community/CommunityPostCard";
+import { Link } from "react-router-dom";
 
 interface CommunityFeedProps {
   posts: CommunityPost[];
@@ -68,16 +69,29 @@ export function CommunityFeed({
 
   if (errorMessage) {
     return (
-      <Card className="border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-        {errorMessage}
+      <Card className="space-y-3 border-destructive/30 bg-destructive/5 p-4">
+        <p className="text-sm text-destructive">{errorMessage}</p>
+        <Button asChild size="sm" className="h-8 w-fit text-xs">
+          <Link to="/">Go to Builder</Link>
+        </Button>
       </Card>
     );
   }
 
   if (posts.length === 0) {
     return (
-      <Card className="p-5 text-sm text-muted-foreground">
-        No posts match this filter yet. Try another category or search term.
+      <Card className="space-y-3 p-5">
+        <p className="text-sm text-muted-foreground">
+          No posts match this filter yet. Try another category or share your first prompt.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild size="sm" className="h-8 text-xs">
+            <Link to="/">Share your first prompt</Link>
+          </Button>
+          <Button asChild variant="outline" size="sm" className="h-8 text-xs">
+            <Link to="/library">Open Library</Link>
+          </Button>
+        </div>
       </Card>
     );
   }

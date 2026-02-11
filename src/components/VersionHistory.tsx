@@ -7,6 +7,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Clock, RotateCcw } from "lucide-react";
+import { Link } from "react-router-dom";
 
 interface Version {
   id: string;
@@ -58,6 +59,11 @@ export function VersionHistoryContent({
           <Clock className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
           <p className="text-sm text-muted-foreground">No saved versions yet.</p>
           <p className="text-xs text-muted-foreground mt-1">Save a prompt to see it here.</p>
+          <div className="mt-3">
+            <Button asChild size="sm" className="h-8 text-xs">
+              <Link to="/">Go to Builder</Link>
+            </Button>
+          </div>
         </div>
       ) : (
         versions.map((version) => (

@@ -284,8 +284,12 @@ const Community = () => {
 
         <Card className="mb-4 space-y-3 border-border/80 bg-card/85 p-3 sm:mb-5 sm:p-4">
           <div className="relative">
+            <label htmlFor="community-feed-search" className="sr-only">
+              Search community posts
+            </label>
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
+              id="community-feed-search"
               value={queryInput}
               onChange={(event) => setQueryInput(event.target.value)}
               placeholder="Search by title or use case"
@@ -317,7 +321,7 @@ const Community = () => {
                     type="button"
                     size="sm"
                     variant={category === option.value ? "soft" : "ghost"}
-                    className="interactive-chip h-7 text-[11px]"
+                    className="interactive-chip h-7 text-xs"
                     onClick={() => setCategory(option.value)}
                   >
                     {option.label}

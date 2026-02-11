@@ -43,11 +43,11 @@ const History = () => {
           </p>
         </div>
 
-        <Card className="max-h-[calc(100vh-220px)] overflow-hidden border-border/80 bg-card/85 p-3 sm:p-4">
+        <Card className="border-border/80 bg-card/85 p-3 sm:max-h-[calc(100vh-220px)] sm:overflow-hidden sm:p-4">
           <VersionHistoryContent
             versions={versions}
             onRestore={handleRestore}
-            className="h-full max-h-[calc(100vh-260px)] pr-1"
+            className="pr-1 sm:h-full sm:max-h-[calc(100vh-260px)]"
           />
         </Card>
       </main>

@@ -450,23 +450,11 @@ const Index = () => {
 
             {showEnhanceFirstCard && (
               <Card className="border-border/70 bg-card/80 p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="text-xs font-medium text-foreground">Enhance first, refine after</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      Start with a rough prompt, run Enhance, then apply targeted improvements.
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="h-8 text-xs"
-                    onClick={handleEnhance}
-                    disabled={isEnhancing || !builtPrompt}
-                  >
-                    {isEnhancing ? "Enhancing..." : "Enhance now"}
-                  </Button>
+                <div>
+                  <p className="text-xs font-medium text-foreground">Enhance first, refine after</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Start with a rough prompt, then use the main Enhance button to generate your first draft.
+                  </p>
                 </div>
               </Card>
             )}

@@ -8,6 +8,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Drawer,
   DrawerContent,
   DrawerHeader,
@@ -252,6 +262,7 @@ function PromptList({
   const [shareUseCase, setShareUseCase] = useState("");
   const [shareTargetModel, setShareTargetModel] = useState("");
   const [shareConfirmedSafe, setShareConfirmedSafe] = useState(false);
+  const [pendingDeletePrompt, setPendingDeletePrompt] = useState<PromptSummary | null>(null);
 
   const handleOpenShareDialog = (prompt: PromptSummary) => {
     setSharePrompt(prompt);
@@ -267,6 +278,12 @@ function PromptList({
   const handleCloseShareDialog = () => {
     setSharePrompt(null);
     setShareConfirmedSafe(false);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!pendingDeletePrompt) return;
+    onDeleteSaved(pendingDeletePrompt.id);
+    setPendingDeletePrompt(null);
   };
 
   const handleShareSavedPrompt = async () => {
@@ -332,24 +349,28 @@ function PromptList({
     <>
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 pb-2 border-b border-border/60">
         <div className="relative">
+          <label htmlFor="prompt-library-search" className="sr-only">
+            Search saved prompts and templates
+          </label>
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input
+            id="prompt-library-search"
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
             placeholder="Search prompts by name, description, tags, or starter text"
-            className="h-8 pl-8 text-xs bg-background"
+            className="h-8 pl-8 text-sm bg-background"
           />
         </div>
         <div className="flex items-center gap-1.5">
           <ArrowDownUp className="w-3.5 h-3.5 text-muted-foreground" />
           <Select value={sortBy} onValueChange={(value: SavedPromptSort) => onSortByChange(value)}>
-            <SelectTrigger className="h-8 text-xs min-w-[138px]">
+            <SelectTrigger className="h-8 text-sm min-w-[138px]" aria-label="Sort saved prompts">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="recent" className="text-xs">Most Recent</SelectItem>
-              <SelectItem value="name" className="text-xs">Name (A-Z)</SelectItem>
-              <SelectItem value="revision" className="text-xs">Revision (High)</SelectItem>
+              <SelectItem value="recent" className="text-sm">Most Recent</SelectItem>
+              <SelectItem value="name" className="text-sm">Name (A-Z)</SelectItem>
+              <SelectItem value="revision" className="text-sm">Revision (High)</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -365,9 +386,16 @@ function PromptList({
         </div>
 
         {savedPrompts.length === 0 && (
-          <p className="text-xs text-muted-foreground">
-            No saved prompts yet. Use "Save Prompt" from the output panel.
-          </p>
+          <Card className="border-dashed border-border/80 bg-muted/20 p-3">
+            <p className="text-sm text-muted-foreground">
+              No saved prompts yet. Create one in the Builder, then save it to your library.
+            </p>
+            <div className="mt-2">
+              <Button asChild size="sm" className="h-8 text-xs" onClick={onClose}>
+                <Link to="/">Go to Builder</Link>
+              </Button>
+            </div>
+          </Card>
         )}
 
         {savedPrompts.length > 0 && filteredSaved.length === 0 && (
@@ -498,7 +526,7 @@ function PromptList({
                   className="w-7 h-7"
                   onClick={(event) => {
                     event.stopPropagation();
-                    onDeleteSaved(prompt.id);
+                    setPendingDeletePrompt(prompt);
                   }}
                   aria-label={`Delete ${prompt.name}`}
                 >
@@ -600,6 +628,35 @@ function PromptList({
           })}
         </div>
       </div>
+
+      <AlertDialog
+        open={pendingDeletePrompt !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingDeletePrompt(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete saved prompt?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDeletePrompt
+                ? `This will permanently delete "${pendingDeletePrompt.name}".`
+                : "This will permanently delete this saved prompt."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleConfirmDelete}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog
         open={sharePrompt !== null}

@@ -156,8 +156,13 @@ export function buildPrompt(config: PromptConfig): string {
 
   const allConstraints = [...config.constraints];
   if (config.customConstraint) allConstraints.push(config.customConstraint);
-  if (config.tone) allConstraints.push(`Use a ${config.tone.toLowerCase()} tone`);
-  if (config.complexity) allConstraints.push(`Target ${config.complexity.toLowerCase()} complexity level`);
+  const hasMeaningfulInput = parts.length > 0 || allConstraints.length > 0;
+  if (config.tone && (config.tone !== defaultConfig.tone || hasMeaningfulInput)) {
+    allConstraints.push(`Use a ${config.tone.toLowerCase()} tone`);
+  }
+  if (config.complexity && (config.complexity !== defaultConfig.complexity || hasMeaningfulInput)) {
+    allConstraints.push(`Target ${config.complexity.toLowerCase()} complexity level`);
+  }
 
   if (allConstraints.length > 0) {
     parts.push(`**Constraints:**\n${allConstraints.map((c) => `- ${c}`).join("\n")}`);

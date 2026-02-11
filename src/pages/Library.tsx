@@ -163,8 +163,8 @@ const Library = () => {
           </p>
         </div>
 
-        <Card className="max-h-[calc(100vh-220px)] overflow-hidden border-border/80 bg-card/85 p-3 sm:p-4">
-          <div className="h-full overflow-y-auto pr-1">
+        <Card className="border-border/80 bg-card/85 p-3 sm:max-h-[calc(100vh-220px)] sm:overflow-hidden sm:p-4">
+          <div className="pr-1 sm:h-full sm:overflow-y-auto">
             <PromptLibraryContent
               savedPrompts={templateSummaries}
               canShareSavedPrompts={isSignedIn}

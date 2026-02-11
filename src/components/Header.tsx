@@ -144,7 +144,12 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="interactive-chip w-11 h-11 sm:w-9 sm:h-9 rounded-full p-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Open account menu"
+                    className="interactive-chip w-11 h-11 sm:w-9 sm:h-9 rounded-full p-0"
+                  >
                     <Avatar className="w-7 h-7 sm:w-8 sm:h-8">
                       <AvatarImage src={user.user_metadata?.avatar_url as string | undefined} />
                       <AvatarFallback className="text-xs">{initials}</AvatarFallback>
@@ -166,10 +171,11 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
                 variant="ghost"
                 size="sm"
                 onClick={() => setAuthOpen(true)}
+                aria-label="Sign in"
                 className="interactive-chip gap-1.5 sm:gap-2 h-11 sm:h-9 px-2 sm:px-3"
               >
                 <LogIn className="w-4 h-4" />
-                <span className="hidden sm:inline text-sm">Sign in</span>
+                <span className="sr-only sm:not-sr-only sm:inline text-sm">Sign in</span>
               </Button>
             )}
           </nav>

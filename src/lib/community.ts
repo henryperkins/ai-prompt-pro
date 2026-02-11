@@ -321,6 +321,12 @@ function toError(error: unknown, fallback: string): Error {
   return new Error(fallback);
 }
 
+function isInvalidUuidInputError(error: unknown): boolean {
+  if (!isPostgrestError(error)) return false;
+  if (error.code === "22P02") return true;
+  return error.message.toLowerCase().includes("invalid input syntax for type uuid");
+}
+
 async function requireUserId(): Promise<string> {
   const { data, error } = await supabase.auth.getUser();
   if (error) throw toError(error, "Authentication failed.");
@@ -641,6 +647,9 @@ export async function loadPost(postId: string): Promise<CommunityPost | null> {
     if (!data) return null;
     return mapCommunityPost(data as CommunityPostRow);
   } catch (error) {
+    if (isInvalidUuidInputError(error)) {
+      throw new Error("This link is invalid or expired.");
+    }
     throw toError(error, "Failed to load community post.");
   }
 }

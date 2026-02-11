@@ -40,22 +40,27 @@ export function BuilderTabs({ config, onUpdate }: BuilderTabsProps) {
       <TabsList className="w-full grid grid-cols-5 h-auto gap-1 bg-muted/30 p-1">
         <TabsTrigger value="role" aria-label="Role tab" className="interactive-chip gap-1 text-xs px-2">
           <User className="w-3 h-3" />
+          <span className="sm:hidden">Role</span>
           <span className="hidden sm:inline">Role</span>
         </TabsTrigger>
         <TabsTrigger value="task" aria-label="Task tab" className="interactive-chip gap-1 text-xs px-2">
           <Target className="w-3 h-3" />
+          <span className="sm:hidden">Task</span>
           <span className="hidden sm:inline">Task</span>
         </TabsTrigger>
         <TabsTrigger value="format" aria-label="Format tab" className="interactive-chip gap-1 text-xs px-2">
           <Layout className="w-3 h-3" />
+          <span className="sm:hidden">Fmt</span>
           <span className="hidden sm:inline">Format</span>
         </TabsTrigger>
         <TabsTrigger value="examples" aria-label="Examples tab" className="interactive-chip gap-1 text-xs px-2">
           <Lightbulb className="w-3 h-3" />
+          <span className="sm:hidden">Ex</span>
           <span className="hidden sm:inline">Examples</span>
         </TabsTrigger>
         <TabsTrigger value="constraints" aria-label="Rules tab" className="interactive-chip gap-1 text-xs px-2">
           <Shield className="w-3 h-3" />
+          <span className="sm:hidden">Rules</span>
           <span className="hidden sm:inline">Rules</span>
         </TabsTrigger>
       </TabsList>
