@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { ArrowUp, CheckCircle2, Copy, Database, GitBranch, MessageCircle } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -45,7 +45,7 @@ function estimateTokens(text: string): string {
   return String(tokens);
 }
 
-export function CommunityPostCard({
+function CommunityPostCardComponent({
   post,
   isFeatured = false,
   animationDelayMs = 0,
@@ -58,10 +58,13 @@ export function CommunityPostCard({
   onCommentAdded,
   canVote,
 }: CommunityPostCardProps) {
-  const createdAgo = formatDistanceToNow(new Date(post.createdAt), { addSuffix: true });
+  const createdAgo = useMemo(
+    () => formatDistanceToNow(new Date(post.createdAt), { addSuffix: true }),
+    [post.createdAt],
+  );
   const [commentsOpen, setCommentsOpen] = useState(false);
   const promptBody = (post.enhancedPrompt || post.starterPrompt || "").trim();
-  const tokenEstimate = estimateTokens(promptBody);
+  const tokenEstimate = useMemo(() => estimateTokens(promptBody), [promptBody]);
 
   return (
     <Card
@@ -80,23 +83,23 @@ export function CommunityPostCard({
             </Avatar>
             <div className="min-w-0">
               <p className="truncate text-xs font-medium text-foreground">{authorName}</p>
-              <p className="text-[11px] text-muted-foreground">{createdAgo}</p>
+              <p className="text-xs sm:text-[11px] text-muted-foreground">{createdAgo}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-1 self-start sm:self-auto sm:justify-end">
             {post.targetModel && (
-              <Badge variant="secondary" className="h-5 px-1.5 text-[11px] font-mono">
+            <Badge variant="secondary" className="h-6 px-2 text-xs sm:h-5 sm:px-1.5 sm:text-[11px] font-mono">
                 {post.targetModel}
               </Badge>
             )}
-            <Badge variant="outline" className="h-5 px-1.5 text-[11px] capitalize">
+            <Badge variant="outline" className="h-6 px-2 text-xs sm:h-5 sm:px-1.5 sm:text-[11px] capitalize">
               {post.category}
             </Badge>
           </div>
         </div>
 
         {post.remixedFrom && (
-          <div className="rounded-md border border-primary/20 bg-primary/10 px-2.5 py-1.5 text-[11px] text-primary">
+          <div className="rounded-md border border-primary/20 bg-primary/10 px-2.5 py-1.5 text-xs sm:text-[11px] text-primary">
             <span className="font-medium">Remixed from:</span> {parentPostTitle || "another community prompt"}
           </div>
         )}
@@ -116,13 +119,13 @@ export function CommunityPostCard({
 
         <div className="flex flex-wrap items-center gap-1.5">
           {post.tags.slice(0, isFeatured ? 6 : 4).map((tag) => (
-            <Badge key={`${post.id}-${tag}`} variant="outline" className="text-[11px]">
+            <Badge key={`${post.id}-${tag}`} variant="outline" className="text-xs sm:text-[11px]">
               #{tag}
             </Badge>
           ))}
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-2 text-[11px] text-muted-foreground">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-2 text-xs sm:text-[11px] text-muted-foreground">
           <div className="flex flex-wrap items-center gap-3">
             <span className="inline-flex items-center gap-1 font-mono">
               <Database className="h-3.5 w-3.5" />
@@ -143,11 +146,11 @@ export function CommunityPostCard({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-          <Button
+            <Button
             type="button"
             size="sm"
             variant={voteState?.upvote ? "soft" : "outline"}
-            className="interactive-chip h-7 px-2 text-[11px] gap-1"
+            className="interactive-chip h-9 sm:h-7 px-2.5 text-xs sm:text-[11px] gap-1"
             disabled={!canVote}
             onClick={() => onToggleVote(post.id, "upvote")}
           >
@@ -158,7 +161,7 @@ export function CommunityPostCard({
             type="button"
             size="sm"
             variant={voteState?.verified ? "soft" : "outline"}
-            className="interactive-chip h-7 px-2 text-[11px] gap-1"
+            className="interactive-chip h-9 sm:h-7 px-2.5 text-xs sm:text-[11px] gap-1"
             disabled={!canVote}
             onClick={() => onToggleVote(post.id, "verified")}
           >
@@ -169,7 +172,7 @@ export function CommunityPostCard({
             type="button"
             variant="ghost"
             size="sm"
-            className="h-8 text-xs"
+            className="h-9 sm:h-8 text-xs"
             onClick={() => onCopyPrompt(post)}
           >
             <Copy className="h-3.5 w-3.5" />
@@ -179,13 +182,13 @@ export function CommunityPostCard({
             type="button"
             variant="ghost"
             size="sm"
-            className="interactive-chip h-8 text-xs"
+            className="interactive-chip h-9 sm:h-8 text-xs"
             onClick={() => setCommentsOpen((prev) => !prev)}
           >
             <MessageCircle className="h-3.5 w-3.5" />
             {commentsOpen ? "Hide comments" : "Comments"}
           </Button>
-          <Button asChild variant="soft" size="sm" className="h-8 text-xs">
+          <Button asChild variant="soft" size="sm" className="h-9 sm:h-8 text-xs">
             <Link to={`/community/${post.id}`}>Open</Link>
           </Button>
         </div>
@@ -202,3 +205,27 @@ export function CommunityPostCard({
     </Card>
   );
 }
+
+function areVoteStatesEqual(previous?: VoteState, next?: VoteState): boolean {
+  return (previous?.upvote ?? false) === (next?.upvote ?? false) &&
+    (previous?.verified ?? false) === (next?.verified ?? false);
+}
+
+function arePropsEqual(previous: CommunityPostCardProps, next: CommunityPostCardProps): boolean {
+  return (
+    previous.post === next.post &&
+    previous.isFeatured === next.isFeatured &&
+    previous.animationDelayMs === next.animationDelayMs &&
+    previous.authorName === next.authorName &&
+    previous.authorAvatarUrl === next.authorAvatarUrl &&
+    previous.parentPostTitle === next.parentPostTitle &&
+    previous.onCopyPrompt === next.onCopyPrompt &&
+    previous.onToggleVote === next.onToggleVote &&
+    previous.onCommentAdded === next.onCommentAdded &&
+    previous.canVote === next.canVote &&
+    areVoteStatesEqual(previous.voteState, next.voteState)
+  );
+}
+
+export const CommunityPostCard = memo(CommunityPostCardComponent, arePropsEqual);
+CommunityPostCard.displayName = "CommunityPostCard";

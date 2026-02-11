@@ -12,6 +12,7 @@ const Community = lazy(() => import("./pages/Community"));
 const CommunityPost = lazy(() => import("./pages/CommunityPost"));
 const Library = lazy(() => import("./pages/Library"));
 const LibraryBulkEdit = lazy(() => import("./pages/LibraryBulkEdit"));
+const Presets = lazy(() => import("./pages/Presets"));
 const History = lazy(() => import("./pages/History"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -38,6 +39,7 @@ const App = () => (
                 <Route path="/community/:postId" element={<CommunityPost />} />
                 <Route path="/library" element={<Library />} />
                 <Route path="/library/bulk-edit" element={<LibraryBulkEdit />} />
+                <Route path="/presets" element={<Presets />} />
                 <Route path="/history" element={<History />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />

@@ -1,179 +1,32 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { PromptConfig, defaultConfig, buildPrompt, scorePrompt } from "@/lib/prompt-builder";
-import type {
-  ContextSource,
-  StructuredContext,
-  InterviewAnswer,
-  DatabaseConnection,
-  RagParameters,
-} from "@/lib/context-types";
-import { defaultContextConfig } from "@/lib/context-types";
 import {
   listTemplateSummaries as listLocalTemplateSummaries,
   type SaveTemplateResult,
   type TemplateLoadResult,
-  type TemplateSummary,
 } from "@/lib/template-store";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useContextConfig } from "@/hooks/useContextConfig";
+import { useDraftPersistence } from "@/hooks/useDraftPersistence";
 import * as persistence from "@/lib/persistence";
-import { computeRemixDiff } from "@/lib/community";
-
-const STORAGE_KEY = "promptforge-draft";
-const LOCAL_VERSIONS_KEY = "promptforge-local-versions";
-const CLOUD_VERSIONS_KEY_PREFIX = "promptforge-cloud-versions";
-const DRAFT_AUTOSAVE_DELAY_MS = 700;
-const MAX_LOCAL_VERSIONS = 50;
-
-interface RemixContext {
-  postId: string;
-  parentTitle: string;
-  parentAuthor: string;
-  parentConfig: PromptConfig;
-  parentTags: string[];
-  parentCategory: string;
-}
-
-function hydrateConfig(raw: unknown): PromptConfig {
-  if (!raw || typeof raw !== "object") return defaultConfig;
-  const candidate = raw as Partial<PromptConfig>;
-  return {
-    ...defaultConfig,
-    ...candidate,
-    format: Array.isArray(candidate.format) ? candidate.format : [],
-    constraints: Array.isArray(candidate.constraints) ? candidate.constraints : [],
-    contextConfig: {
-      ...defaultContextConfig,
-      ...(candidate.contextConfig || {}),
-      sources: Array.isArray(candidate.contextConfig?.sources) ? candidate.contextConfig.sources : [],
-      databaseConnections: Array.isArray(candidate.contextConfig?.databaseConnections)
-        ? candidate.contextConfig.databaseConnections
-        : [],
-      rag: {
-        ...defaultContextConfig.rag,
-        ...(candidate.contextConfig?.rag || {}),
-        documentRefs: Array.isArray(candidate.contextConfig?.rag?.documentRefs)
-          ? candidate.contextConfig.rag.documentRefs
-          : [],
-      },
-      structured: {
-        ...defaultContextConfig.structured,
-        ...(candidate.contextConfig?.structured || {}),
-      },
-      interviewAnswers: Array.isArray(candidate.contextConfig?.interviewAnswers)
-        ? candidate.contextConfig.interviewAnswers
-        : [],
-    },
-  };
-}
-
-function loadLocalDraft(): PromptConfig {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? hydrateConfig(JSON.parse(saved)) : defaultConfig;
-  } catch {
-    return defaultConfig;
-  }
-}
-
-function isPromptVersion(value: unknown): value is persistence.PromptVersion {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Record<string, unknown>;
-  return (
-    typeof candidate.id === "string" &&
-    typeof candidate.name === "string" &&
-    typeof candidate.prompt === "string" &&
-    typeof candidate.timestamp === "number"
-  );
-}
-
-function loadLocalVersions(): persistence.PromptVersion[] {
-  try {
-    const saved = localStorage.getItem(LOCAL_VERSIONS_KEY);
-    if (!saved) return [];
-    const parsed = JSON.parse(saved);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isPromptVersion).sort((a, b) => b.timestamp - a.timestamp).slice(0, MAX_LOCAL_VERSIONS);
-  } catch {
-    return [];
-  }
-}
-
-function saveLocalVersions(versions: persistence.PromptVersion[]): void {
-  try {
-    localStorage.setItem(LOCAL_VERSIONS_KEY, JSON.stringify(versions.slice(0, MAX_LOCAL_VERSIONS)));
-  } catch {
-    // quota errors are intentionally ignored to keep the UI responsive
-  }
-}
-
-function clearLocalVersions(): void {
-  try {
-    localStorage.removeItem(LOCAL_VERSIONS_KEY);
-  } catch {
-    // ignore
-  }
-}
-
-function cloudVersionsKey(userId: string): string {
-  return `${CLOUD_VERSIONS_KEY_PREFIX}:${userId}`;
-}
-
-function createVersionId(prefix: string): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return `${prefix}-${crypto.randomUUID()}`;
-  }
-  return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-function loadCachedCloudVersions(userId: string | null): persistence.PromptVersion[] {
-  if (!userId) return [];
-  try {
-    const saved = sessionStorage.getItem(cloudVersionsKey(userId));
-    if (!saved) return [];
-    const parsed = JSON.parse(saved);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isPromptVersion).sort((a, b) => b.timestamp - a.timestamp).slice(0, MAX_LOCAL_VERSIONS);
-  } catch {
-    return [];
-  }
-}
-
-function saveCachedCloudVersions(userId: string | null, versions: persistence.PromptVersion[]): void {
-  if (!userId) return;
-  try {
-    sessionStorage.setItem(cloudVersionsKey(userId), JSON.stringify(versions.slice(0, MAX_LOCAL_VERSIONS)));
-  } catch {
-    // ignore
-  }
-}
-
-function clearCachedCloudVersions(userId: string | null): void {
-  if (!userId) return;
-  try {
-    sessionStorage.removeItem(cloudVersionsKey(userId));
-  } catch {
-    // ignore
-  }
-}
-
-function toPromptSummary(template: TemplateSummary): persistence.PromptSummary {
-  return {
-    ...template,
-    category: "general",
-    isShared: false,
-    communityPostId: null,
-    targetModel: "",
-    useCase: "",
-    remixedFrom: null,
-    builtPrompt: "",
-    enhancedPrompt: "",
-    upvoteCount: 0,
-    verifiedCount: 0,
-    remixCount: 0,
-    commentCount: 0,
-  };
-}
+import {
+  MAX_LOCAL_VERSIONS,
+  clearCachedCloudVersions,
+  clearLocalVersions,
+  createVersionId,
+  hydrateConfig,
+  loadCachedCloudVersions,
+  loadLocalDraft,
+  loadLocalVersions,
+  saveCachedCloudVersions,
+  saveLocalVersions,
+  toPromptSummary,
+} from "@/lib/prompt-builder-cache";
+import {
+  buildRemixPayload,
+  type PromptBuilderRemixContext,
+} from "@/lib/prompt-builder-remix";
 
 export function usePromptBuilder() {
   const { user } = useAuth();
@@ -186,15 +39,19 @@ export function usePromptBuilder() {
   const [templateSummaries, setTemplateSummaries] = useState<persistence.PromptSummary[]>(() =>
     listLocalTemplateSummaries().map(toPromptSummary),
   );
-  const [isDraftDirty, setIsDraftDirty] = useState(false);
   const [isCloudHydrated, setIsCloudHydrated] = useState(false);
-  const [remixContext, setRemixContext] = useState<RemixContext | null>(null);
+  const [remixContext, setRemixContext] = useState<PromptBuilderRemixContext | null>(null);
 
   const prevUserId = useRef<string | null>(null);
-  const draftSaveError = useRef<string | null>(null);
   const authLoadToken = useRef(0);
-  const autosaveToken = useRef(0);
-  const editsSinceAuthChange = useRef(false);
+
+  const {
+    isDraftDirty,
+    markDraftDirty,
+    resetDraftState,
+    clearDirtyIfClean,
+    editsSinceAuthChange,
+  } = useDraftPersistence({ userId, config, isCloudHydrated, toast });
 
   const showPersistenceError = useCallback(
     (title: string, error: unknown, fallback: string) => {
@@ -207,11 +64,6 @@ export function usePromptBuilder() {
     [toast],
   );
 
-  const markDraftDirty = useCallback(() => {
-    editsSinceAuthChange.current = true;
-    setIsDraftDirty(true);
-  }, []);
-
   useEffect(() => {
     if (userId) return;
     saveLocalVersions(versions);
@@ -222,9 +74,7 @@ export function usePromptBuilder() {
     const previousUserId = prevUserId.current;
     if (userId === previousUserId) return;
     prevUserId.current = userId;
-    draftSaveError.current = null;
-    editsSinceAuthChange.current = false;
-    setIsDraftDirty(false);
+    resetDraftState();
     setEnhancedPrompt("");
     setConfig(defaultConfig);
     setTemplateSummaries([]);
@@ -318,11 +168,9 @@ export function usePromptBuilder() {
       }
 
       setIsCloudHydrated(true);
-      if (!editsSinceAuthChange.current) {
-        setIsDraftDirty(false);
-      }
+      clearDirtyIfClean();
     });
-  }, [userId, showPersistenceError, toast]);
+  }, [userId, showPersistenceError, toast, resetDraftState, clearDirtyIfClean]);
 
   const refreshTemplateSummaries = useCallback(async () => {
     if (userId) {
@@ -336,42 +184,6 @@ export function usePromptBuilder() {
       setTemplateSummaries(listLocalTemplateSummaries().map(toPromptSummary));
     }
   }, [userId, showPersistenceError]);
-
-  const saveDraftSafely = useCallback(
-    async (nextConfig: PromptConfig, saveToken: number) => {
-      try {
-        await persistence.saveDraft(userId, nextConfig);
-        draftSaveError.current = null;
-        if (saveToken === autosaveToken.current) {
-          setIsDraftDirty(false);
-        }
-      } catch (error) {
-        const message = persistence.getPersistenceErrorMessage(error, "Failed to save draft.");
-        if (draftSaveError.current !== message) {
-          draftSaveError.current = message;
-          toast({
-            title: "Draft auto-save failed",
-            description: message,
-            variant: "destructive",
-          });
-        }
-      }
-    },
-    [userId, toast],
-  );
-
-  // Auto-save draft (debounced)
-  useEffect(() => {
-    if (!isDraftDirty) return;
-    if (userId && !isCloudHydrated) return;
-
-    const saveToken = ++autosaveToken.current;
-    const timeout = setTimeout(() => {
-      void saveDraftSafely(config, saveToken);
-    }, DRAFT_AUTOSAVE_DELAY_MS);
-
-    return () => clearTimeout(timeout);
-  }, [config, isDraftDirty, userId, isCloudHydrated, saveDraftSafely]);
 
   const updateConfig = useCallback(
     (updates: Partial<PromptConfig>) => {
@@ -387,12 +199,11 @@ export function usePromptBuilder() {
     setRemixContext(null);
     if (!userId) {
       persistence.clearLocalDraft();
-      setIsDraftDirty(false);
-      editsSinceAuthChange.current = false;
+      resetDraftState();
       return;
     }
     markDraftDirty();
-  }, [userId, markDraftDirty]);
+  }, [userId, markDraftDirty, resetDraftState]);
 
   const clearOriginalPrompt = useCallback(() => {
     setConfig((prev) => ({
@@ -404,91 +215,10 @@ export function usePromptBuilder() {
   }, [markDraftDirty]);
 
   // Context-specific updaters
-  const updateContextSources = useCallback(
-    (sources: ContextSource[]) => {
-      setConfig((prev) => ({
-        ...prev,
-        contextConfig: { ...prev.contextConfig, sources },
-      }));
-      markDraftDirty();
-    },
-    [markDraftDirty],
-  );
+  const contextConfig = useContextConfig(setConfig, markDraftDirty);
 
-  const updateDatabaseConnections = useCallback(
-    (databaseConnections: DatabaseConnection[]) => {
-      setConfig((prev) => ({
-        ...prev,
-        contextConfig: { ...prev.contextConfig, databaseConnections },
-      }));
-      markDraftDirty();
-    },
-    [markDraftDirty],
-  );
-
-  const updateRagParameters = useCallback(
-    (ragUpdates: Partial<RagParameters>) => {
-      setConfig((prev) => ({
-        ...prev,
-        contextConfig: {
-          ...prev.contextConfig,
-          rag: { ...prev.contextConfig.rag, ...ragUpdates },
-        },
-      }));
-      markDraftDirty();
-    },
-    [markDraftDirty],
-  );
-
-  const updateContextStructured = useCallback(
-    (updates: Partial<StructuredContext>) => {
-      setConfig((prev) => ({
-        ...prev,
-        contextConfig: {
-          ...prev.contextConfig,
-          structured: { ...prev.contextConfig.structured, ...updates },
-        },
-      }));
-      markDraftDirty();
-    },
-    [markDraftDirty],
-  );
-
-  const updateContextInterview = useCallback(
-    (answers: InterviewAnswer[]) => {
-      setConfig((prev) => ({
-        ...prev,
-        contextConfig: { ...prev.contextConfig, interviewAnswers: answers },
-      }));
-      markDraftDirty();
-    },
-    [markDraftDirty],
-  );
-
-  const updateProjectNotes = useCallback(
-    (notes: string) => {
-      setConfig((prev) => ({
-        ...prev,
-        contextConfig: { ...prev.contextConfig, projectNotes: notes },
-      }));
-      markDraftDirty();
-    },
-    [markDraftDirty],
-  );
-
-  const toggleDelimiters = useCallback(
-    (value: boolean) => {
-      setConfig((prev) => ({
-        ...prev,
-        contextConfig: { ...prev.contextConfig, useDelimiters: value },
-      }));
-      markDraftDirty();
-    },
-    [markDraftDirty],
-  );
-
-  const builtPrompt = buildPrompt(config);
-  const score = scorePrompt(config);
+  const builtPrompt = useMemo(() => buildPrompt(config), [config]);
+  const score = useMemo(() => scorePrompt(config), [config]);
 
   const saveVersion = useCallback(
     (name?: string) => {
@@ -634,18 +364,11 @@ export function usePromptBuilder() {
       useCase?: string;
       remixNote?: string;
     }): Promise<SaveTemplateResult> => {
-      const remixPayload = remixContext
-        ? {
-            remixedFrom: remixContext.postId,
-            remixNote: input.remixNote,
-            remixDiff: computeRemixDiff(remixContext.parentConfig, config, {
-              parentTags: remixContext.parentTags,
-              childTags: input.tags,
-              parentCategory: remixContext.parentCategory,
-              childCategory: input.category,
-            }),
-          }
-        : {};
+      const remixPayload = buildRemixPayload(remixContext, config, {
+        tags: input.tags,
+        category: input.category,
+        remixNote: input.remixNote,
+      });
       const result = await persistence.savePrompt(userId, {
         name: input.title,
         description: input.description,
@@ -679,18 +402,11 @@ export function usePromptBuilder() {
         throw new Error("Sign in to share prompts.");
       }
 
-      const remixPayload = remixContext
-        ? {
-            remixedFrom: remixContext.postId,
-            remixNote: input.remixNote,
-            remixDiff: computeRemixDiff(remixContext.parentConfig, config, {
-              parentTags: remixContext.parentTags,
-              childTags: input.tags,
-              parentCategory: remixContext.parentCategory,
-              childCategory: input.category,
-            }),
-          }
-        : {};
+      const remixPayload = buildRemixPayload(remixContext, config, {
+        tags: input.tags,
+        category: input.category,
+        remixNote: input.remixNote,
+      });
       const result = await persistence.savePrompt(userId, {
         name: input.title,
         description: input.description,
@@ -804,13 +520,7 @@ export function usePromptBuilder() {
     remixContext,
     startRemix,
     clearRemix,
-    // Context-specific
-    updateContextSources,
-    updateDatabaseConnections,
-    updateRagParameters,
-    updateContextStructured,
-    updateContextInterview,
-    updateProjectNotes,
-    toggleDelimiters,
+    // Context-specific (delegated to useContextConfig)
+    ...contextConfig,
   };
 }

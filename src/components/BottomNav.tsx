@@ -1,13 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
-import { BookOpen, History, PenSquare, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const navItems = [
-  { to: "/", label: "Builder", icon: PenSquare },
-  { to: "/community", label: "Community", icon: Users },
-  { to: "/library", label: "Library", icon: BookOpen },
-  { to: "/history", label: "History", icon: History },
-] as const;
+import { APP_ROUTE_NAV_ITEMS, isRouteActive } from "@/lib/navigation";
 
 export function BottomNav() {
   const { pathname } = useLocation();
@@ -17,14 +10,14 @@ export function BottomNav() {
       className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-border bg-background/95 backdrop-blur sm:hidden"
       aria-label="Mobile navigation"
     >
-      {navItems.map(({ to, label, icon: Icon }) => {
-        const isActive = to === "/" ? pathname === "/" : pathname.startsWith(to);
+      {APP_ROUTE_NAV_ITEMS.map(({ to, label, icon: Icon }) => {
+        const isActive = isRouteActive(pathname, to);
         return (
           <Link
             key={to}
             to={to}
             className={cn(
-              "flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] transition-colors",
+              "mobile-route-link flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-xs transition-colors",
               isActive
                 ? "text-primary font-medium"
                 : "text-muted-foreground hover:text-foreground",

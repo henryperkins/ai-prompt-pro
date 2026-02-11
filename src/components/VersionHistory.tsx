@@ -6,8 +6,8 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Clock, RotateCcw } from "lucide-react";
-import { Link } from "react-router-dom";
+import { RotateCcw } from "lucide-react";
+import { StateCard } from "@/components/ui/state-card";
 
 interface Version {
   id: string;
@@ -55,16 +55,12 @@ export function VersionHistoryContent({
   return (
     <div className={`space-y-2 sm:space-y-3 overflow-y-auto ${className ?? ""}`.trim()}>
       {versions.length === 0 ? (
-        <div className="text-center py-8 sm:py-12">
-          <Clock className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
-          <p className="text-sm text-muted-foreground">No saved versions yet.</p>
-          <p className="text-xs text-muted-foreground mt-1">Save a prompt to see it here.</p>
-          <div className="mt-3">
-            <Button asChild size="sm" className="h-8 text-xs">
-              <Link to="/">Go to Builder</Link>
-            </Button>
-          </div>
-        </div>
+        <StateCard
+          variant="empty"
+          title="No saved versions yet"
+          description="Save a prompt to create restorable versions in this history panel."
+          primaryAction={{ label: "Go to Builder", to: "/" }}
+        />
       ) : (
         versions.map((version) => (
           <Card key={version.id} className="p-3 sm:p-4 group">

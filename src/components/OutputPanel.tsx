@@ -28,6 +28,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { PROMPT_CATEGORY_OPTIONS } from "@/lib/prompt-categories";
+import {
+  validateSaveAndSharePromptInput,
+  validateSavePromptInput,
+} from "@/lib/output-panel-validation";
 import { buildLineDiff, type DiffLine } from "@/lib/text-diff";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -114,6 +118,12 @@ export function OutputPanel({
   const [shareTargetModel, setShareTargetModel] = useState("");
   const [shareConfirmedSafe, setShareConfirmedSafe] = useState(false);
   const [shareRemixNote, setShareRemixNote] = useState("");
+  const [promptNameTouched, setPromptNameTouched] = useState(false);
+  const [promptSubmitAttempted, setPromptSubmitAttempted] = useState(false);
+  const [shareNameTouched, setShareNameTouched] = useState(false);
+  const [shareUseCaseTouched, setShareUseCaseTouched] = useState(false);
+  const [shareConfirmedSafeTouched, setShareConfirmedSafeTouched] = useState(false);
+  const [shareSubmitAttempted, setShareSubmitAttempted] = useState(false);
 
   const { toast } = useToast();
   const displayPrompt = enhancedPrompt || builtPrompt;
@@ -248,10 +258,36 @@ export function OutputPanel({
     : enhancePhase === "done"
       ? "Enhanced"
       : "Enhance with AI";
+  const enhanceAssistiveStatus =
+    enhancePhase === "starting"
+      ? "Enhancement started."
+      : enhancePhase === "streaming"
+        ? "Enhancement in progress."
+        : enhancePhase === "settling"
+          ? "Enhancement finalizing."
+          : enhancePhase === "done"
+            ? "Enhancement complete."
+            : "";
   const hasCompare = Boolean(
     builtPrompt.trim() && enhancedPrompt.trim() && builtPrompt.trim() !== enhancedPrompt.trim()
   );
   const canUseSaveMenu = canSavePrompt || canSharePrompt || Boolean(displayPrompt);
+  const promptValidationErrors = validateSavePromptInput(promptName);
+  const promptNameError = promptValidationErrors.name ?? null;
+  const showPromptNameError = Boolean(promptNameError && (promptNameTouched || promptSubmitAttempted));
+  const shareValidationErrors = validateSaveAndSharePromptInput({
+    name: shareName,
+    useCase: shareUseCase,
+    confirmedSafe: shareConfirmedSafe,
+  });
+  const shareNameError = shareValidationErrors.name ?? null;
+  const showShareNameError = Boolean(shareNameError && (shareNameTouched || shareSubmitAttempted));
+  const shareUseCaseError = shareValidationErrors.useCase ?? null;
+  const showShareUseCaseError = Boolean(shareUseCaseError && (shareUseCaseTouched || shareSubmitAttempted));
+  const shareConfirmedSafeError = shareValidationErrors.confirmedSafe ?? null;
+  const showShareConfirmedSafeError = Boolean(
+    shareConfirmedSafeError && (shareConfirmedSafeTouched || shareSubmitAttempted),
+  );
 
   const diff = useMemo(() => {
     if (!hasCompare) return null;
@@ -289,7 +325,11 @@ export function OutputPanel({
   };
 
   const handleSavePrompt = () => {
-    if (!promptName.trim()) return;
+    setPromptSubmitAttempted(true);
+    if (promptNameError) {
+      setPromptNameTouched(true);
+      return;
+    }
 
     onSavePrompt({
       name: promptName.trim(),
@@ -305,11 +345,19 @@ export function OutputPanel({
     setPromptTags("");
     setPromptCategory("general");
     setPromptRemixNote("");
+    setPromptNameTouched(false);
+    setPromptSubmitAttempted(false);
   };
 
   const handleSaveAndSharePrompt = () => {
     if (!canSharePrompt) return;
-    if (!shareName.trim() || !shareUseCase.trim() || !shareConfirmedSafe) return;
+    setShareSubmitAttempted(true);
+    if (shareNameError || shareUseCaseError || shareConfirmedSafeError) {
+      setShareNameTouched(true);
+      setShareUseCaseTouched(true);
+      setShareConfirmedSafeTouched(true);
+      return;
+    }
 
     onSaveAndSharePrompt({
       name: shareName.trim(),
@@ -330,10 +378,33 @@ export function OutputPanel({
     setShareTargetModel("");
     setShareConfirmedSafe(false);
     setShareRemixNote("");
+    setShareNameTouched(false);
+    setShareUseCaseTouched(false);
+    setShareConfirmedSafeTouched(false);
+    setShareSubmitAttempted(false);
+  };
+
+  const handlePromptDialogOpenChange = (open: boolean) => {
+    setPromptDialogOpen(open);
+    if (open) return;
+    setPromptNameTouched(false);
+    setPromptSubmitAttempted(false);
+  };
+
+  const handleShareDialogOpenChange = (open: boolean) => {
+    setShareDialogOpen(open);
+    if (open) return;
+    setShareNameTouched(false);
+    setShareUseCaseTouched(false);
+    setShareConfirmedSafeTouched(false);
+    setShareSubmitAttempted(false);
   };
 
   return (
     <div className="space-y-4 h-full flex flex-col">
+      <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {enhanceAssistiveStatus}
+      </p>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-medium text-foreground">
@@ -440,7 +511,7 @@ export function OutputPanel({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={promptDialogOpen} onOpenChange={setPromptDialogOpen}>
+      <Dialog open={promptDialogOpen} onOpenChange={handlePromptDialogOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Save Prompt</DialogTitle>
@@ -454,57 +525,95 @@ export function OutputPanel({
                 Remixing {remixContext.authorName}’s “{remixContext.title}”
               </div>
             )}
-            <Input
-              value={promptName}
-              onChange={(event) => setPromptName(event.target.value)}
-              placeholder="Prompt title"
-              className="bg-background"
-            />
-            <Select value={promptCategory} onValueChange={setPromptCategory}>
-              <SelectTrigger className="bg-background">
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                {PROMPT_CATEGORY_OPTIONS.map((category) => (
-                  <SelectItem key={category.value} value={category.value}>
-                    {category.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Textarea
-              value={promptDescription}
-              onChange={(event) => setPromptDescription(event.target.value)}
-              placeholder="Description (optional)"
-              className="min-h-[90px] bg-background"
-            />
-            <Input
-              value={promptTags}
-              onChange={(event) => setPromptTags(event.target.value)}
-              placeholder="Tags (comma-separated, optional)"
-              className="bg-background"
-            />
-            {remixContext && (
-              <Textarea
-                value={promptRemixNote}
-                onChange={(event) => setPromptRemixNote(event.target.value)}
-                placeholder="Remix note (optional)"
-                className="min-h-[80px] bg-background"
+            <div className="space-y-1">
+              <Label htmlFor="save-prompt-name" className="text-xs font-medium">
+                Prompt title
+              </Label>
+              <Input
+                id="save-prompt-name"
+                value={promptName}
+                onChange={(event) => setPromptName(event.target.value)}
+                onBlur={() => setPromptNameTouched(true)}
+                placeholder="Prompt title"
+                className="bg-background"
+                aria-invalid={showPromptNameError}
+                aria-describedby="save-prompt-name-help"
               />
+              <p
+                id="save-prompt-name-help"
+                className={cn("text-xs", showPromptNameError ? "text-destructive" : "text-muted-foreground")}
+              >
+                {showPromptNameError ? promptNameError : "Required."}
+              </p>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="save-prompt-category" className="text-xs font-medium">
+                Category
+              </Label>
+              <Select value={promptCategory} onValueChange={setPromptCategory}>
+                <SelectTrigger id="save-prompt-category" className="bg-background">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PROMPT_CATEGORY_OPTIONS.map((category) => (
+                    <SelectItem key={category.value} value={category.value}>
+                      {category.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="save-prompt-description" className="text-xs font-medium">
+                Description
+              </Label>
+              <Textarea
+                id="save-prompt-description"
+                value={promptDescription}
+                onChange={(event) => setPromptDescription(event.target.value)}
+                placeholder="Description (optional)"
+                className="min-h-[90px] bg-background"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="save-prompt-tags" className="text-xs font-medium">
+                Tags
+              </Label>
+              <Input
+                id="save-prompt-tags"
+                value={promptTags}
+                onChange={(event) => setPromptTags(event.target.value)}
+                placeholder="Tags (comma-separated, optional)"
+                className="bg-background"
+              />
+            </div>
+            {remixContext && (
+              <div className="space-y-1">
+                <Label htmlFor="save-prompt-remix-note" className="text-xs font-medium">
+                  Remix note
+                </Label>
+                <Textarea
+                  id="save-prompt-remix-note"
+                  value={promptRemixNote}
+                  onChange={(event) => setPromptRemixNote(event.target.value)}
+                  placeholder="Remix note (optional)"
+                  className="min-h-[80px] bg-background"
+                />
+              </div>
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPromptDialogOpen(false)}>
+            <Button variant="outline" onClick={() => handlePromptDialogOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSavePrompt} disabled={!promptName.trim()}>
+            <Button onClick={handleSavePrompt}>
               Save Prompt
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+      <Dialog open={shareDialogOpen} onOpenChange={handleShareDialogOpenChange}>
         <DialogContent className="sm:max-w-md max-h-[85vh] overflow-auto">
           <DialogHeader>
             <DialogTitle>Save & Share Prompt</DialogTitle>
@@ -518,62 +627,126 @@ export function OutputPanel({
                 Remixing {remixContext.authorName}’s “{remixContext.title}”
               </div>
             )}
-            <Input
-              value={shareName}
-              onChange={(event) => setShareName(event.target.value)}
-              placeholder="Prompt title"
-              className="bg-background"
-            />
-            <Select value={shareCategory} onValueChange={setShareCategory}>
-              <SelectTrigger className="bg-background">
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                {PROMPT_CATEGORY_OPTIONS.map((category) => (
-                  <SelectItem key={category.value} value={category.value}>
-                    {category.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Textarea
-              value={shareDescription}
-              onChange={(event) => setShareDescription(event.target.value)}
-              placeholder="Description (optional)"
-              className="min-h-[80px] bg-background"
-            />
-            <Input
-              value={shareTags}
-              onChange={(event) => setShareTags(event.target.value)}
-              placeholder="Tags (comma-separated, optional)"
-              className="bg-background"
-            />
-            <Textarea
-              value={shareUseCase}
-              onChange={(event) => setShareUseCase(event.target.value)}
-              placeholder="Use case (required)"
-              className="min-h-[90px] bg-background"
-            />
-            <Input
-              value={shareTargetModel}
-              onChange={(event) => setShareTargetModel(event.target.value)}
-              placeholder="Target model (optional)"
-              className="bg-background"
-            />
-            {remixContext && (
+            <div className="space-y-1">
+              <Label htmlFor="share-prompt-name" className="text-xs font-medium">
+                Prompt title
+              </Label>
+              <Input
+                id="share-prompt-name"
+                value={shareName}
+                onChange={(event) => setShareName(event.target.value)}
+                onBlur={() => setShareNameTouched(true)}
+                placeholder="Prompt title"
+                className="bg-background"
+                aria-invalid={showShareNameError}
+                aria-describedby="share-prompt-name-help"
+              />
+              <p
+                id="share-prompt-name-help"
+                className={cn("text-xs", showShareNameError ? "text-destructive" : "text-muted-foreground")}
+              >
+                {showShareNameError ? shareNameError : "Required."}
+              </p>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="share-prompt-category" className="text-xs font-medium">
+                Category
+              </Label>
+              <Select value={shareCategory} onValueChange={setShareCategory}>
+                <SelectTrigger id="share-prompt-category" className="bg-background">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PROMPT_CATEGORY_OPTIONS.map((category) => (
+                    <SelectItem key={category.value} value={category.value}>
+                      {category.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="share-prompt-description" className="text-xs font-medium">
+                Description
+              </Label>
               <Textarea
-                value={shareRemixNote}
-                onChange={(event) => setShareRemixNote(event.target.value)}
-                placeholder="Remix note (optional)"
+                id="share-prompt-description"
+                value={shareDescription}
+                onChange={(event) => setShareDescription(event.target.value)}
+                placeholder="Description (optional)"
                 className="min-h-[80px] bg-background"
               />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="share-prompt-tags" className="text-xs font-medium">
+                Tags
+              </Label>
+              <Input
+                id="share-prompt-tags"
+                value={shareTags}
+                onChange={(event) => setShareTags(event.target.value)}
+                placeholder="Tags (comma-separated, optional)"
+                className="bg-background"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="share-prompt-use-case" className="text-xs font-medium">
+                Use case
+              </Label>
+              <Textarea
+                id="share-prompt-use-case"
+                value={shareUseCase}
+                onChange={(event) => setShareUseCase(event.target.value)}
+                onBlur={() => setShareUseCaseTouched(true)}
+                placeholder="Describe how this prompt should be used"
+                className="min-h-[90px] bg-background"
+                aria-invalid={showShareUseCaseError}
+                aria-describedby="share-prompt-use-case-help"
+              />
+              <p
+                id="share-prompt-use-case-help"
+                className={cn("text-xs", showShareUseCaseError ? "text-destructive" : "text-muted-foreground")}
+              >
+                {showShareUseCaseError ? shareUseCaseError : "Required."}
+              </p>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="share-prompt-target-model" className="text-xs font-medium">
+                Target model
+              </Label>
+              <Input
+                id="share-prompt-target-model"
+                value={shareTargetModel}
+                onChange={(event) => setShareTargetModel(event.target.value)}
+                placeholder="Target model (optional)"
+                className="bg-background"
+              />
+            </div>
+            {remixContext && (
+              <div className="space-y-1">
+                <Label htmlFor="share-prompt-remix-note" className="text-xs font-medium">
+                  Remix note
+                </Label>
+                <Textarea
+                  id="share-prompt-remix-note"
+                  value={shareRemixNote}
+                  onChange={(event) => setShareRemixNote(event.target.value)}
+                  placeholder="Remix note (optional)"
+                  className="min-h-[80px] bg-background"
+                />
+              </div>
             )}
             <div className="flex items-start gap-2">
               <Checkbox
                 id="share-confirm-safe"
                 checked={shareConfirmedSafe}
-                onCheckedChange={(checked) => setShareConfirmedSafe(checked === true)}
+                onCheckedChange={(checked) => {
+                  setShareConfirmedSafe(checked === true);
+                  setShareConfirmedSafeTouched(true);
+                }}
                 className="mt-0.5"
+                aria-invalid={showShareConfirmedSafeError}
+                aria-describedby="share-confirm-safe-help"
               />
               <Label
                 htmlFor="share-confirm-safe"
@@ -582,15 +755,21 @@ export function OutputPanel({
                 I confirm this prompt contains no secrets or private data.
               </Label>
             </div>
+            <p
+              id="share-confirm-safe-help"
+              className={cn(
+                "text-xs",
+                showShareConfirmedSafeError ? "text-destructive" : "text-muted-foreground",
+              )}
+            >
+              {showShareConfirmedSafeError ? shareConfirmedSafeError : "Required."}
+            </p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShareDialogOpen(false)}>
+            <Button variant="outline" onClick={() => handleShareDialogOpenChange(false)}>
               Cancel
             </Button>
-            <Button
-              onClick={handleSaveAndSharePrompt}
-              disabled={!shareName.trim() || !shareUseCase.trim() || !shareConfirmedSafe}
-            >
+            <Button onClick={handleSaveAndSharePrompt}>
               Save & Share
             </Button>
           </DialogFooter>

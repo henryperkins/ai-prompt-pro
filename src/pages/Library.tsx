@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { StateCard } from "@/components/ui/state-card";
 import {
   Select,
   SelectContent,
@@ -98,6 +99,7 @@ const Library = () => {
 
   const selectedCount = selectedIds.length;
   const allFilteredSelected = filteredSaved.length > 0 && filteredSaved.every((prompt) => selectedSet.has(prompt.id));
+  const hasActiveFilters = Boolean(normalizedQuery) || activeCategory !== "all";
 
   const applySelection = useCallback((ids: string[]) => {
     setSelectedIds(Array.from(new Set(ids)));
@@ -228,6 +230,11 @@ const Library = () => {
     navigate(`/library/bulk-edit?${params.toString()}`);
   }, [navigate, selectedIds]);
 
+  const resetFilters = useCallback(() => {
+    setQuery("");
+    setActiveCategory("all");
+  }, []);
+
   return (
     <PageShell>
       <PageHero
@@ -325,20 +332,26 @@ const Library = () => {
             </div>
 
             {templateSummaries.length === 0 && (
-              <Card className="border-dashed border-border/80 bg-muted/20 p-3">
-                <p className="text-sm text-muted-foreground">
-                  No saved prompts yet. Create one in Builder, then save it to your library.
-                </p>
-                <div className="mt-2">
-                  <Button asChild size="sm" className="h-8 text-xs">
-                    <Link to="/">Go to Builder</Link>
-                  </Button>
-                </div>
-              </Card>
+              <StateCard
+                variant="empty"
+                title="No saved prompts yet"
+                description="Create one in Builder, then save it to your library."
+                primaryAction={{ label: "Go to Builder", to: "/" }}
+              />
             )}
 
             {templateSummaries.length > 0 && filteredSaved.length === 0 && (
-              <p className="text-xs text-muted-foreground">No saved prompts match this search.</p>
+              <StateCard
+                variant="empty"
+                title="No saved prompts match this filter"
+                description="Try another search term or reset the category filter."
+                primaryAction={
+                  hasActiveFilters
+                    ? { label: "Reset filters", onClick: resetFilters }
+                    : { label: "Go to Builder", to: "/" }
+                }
+                secondaryAction={{ label: "Go to Builder", to: "/" }}
+              />
             )}
 
             <div className="space-y-2">
@@ -388,7 +401,7 @@ const Library = () => {
                                 </Badge>
                               )}
                             </div>
-                            <p className="text-[11px] text-muted-foreground">{ownerName}</p>
+                            <p className="text-xs sm:text-[11px] text-muted-foreground">{ownerName}</p>
                           </div>
                         </div>
 
@@ -424,13 +437,13 @@ const Library = () => {
                           type="button"
                           variant="default"
                           size="sm"
-                          className="h-7 px-2 text-xs"
+                          className="h-9 sm:h-7 px-2.5 text-xs"
                           onClick={() => void handleSelectSaved(prompt.id)}
                         >
                           Load
                         </Button>
                         {prompt.isShared && prompt.communityPostId && (
-                          <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-xs">
+                          <Button asChild variant="ghost" size="sm" className="h-9 sm:h-7 px-2.5 text-xs">
                             <Link to={`/community/${prompt.communityPostId}`}>
                               Open
                               <ExternalLink className="h-3 w-3" />
@@ -442,7 +455,7 @@ const Library = () => {
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="h-7 px-2 text-xs"
+                            className="h-9 sm:h-7 px-2.5 text-xs"
                             onClick={() => void handleUnshareSaved(prompt.id)}
                           >
                             Unshare
@@ -452,7 +465,7 @@ const Library = () => {
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="h-7 px-2 text-xs"
+                            className="h-9 sm:h-7 px-2.5 text-xs"
                             disabled={!isSignedIn}
                             onClick={() => void handleShareSaved(prompt.id)}
                             title={!isSignedIn ? "Sign in to share prompts." : undefined}
@@ -464,7 +477,7 @@ const Library = () => {
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                          className="h-9 sm:h-7 px-2.5 text-xs text-destructive hover:text-destructive"
                           onClick={() => void handleDeleteSaved(prompt.id)}
                         >
                           Delete

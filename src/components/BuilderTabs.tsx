@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { badgeVariants } from "@/components/ui/badge";
 import { User, Target, Layout, Lightbulb, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toConstraintInputId } from "@/lib/builder-tabs";
 import {
   PromptConfig,
   roles,
@@ -157,18 +158,21 @@ export function BuilderTabs({ config, onUpdate }: BuilderTabsProps) {
       <TabsContent value="constraints" className="space-y-4 mt-4">
         <p className="text-xs text-muted-foreground">Set boundaries to improve quality</p>
         <div className="space-y-3">
-          {constraintOptions.map((constraint) => (
-            <div key={constraint} className="flex items-center gap-2">
-              <Checkbox
-                id={constraint}
-                checked={config.constraints.includes(constraint)}
-                onCheckedChange={() => toggleConstraint(constraint)}
-              />
-              <Label htmlFor={constraint} className="text-sm cursor-pointer">
-                {constraint}
-              </Label>
-            </div>
-          ))}
+          {constraintOptions.map((constraint) => {
+            const constraintInputId = toConstraintInputId(constraint);
+            return (
+              <div key={constraint} className="flex items-center gap-2">
+                <Checkbox
+                  id={constraintInputId}
+                  checked={config.constraints.includes(constraint)}
+                  onCheckedChange={() => toggleConstraint(constraint)}
+                />
+                <Label htmlFor={constraintInputId} className="text-sm cursor-pointer">
+                  {constraint}
+                </Label>
+              </div>
+            );
+          })}
         </div>
         <Input
           placeholder="Add custom constraint..."

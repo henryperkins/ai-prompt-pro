@@ -1,9 +1,10 @@
+import { useMemo } from "react";
 import type { CommunityPost, CommunityProfile, VoteState, VoteType } from "@/lib/community";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CommunityPostCard } from "@/components/community/CommunityPostCard";
-import { Link } from "react-router-dom";
+import { StateCard } from "@/components/ui/state-card";
 
 interface CommunityFeedProps {
   posts: CommunityPost[];
@@ -57,48 +58,9 @@ export function CommunityFeed({
   isLoadingMore = false,
   onLoadMore,
 }: CommunityFeedProps) {
-  if (loading) {
-    return (
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <LoadingCard />
-        <LoadingCard />
-        <LoadingCard />
-      </div>
-    );
-  }
-
-  if (errorMessage) {
-    return (
-      <Card className="space-y-3 border-destructive/30 bg-destructive/5 p-4">
-        <p className="text-sm text-destructive">{errorMessage}</p>
-        <Button asChild size="sm" className="h-8 w-fit text-xs">
-          <Link to="/">Go to Builder</Link>
-        </Button>
-      </Card>
-    );
-  }
-
-  if (posts.length === 0) {
-    return (
-      <Card className="space-y-3 p-5">
-        <p className="text-sm text-muted-foreground">
-          No posts match this filter yet. Try another category or share your first prompt.
-        </p>
-        <div className="flex flex-wrap gap-2">
-          <Button asChild size="sm" className="h-8 text-xs">
-            <Link to="/">Share your first prompt</Link>
-          </Button>
-          <Button asChild variant="outline" size="sm" className="h-8 text-xs">
-            <Link to="/library">Open Library</Link>
-          </Button>
-        </div>
-      </Card>
-    );
-  }
-
-  return (
-    <div className="community-feed-grid grid grid-cols-1 gap-3 lg:grid-cols-2">
-      {posts.map((post, index) => {
+  const renderedPosts = useMemo(
+    () =>
+      posts.map((post, index) => {
         const author = authorById[post.authorId];
         const authorName = author?.displayName || "Community member";
         const isFeatured = index === 0;
@@ -119,7 +81,56 @@ export function CommunityFeed({
             canVote={canVote}
           />
         );
-      })}
+      }),
+    [
+      posts,
+      authorById,
+      parentTitleById,
+      onCopyPrompt,
+      onToggleVote,
+      voteStateByPost,
+      onCommentAdded,
+      canVote,
+    ],
+  );
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <LoadingCard />
+        <LoadingCard />
+        <LoadingCard />
+      </div>
+    );
+  }
+
+  if (errorMessage) {
+    return (
+      <StateCard
+        variant="error"
+        title="Couldn’t load community feed"
+        description={errorMessage}
+        primaryAction={{ label: "Go to Builder", to: "/" }}
+        secondaryAction={{ label: "Open Library", to: "/library" }}
+      />
+    );
+  }
+
+  if (posts.length === 0) {
+    return (
+      <StateCard
+        variant="empty"
+        title="No posts match this filter"
+        description="Try another category or share your first prompt."
+        primaryAction={{ label: "Share your first prompt", to: "/" }}
+        secondaryAction={{ label: "Open Library", to: "/library" }}
+      />
+    );
+  }
+
+  return (
+    <div className="community-feed-grid grid grid-cols-1 gap-3 lg:grid-cols-2">
+      {renderedPosts}
       {hasMore && onLoadMore && (
         <div className="flex justify-center pt-1 lg:col-span-2">
           <Button

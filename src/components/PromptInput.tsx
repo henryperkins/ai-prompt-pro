@@ -9,12 +9,19 @@ interface PromptInputProps {
 }
 
 export function PromptInput({ value, onChange, onClear }: PromptInputProps) {
+  const promptInputId = "builder-original-prompt";
+  const promptInputMetaId = "builder-original-prompt-meta";
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-foreground">Your Prompt</label>
+        <label htmlFor={promptInputId} className="text-sm font-medium text-foreground">
+          Your Prompt
+        </label>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">{value.length} chars</span>
+          <span id={promptInputMetaId} className="text-xs text-muted-foreground">
+            {value.length} chars
+          </span>
           {value && (
             <Button
               variant="ghost"
@@ -30,11 +37,12 @@ export function PromptInput({ value, onChange, onClear }: PromptInputProps) {
         </div>
       </div>
       <Textarea
+        id={promptInputId}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Enter your basic prompt here... (e.g., 'Write a blog post about AI')"
         className="min-h-[80px] sm:min-h-[120px] resize-none bg-background border-input text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring"
-        aria-label="Original prompt input"
+        aria-describedby={promptInputMetaId}
       />
     </div>
   );

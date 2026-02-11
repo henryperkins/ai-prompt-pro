@@ -710,7 +710,7 @@ export async function loadMyVotes(postIds: string[]): Promise<Record<string, Vot
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError) {
-    throw toError(userError, "Failed to load vote status.");
+    return {};
   }
   if (!userData.user || userData.user.is_anonymous) {
     return {};
@@ -735,8 +735,8 @@ export async function loadMyVotes(postIds: string[]): Promise<Record<string, Vot
       voteState[row.post_id] = entry;
     });
     return voteState;
-  } catch (error) {
-    throw toError(error, "Failed to load vote status.");
+  } catch {
+    return {};
   }
 }
 

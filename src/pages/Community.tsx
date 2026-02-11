@@ -6,6 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -66,6 +74,7 @@ const Community = () => {
   const requestToken = useRef(0);
   const { toast } = useToast();
   const { user } = useAuth();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -85,14 +94,19 @@ const Community = () => {
         new Set(targetPosts.map((post) => post.remixedFrom).filter((value): value is string => !!value)),
       );
 
-      const [authorProfiles, parentPosts, voteStates] = await Promise.all([
+      const [authorProfilesResult, parentPostsResult, voteStatesResult] = await Promise.allSettled([
         loadProfilesByIds(authorIds),
         loadPostsByIds(parentIds),
         loadMyVotes(targetPosts.map((post) => post.id)),
       ]);
 
+      if (authorProfilesResult.status === "rejected") throw authorProfilesResult.reason;
+      if (parentPostsResult.status === "rejected") throw parentPostsResult.reason;
       if (token !== requestToken.current) return;
 
+      const authorProfiles = authorProfilesResult.value;
+      const parentPosts = parentPostsResult.value;
+      const voteStates = voteStatesResult.status === "fulfilled" ? voteStatesResult.value : {};
       const nextAuthors = toProfileMap(authorProfiles);
       const nextParentTitles = toParentTitleMap(parentPosts);
       if (mode === "merge") {
@@ -290,39 +304,85 @@ const Community = () => {
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5">
-            {SORT_OPTIONS.map((option) => (
-              <Button
-                key={option.value}
-                type="button"
-                size="sm"
-                variant={sort === option.value ? "default" : "outline"}
-                className="h-8 text-xs"
-                onClick={() => setSort(option.value)}
-              >
-                {option.label}
-              </Button>
-            ))}
-          </div>
+          {isMobile ? (
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Sort</p>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {SORT_OPTIONS.map((option) => (
+                    <Button
+                      key={option.value}
+                      type="button"
+                      size="sm"
+                      variant={sort === option.value ? "default" : "outline"}
+                      className="h-9 px-3 text-xs"
+                      onClick={() => setSort(option.value)}
+                    >
+                      {option.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
 
-          <div className="category-scroll-fade relative">
-            <div className="overflow-x-auto">
-              <div className="flex min-w-max items-center gap-1.5 pb-1">
-                {CATEGORY_OPTIONS.map((option) => (
+              <div className="space-y-1">
+                <label htmlFor="community-category-select" className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Category
+                </label>
+                <Select value={category} onValueChange={setCategory}>
+                  <SelectTrigger
+                    id="community-category-select"
+                    className="h-9 bg-background text-sm"
+                    aria-label="Filter category"
+                  >
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORY_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {SORT_OPTIONS.map((option) => (
                   <Button
                     key={option.value}
                     type="button"
                     size="sm"
-                    variant={category === option.value ? "soft" : "ghost"}
-                    className="interactive-chip h-7 text-xs"
-                    onClick={() => setCategory(option.value)}
+                    variant={sort === option.value ? "default" : "outline"}
+                    className="h-8 text-xs"
+                    onClick={() => setSort(option.value)}
                   >
                     {option.label}
                   </Button>
                 ))}
               </div>
-            </div>
-          </div>
+
+              <div className="category-scroll-fade relative">
+                <div className="overflow-x-auto">
+                  <div className="flex min-w-max items-center gap-1.5 pb-1">
+                    {CATEGORY_OPTIONS.map((option) => (
+                      <Button
+                        key={option.value}
+                        type="button"
+                        size="sm"
+                        variant={category === option.value ? "soft" : "ghost"}
+                        className="interactive-chip h-7 text-xs"
+                        onClick={() => setCategory(option.value)}
+                      >
+                        {option.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
 
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <Badge variant="secondary">{posts.length} posts</Badge>

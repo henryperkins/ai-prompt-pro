@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { loadPost, loadProfilesByIds } from "@/lib/community";
 import { consumeRestoredVersionPrompt } from "@/lib/history-restore";
+import { templates } from "@/lib/templates";
 import {
   Accordion,
   AccordionContent,
@@ -93,6 +94,7 @@ const ENHANCE_THREAD_OPTIONS: EnhanceThreadOptions = {
 const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const remixId = searchParams.get("remix");
+  const presetId = searchParams.get("preset");
   const remixLoadToken = useRef(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [openSections, setOpenSections] = useState<BuilderSection[]>(["builder"]);
@@ -115,6 +117,7 @@ const Index = () => {
     saveVersion,
     savePrompt,
     saveAndSharePrompt,
+    loadTemplate,
     remixContext,
     startRemix,
     clearRemix,
@@ -136,6 +139,19 @@ const Index = () => {
       setDrawerOpen(true);
     }
   }, [isMobile, setEnhancedPrompt, toast]);
+
+  useEffect(() => {
+    if (!presetId) return;
+    const preset = templates.find((t) => t.id === presetId);
+    if (!preset) {
+      toast({ title: "Preset not found", description: `No preset with id "${presetId}".` });
+      setSearchParams((prev) => { prev.delete("preset"); return prev; }, { replace: true });
+      return;
+    }
+    loadTemplate(preset);
+    toast({ title: "Preset loaded", description: `"${preset.name}" applied to the builder.` });
+    setSearchParams((prev) => { prev.delete("preset"); return prev; }, { replace: true });
+  }, [presetId, loadTemplate, toast, setSearchParams]);
 
   useEffect(() => {
     if (!remixId) return;
@@ -359,6 +375,16 @@ const Index = () => {
     : enhancePhase === "done"
       ? "Enhanced"
       : "Enhance";
+  const enhanceLiveMessage =
+    enhancePhase === "starting"
+      ? "Enhancement started."
+      : enhancePhase === "streaming"
+        ? "Enhancement in progress."
+        : enhancePhase === "settling"
+          ? "Enhancement finalizing."
+          : enhancePhase === "done"
+            ? "Enhancement complete."
+            : "";
   const mobilePreviewText = useMemo(() => {
     const trimmed = displayPrompt.trim();
     if (!trimmed) {
@@ -409,6 +435,11 @@ const Index = () => {
 
   return (
     <PageShell mainClassName="py-3 sm:py-6">
+        {isMobile && (
+          <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+            {enhanceLiveMessage}
+          </p>
+        )}
         {/* Hero — compact on mobile */}
         <div className="delight-hero-static text-center mb-4 sm:mb-8">
           <h1 className="text-xl sm:text-3xl md:text-4xl font-bold text-foreground mb-1 sm:mb-2 tracking-tight">

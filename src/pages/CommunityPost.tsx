@@ -6,6 +6,7 @@ import { PageShell } from "@/components/PageShell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StateCard } from "@/components/ui/state-card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -76,14 +77,19 @@ const CommunityPost = () => {
           return;
         }
 
-        const [loadedParent, loadedRemixes, voteStates] = await Promise.all([
+        const [loadedParentResult, loadedRemixesResult, voteStatesResult] = await Promise.allSettled([
           loadedPost.remixedFrom ? loadPost(loadedPost.remixedFrom) : Promise.resolve(null),
           loadRemixes(loadedPost.id),
           loadMyVotes([loadedPost.id]),
         ]);
+        if (loadedParentResult.status === "rejected") throw loadedParentResult.reason;
+        if (loadedRemixesResult.status === "rejected") throw loadedRemixesResult.reason;
 
         if (token !== requestToken.current) return;
 
+        const loadedParent = loadedParentResult.value;
+        const loadedRemixes = loadedRemixesResult.value;
+        const voteStates = voteStatesResult.status === "fulfilled" ? voteStatesResult.value : {};
         const authorIds = Array.from(
           new Set([
             loadedPost.authorId,
@@ -223,12 +229,13 @@ const CommunityPost = () => {
         )}
 
         {!loading && errorMessage && (
-          <Card className="space-y-3 border-destructive/30 bg-destructive/5 p-4">
-            <p className="text-sm text-destructive">{errorMessage}</p>
-            <Button asChild variant="outline" size="sm" className="h-8 w-fit text-xs">
-              <Link to="/community">Return to community feed</Link>
-            </Button>
-          </Card>
+          <StateCard
+            variant="error"
+            title="This post is unavailable"
+            description={errorMessage}
+            primaryAction={{ label: "Return to community feed", to: "/community" }}
+            secondaryAction={{ label: "Go to Builder", to: "/" }}
+          />
         )}
 
         {!loading && !errorMessage && post && (
