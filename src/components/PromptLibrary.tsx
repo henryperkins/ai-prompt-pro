@@ -382,7 +382,7 @@ function PromptList({
         <div className="flex items-center gap-2">
           <Database className="w-4 h-4 text-muted-foreground" />
           <h3 className="text-xs font-medium text-foreground">My Prompts</h3>
-          <Badge variant="secondary" className="text-[11px]">
+          <Badge variant="secondary" className="text-xs">
             {filteredSaved.length}
           </Badge>
         </div>
@@ -424,22 +424,22 @@ function PromptList({
                   <h4 className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
                     {prompt.name}
                   </h4>
-                  <Badge variant="outline" className="text-[11px]">
+                  <Badge variant="outline" className="text-xs">
                     r{prompt.revision}
                   </Badge>
                   {prompt.isShared ? (
-                    <Badge variant="secondary" className="text-[11px] gap-1">
+                    <Badge variant="secondary" className="text-xs gap-1">
                       <Share2 className="w-3 h-3" />
                       Shared
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="text-[11px] gap-1">
+                    <Badge variant="outline" className="text-xs gap-1">
                       <Lock className="w-3 h-3" />
                       Private
                     </Badge>
                   )}
                   {prompt.remixedFrom && (
-                    <Badge variant="secondary" className="text-[11px] gap-1">
+                    <Badge variant="secondary" className="text-xs gap-1">
                       <GitBranch className="w-3 h-3" />
                       Remixed
                     </Badge>
@@ -448,10 +448,10 @@ function PromptList({
                 {prompt.description && (
                   <p className="text-xs text-muted-foreground line-clamp-2">{prompt.description}</p>
                 )}
-                <p className="text-[11px] text-muted-foreground/90 line-clamp-2">
+                <p className="text-xs text-muted-foreground/90 line-clamp-2">
                   <span className="font-medium text-foreground/80">Start:</span> {prompt.starterPrompt}
                 </p>
-                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <span className="capitalize">{prompt.category || "general"}</span>
                   <span>•</span>
                   <span>{formatUpdatedAt(prompt.updatedAt)}</span>
@@ -463,14 +463,14 @@ function PromptList({
                 {prompt.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {prompt.tags.slice(0, 4).map((tag) => (
-                      <Badge key={`${prompt.id}-${tag}`} variant="outline" className="text-[11px]">
+                      <Badge key={`${prompt.id}-${tag}`} variant="outline" className="text-xs">
                         #{tag}
                       </Badge>
                     ))}
                   </div>
                 )}
                 {prompt.isShared && (
-                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <span>▲ {prompt.upvoteCount}</span>
                     <span>✓ {prompt.verifiedCount}</span>
                     <span>🔀 {prompt.remixCount}</span>
@@ -487,7 +487,7 @@ function PromptList({
                     asChild
                     variant="ghost"
                     size="sm"
-                    className="h-7 px-2 text-[11px]"
+                    className="h-7 px-2 text-xs"
                   >
                     <Link to={`/community/${prompt.communityPostId}`}>
                       Open
@@ -499,7 +499,7 @@ function PromptList({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 px-2 text-[11px]"
+                    className="h-7 px-2 text-xs"
                     onClick={(event) => {
                       event.stopPropagation();
                       void onUnshareSaved(prompt.id);
@@ -511,7 +511,7 @@ function PromptList({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 px-2 text-[11px]"
+                    className="h-7 px-2 text-xs"
                     disabled={!canShareSavedPrompts}
                     onClick={(event) => {
                       event.stopPropagation();
@@ -598,19 +598,19 @@ function PromptList({
                         <h3 className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">
                           {template.name}
                         </h3>
-                        <Badge variant="outline" className={cn("text-[11px] capitalize", skin.badge)}>
+                        <Badge variant="outline" className={cn("text-xs capitalize", skin.badge)}>
                           {template.category}
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground line-clamp-2">{template.description}</p>
-                      <p className="text-[11px] text-muted-foreground/90 line-clamp-2">
+                      <p className="text-xs text-muted-foreground/90 line-clamp-2">
                         <span className="font-medium text-foreground/80">Start:</span> {template.starterPrompt}
                       </p>
                       <div className="flex gap-1 mt-1.5">
-                        <Badge variant="secondary" className="text-[11px]">
+                        <Badge variant="secondary" className="text-xs">
                           {template.tone}
                         </Badge>
-                        <Badge variant="secondary" className="text-[11px]">
+                        <Badge variant="secondary" className="text-xs">
                           {template.complexity}
                         </Badge>
                       </div>

@@ -14,7 +14,7 @@ const NotFound = () => {
   return (
     <PageShell mainClassName="py-10 flex items-center justify-center">
         <Card className="w-full max-w-lg border-border/80 bg-card p-8 text-center">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Error 404</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Error 404</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground">Page not found</h1>
           <p className="mt-3 text-sm text-muted-foreground">
             The page <span className="font-mono text-foreground">{location.pathname}</span> does not exist or was moved.

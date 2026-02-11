@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Header } from "@/components/Header";
+import { PageShell } from "@/components/PageShell";
 import { PromptInput } from "@/components/PromptInput";
 import { BuilderTabs } from "@/components/BuilderTabs";
 import { ContextPanel } from "@/components/ContextPanel";
@@ -13,7 +13,6 @@ import { getSectionHealth, type SectionHealthState } from "@/lib/section-health"
 import { hasPromptInput } from "@/lib/prompt-builder";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useTheme } from "@/hooks/useTheme";
 import { loadPost, loadProfilesByIds } from "@/lib/community";
 import { consumeRestoredVersionPrompt } from "@/lib/history-restore";
 import {
@@ -75,7 +74,7 @@ function SectionHealthBadge({ state }: { state: SectionHealthState }) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${meta.className}`}
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${meta.className}`}
       title={meta.label}
     >
       <Icon className="h-3 w-3" />
@@ -87,7 +86,6 @@ function SectionHealthBadge({ state }: { state: SectionHealthState }) {
 type BuilderSection = "builder" | "context" | "tone" | "quality";
 
 const Index = () => {
-  const { isDark, toggleTheme } = useTheme();
   const [searchParams, setSearchParams] = useSearchParams();
   const remixId = searchParams.get("remix");
   const remixLoadToken = useRef(0);
@@ -404,13 +402,7 @@ const Index = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Header
-        isDark={isDark}
-        onToggleTheme={toggleTheme}
-      />
-
-      <main className="flex-1 container mx-auto px-4 py-3 sm:py-6">
+    <PageShell mainClassName="py-3 sm:py-6">
         {/* Hero — compact on mobile */}
         <div className="delight-hero-static text-center mb-4 sm:mb-8">
           <h1 className="text-xl sm:text-3xl md:text-4xl font-bold text-foreground mb-1 sm:mb-2 tracking-tight">
@@ -427,7 +419,7 @@ const Index = () => {
           <Card className="mb-4 border-primary/30 bg-primary/5 p-3 sm:p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="space-y-1">
-                <p className="text-[11px] uppercase tracking-wide text-primary">Remix mode</p>
+                <p className="text-xs uppercase tracking-wide text-primary">Remix mode</p>
                 <p className="text-sm font-medium text-foreground">
                   Remixing {remixContext.parentAuthor}’s “{remixContext.parentTitle}”
                 </p>
@@ -458,7 +450,7 @@ const Index = () => {
               <Card className="border-border/70 bg-card/80 p-3">
                 <div>
                   <p className="text-xs font-medium text-foreground">Enhance first, refine after</p>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     Start with a rough prompt, then use the main Enhance button to generate your first draft.
                   </p>
                 </div>
@@ -482,7 +474,7 @@ const Index = () => {
                     </Button>
                   ))}
                 </div>
-                <p className="mt-2 text-[11px] text-muted-foreground">
+                <p className="mt-2 text-xs text-muted-foreground">
                   {refineSuggestions[0]?.description}
                 </p>
               </Card>
@@ -503,7 +495,7 @@ const Index = () => {
                   </span>
                   <span className="ml-auto mr-2 flex items-center gap-1.5">
                     {selectedRole && (
-                      <Badge variant="secondary" className="max-w-[120px] truncate text-[11px]">
+                      <Badge variant="secondary" className="max-w-[120px] truncate text-xs">
                         {selectedRole}
                       </Badge>
                     )}
@@ -523,7 +515,7 @@ const Index = () => {
                   </span>
                   <span className="ml-auto mr-2 flex items-center gap-1.5">
                     {sourceCount > 0 && (
-                      <Badge variant="secondary" className="text-[11px]">
+                      <Badge variant="secondary" className="text-xs">
                         {sourceCount} src
                       </Badge>
                     )}
@@ -552,7 +544,7 @@ const Index = () => {
                   </span>
                   <span className="ml-auto mr-2 flex items-center gap-1.5">
                     {config.tone && (
-                      <Badge variant="secondary" className="text-[11px]">
+                      <Badge variant="secondary" className="text-xs">
                         {config.tone}
                       </Badge>
                     )}
@@ -577,7 +569,7 @@ const Index = () => {
                   <span className="ml-auto mr-2 flex items-center gap-1.5">
                     <Badge
                       variant={score.total >= 75 ? "default" : "secondary"}
-                      className="text-[11px]"
+                      className="text-xs"
                     >
                       {score.total}/100
                     </Badge>
@@ -612,27 +604,26 @@ const Index = () => {
                 }
               />
               <p className="text-xs text-muted-foreground text-center mt-3">
-                Press <kbd className="px-1.5 py-0.5 text-[11px] bg-muted rounded border border-border font-mono">Ctrl+Enter</kbd> to enhance
+                Press <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded border border-border font-mono">Ctrl+Enter</kbd> to enhance
               </p>
             </div>
           )}
         </div>
-      </main>
 
       {/* Mobile: sticky bottom bar */}
       {isMobile && (
-        <div className="fixed bottom-0 inset-x-0 z-40 border-t border-border bg-card/95 px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm">
+        <div className="fixed inset-x-0 bottom-[3.5rem] sm:bottom-0 z-30 border-t border-border bg-card/95 px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm">
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
             className="interactive-chip mb-2 w-full rounded-lg border border-border/80 bg-background/70 px-3 py-2 text-left"
             aria-label="Open output preview"
           >
-            <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               <Eye className="h-3.5 w-3.5" />
               Live preview
             </div>
-            <p className="mt-1 max-h-10 overflow-hidden whitespace-pre-line font-mono text-[11px] leading-5 text-foreground/90">
+            <p className="mt-1 max-h-10 overflow-hidden whitespace-pre-line font-mono text-xs leading-5 text-foreground/90">
               {mobilePreviewText}
             </p>
           </button>
@@ -640,7 +631,7 @@ const Index = () => {
           <div className="flex items-center gap-2">
             <Badge
               variant={score.total >= 75 ? "default" : "secondary"}
-              className="h-10 min-w-[64px] justify-center rounded-md px-2 text-[11px] font-semibold"
+              className="h-10 min-w-[64px] justify-center rounded-md px-2 text-xs font-semibold"
             >
               {score.total}/100
             </Badge>
@@ -702,8 +693,8 @@ const Index = () => {
       )}
 
       {/* Add bottom padding on mobile for sticky bar */}
-      {isMobile && <div className="h-32" />}
-    </div>
+      {isMobile && <div className="h-44 sm:h-32" />}
+    </PageShell>
   );
 };
 
