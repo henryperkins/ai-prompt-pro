@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -26,6 +27,16 @@ function mapProfileById(profiles: CommunityProfile[]): Record<string, CommunityP
     map[profile.id] = profile;
     return map;
   }, {});
+}
+
+function getInitials(name: string): string {
+  const parts = name
+    .split(" ")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] || ""}${parts[1][0] || ""}`.toUpperCase();
 }
 
 export function CommunityComments({
@@ -136,11 +147,19 @@ export function CommunityComments({
             const createdAt = formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true });
             return (
               <div key={comment.id} className="rounded-md border border-border/70 bg-background/60 p-2 text-xs">
-                <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                  <span className="font-medium text-foreground">{displayName}</span>
-                  <span>{createdAt}</span>
+                <div className="flex items-start gap-2">
+                  <Avatar className="h-7 w-7 border border-border/60">
+                    <AvatarImage src={author?.avatarUrl ?? undefined} alt={displayName} />
+                    <AvatarFallback className="text-[10px]">{getInitials(displayName)}</AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                      <span className="font-medium text-foreground">{displayName}</span>
+                      <span>{createdAt}</span>
+                    </div>
+                    <p className="mt-1 whitespace-pre-wrap text-foreground">{comment.body}</p>
+                  </div>
                 </div>
-                <p className="mt-1 whitespace-pre-wrap text-foreground">{comment.body}</p>
               </div>
             );
           })}

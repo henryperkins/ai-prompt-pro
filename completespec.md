@@ -554,9 +554,9 @@ Provide a SQL helper:
 * `/enhance` endpoint:
 
   * takes built prompt + config
-  * calls OpenAI Responses/Agents
+  * calls Codex via `@openai/codex-sdk` (recommended runtime)
   * streams SSE chunks back
-* Must be prepared to evolve from “text deltas only” to “multi-item event stream” (Codex pattern below)
+* Legacy compatibility: Python Azure/Microsoft Agent Framework backend remains available, but Codex SDK is the primary path.
 
 ## C) Request/streaming flow (summary)
 
@@ -567,21 +567,19 @@ Browser UI
 Supabase Edge Function: enhance-prompt
   | (HTTP stream proxy)
   v
-Agent Service (FastAPI)
-  | uses Microsoft Agent Framework
-  | (agent_framework + AzureOpenAIResponsesClient)
+Agent Service
+  | recommended: Node Codex SDK service
+  | fallback: Python Agent Framework service
   v
-Azure OpenAI Responses API
+Codex SDK event stream
   | (SSE stream of deltas / events)
   v
 Agent Service -> Edge Function -> Browser UI
-
-Planned upgrade: emit Codex-style Thread → Turn → Item events over SSE.
 ```
 
 ---
 
-# 9) Codex-inspired event model (planned integration)
+# 9) Codex-inspired event model (baseline integrated)
 
 This is the architectural layer that makes “enhance/remix/share” feel robust, reconnectable, and future-proof for tool calls and multi-step agent work.
 
@@ -602,22 +600,19 @@ The Codex agent loop guidance emphasizes:
 Every SSE `data:` line is JSON:
 
 ```json
-{ "event": "turn/started", "turn_id": "...", "thread_id": "...", "kind": "enhance" }
-{ "event": "item/started", "item_id": "...", "type": "user_prompt" }
-{ "event": "item/completed", "item_id": "...", "type": "user_prompt", "payload": { "text": "..." } }
-{ "event": "item/started", "item_id": "...", "type": "enhancement" }
-{ "event": "item/delta", "item_id": "...", "delta": "..." }
-{ "event": "item/completed", "item_id": "...", "type": "enhancement", "payload": { "text": "..." } }
-{ "event": "turn/completed", "turn_id": "..." }
+{ "event": "thread.started", "thread_id": "..." }
+{ "event": "turn.started", "turn_id": "...", "thread_id": "...", "kind": "enhance" }
+{ "event": "item.started", "type": "response.output_item.added", "item_id": "...", "item_type": "agent_message" }
+{ "event": "item/agent_message/delta", "type": "response.output_text.delta", "item_id": "...", "delta": "..." }
+{ "event": "item/completed", "type": "response.output_text.done", "item_id": "...", "payload": { "text": "..." } }
+{ "event": "turn.completed", "type": "response.completed", "turn_id": "...", "thread_id": "..." }
 ```
 
 ### Item types we care about
 
-* `user_prompt` (the built prompt used as input)
-* `enhancement` (streaming output)
-* `tool_call` (URL extraction, prompt inspection, etc — future)
-* `remix_diff` (when computed)
-* `saved_prompt_created` / `community_post_published` (optional, if we want to stream those actions too)
+* `agent_message` (streaming model output)
+* `reasoning`, `command_execution`, `file_change`, `mcp_tool_call`, `web_search`, `todo_list`, `error` (Codex SDK item union)
+* optional app-level synthetic items (for example `saved_prompt_created`) if we decide to stream write-side actions later
 
 ### Backward compatibility
 

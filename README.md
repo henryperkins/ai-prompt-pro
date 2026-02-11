@@ -72,37 +72,24 @@ To connect a domain, navigate to Project > Settings > Domains and click Connect 
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
 
-## Azure OpenAI Responses via Microsoft Agent Framework
+## Codex SDK Agent Service (recommended)
 
-This project now routes prompt enhancement through a Microsoft Agent Framework Python service that uses Azure OpenAI Responses API.
+This project can route prompt enhancement through a Node service that uses `@openai/codex-sdk`.
 
-1. Start the agent service:
+1. Install deps and start the Codex service:
 ```sh
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r agent_service/requirements.txt
-export AZURE_OPENAI_ENDPOINT="https://<your-resource>.openai.azure.com"
-export AZURE_OPENAI_RESPONSES_DEPLOYMENT_NAME="gpt-5.2"
-export AZURE_OPENAI_API_VERSION="preview"
-export AZURE_OPENAI_API_KEY="<your-azure-openai-key>"
-# Optional: use base_url instead of endpoint
-# export AZURE_OPENAI_BASE_URL="https://<your-resource>.openai.azure.com/openai/v1/"
-# Optional GPT-5 reasoning/output controls
-export AZURE_OPENAI_MAX_OUTPUT_TOKENS="4096"
-export AZURE_OPENAI_REASONING_EFFORT="minimal"
-export AZURE_OPENAI_REASONING_SUMMARY="auto"
-export AZURE_OPENAI_TEXT_VERBOSITY="low"
-# Optional hosted web search tool
-export ENABLE_HOSTED_WEB_SEARCH="true"
-export HOSTED_WEB_SEARCH_CITY="Seattle"
-export HOSTED_WEB_SEARCH_REGION="WA"
-export HOSTED_WEB_SEARCH_COUNTRY="US"
-# Optional advanced AzureOpenAIResponsesClient settings
-export AZURE_OPENAI_AD_TOKEN="<aad-token>"
-export AZURE_OPENAI_TOKEN_ENDPOINT="https://cognitiveservices.azure.com/.default"
-export AZURE_OPENAI_INSTRUCTION_ROLE="system"
-export AZURE_OPENAI_DEFAULT_HEADERS_JSON='{"x-trace-id":"prompt-enhancer"}'
-uvicorn agent_service.main:app --host 0.0.0.0 --port 8001 --reload
+npm install
+export OPENAI_API_KEY="<your-openai-api-key>"
+# Optional Codex SDK overrides
+# export OPENAI_BASE_URL="https://api.openai.com/v1"
+# export CODEX_MODEL="gpt-5-codex"
+# export CODEX_SANDBOX_MODE="workspace-write"   # read-only|workspace-write|danger-full-access
+# export CODEX_WORKING_DIRECTORY="/absolute/path/to/repo"
+# export CODEX_SKIP_GIT_REPO_CHECK="true"
+# export CODEX_NETWORK_ACCESS_ENABLED="true"
+# export CODEX_WEB_SEARCH_MODE="live"           # disabled|cached|live
+# export CODEX_APPROVAL_POLICY="never"          # never|on-request|on-failure|untrusted
+npm run agent:codex
 ```
 
 2. Configure the `enhance-prompt` Supabase function secrets:
@@ -126,6 +113,10 @@ Local dev note:
 ```sh
 npm run dev
 ```
+
+## Legacy Azure agent service
+
+The previous Python service (`agent_service/main.py`) that uses Microsoft Agent Framework + Azure OpenAI is still available. See `agent_service/README.md` for its setup.
 
 ## Database rollout notes
 

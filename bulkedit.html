@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PromptForge - Bulk Edit Mockup</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #f4f1eb;
+        --ink: #121212;
+        --muted: #615d55;
+        --card: #fffdfa;
+        --line: #d7cfc3;
+        --accent: #2366d1;
+        --accent-soft: #dce8fb;
+        --warn: #a33621;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 86% 2%, #e1e9ff 0%, transparent 26%),
+          radial-gradient(circle at 5% 14%, #ffe6cf 0%, transparent 32%),
+          var(--bg);
+        color: var(--ink);
+        font-family: "Space Grotesk", sans-serif;
+      }
+
+      .page {
+        width: min(1250px, calc(100% - 2rem));
+        margin: 1rem auto 6.4rem;
+      }
+
+      .topbar {
+        position: sticky;
+        top: 1rem;
+        z-index: 30;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: color-mix(in srgb, var(--card) 93%, white);
+        backdrop-filter: blur(7px);
+        padding: 0.85rem 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+      }
+
+      .crumb {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+
+      .crumb a {
+        color: var(--ink);
+      }
+
+      .title {
+        margin: 0;
+        font-size: 1.1rem;
+      }
+
+      .selection {
+        margin-top: 0.9rem;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.6rem;
+        border: 1px solid #bfd2f7;
+        border-radius: 14px;
+        padding: 0.7rem 0.8rem;
+        background: linear-gradient(120deg, #f6f9ff, #edf3fe);
+      }
+
+      .selection strong {
+        color: var(--accent);
+      }
+
+      .selection p {
+        margin: 0;
+        font-size: 0.84rem;
+        color: var(--muted);
+      }
+
+      .selection .clear {
+        border: 1px solid #89a8e5;
+        border-radius: 9px;
+        padding: 0.45rem 0.65rem;
+        text-decoration: none;
+        color: var(--accent);
+        font-size: 0.78rem;
+        font-weight: 600;
+        background: #f7fbff;
+      }
+
+      .layout {
+        margin-top: 1rem;
+        display: grid;
+        gap: 1rem;
+      }
+
+      .pane {
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: var(--card);
+      }
+
+      .editor {
+        padding: 0.9rem;
+        display: grid;
+        gap: 0.7rem;
+        align-content: start;
+      }
+
+      .group {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 0.7rem;
+        background: #fffcf6;
+      }
+
+      .group h3 {
+        margin: 0;
+        font-size: 0.86rem;
+      }
+
+      .group p {
+        margin: 0.38rem 0 0;
+        font-size: 0.74rem;
+        color: var(--muted);
+      }
+
+      .group .choices {
+        margin-top: 0.55rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+      }
+
+      .choice {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 0.34rem 0.58rem;
+        font-size: 0.71rem;
+        color: var(--muted);
+        background: #fbf7ee;
+      }
+
+      .choice.active {
+        color: var(--accent);
+        border-color: var(--accent);
+        background: var(--accent-soft);
+      }
+
+      .actions {
+        display: grid;
+        gap: 0.45rem;
+      }
+
+      .btn {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 0.62rem 0.7rem;
+        font-size: 0.78rem;
+        font-weight: 600;
+        background: #fff;
+        color: var(--ink);
+        text-align: left;
+      }
+
+      .btn.primary {
+        border-color: var(--accent);
+        background: var(--accent);
+        color: #fff;
+      }
+
+      .btn.warn {
+        border-color: #d5a79f;
+        color: var(--warn);
+        background: #fef2f0;
+      }
+
+      .list {
+        padding: 0.9rem;
+        display: grid;
+        gap: 0.7rem;
+      }
+
+      .row {
+        border: 1px solid var(--line);
+        border-radius: 13px;
+        padding: 0.74rem;
+        background: #fffefb;
+        display: grid;
+        gap: 0.45rem;
+      }
+
+      .row.selected {
+        border-color: var(--accent);
+        box-shadow: inset 0 0 0 1px var(--accent-soft);
+      }
+
+      .row-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        gap: 0.5rem;
+      }
+
+      .row-title {
+        margin: 0;
+        font-size: 0.92rem;
+      }
+
+      .row-meta {
+        font-size: 0.72rem;
+        color: var(--muted);
+        display: flex;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+      }
+
+      .pill {
+        border: 1px solid #dacfc1;
+        border-radius: 999px;
+        padding: 0.22rem 0.48rem;
+        background: #f7f2ea;
+        font-size: 0.66rem;
+      }
+
+      .mono {
+        margin: 0;
+        border: 1px solid #e8dfd2;
+        border-radius: 10px;
+        background: #f8f3ea;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 0.71rem;
+        color: #4a453c;
+        line-height: 1.4;
+        padding: 0.45rem;
+      }
+
+      .bottom {
+        position: fixed;
+        left: 0.75rem;
+        right: 0.75rem;
+        bottom: 0.75rem;
+        z-index: 40;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: color-mix(in srgb, #fff 92%, #f6f3ed);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.65rem;
+        padding: 0.65rem;
+        box-shadow: 0 8px 28px rgba(37, 29, 17, 0.08);
+      }
+
+      .bottom .summary {
+        font-size: 0.76rem;
+        color: var(--muted);
+      }
+
+      .bottom .summary strong {
+        color: var(--ink);
+      }
+
+      .bottom .cta {
+        border: 1px solid var(--accent);
+        border-radius: 10px;
+        background: var(--accent);
+        color: #fff;
+        font-size: 0.78rem;
+        font-weight: 700;
+        padding: 0.6rem 0.85rem;
+      }
+
+      @media (min-width: 980px) {
+        .layout {
+          grid-template-columns: 360px minmax(0, 1fr);
+        }
+      }
+
+      @media (max-width: 979px) {
+        .page {
+          margin-bottom: 7rem;
+        }
+
+        .topbar {
+          top: 0.5rem;
+        }
+      }
+
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .pane,
+      .selection {
+        animation: rise 240ms ease-out;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header class="topbar">
+        <div>
+          <div class="crumb">
+            <a href="library.html">Library</a>
+            <span>/</span>
+            <span>Bulk Edit</span>
+          </div>
+          <h1 class="title">Bulk Edit Workspace</h1>
+        </div>
+        <a href="library.html" class="crumb">Back to Library</a>
+      </header>
+
+      <section class="selection" aria-label="Selection summary">
+        <div>
+          <p><strong>3 prompts selected</strong> from Library. Original presets/templates remain untouched.</p>
+        </div>
+        <a class="clear" href="#">Clear Selection</a>
+      </section>
+
+      <main class="layout">
+        <aside class="pane editor" aria-label="Bulk editor controls">
+          <section class="group">
+            <h3>Retag Selection</h3>
+            <p>Add or remove tags across all selected prompts in one operation.</p>
+            <div class="choices">
+              <span class="choice active">+ #ops-ready</span>
+              <span class="choice active">+ #reviewed</span>
+              <span class="choice">- #draft</span>
+            </div>
+          </section>
+
+          <section class="group">
+            <h3>Move To Collection</h3>
+            <p>Consolidate selected prompts into a new or existing folder.</p>
+            <div class="choices">
+              <span class="choice">Team Templates</span>
+              <span class="choice active">Q2 Campaigns</span>
+              <span class="choice">Incident Playbooks</span>
+            </div>
+          </section>
+
+          <section class="group actions">
+            <button type="button" class="btn primary">Apply Tag + Collection Changes</button>
+            <button type="button" class="btn">Set Visibility: Private</button>
+            <button type="button" class="btn">Duplicate Before Edit</button>
+            <button type="button" class="btn warn">Delete Selected Prompts</button>
+          </section>
+        </aside>
+
+        <section class="pane list" aria-label="Selected prompt previews">
+          <article class="row selected">
+            <div class="row-head">
+              <div>
+                <h2 class="row-title">Sprint Retrospective Synthesizer</h2>
+                <div class="row-meta">
+                  <span>r12</span>
+                  <span>Updated 38m ago</span>
+                  <span class="pill">Shared</span>
+                </div>
+              </div>
+              <span class="pill">Will update</span>
+            </div>
+            <p class="mono">Role: Senior engineering manager. Summarize notes into wins, friction patterns, and two experiments for next sprint.</p>
+          </article>
+
+          <article class="row selected">
+            <div class="row-head">
+              <div>
+                <h2 class="row-title">API Contract Risk Scanner</h2>
+                <div class="row-meta">
+                  <span>r5</span>
+                  <span>Updated yesterday</span>
+                  <span class="pill">Private</span>
+                </div>
+              </div>
+              <span class="pill">Will update</span>
+            </div>
+            <p class="mono">Compare proposed OpenAPI changes to client assumptions. Produce breaking changes, migration notes, and release sequence.</p>
+          </article>
+
+          <article class="row selected">
+            <div class="row-head">
+              <div>
+                <h2 class="row-title">Growth Landing Page Rewriter</h2>
+                <div class="row-meta">
+                  <span>r18</span>
+                  <span>Updated 3d ago</span>
+                  <span class="pill">Remix</span>
+                </div>
+              </div>
+              <span class="pill">Will update</span>
+            </div>
+            <p class="mono">Rewrite hero and body for one ICP segment. Keep factual claims, sharpen proof points, and output two CTA variants.</p>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <footer class="bottom" aria-label="Apply footer">
+      <div class="summary">
+        <strong>3 prompts</strong> will be edited. 2 tags added, 1 tag removed, collection changed.
+      </div>
+      <button type="button" class="cta">Apply Changes</button>
+    </footer>
+  </body>
+</html>
