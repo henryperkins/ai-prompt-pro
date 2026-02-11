@@ -427,7 +427,7 @@ async def _stream_agent_with_429_retries(
     while True:
         emitted_chunk = False
         try:
-            async for chunk in agent.run_stream(message, options=run_options):
+            async for chunk in agent.run(message, stream=True, options=run_options):
                 emitted_chunk = True
                 yield chunk
             return
