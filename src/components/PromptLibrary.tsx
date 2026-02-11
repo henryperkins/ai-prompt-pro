@@ -66,6 +66,17 @@ interface PromptLibraryProps {
   onUnshareSaved: (id: string) => void | Promise<void>;
 }
 
+interface PromptLibraryContentProps {
+  savedPrompts: PromptSummary[];
+  canShareSavedPrompts: boolean;
+  onSelectTemplate: (template: PromptTemplate) => void;
+  onSelectSaved: (id: string) => void;
+  onDeleteSaved: (id: string) => void;
+  onShareSaved: (id: string, input?: PromptShareInput) => void | Promise<void>;
+  onUnshareSaved: (id: string) => void | Promise<void>;
+  onClose?: () => void;
+}
+
 type SavedPromptSort = "recent" | "name" | "revision";
 
 const categoryIcons: Record<string, React.ReactNode> = {
@@ -348,7 +359,7 @@ function PromptList({
         <div className="flex items-center gap-2">
           <Database className="w-4 h-4 text-muted-foreground" />
           <h3 className="text-xs font-medium text-foreground">My Prompts</h3>
-          <Badge variant="secondary" className="text-[10px]">
+          <Badge variant="secondary" className="text-[11px]">
             {filteredSaved.length}
           </Badge>
         </div>
@@ -383,22 +394,22 @@ function PromptList({
                   <h4 className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
                     {prompt.name}
                   </h4>
-                  <Badge variant="outline" className="text-[10px]">
+                  <Badge variant="outline" className="text-[11px]">
                     r{prompt.revision}
                   </Badge>
                   {prompt.isShared ? (
-                    <Badge variant="secondary" className="text-[10px] gap-1">
+                    <Badge variant="secondary" className="text-[11px] gap-1">
                       <Share2 className="w-3 h-3" />
                       Shared
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="text-[10px] gap-1">
+                    <Badge variant="outline" className="text-[11px] gap-1">
                       <Lock className="w-3 h-3" />
                       Private
                     </Badge>
                   )}
                   {prompt.remixedFrom && (
-                    <Badge variant="secondary" className="text-[10px] gap-1">
+                    <Badge variant="secondary" className="text-[11px] gap-1">
                       <GitBranch className="w-3 h-3" />
                       Remixed
                     </Badge>
@@ -410,7 +421,7 @@ function PromptList({
                 <p className="text-[11px] text-muted-foreground/90 line-clamp-2">
                   <span className="font-medium text-foreground/80">Start:</span> {prompt.starterPrompt}
                 </p>
-                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                   <span className="capitalize">{prompt.category || "general"}</span>
                   <span>•</span>
                   <span>{formatUpdatedAt(prompt.updatedAt)}</span>
@@ -422,14 +433,14 @@ function PromptList({
                 {prompt.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {prompt.tags.slice(0, 4).map((tag) => (
-                      <Badge key={`${prompt.id}-${tag}`} variant="outline" className="text-[10px]">
+                      <Badge key={`${prompt.id}-${tag}`} variant="outline" className="text-[11px]">
                         #{tag}
                       </Badge>
                     ))}
                   </div>
                 )}
                 {prompt.isShared && (
-                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                     <span>▲ {prompt.upvoteCount}</span>
                     <span>✓ {prompt.verifiedCount}</span>
                     <span>🔀 {prompt.remixCount}</span>
@@ -557,7 +568,7 @@ function PromptList({
                         <h3 className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">
                           {template.name}
                         </h3>
-                        <Badge variant="outline" className={cn("text-[10px] capitalize", skin.badge)}>
+                        <Badge variant="outline" className={cn("text-[11px] capitalize", skin.badge)}>
                           {template.category}
                         </Badge>
                       </div>
@@ -566,10 +577,10 @@ function PromptList({
                         <span className="font-medium text-foreground/80">Start:</span> {template.starterPrompt}
                       </p>
                       <div className="flex gap-1 mt-1.5">
-                        <Badge variant="secondary" className="text-[10px]">
+                        <Badge variant="secondary" className="text-[11px]">
                           {template.tone}
                         </Badge>
-                        <Badge variant="secondary" className="text-[10px]">
+                        <Badge variant="secondary" className="text-[11px]">
                           {template.complexity}
                         </Badge>
                       </div>
@@ -682,9 +693,6 @@ export function PromptLibrary({
   onShareSaved,
   onUnshareSaved,
 }: PromptLibraryProps) {
-  const [activeCategory, setActiveCategory] = useState<string>("all");
-  const [query, setQuery] = useState("");
-  const [sortBy, setSortBy] = useState<SavedPromptSort>("recent");
   const isMobile = useIsMobile();
 
   if (isMobile) {
@@ -695,13 +703,7 @@ export function PromptLibrary({
             <DrawerTitle>Prompt Library</DrawerTitle>
           </DrawerHeader>
           <div className="px-4 pb-4 overflow-auto flex-1 flex flex-col">
-            <PromptList
-              activeCategory={activeCategory}
-              setActiveCategory={setActiveCategory}
-              query={query}
-              onQueryChange={setQuery}
-              sortBy={sortBy}
-              onSortByChange={setSortBy}
+            <PromptLibraryContent
               savedPrompts={savedPrompts}
               canShareSavedPrompts={canShareSavedPrompts}
               onSelectTemplate={onSelectTemplate}
@@ -723,13 +725,7 @@ export function PromptLibrary({
         <DialogHeader>
           <DialogTitle className="text-foreground">Prompt Library</DialogTitle>
         </DialogHeader>
-        <PromptList
-          activeCategory={activeCategory}
-          setActiveCategory={setActiveCategory}
-          query={query}
-          onQueryChange={setQuery}
-          sortBy={sortBy}
-          onSortByChange={setSortBy}
+        <PromptLibraryContent
           savedPrompts={savedPrompts}
           canShareSavedPrompts={canShareSavedPrompts}
           onSelectTemplate={onSelectTemplate}
@@ -741,5 +737,40 @@ export function PromptLibrary({
         />
       </DialogContent>
     </Dialog>
+  );
+}
+
+export function PromptLibraryContent({
+  savedPrompts,
+  canShareSavedPrompts,
+  onSelectTemplate,
+  onSelectSaved,
+  onDeleteSaved,
+  onShareSaved,
+  onUnshareSaved,
+  onClose,
+}: PromptLibraryContentProps) {
+  const [activeCategory, setActiveCategory] = useState<string>("all");
+  const [query, setQuery] = useState("");
+  const [sortBy, setSortBy] = useState<SavedPromptSort>("recent");
+  const handleClose = onClose ?? (() => undefined);
+
+  return (
+    <PromptList
+      activeCategory={activeCategory}
+      setActiveCategory={setActiveCategory}
+      query={query}
+      onQueryChange={setQuery}
+      sortBy={sortBy}
+      onSortByChange={setSortBy}
+      savedPrompts={savedPrompts}
+      canShareSavedPrompts={canShareSavedPrompts}
+      onSelectTemplate={onSelectTemplate}
+      onSelectSaved={onSelectSaved}
+      onDeleteSaved={onDeleteSaved}
+      onShareSaved={onShareSaved}
+      onUnshareSaved={onUnshareSaved}
+      onClose={handleClose}
+    />
   );
 }

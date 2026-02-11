@@ -32,7 +32,7 @@ export function ContextQualityMeter({ contextConfig }: ContextQualityMeterProps)
             <div>
               <span className="text-xs text-foreground">{check.label}</span>
               {!check.met && (
-                <p className="text-[10px] text-muted-foreground">{check.tip}</p>
+                <p className="text-[11px] text-muted-foreground">{check.tip}</p>
               )}
             </div>
           </div>

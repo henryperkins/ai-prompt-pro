@@ -23,7 +23,7 @@ export function StructuredContextForm({ values, onUpdate }: StructuredContextFor
             <Button
               variant="ghost"
               size="sm"
-              className="h-5 px-1.5 text-[10px] gap-0.5 text-muted-foreground"
+              className="h-5 px-1.5 text-[11px] gap-0.5 text-muted-foreground"
               onClick={() =>
                 setShowExamples(showExamples === field.key ? null : field.key)
               }
@@ -44,7 +44,7 @@ export function StructuredContextForm({ values, onUpdate }: StructuredContextFor
           />
           {showExamples === field.key && (
             <div className="rounded-md border border-border bg-muted/30 p-2 space-y-1">
-              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
                 Good examples
               </p>
               {field.examples.map((ex, i) => (

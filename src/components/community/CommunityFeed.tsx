@@ -21,7 +21,7 @@ interface CommunityFeedProps {
 
 function LoadingCard() {
   return (
-    <Card className="p-4 space-y-3">
+    <Card className="p-4 space-y-3 border-border/80 bg-card/85">
       <div className="flex items-center gap-2">
         <Skeleton className="h-8 w-8 rounded-full" />
         <div className="space-y-1">
@@ -57,7 +57,7 @@ export function CommunityFeed({
 }: CommunityFeedProps) {
   if (loading) {
     return (
-      <div className="space-y-3">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <LoadingCard />
         <LoadingCard />
         <LoadingCard />
@@ -82,15 +82,18 @@ export function CommunityFeed({
   }
 
   return (
-    <div className="space-y-3">
-      {posts.map((post) => {
+    <div className="community-feed-grid grid grid-cols-1 gap-3 lg:grid-cols-2">
+      {posts.map((post, index) => {
         const author = authorById[post.authorId];
         const authorName = author?.displayName || "Community member";
+        const isFeatured = index === 0;
 
         return (
           <CommunityPostCard
             key={post.id}
             post={post}
+            isFeatured={isFeatured}
+            animationDelayMs={Math.min(index, 8) * 40}
             authorName={authorName}
             authorAvatarUrl={author?.avatarUrl}
             parentPostTitle={post.remixedFrom ? parentTitleById[post.remixedFrom] : undefined}
@@ -103,7 +106,7 @@ export function CommunityFeed({
         );
       })}
       {hasMore && onLoadMore && (
-        <div className="flex justify-center pt-1">
+        <div className="flex justify-center pt-1 lg:col-span-2">
           <button
             type="button"
             onClick={onLoadMore}

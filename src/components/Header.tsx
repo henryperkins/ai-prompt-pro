@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Moon, Sun, Zap, BookOpen, History, LogIn, LogOut, Users, PenSquare } from "lucide-react";
+import { Moon, Sun, Zap, BookOpen, History, LogIn, LogOut, Users, PenSquare, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -15,15 +15,16 @@ import { AuthDialog } from "@/components/AuthDialog";
 interface HeaderProps {
   isDark: boolean;
   onToggleTheme: () => void;
-  onOpenTemplates?: () => void;
-  onOpenHistory?: () => void;
 }
 
-export function Header({ isDark, onToggleTheme, onOpenTemplates, onOpenHistory }: HeaderProps) {
+export function Header({ isDark, onToggleTheme }: HeaderProps) {
   const { user, signOut } = useAuth();
   const location = useLocation();
   const [authOpen, setAuthOpen] = useState(false);
+  const isBuilderRoute = location.pathname === "/";
   const isCommunityRoute = location.pathname.startsWith("/community");
+  const isLibraryRoute = location.pathname.startsWith("/library");
+  const isHistoryRoute = location.pathname.startsWith("/history");
 
   const initials = user?.user_metadata?.full_name
     ? (user.user_metadata.full_name as string)
@@ -48,39 +49,86 @@ export function Header({ isDark, onToggleTheme, onOpenTemplates, onOpenHistory }
           </div>
 
           <nav className="flex items-center gap-0.5 sm:gap-1">
-            {onOpenTemplates && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onOpenTemplates}
-                aria-label="Open prompt library"
-                className="interactive-chip gap-1.5 sm:gap-2 h-8 sm:h-9 px-2 sm:px-3"
-              >
-                <BookOpen className="w-4 h-4" />
-                <span className="hidden sm:inline text-sm">Library</span>
-              </Button>
-            )}
-            {onOpenHistory && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onOpenHistory}
-                aria-label="Open version history"
-                className="interactive-chip gap-1.5 sm:gap-2 h-8 sm:h-9 px-2 sm:px-3"
-              >
-                <History className="w-4 h-4" />
-                <span className="hidden sm:inline text-sm">History</span>
-              </Button>
-            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Open navigation menu"
+                  className="interactive-chip w-11 h-11 sm:hidden"
+                >
+                  <Menu className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="sm:hidden">
+                <DropdownMenuItem asChild>
+                  <Link to="/" className="flex items-center gap-2">
+                    <PenSquare className="w-4 h-4" />
+                    Builder
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/community" className="flex items-center gap-2">
+                    <Users className="w-4 h-4" />
+                    Community
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/library" className="flex items-center gap-2">
+                    <BookOpen className="w-4 h-4" />
+                    Library
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/history" className="flex items-center gap-2">
+                    <History className="w-4 h-4" />
+                    History
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button
+              asChild
+              variant={isBuilderRoute ? "outline" : "ghost"}
+              size="sm"
+              className="interactive-chip hidden sm:inline-flex gap-1.5 sm:gap-2 h-11 sm:h-9 px-2 sm:px-3"
+            >
+              <Link to="/" aria-label="Open builder">
+                <PenSquare className="w-4 h-4" />
+                <span className="hidden sm:inline text-sm">Builder</span>
+              </Link>
+            </Button>
             <Button
               asChild
               variant={isCommunityRoute ? "outline" : "ghost"}
               size="sm"
-              className="interactive-chip gap-1.5 sm:gap-2 h-8 sm:h-9 px-2 sm:px-3"
+              className="interactive-chip hidden sm:inline-flex gap-1.5 sm:gap-2 h-11 sm:h-9 px-2 sm:px-3"
             >
-              <Link to={isCommunityRoute ? "/" : "/community"} aria-label={isCommunityRoute ? "Open builder" : "Open community"}>
-                {isCommunityRoute ? <PenSquare className="w-4 h-4" /> : <Users className="w-4 h-4" />}
-                <span className="hidden sm:inline text-sm">{isCommunityRoute ? "Builder" : "Community"}</span>
+              <Link to="/community" aria-label="Open community">
+                <Users className="w-4 h-4" />
+                <span className="hidden sm:inline text-sm">Community</span>
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant={isLibraryRoute ? "outline" : "ghost"}
+              size="sm"
+              className="interactive-chip hidden sm:inline-flex gap-1.5 sm:gap-2 h-11 sm:h-9 px-2 sm:px-3"
+            >
+              <Link to="/library" aria-label="Open prompt library">
+                <BookOpen className="w-4 h-4" />
+                <span className="hidden sm:inline text-sm">Library</span>
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant={isHistoryRoute ? "outline" : "ghost"}
+              size="sm"
+              className="interactive-chip hidden sm:inline-flex gap-1.5 sm:gap-2 h-11 sm:h-9 px-2 sm:px-3"
+            >
+              <Link to="/history" aria-label="Open version history">
+                <History className="w-4 h-4" />
+                <span className="hidden sm:inline text-sm">History</span>
               </Link>
             </Button>
             <Button
@@ -88,7 +136,7 @@ export function Header({ isDark, onToggleTheme, onOpenTemplates, onOpenHistory }
               size="icon"
               onClick={onToggleTheme}
               aria-label="Toggle theme"
-              className="interactive-chip w-8 h-8 sm:w-9 sm:h-9"
+              className="interactive-chip w-11 h-11 sm:w-9 sm:h-9"
             >
               {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </Button>
@@ -96,7 +144,7 @@ export function Header({ isDark, onToggleTheme, onOpenTemplates, onOpenHistory }
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="interactive-chip w-8 h-8 sm:w-9 sm:h-9 rounded-full p-0">
+                  <Button variant="ghost" size="icon" className="interactive-chip w-11 h-11 sm:w-9 sm:h-9 rounded-full p-0">
                     <Avatar className="w-7 h-7 sm:w-8 sm:h-8">
                       <AvatarImage src={user.user_metadata?.avatar_url as string | undefined} />
                       <AvatarFallback className="text-xs">{initials}</AvatarFallback>
@@ -118,7 +166,7 @@ export function Header({ isDark, onToggleTheme, onOpenTemplates, onOpenHistory }
                 variant="ghost"
                 size="sm"
                 onClick={() => setAuthOpen(true)}
-                className="interactive-chip gap-1.5 sm:gap-2 h-8 sm:h-9 px-2 sm:px-3"
+                className="interactive-chip gap-1.5 sm:gap-2 h-11 sm:h-9 px-2 sm:px-3"
               >
                 <LogIn className="w-4 h-4" />
                 <span className="hidden sm:inline text-sm">Sign in</span>

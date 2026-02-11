@@ -24,7 +24,7 @@ All colors MUST be HSL.
     --secondary-foreground: 0 0% 98%;
 
     --muted: 0 0% 63%;
-    --muted-foreground: 0 0% 9%;
+    --muted-foreground: 0 0% 34%;
 
     --accent: 166 76% 96%;
     --accent-foreground: 173 80% 40%;
@@ -115,11 +115,11 @@ All colors MUST be HSL.
     --secondary: 0 0% 45%;
     --secondary-foreground: 0 0% 98%;
 
-    --muted: 0 0% 45%;
-    --muted-foreground: 0 0% 98%;
+    --muted: 0 0% 22%;
+    --muted-foreground: 0 0% 72%;
 
-    --accent: 178 84% 10%;
-    --accent-foreground: 172 66% 50%;
+    --accent: 172 38% 20%;
+    --accent-foreground: 166 74% 72%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 85% 97%;
@@ -268,14 +268,29 @@ All colors MUST be HSL.
   }
 }
 
+@keyframes community-feed-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 @layer components {
-  .delight-hero {
+  .delight-hero,
+  .delight-hero-static {
     @apply rounded-2xl border border-border/70 px-4 py-5 sm:px-6 sm:py-7 shadow-sm;
     background-image:
       radial-gradient(480px 180px at 8% -12%, hsl(var(--delight-warm) / 0.2), transparent 58%),
       radial-gradient(420px 180px at 90% -20%, hsl(var(--delight-cool) / 0.16), transparent 54%),
-      linear-gradient(180deg, hsl(var(--delight-surface) / 0.6), hsl(var(--card) / 0.85));
+      linear-gradient(180deg, hsl(var(--delight-surface) / 0.55), hsl(var(--card) / 0.85));
     backdrop-filter: blur(8px);
+  }
+
+  .delight-hero {
     animation: delight-hero-drift 18s ease-in-out infinite;
   }
 
@@ -313,6 +328,10 @@ All colors MUST be HSL.
 
   .interactive-card:active {
     transform: translateY(0) scale(0.995);
+  }
+
+  .community-feed-card {
+    animation: community-feed-enter 420ms var(--motion-snap) both;
   }
 
   .enhance-output-frame {
@@ -395,6 +414,7 @@ All colors MUST be HSL.
 
 @media (prefers-reduced-motion: reduce) {
   .delight-hero,
+  .community-feed-card,
   .enhance-output-streaming::after,
   .signature-enhance-button[data-phase="starting"],
   .signature-enhance-button[data-phase="streaming"],

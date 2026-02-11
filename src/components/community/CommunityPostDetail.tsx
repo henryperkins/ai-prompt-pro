@@ -106,6 +106,11 @@ function stringifyDiffValue(value: string | string[]): string {
   return value;
 }
 
+function renderDiffValue(value: string | string[]): string {
+  const normalized = stringifyDiffValue(value).trim();
+  return normalized || "∅";
+}
+
 export function CommunityPostDetail({
   post,
   authorName,
@@ -180,35 +185,66 @@ export function CommunityPostDetail({
           </div>
         )}
 
+        {post.remixNote && (
+          <div className="rounded-md border border-border/70 bg-background/60 px-3 py-2 text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">Remix note:</span> {post.remixNote}
+          </div>
+        )}
+
         {remixDiff && (
-          <div className="space-y-2 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs">
-            <p className="font-medium text-primary">Remix diff</p>
-            {remixDiff.changes.length > 0 && (
-              <div className="space-y-1 text-muted-foreground">
+          <div className="space-y-3 rounded-lg border border-primary/25 bg-primary/5 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-primary">Prompt diff</p>
+              <Badge variant="secondary" className="h-5 px-1.5 text-[11px] font-mono">
+                Unified
+              </Badge>
+            </div>
+
+            {remixDiff.changes.length > 0 ? (
+              <div className="overflow-hidden rounded-md border border-border/80 bg-background/65 font-mono text-[11px]">
                 {remixDiff.changes.map((change) => (
-                  <p key={`${post.id}-${change.field}`}>
-                    <span className="font-medium text-foreground">{change.field}:</span>{" "}
-                    {stringifyDiffValue(change.from)} → {stringifyDiffValue(change.to)}
-                  </p>
+                  <div key={`${post.id}-${change.field}`} className="border-b border-border/70 last:border-b-0">
+                    <div className="border-b border-border/70 px-3 py-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+                      {change.field}
+                    </div>
+                    <div className="flex items-start gap-2 bg-red-500/10 px-3 py-1.5 text-red-700 dark:text-red-300">
+                      <span className="mt-0.5 w-3 shrink-0 text-center font-semibold">-</span>
+                      <span className="whitespace-pre-wrap break-words">{renderDiffValue(change.from)}</span>
+                    </div>
+                    <div className="flex items-start gap-2 bg-emerald-500/10 px-3 py-1.5 text-emerald-700 dark:text-emerald-300">
+                      <span className="mt-0.5 w-3 shrink-0 text-center font-semibold">+</span>
+                      <span className="whitespace-pre-wrap break-words">{renderDiffValue(change.to)}</span>
+                    </div>
+                  </div>
                 ))}
               </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">No field-level text changes captured.</p>
             )}
-            {remixDiff.added_tags.length > 0 && (
-              <p className="text-muted-foreground">
-                <span className="font-medium text-foreground">Added tags:</span>{" "}
-                {remixDiff.added_tags.join(", ")}
-              </p>
-            )}
-            {remixDiff.removed_tags.length > 0 && (
-              <p className="text-muted-foreground">
-                <span className="font-medium text-foreground">Removed tags:</span>{" "}
-                {remixDiff.removed_tags.join(", ")}
-              </p>
-            )}
-            {remixDiff.category_changed && (
-              <p className="text-muted-foreground">
-                <span className="font-medium text-foreground">Category:</span> changed from parent
-              </p>
+
+            {(remixDiff.added_tags.length > 0 ||
+              remixDiff.removed_tags.length > 0 ||
+              remixDiff.category_changed) && (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {remixDiff.added_tags.length > 0 && (
+                  <div className="rounded-md border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300">
+                    <span className="font-semibold">Added tags</span>
+                    <p className="mt-1 font-mono text-[11px]">{remixDiff.added_tags.join(", ")}</p>
+                  </div>
+                )}
+                {remixDiff.removed_tags.length > 0 && (
+                  <div className="rounded-md border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">
+                    <span className="font-semibold">Removed tags</span>
+                    <p className="mt-1 font-mono text-[11px]">{remixDiff.removed_tags.join(", ")}</p>
+                  </div>
+                )}
+                {remixDiff.category_changed && (
+                  <div className="rounded-md border border-border/70 bg-background/60 px-3 py-2 text-xs text-muted-foreground sm:col-span-2">
+                    <span className="font-semibold text-foreground">Category changed</span>
+                    <p className="mt-1">This remix is published under a different category than the parent prompt.</p>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         )}

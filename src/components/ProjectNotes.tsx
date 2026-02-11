@@ -14,7 +14,7 @@ export function ProjectNotes({ value, onChange }: ProjectNotesProps) {
         <label className="text-xs font-medium text-foreground">
           Project notes
         </label>
-        <span className="text-[10px] text-muted-foreground">(reusable across prompts)</span>
+        <span className="text-[11px] text-muted-foreground">(reusable across prompts)</span>
       </div>
       <Textarea
         placeholder="Persistent notes, brand voice guidelines, key facts, or any context you reuse across prompts..."

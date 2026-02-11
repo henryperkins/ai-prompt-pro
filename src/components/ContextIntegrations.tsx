@@ -84,7 +84,7 @@ export function ContextIntegrations({
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <Label className="text-xs font-medium text-foreground">Database connections</Label>
-          <Badge variant="secondary" className="text-[10px]">
+          <Badge variant="secondary" className="text-[11px]">
             {databaseConnections.length}
           </Badge>
         </div>
@@ -146,7 +146,7 @@ export function ContextIntegrations({
               onCheckedChange={(value) => setDraft((prev) => ({ ...prev, readOnly: value }))}
               className="scale-90"
             />
-            <Label className="text-[10px] text-muted-foreground">Read-only</Label>
+            <Label className="text-[11px] text-muted-foreground">Read-only</Label>
           </div>
           <Button size="sm" className="h-7 text-xs gap-1.5" onClick={addDatabase}>
             <Plus className="w-3 h-3" />
@@ -157,7 +157,7 @@ export function ContextIntegrations({
         {databaseConnections.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {databaseConnections.map((db) => (
-              <Badge key={db.id} variant="secondary" className="gap-1.5 text-[10px]">
+              <Badge key={db.id} variant="secondary" className="gap-1.5 text-[11px]">
                 <Database className="w-3 h-3" />
                 {db.label}
                 <button

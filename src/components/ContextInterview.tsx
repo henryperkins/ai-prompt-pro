@@ -40,7 +40,7 @@ export function ContextInterview({ answers, onUpdate }: ContextInterviewProps) {
             Ask me for missing context
           </span>
           {answeredCount > 0 && (
-            <Badge variant="secondary" className="text-[10px]">
+            <Badge variant="secondary" className="text-[11px]">
               {answeredCount}/{interviewQuestions.length}
             </Badge>
           )}

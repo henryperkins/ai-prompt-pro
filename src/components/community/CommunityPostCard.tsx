@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { ArrowUp, CheckCircle2, Copy, ExternalLink, GitBranch, MessageCircle } from "lucide-react";
+import { ArrowUp, CheckCircle2, Copy, Database, GitBranch, MessageCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { CommunityPost, VoteState, VoteType } from "@/lib/community";
 import { Badge } from "@/components/ui/badge";
@@ -9,9 +9,12 @@ import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PromptPreviewPanel } from "@/components/community/PromptPreviewPanel";
 import { CommunityComments } from "@/components/community/CommunityComments";
+import { cn } from "@/lib/utils";
 
 interface CommunityPostCardProps {
   post: CommunityPost;
+  isFeatured?: boolean;
+  animationDelayMs?: number;
   authorName: string;
   authorAvatarUrl?: string | null;
   parentPostTitle?: string;
@@ -32,8 +35,20 @@ function getInitials(name: string): string {
   return `${parts[0][0] || ""}${parts[1][0] || ""}`.toUpperCase();
 }
 
+function estimateTokens(text: string): string {
+  const words = text
+    .split(/\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean).length;
+  const tokens = Math.max(1, Math.round(words * 1.35));
+  if (tokens >= 1000) return `${(tokens / 1000).toFixed(1)}k`;
+  return String(tokens);
+}
+
 export function CommunityPostCard({
   post,
+  isFeatured = false,
+  animationDelayMs = 0,
   authorName,
   authorAvatarUrl,
   parentPostTitle,
@@ -45,27 +60,39 @@ export function CommunityPostCard({
 }: CommunityPostCardProps) {
   const createdAgo = formatDistanceToNow(new Date(post.createdAt), { addSuffix: true });
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const promptBody = (post.enhancedPrompt || post.starterPrompt || "").trim();
+  const tokenEstimate = estimateTokens(promptBody);
 
   return (
-    <Card className="interactive-card overflow-hidden border-border/80 bg-card/85 p-3 sm:p-4">
+    <Card
+      className={cn(
+        "community-feed-card interactive-card overflow-hidden border-border/80 bg-card/85 p-3 sm:p-4",
+        isFeatured && "lg:col-span-2 border-primary/35 bg-gradient-to-br from-primary/10 via-card/90 to-card/85",
+      )}
+      style={{ animationDelay: `${animationDelayMs}ms` }}
+    >
       <div className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
             <Avatar className="h-8 w-8 border border-border/60">
               <AvatarImage src={authorAvatarUrl ?? undefined} alt={authorName} />
-              <AvatarFallback className="text-[10px]">{getInitials(authorName)}</AvatarFallback>
+              <AvatarFallback className="text-[11px]">{getInitials(authorName)}</AvatarFallback>
             </Avatar>
             <div className="min-w-0">
               <p className="truncate text-xs font-medium text-foreground">{authorName}</p>
               <p className="text-[11px] text-muted-foreground">{createdAgo}</p>
             </div>
           </div>
-          <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-[11px]">
-            <Link to={`/community/${post.id}`}>
-              View
-              <ExternalLink className="h-3 w-3" />
-            </Link>
-          </Button>
+          <div className="flex flex-wrap items-center justify-end gap-1">
+            {post.targetModel && (
+              <Badge variant="secondary" className="h-5 px-1.5 text-[11px] font-mono">
+                {post.targetModel}
+              </Badge>
+            )}
+            <Badge variant="outline" className="h-5 px-1.5 text-[11px] capitalize">
+              {post.category}
+            </Badge>
+          </div>
         </div>
 
         {post.remixedFrom && (
@@ -75,26 +102,44 @@ export function CommunityPostCard({
         )}
 
         <div>
-          <h3 className="text-sm font-semibold text-foreground">{post.title}</h3>
+          <h3 className={cn("text-sm font-semibold text-foreground", isFeatured && "text-base")}>
+            {post.title}
+          </h3>
           {post.useCase && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{post.useCase}</p>}
         </div>
 
-        <PromptPreviewPanel text={post.enhancedPrompt} mode="compact" />
+        <PromptPreviewPanel
+          text={post.enhancedPrompt}
+          mode="compact"
+          className={cn("bg-background/65", isFeatured && "border-primary/25")}
+        />
 
         <div className="flex flex-wrap items-center gap-1.5">
-          <Badge variant="outline" className="text-[10px] capitalize">
-            {post.category}
-          </Badge>
-          {post.targetModel && (
-            <Badge variant="secondary" className="text-[10px]">
-              {post.targetModel}
-            </Badge>
-          )}
-          {post.tags.slice(0, 4).map((tag) => (
-            <Badge key={`${post.id}-${tag}`} variant="outline" className="text-[10px]">
+          {post.tags.slice(0, isFeatured ? 6 : 4).map((tag) => (
+            <Badge key={`${post.id}-${tag}`} variant="outline" className="text-[11px]">
               #{tag}
             </Badge>
           ))}
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-2 text-[11px] text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="inline-flex items-center gap-1 font-mono">
+              <Database className="h-3.5 w-3.5" />
+              {tokenEstimate}t
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <GitBranch className="h-3.5 w-3.5" />
+              {post.remixCount}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <MessageCircle className="h-3.5 w-3.5" />
+              {post.commentCount}
+            </span>
+          </div>
+          <Button asChild variant={isFeatured ? "default" : "outline"} size="sm" className="h-8 text-xs">
+            <Link to={`/?remix=${post.id}`}>Remix</Link>
+          </Button>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
@@ -120,20 +165,6 @@ export function CommunityPostCard({
             <CheckCircle2 className="h-3.5 w-3.5" />
             {post.verifiedCount}
           </Button>
-          <span className="inline-flex items-center gap-1">
-            <GitBranch className="h-3.5 w-3.5" />
-            {post.remixCount}
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <MessageCircle className="h-3.5 w-3.5" />
-            {post.commentCount}
-          </span>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Button asChild variant="outline" size="sm" className="h-8 text-xs">
-            <Link to={`/?remix=${post.id}`}>Remix</Link>
-          </Button>
           <Button
             type="button"
             variant="ghost"
@@ -155,7 +186,7 @@ export function CommunityPostCard({
             {commentsOpen ? "Hide comments" : "Comments"}
           </Button>
           <Button asChild variant="soft" size="sm" className="h-8 text-xs">
-            <Link to={`/community/${post.id}`}>Open thread</Link>
+            <Link to={`/community/${post.id}`}>Open</Link>
           </Button>
         </div>
 

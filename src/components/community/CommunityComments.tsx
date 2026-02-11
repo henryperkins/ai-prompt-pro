@@ -114,7 +114,7 @@ export function CommunityComments({
           <MessageCircle className="h-3.5 w-3.5" />
           Comments
         </div>
-        <Badge variant="secondary" className="text-[10px]">
+        <Badge variant="secondary" className="text-[11px]">
           {totalCount}
         </Badge>
       </div>

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { PromptInput } from "@/components/PromptInput";
@@ -13,9 +13,8 @@ import { getSectionHealth, type SectionHealthState } from "@/lib/section-health"
 import { hasPromptInput } from "@/lib/prompt-builder";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
-import type { PromptTemplate } from "@/lib/templates";
-import type { PromptShareInput } from "@/lib/persistence";
 import { loadPost, loadProfilesByIds } from "@/lib/community";
+import { consumeRestoredVersionPrompt } from "@/lib/history-restore";
 import {
   Accordion,
   AccordionContent,
@@ -47,16 +46,6 @@ import {
   X,
 } from "lucide-react";
 
-const PromptLibrary = lazy(async () => {
-  const module = await import("@/components/PromptLibrary");
-  return { default: module.PromptLibrary };
-});
-
-const VersionHistory = lazy(async () => {
-  const module = await import("@/components/VersionHistory");
-  return { default: module.VersionHistory };
-});
-
 const healthBadgeStyles: Record<
   SectionHealthState,
   { label: string; className: string; icon: LucideIcon }
@@ -84,7 +73,7 @@ function SectionHealthBadge({ state }: { state: SectionHealthState }) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${meta.className}`}
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${meta.className}`}
       title={meta.label}
     >
       <Icon className="h-3 w-3" />
@@ -92,6 +81,8 @@ function SectionHealthBadge({ state }: { state: SectionHealthState }) {
     </span>
   );
 }
+
+type BuilderSection = "builder" | "context" | "tone" | "quality";
 
 const Index = () => {
   const [isDark, setIsDark] = useState(() => {
@@ -103,9 +94,8 @@ const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const remixId = searchParams.get("remix");
   const remixLoadToken = useRef(0);
-  const [templatesOpen, setTemplatesOpen] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [openSections, setOpenSections] = useState<BuilderSection[]>(["builder"]);
   const [enhancePhase, setEnhancePhase] = useState<EnhancePhase>("idle");
   const enhancePhaseTimers = useRef<number[]>([]);
   const { toast } = useToast();
@@ -122,16 +112,9 @@ const Index = () => {
     isEnhancing,
     setIsEnhancing,
     isSignedIn,
-    versions,
     saveVersion,
-    loadTemplate,
     savePrompt,
     saveAndSharePrompt,
-    shareSavedPrompt,
-    unshareSavedPrompt,
-    loadSavedTemplate,
-    deleteSavedTemplate,
-    templateSummaries,
     remixContext,
     startRemix,
     clearRemix,
@@ -147,6 +130,16 @@ const Index = () => {
   useEffect(() => {
     document.documentElement.classList.toggle("dark", isDark);
   }, [isDark]);
+
+  useEffect(() => {
+    const restoredPrompt = consumeRestoredVersionPrompt();
+    if (!restoredPrompt) return;
+    setEnhancedPrompt(restoredPrompt);
+    toast({ title: "Version restored", description: "Restored from History." });
+    if (isMobile) {
+      setDrawerOpen(true);
+    }
+  }, [isMobile, setEnhancedPrompt, toast]);
 
   useEffect(() => {
     if (!remixId) return;
@@ -248,105 +241,6 @@ const Index = () => {
     clearEnhanceTimers();
     setEnhancePhase("idle");
   }, [builtPrompt, clearEnhanceTimers, isEnhancing]);
-
-  const handleSelectTemplate = useCallback(
-    (template: PromptTemplate) => {
-      loadTemplate(template);
-      toast({ title: `Template loaded: ${template.name}` });
-    },
-    [loadTemplate, toast]
-  );
-
-  const handleSelectSavedTemplate = useCallback(
-    async (id: string) => {
-      try {
-        const loaded = await loadSavedTemplate(id);
-        if (!loaded) {
-          toast({ title: "Prompt not found", variant: "destructive" });
-          return;
-        }
-        toast({
-          title: `Prompt loaded: ${loaded.record.metadata.name}`,
-          description:
-            loaded.warnings.length > 0
-              ? `${loaded.warnings.length} context warning(s). Review integrations before running.`
-              : "Prompt restored successfully.",
-        });
-      } catch (error) {
-        toast({
-          title: "Failed to load prompt",
-          description: error instanceof Error ? error.message : "Unexpected error",
-          variant: "destructive",
-        });
-      }
-    },
-    [loadSavedTemplate, toast]
-  );
-
-  const handleDeleteSavedTemplate = useCallback(
-    async (id: string) => {
-      try {
-        const deleted = await deleteSavedTemplate(id);
-        if (!deleted) {
-          toast({ title: "Prompt not found", variant: "destructive" });
-          return;
-        }
-        toast({ title: "Saved prompt deleted" });
-      } catch (error) {
-        toast({
-          title: "Failed to delete prompt",
-          description: error instanceof Error ? error.message : "Unexpected error",
-          variant: "destructive",
-        });
-      }
-    },
-    [deleteSavedTemplate, toast]
-  );
-
-  const handleShareSavedPrompt = useCallback(
-    async (id: string, input?: PromptShareInput) => {
-      if (!isSignedIn) {
-        toast({ title: "Sign in required", description: "Sign in to share prompts.", variant: "destructive" });
-        return;
-      }
-
-      try {
-        const shared = await shareSavedPrompt(id, input);
-        if (!shared) {
-          toast({ title: "Prompt not found", variant: "destructive" });
-          return;
-        }
-        toast({ title: "Prompt shared to community" });
-      } catch (error) {
-        toast({
-          title: "Failed to share prompt",
-          description: error instanceof Error ? error.message : "Unexpected error",
-          variant: "destructive",
-        });
-      }
-    },
-    [isSignedIn, shareSavedPrompt, toast],
-  );
-
-  const handleUnshareSavedPrompt = useCallback(
-    async (id: string) => {
-      try {
-        const unshared = await unshareSavedPrompt(id);
-        if (!unshared) {
-          toast({ title: "Prompt not found", variant: "destructive" });
-          return;
-        }
-        toast({ title: "Prompt removed from community" });
-      } catch (error) {
-        toast({
-          title: "Failed to unshare prompt",
-          description: error instanceof Error ? error.message : "Unexpected error",
-          variant: "destructive",
-        });
-      }
-    },
-    [unshareSavedPrompt, toast],
-  );
 
   const handleSavePrompt = useCallback(
     async (input: { name: string; description?: string; tags?: string[]; category?: string; remixNote?: string }) => {
@@ -457,19 +351,64 @@ const Index = () => {
     : enhancePhase === "done"
       ? "Enhanced"
       : "Enhance";
+  const mobilePreviewText = useMemo(() => {
+    const trimmed = displayPrompt.trim();
+    if (!trimmed) {
+      return "Your prompt preview updates as you build. Tap to expand.";
+    }
+    return trimmed
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .slice(0, 2)
+      .join("\n");
+  }, [displayPrompt]);
+  const refineSuggestions = useMemo(() => {
+    const suggestions: Array<{ id: BuilderSection; title: string; description: string }> = [];
+    if (sectionHealth.builder !== "complete") {
+      suggestions.push({
+        id: "builder",
+        title: selectedRole ? "Add task details" : "Add a role",
+        description: "Clarify who the model should be and what outcome you need.",
+      });
+    }
+    if (sectionHealth.context !== "complete") {
+      suggestions.push({
+        id: "context",
+        title: "Add context",
+        description: "Include sources, notes, or constraints from your environment.",
+      });
+    }
+    if (sectionHealth.tone !== "complete") {
+      suggestions.push({
+        id: "tone",
+        title: "Tune tone",
+        description: "Set style and complexity to better match the target audience.",
+      });
+    }
+    return suggestions.slice(0, 3);
+  }, [sectionHealth.builder, sectionHealth.context, sectionHealth.tone, selectedRole]);
+  const showRefineSuggestions = Boolean(enhancedPrompt.trim()) && refineSuggestions.length > 0;
+  const openAndFocusSection = useCallback((section: BuilderSection) => {
+    setOpenSections((prev) => (prev.includes(section) ? prev : [...prev, section]));
+    window.requestAnimationFrame(() => {
+      document.getElementById(`accordion-${section}`)?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
+  }, []);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header
         isDark={isDark}
         onToggleTheme={() => setIsDark(!isDark)}
-        onOpenTemplates={() => setTemplatesOpen(true)}
-        onOpenHistory={() => setHistoryOpen(true)}
       />
 
       <main className="flex-1 container mx-auto px-4 py-3 sm:py-6">
         {/* Hero — compact on mobile */}
-        <div className="delight-hero text-center mb-4 sm:mb-8">
+        <div className="delight-hero-static text-center mb-4 sm:mb-8">
           <h1 className="text-xl sm:text-3xl md:text-4xl font-bold text-foreground mb-1 sm:mb-2 tracking-tight">
             Transform Basic Prompts into
             <span className="text-primary"> Pro-Level Instructions</span>
@@ -484,7 +423,7 @@ const Index = () => {
           <Card className="mb-4 border-primary/30 bg-primary/5 p-3 sm:p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="space-y-1">
-                <p className="text-[10px] uppercase tracking-wide text-primary">Remix mode</p>
+                <p className="text-[11px] uppercase tracking-wide text-primary">Remix mode</p>
                 <p className="text-sm font-medium text-foreground">
                   Remixing {remixContext.parentAuthor}’s “{remixContext.parentTitle}”
                 </p>
@@ -511,13 +450,58 @@ const Index = () => {
               onClear={clearOriginalPrompt}
             />
 
+            <Card className="border-border/70 bg-card/80 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-xs font-medium text-foreground">Enhance first, refine after</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Start with a rough prompt, run Enhance, then apply targeted improvements.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs"
+                  onClick={handleEnhance}
+                  disabled={isEnhancing || !builtPrompt}
+                >
+                  {isEnhancing ? "Enhancing..." : "Enhance now"}
+                </Button>
+              </div>
+            </Card>
+
+            {showRefineSuggestions && (
+              <Card className="border-primary/25 bg-primary/5 p-3">
+                <p className="text-xs font-medium text-primary">Improve this result</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {refineSuggestions.map((suggestion) => (
+                    <Button
+                      key={suggestion.id}
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-xs"
+                      onClick={() => openAndFocusSection(suggestion.id)}
+                    >
+                      {suggestion.title}
+                    </Button>
+                  ))}
+                </div>
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  {refineSuggestions[0]?.description}
+                </p>
+              </Card>
+            )}
+
             {/* Accordion sections */}
             <Accordion
               type="multiple"
-              defaultValue={["builder"]}
+              value={openSections}
+              onValueChange={(value) => setOpenSections(value as BuilderSection[])}
               className="space-y-1"
             >
-              <AccordionItem value="builder" className="border rounded-lg px-3">
+              <AccordionItem id="accordion-builder" value="builder" className="border rounded-lg px-3">
                 <AccordionTrigger className="py-3 text-sm hover:no-underline gap-2">
                   <span className="flex items-center gap-2">
                     <Target className="w-3.5 h-3.5 text-muted-foreground" />
@@ -525,7 +509,7 @@ const Index = () => {
                   </span>
                   <span className="ml-auto mr-2 flex items-center gap-1.5">
                     {selectedRole && (
-                      <Badge variant="secondary" className="max-w-[120px] truncate text-[10px]">
+                      <Badge variant="secondary" className="max-w-[120px] truncate text-[11px]">
                         {selectedRole}
                       </Badge>
                     )}
@@ -537,7 +521,7 @@ const Index = () => {
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="context" className="border rounded-lg px-3">
+              <AccordionItem id="accordion-context" value="context" className="border rounded-lg px-3">
                 <AccordionTrigger className="py-3 text-sm hover:no-underline gap-2">
                   <span className="flex items-center gap-2">
                     <LayoutIcon className="w-3.5 h-3.5 text-muted-foreground" />
@@ -545,7 +529,7 @@ const Index = () => {
                   </span>
                   <span className="ml-auto mr-2 flex items-center gap-1.5">
                     {sourceCount > 0 && (
-                      <Badge variant="secondary" className="text-[10px]">
+                      <Badge variant="secondary" className="text-[11px]">
                         {sourceCount} src
                       </Badge>
                     )}
@@ -566,7 +550,7 @@ const Index = () => {
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="tone" className="border rounded-lg px-3">
+              <AccordionItem id="accordion-tone" value="tone" className="border rounded-lg px-3">
                 <AccordionTrigger className="py-3 text-sm hover:no-underline gap-2">
                   <span className="flex items-center gap-2">
                     <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
@@ -574,7 +558,7 @@ const Index = () => {
                   </span>
                   <span className="ml-auto mr-2 flex items-center gap-1.5">
                     {config.tone && (
-                      <Badge variant="secondary" className="text-[10px]">
+                      <Badge variant="secondary" className="text-[11px]">
                         {config.tone}
                       </Badge>
                     )}
@@ -590,7 +574,7 @@ const Index = () => {
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="quality" className="border rounded-lg px-3">
+              <AccordionItem id="accordion-quality" value="quality" className="border rounded-lg px-3">
                 <AccordionTrigger className="py-3 text-sm hover:no-underline gap-2">
                   <span className="flex items-center gap-2">
                     <BarChart3 className="w-3.5 h-3.5 text-muted-foreground" />
@@ -599,7 +583,7 @@ const Index = () => {
                   <span className="ml-auto mr-2 flex items-center gap-1.5">
                     <Badge
                       variant={score.total >= 75 ? "default" : "secondary"}
-                      className="text-[10px]"
+                      className="text-[11px]"
                     >
                       {score.total}/100
                     </Badge>
@@ -634,7 +618,7 @@ const Index = () => {
                 }
               />
               <p className="text-xs text-muted-foreground text-center mt-3">
-                Press <kbd className="px-1.5 py-0.5 text-[10px] bg-muted rounded border border-border font-mono">Ctrl+Enter</kbd> to enhance
+                Press <kbd className="px-1.5 py-0.5 text-[11px] bg-muted rounded border border-border font-mono">Ctrl+Enter</kbd> to enhance
               </p>
             </div>
           )}
@@ -643,38 +627,50 @@ const Index = () => {
 
       {/* Mobile: sticky bottom bar */}
       {isMobile && (
-        <div className="fixed bottom-0 inset-x-0 z-40 bg-card/95 backdrop-blur-sm border-t border-border px-4 py-3 flex gap-2">
-          <Button
-            variant="glow"
-            size="default"
-            onClick={handleEnhance}
-            disabled={isEnhancing || !builtPrompt}
-            className="signature-enhance-button flex-1 gap-2"
-            data-phase={enhancePhase}
+        <div className="fixed bottom-0 inset-x-0 z-40 border-t border-border bg-card/95 px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm">
+          <button
+            type="button"
+            onClick={() => setDrawerOpen(true)}
+            className="interactive-chip mb-2 w-full rounded-lg border border-border/80 bg-background/70 px-3 py-2 text-left"
+            aria-label="Open output preview"
           >
-            {isEnhancing ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                {mobileEnhanceLabel}
-              </>
-            ) : (
-              <>
-                {enhancePhase === "done" ? <Check className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
-                {mobileEnhanceLabel}
-              </>
-            )}
-          </Button>
-          {displayPrompt && (
-            <Button
-              variant="outline"
-              size="default"
-              onClick={() => setDrawerOpen(true)}
-              className="gap-1.5"
+            <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              <Eye className="h-3.5 w-3.5" />
+              Live preview
+            </div>
+            <p className="mt-1 max-h-10 overflow-hidden whitespace-pre-line font-mono text-[11px] leading-5 text-foreground/90">
+              {mobilePreviewText}
+            </p>
+          </button>
+
+          <div className="flex items-center gap-2">
+            <Badge
+              variant={score.total >= 75 ? "default" : "secondary"}
+              className="h-10 min-w-[64px] justify-center rounded-md px-2 text-[11px] font-semibold"
             >
-              <Eye className="w-4 h-4" />
-              Output
+              {score.total}/100
+            </Badge>
+            <Button
+              variant="glow"
+              size="default"
+              onClick={handleEnhance}
+              disabled={isEnhancing || !builtPrompt}
+              className="signature-enhance-button h-10 flex-1 gap-2"
+              data-phase={enhancePhase}
+            >
+              {isEnhancing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {mobileEnhanceLabel}
+                </>
+              ) : (
+                <>
+                  {enhancePhase === "done" ? <Check className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
+                  {mobileEnhanceLabel}
+                </>
+              )}
             </Button>
-          )}
+          </div>
         </div>
       )}
 
@@ -712,35 +708,7 @@ const Index = () => {
       )}
 
       {/* Add bottom padding on mobile for sticky bar */}
-      {isMobile && <div className="h-20" />}
-
-      <Suspense fallback={null}>
-        {templatesOpen && (
-          <PromptLibrary
-            open={templatesOpen}
-            onOpenChange={setTemplatesOpen}
-            savedPrompts={templateSummaries}
-            onSelectTemplate={handleSelectTemplate}
-            onSelectSaved={handleSelectSavedTemplate}
-            onDeleteSaved={handleDeleteSavedTemplate}
-            onShareSaved={handleShareSavedPrompt}
-            onUnshareSaved={handleUnshareSavedPrompt}
-            canShareSavedPrompts={isSignedIn}
-          />
-        )}
-
-        {historyOpen && (
-          <VersionHistory
-            open={historyOpen}
-            onOpenChange={setHistoryOpen}
-            versions={versions}
-            onRestore={(prompt) => {
-              setEnhancedPrompt(prompt);
-              toast({ title: "Version restored" });
-            }}
-          />
-        )}
-      </Suspense>
+      {isMobile && <div className="h-32" />}
     </div>
   );
 };

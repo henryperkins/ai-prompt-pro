@@ -1,19 +1,12 @@
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { ContextSourceChips } from "@/components/ContextSourceChips";
 import { StructuredContextForm } from "@/components/StructuredContextForm";
 import { ContextInterview } from "@/components/ContextInterview";
 import { ProjectNotes } from "@/components/ProjectNotes";
 import { ContextIntegrations } from "@/components/ContextIntegrations";
 import { ContextQualityMeter } from "@/components/ContextQualityMeter";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type {
   ContextConfig,
   ContextSource,
@@ -32,34 +25,6 @@ interface ContextPanelProps {
   onUpdateInterview: (answers: InterviewAnswer[]) => void;
   onUpdateProjectNotes: (notes: string) => void;
   onToggleDelimiters: (value: boolean) => void;
-}
-
-function SectionCollapsible({
-  title,
-  badge,
-  defaultOpen = false,
-  children,
-}: {
-  title: string;
-  badge?: React.ReactNode;
-  defaultOpen?: boolean;
-  children: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger className="flex items-center justify-between w-full py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
-        <span className="flex items-center gap-1.5">
-          <ChevronRight
-            className={`w-3 h-3 transition-transform ${open ? "rotate-90" : ""}`}
-          />
-          {title}
-        </span>
-        {badge}
-      </CollapsibleTrigger>
-      <CollapsibleContent className="pt-1 pb-2">{children}</CollapsibleContent>
-    </Collapsible>
-  );
 }
 
 export function ContextPanel({
@@ -92,7 +57,7 @@ export function ContextPanel({
     contextConfig.databaseConnections.length + (contextConfig.rag.enabled ? 1 : 0);
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-3">
       {/* Sources — always visible */}
       <ContextSourceChips
         sources={contextConfig.sources}
@@ -100,74 +65,43 @@ export function ContextPanel({
         onRemove={handleRemoveSource}
       />
 
-      {/* Structured fields — collapsible */}
-      <SectionCollapsible
-        title="Structured Fields"
-        badge={
-          structuredCount > 0 ? (
-            <Badge variant="secondary" className="text-[10px]">
-              {structuredCount} filled
-            </Badge>
-          ) : undefined
-        }
-      >
-        <StructuredContextForm
-          values={contextConfig.structured}
-          onUpdate={onUpdateStructured}
-        />
-      </SectionCollapsible>
+      <Tabs defaultValue="structured" className="w-full">
+        <TabsList className="h-auto w-full grid grid-cols-2 gap-1 bg-muted/30 p-1 sm:grid-cols-4">
+          <TabsTrigger value="structured" aria-label="Structured context tab" className="interactive-chip h-8 px-2 text-xs">
+            Structured{structuredCount > 0 ? ` (${structuredCount})` : ""}
+          </TabsTrigger>
+          <TabsTrigger value="integrations" aria-label="Integrations tab" className="interactive-chip h-8 px-2 text-xs">
+            Integrations{integrationCount > 0 ? ` (${integrationCount})` : ""}
+          </TabsTrigger>
+          <TabsTrigger value="interview" aria-label="Context interview tab" className="interactive-chip h-8 px-2 text-xs">
+            Interview{interviewCount > 0 ? ` (${interviewCount})` : ""}
+          </TabsTrigger>
+          <TabsTrigger value="notes" aria-label="Project notes tab" className="interactive-chip h-8 px-2 text-xs">
+            Notes{hasNotes ? " (1)" : ""}
+          </TabsTrigger>
+        </TabsList>
 
-      <SectionCollapsible
-        title="Integrations"
-        badge={
-          integrationCount > 0 ? (
-            <Badge variant="secondary" className="text-[10px]">
-              {integrationCount} active
-            </Badge>
-          ) : undefined
-        }
-      >
-        <ContextIntegrations
-          databaseConnections={contextConfig.databaseConnections}
-          rag={contextConfig.rag}
-          onUpdateDatabaseConnections={onUpdateDatabaseConnections}
-          onUpdateRag={onUpdateRag}
-        />
-      </SectionCollapsible>
+        <TabsContent value="structured" className="mt-3">
+          <StructuredContextForm values={contextConfig.structured} onUpdate={onUpdateStructured} />
+        </TabsContent>
 
-      {/* Interview — collapsible */}
-      <SectionCollapsible
-        title="Context Interview"
-        badge={
-          interviewCount > 0 ? (
-            <Badge variant="secondary" className="text-[10px]">
-              {interviewCount} answered
-            </Badge>
-          ) : undefined
-        }
-      >
-        <ContextInterview
-          answers={contextConfig.interviewAnswers}
-          onUpdate={onUpdateInterview}
-        />
-      </SectionCollapsible>
+        <TabsContent value="integrations" className="mt-3">
+          <ContextIntegrations
+            databaseConnections={contextConfig.databaseConnections}
+            rag={contextConfig.rag}
+            onUpdateDatabaseConnections={onUpdateDatabaseConnections}
+            onUpdateRag={onUpdateRag}
+          />
+        </TabsContent>
 
-      {/* Project notes — collapsible */}
-      <SectionCollapsible
-        title="Project Notes"
-        badge={
-          hasNotes ? (
-            <Badge variant="secondary" className="text-[10px]">
-              has notes
-            </Badge>
-          ) : undefined
-        }
-      >
-        <ProjectNotes
-          value={contextConfig.projectNotes}
-          onChange={onUpdateProjectNotes}
-        />
-      </SectionCollapsible>
+        <TabsContent value="interview" className="mt-3">
+          <ContextInterview answers={contextConfig.interviewAnswers} onUpdate={onUpdateInterview} />
+        </TabsContent>
+
+        <TabsContent value="notes" className="mt-3">
+          <ProjectNotes value={contextConfig.projectNotes} onChange={onUpdateProjectNotes} />
+        </TabsContent>
+      </Tabs>
 
       {/* Settings & quality — compact row */}
       <div className="flex items-center justify-between pt-2 border-t border-border">
@@ -177,7 +111,7 @@ export function ContextPanel({
             onCheckedChange={onToggleDelimiters}
             className="scale-90"
           />
-          <Label className="text-[10px] text-muted-foreground">Delimiters</Label>
+          <Label className="text-[11px] text-muted-foreground">Delimiters</Label>
         </div>
         <ContextQualityMeter contextConfig={contextConfig} />
       </div>
