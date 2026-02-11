@@ -336,10 +336,10 @@ export function OutputPanel({
             size="sm"
             onClick={handleCopy}
             disabled={!displayPrompt}
-            className="gap-1.5 text-xs font-medium min-w-[96px]"
+            className="gap-1.5 text-xs font-semibold min-w-[96px] shadow-md"
           >
-            {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-            {copied ? "Copied" : "Copy"}
+            {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+            {copied ? "Copied!" : "Copy"}
           </Button>
 
           <DropdownMenu>

@@ -116,10 +116,10 @@ All colors MUST be HSL.
     --secondary-foreground: 0 0% 98%;
 
     --muted: 0 0% 22%;
-    --muted-foreground: 0 0% 72%;
+    --muted-foreground: 0 0% 60%;
 
-    --accent: 172 38% 20%;
-    --accent-foreground: 166 74% 72%;
+    --accent: 172 38% 22%;
+    --accent-foreground: 166 74% 78%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 85% 97%;
@@ -291,7 +291,7 @@ All colors MUST be HSL.
   }
 
   .delight-hero {
-    animation: delight-hero-drift 18s ease-in-out infinite;
+    animation: delight-hero-drift 18s ease-in-out 1;
   }
 
   .interactive-chip {
