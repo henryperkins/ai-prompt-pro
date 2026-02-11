@@ -12,7 +12,6 @@ from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from agent_framework import HostedWebSearchTool
 from agent_framework.azure import AzureOpenAIResponsesClient
 from agent_framework.observability import configure_otel_providers
 from azure.identity import AzureCliCredential
@@ -127,11 +126,9 @@ def _build_agent_tools() -> list[object]:
     if region and region.strip():
         location_payload["region"] = region.strip()
 
-    additional_properties = {"user_location": location_payload} if location_payload else None
     tools.append(
-        HostedWebSearchTool(
-            description="Search the web for up-to-date, factual context when needed.",
-            additional_properties=additional_properties,
+        AzureOpenAIResponsesClient.get_web_search_tool(
+            user_location=location_payload or None,
         )
     )
     return tools
