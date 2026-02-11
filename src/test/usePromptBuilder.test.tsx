@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { defaultConfig, type PromptConfig } from "@/lib/prompt-builder";
 
 const LOCAL_VERSIONS_KEY = "promptforge-local-versions";
+const CLOUD_VERSIONS_KEY = "promptforge-cloud-versions:user_a";
 
 const mocks = vi.hoisted(() => ({
   authUser: { current: { id: "user_a" } as { id: string } | null },
@@ -80,6 +81,7 @@ describe("usePromptBuilder", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    sessionStorage.clear();
     mocks.authUser.current = { id: "user_a" };
     mocks.loadDraft.mockResolvedValue(buildConfig({ role: "User A role" }));
     mocks.loadPrompts.mockResolvedValue([]);
@@ -171,6 +173,147 @@ describe("usePromptBuilder", () => {
     await waitFor(() => {
       expect(result.current.versions[0]?.id).toBe("cloud-1");
     });
+  });
+
+  it("writes guest version to local storage immediately when saving", async () => {
+    mocks.authUser.current = null;
+    const { usePromptBuilder } = await import("@/hooks/usePromptBuilder");
+    const { result } = renderHook(() => usePromptBuilder());
+
+    act(() => {
+      result.current.setEnhancedPrompt("Instant guest version");
+    });
+
+    act(() => {
+      result.current.saveVersion("Instant Save");
+    });
+
+    const stored = localStorage.getItem(LOCAL_VERSIONS_KEY);
+    expect(stored).not.toBeNull();
+    const parsed = JSON.parse(stored || "[]");
+    expect(parsed[0]?.name).toBe("Instant Save");
+    expect(parsed[0]?.prompt).toBe("Instant guest version");
+  });
+
+  it("clears cached cloud versions when cloud history is empty", async () => {
+    sessionStorage.setItem(
+      CLOUD_VERSIONS_KEY,
+      JSON.stringify([
+        {
+          id: "cached-1",
+          name: "Cached Version",
+          prompt: "Cached history",
+          timestamp: Date.now(),
+        },
+      ]),
+    );
+
+    mocks.loadVersions.mockResolvedValueOnce([]);
+
+    const { usePromptBuilder } = await import("@/hooks/usePromptBuilder");
+    const { result } = renderHook(() => usePromptBuilder());
+
+    await waitFor(() => {
+      expect(sessionStorage.getItem(CLOUD_VERSIONS_KEY)).toBeNull();
+    });
+
+    expect(result.current.versions).toHaveLength(0);
+  });
+
+  it("caches signed-in saves in session storage while cloud save is pending", async () => {
+    const deferred = createDeferred<{
+      id: string;
+      name: string;
+      prompt: string;
+      timestamp: number;
+    } | null>();
+    mocks.saveVersion.mockReturnValueOnce(deferred.promise);
+
+    const { usePromptBuilder } = await import("@/hooks/usePromptBuilder");
+    const { result } = renderHook(() => usePromptBuilder());
+
+    await waitFor(() => {
+      expect(mocks.loadVersions).toHaveBeenCalledWith("user_a");
+    });
+
+    act(() => {
+      result.current.setEnhancedPrompt("Cloud pending prompt");
+    });
+
+    act(() => {
+      result.current.saveVersion("Cloud Pending");
+    });
+
+    const cached = JSON.parse(sessionStorage.getItem(CLOUD_VERSIONS_KEY) || "[]");
+    expect(cached[0]?.name).toBe("Cloud Pending");
+    expect(result.current.versions[0]?.name).toBe("Cloud Pending");
+
+    deferred.resolve({
+      id: "cloud-version-1",
+      name: "Cloud Pending",
+      prompt: "Cloud pending prompt",
+      timestamp: Date.now(),
+    });
+
+    await waitFor(() => {
+      expect(result.current.versions[0]?.id).toBe("cloud-version-1");
+    });
+  });
+
+  it("removes optimistic cloud versions when save fails", async () => {
+    sessionStorage.setItem(
+      CLOUD_VERSIONS_KEY,
+      JSON.stringify([
+        {
+          id: "cached-1",
+          name: "Cached Version",
+          prompt: "Cached history",
+          timestamp: Date.now(),
+        },
+      ]),
+    );
+
+    const deferred = createDeferred<{
+      id: string;
+      name: string;
+      prompt: string;
+      timestamp: number;
+    } | null>();
+    mocks.saveVersion.mockReturnValueOnce(deferred.promise);
+
+    const { usePromptBuilder } = await import("@/hooks/usePromptBuilder");
+    const { result } = renderHook(() => usePromptBuilder());
+
+    await waitFor(() => {
+      expect(mocks.loadVersions).toHaveBeenCalledWith("user_a");
+    });
+
+    act(() => {
+      result.current.setEnhancedPrompt("Cloud pending prompt");
+    });
+
+    act(() => {
+      result.current.saveVersion("Cloud Fail");
+    });
+
+    const cachedDuringSave = JSON.parse(sessionStorage.getItem(CLOUD_VERSIONS_KEY) || "[]");
+    expect(cachedDuringSave[0]?.name).toBe("Cloud Fail");
+    expect(result.current.versions[0]?.name).toBe("Cloud Fail");
+
+    deferred.reject(new Error("Nope"));
+
+    await waitFor(() => {
+      expect(result.current.versions[0]?.id).toBe("cached-1");
+    });
+
+    const cachedAfterFailure = JSON.parse(sessionStorage.getItem(CLOUD_VERSIONS_KEY) || "[]");
+    expect(cachedAfterFailure).toHaveLength(1);
+    expect(cachedAfterFailure[0]?.id).toBe("cached-1");
+    expect(mocks.toast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Failed to save version",
+      }),
+    );
   });
 
   it("warns when cloud draft is skipped because user edited during hydration", async () => {

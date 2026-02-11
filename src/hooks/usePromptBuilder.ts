@@ -21,6 +21,7 @@ import { computeRemixDiff } from "@/lib/community";
 
 const STORAGE_KEY = "promptforge-draft";
 const LOCAL_VERSIONS_KEY = "promptforge-local-versions";
+const CLOUD_VERSIONS_KEY_PREFIX = "promptforge-cloud-versions";
 const DRAFT_AUTOSAVE_DELAY_MS = 700;
 const MAX_LOCAL_VERSIONS = 50;
 
@@ -114,6 +115,48 @@ function clearLocalVersions(): void {
   }
 }
 
+function cloudVersionsKey(userId: string): string {
+  return `${CLOUD_VERSIONS_KEY_PREFIX}:${userId}`;
+}
+
+function createVersionId(prefix: string): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+  return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function loadCachedCloudVersions(userId: string | null): persistence.PromptVersion[] {
+  if (!userId) return [];
+  try {
+    const saved = sessionStorage.getItem(cloudVersionsKey(userId));
+    if (!saved) return [];
+    const parsed = JSON.parse(saved);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(isPromptVersion).sort((a, b) => b.timestamp - a.timestamp).slice(0, MAX_LOCAL_VERSIONS);
+  } catch {
+    return [];
+  }
+}
+
+function saveCachedCloudVersions(userId: string | null, versions: persistence.PromptVersion[]): void {
+  if (!userId) return;
+  try {
+    sessionStorage.setItem(cloudVersionsKey(userId), JSON.stringify(versions.slice(0, MAX_LOCAL_VERSIONS)));
+  } catch {
+    // ignore
+  }
+}
+
+function clearCachedCloudVersions(userId: string | null): void {
+  if (!userId) return;
+  try {
+    sessionStorage.removeItem(cloudVersionsKey(userId));
+  } catch {
+    // ignore
+  }
+}
+
 function toPromptSummary(template: TemplateSummary): persistence.PromptSummary {
   return {
     ...template,
@@ -185,7 +228,7 @@ export function usePromptBuilder() {
     setEnhancedPrompt("");
     setConfig(defaultConfig);
     setTemplateSummaries([]);
-    setVersions([]);
+    setVersions(userId ? loadCachedCloudVersions(userId) : loadLocalVersions());
     setRemixContext(null);
 
     const token = ++authLoadToken.current;
@@ -257,9 +300,16 @@ export function usePromptBuilder() {
       }
 
       if (versionsResult.status === "fulfilled") {
-        setVersions(versionsResult.value);
+        const cloudVersions = versionsResult.value;
+        if (cloudVersions.length > 0) {
+          setVersions(cloudVersions);
+          saveCachedCloudVersions(userId, cloudVersions);
+        } else {
+          setVersions([]);
+          clearCachedCloudVersions(userId);
+        }
       } else {
-        setVersions([]);
+        setVersions(loadCachedCloudVersions(userId));
         showPersistenceError(
           "Failed to load version history",
           versionsResult.reason,
@@ -447,22 +497,69 @@ export function usePromptBuilder() {
       const versionName = name || `Version ${versions.length + 1}`;
 
       if (userId) {
-        void persistence
-          .saveVersion(userId, versionName, promptToSave)
-          .then((saved) => {
-            if (saved) setVersions((prev) => [saved, ...prev]);
-          })
-          .catch((error) => {
-            showPersistenceError("Failed to save version", error, "Failed to save version.");
-          });
-      } else {
-        const version: persistence.PromptVersion = {
-          id: Date.now().toString(),
+        const optimisticId = createVersionId("local");
+        const optimisticVersion: persistence.PromptVersion = {
+          id: optimisticId,
           name: versionName,
           prompt: promptToSave,
           timestamp: Date.now(),
         };
-        setVersions((prev) => [version, ...prev].slice(0, MAX_LOCAL_VERSIONS));
+        const optimisticCache = [
+          optimisticVersion,
+          ...loadCachedCloudVersions(userId).filter((version) => version.id !== optimisticId),
+        ].slice(0, MAX_LOCAL_VERSIONS);
+
+        setVersions((prev) => [optimisticVersion, ...prev.filter((version) => version.id !== optimisticId)].slice(
+          0,
+          MAX_LOCAL_VERSIONS,
+        ));
+        saveCachedCloudVersions(userId, optimisticCache);
+
+        const replaceOptimistic = (saved: persistence.PromptVersion) => {
+          setVersions((prev) =>
+            [saved, ...prev.filter((version) => version.id !== optimisticId)].slice(0, MAX_LOCAL_VERSIONS),
+          );
+          saveCachedCloudVersions(
+            userId,
+            [saved, ...loadCachedCloudVersions(userId).filter((version) => version.id !== optimisticId)].slice(
+              0,
+              MAX_LOCAL_VERSIONS,
+            ),
+          );
+        };
+
+        const rollbackOptimistic = () => {
+          setVersions((prev) => prev.filter((version) => version.id !== optimisticId).slice(0, MAX_LOCAL_VERSIONS));
+          saveCachedCloudVersions(
+            userId,
+            loadCachedCloudVersions(userId).filter((version) => version.id !== optimisticId),
+          );
+        };
+
+        void persistence
+          .saveVersion(userId, versionName, promptToSave)
+          .then((saved) => {
+            if (!saved) {
+              rollbackOptimistic();
+              showPersistenceError("Failed to save version", null, "Failed to save version.");
+              return;
+            }
+            replaceOptimistic(saved);
+          })
+          .catch((error) => {
+            rollbackOptimistic();
+            showPersistenceError("Failed to save version", error, "Failed to save version.");
+          });
+      } else {
+        const version: persistence.PromptVersion = {
+          id: createVersionId("local"),
+          name: versionName,
+          prompt: promptToSave,
+          timestamp: Date.now(),
+        };
+        const next = [version, ...loadLocalVersions()].slice(0, MAX_LOCAL_VERSIONS);
+        saveLocalVersions(next);
+        setVersions(next);
       }
     },
     [enhancedPrompt, builtPrompt, versions.length, userId, showPersistenceError],

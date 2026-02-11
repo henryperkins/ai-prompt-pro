@@ -1,11 +1,12 @@
 import { Link, useLocation } from "react-router-dom";
-import { BookOpen, PenSquare, Users } from "lucide-react";
+import { BookOpen, History, PenSquare, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { to: "/", label: "Builder", icon: PenSquare },
   { to: "/community", label: "Community", icon: Users },
   { to: "/library", label: "Library", icon: BookOpen },
+  { to: "/history", label: "History", icon: History },
 ] as const;
 
 export function BottomNav() {
