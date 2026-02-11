@@ -33,11 +33,12 @@ export CODEX_CONFIG_JSON='{"show_raw_agent_reasoning":true}'
 export CODEX_ENV_JSON='{"PATH":"/usr/local/bin"}'
 
 # Default thread options
-export CODEX_MODEL="gpt-5-codex"
+export CODEX_MODEL="gpt-5.2-codex"
 export CODEX_SANDBOX_MODE="workspace-write"      # read-only|workspace-write|danger-full-access
 export CODEX_WORKING_DIRECTORY="/absolute/path/to/repo"
 export CODEX_SKIP_GIT_REPO_CHECK="true"
-export CODEX_MODEL_REASONING_EFFORT="minimal"    # minimal|low|medium|high|xhigh
+export CODEX_MODEL_REASONING_EFFORT="medium"     # low|medium|high|xhigh
+export CODEX_MODEL_VERBOSITY="low"               # low|medium|high
 export CODEX_NETWORK_ACCESS_ENABLED="true"
 export CODEX_WEB_SEARCH_MODE="live"              # disabled|cached|live
 export CODEX_WEB_SEARCH_ENABLED="true"
@@ -51,7 +52,7 @@ export CODEX_ADDITIONAL_DIRECTORIES='["/tmp"]'   # JSON array or comma-delimited
 - `POST /enhance` with body `{ "prompt": "..." }`
 - Optional request fields:
   - `thread_id`
-  - `thread_options` (partial Codex thread options)
+  - `thread_options` (partial Codex thread options, including `modelReasoningEffort` and `modelVerbosity`)
 
 ## Legacy Python Azure service
 

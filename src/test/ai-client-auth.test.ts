@@ -352,4 +352,88 @@ describe("ai-client auth recovery", () => {
     expect(onDelta).toHaveBeenCalledWith("third-try-success");
     expect(onDone).toHaveBeenCalledTimes(1);
   });
+
+  it("sends optional thread_id and thread_options when provided", async () => {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "valid-token",
+          expires_at: nowSeconds + 3600,
+        },
+      },
+      error: null,
+    });
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(streamingResponse("configured"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { streamEnhance } = await import("@/lib/ai-client");
+
+    const onDelta = vi.fn();
+    const onDone = vi.fn();
+    const onError = vi.fn();
+
+    await streamEnhance({
+      prompt: "Improve this",
+      threadId: "thread_abc123",
+      threadOptions: {
+        modelReasoningEffort: "high",
+        modelVerbosity: "low",
+      },
+      onDelta,
+      onDone,
+      onError,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const request = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const body = JSON.parse((request.body as string) || "{}") as {
+      prompt?: string;
+      thread_id?: string;
+      thread_options?: { modelReasoningEffort?: string; modelVerbosity?: string };
+    };
+
+    expect(body.prompt).toBe("Improve this");
+    expect(body.thread_id).toBe("thread_abc123");
+    expect(body.thread_options?.modelReasoningEffort).toBe("high");
+    expect(body.thread_options?.modelVerbosity).toBe("low");
+    expect(onError).not.toHaveBeenCalled();
+    expect(onDelta).toHaveBeenCalledWith("configured");
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it("omits empty thread_id and missing thread_options from enhance payload", async () => {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "valid-token",
+          expires_at: nowSeconds + 3600,
+        },
+      },
+      error: null,
+    });
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(streamingResponse("default"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { streamEnhance } = await import("@/lib/ai-client");
+
+    await streamEnhance({
+      prompt: "Improve this",
+      threadId: "   ",
+      onDelta: vi.fn(),
+      onDone: vi.fn(),
+      onError: vi.fn(),
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const request = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const body = JSON.parse((request.body as string) || "{}") as Record<string, unknown>;
+
+    expect(body).toEqual({ prompt: "Improve this" });
+  });
 });

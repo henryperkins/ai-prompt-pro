@@ -82,10 +82,12 @@ npm install
 export OPENAI_API_KEY="<your-openai-api-key>"
 # Optional Codex SDK overrides
 # export OPENAI_BASE_URL="https://api.openai.com/v1"
-# export CODEX_MODEL="gpt-5-codex"
+# export CODEX_MODEL="gpt-5.2-codex"
 # export CODEX_SANDBOX_MODE="workspace-write"   # read-only|workspace-write|danger-full-access
 # export CODEX_WORKING_DIRECTORY="/absolute/path/to/repo"
 # export CODEX_SKIP_GIT_REPO_CHECK="true"
+# export CODEX_MODEL_REASONING_EFFORT="medium"  # low|medium|high|xhigh
+# export CODEX_MODEL_VERBOSITY="low"            # low|medium|high
 # export CODEX_NETWORK_ACCESS_ENABLED="true"
 # export CODEX_WEB_SEARCH_MODE="live"           # disabled|cached|live
 # export CODEX_APPROVAL_POLICY="never"          # never|on-request|on-failure|untrusted

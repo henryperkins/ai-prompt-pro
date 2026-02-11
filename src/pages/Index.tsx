@@ -8,7 +8,7 @@ import { ToneControls } from "@/components/ToneControls";
 import { QualityScore } from "@/components/QualityScore";
 import { OutputPanel, type EnhancePhase } from "@/components/OutputPanel";
 import { usePromptBuilder } from "@/hooks/usePromptBuilder";
-import { streamEnhance } from "@/lib/ai-client";
+import { streamEnhance, type EnhanceThreadOptions } from "@/lib/ai-client";
 import { getSectionHealth, type SectionHealthState } from "@/lib/section-health";
 import { hasPromptInput } from "@/lib/prompt-builder";
 import { useToast } from "@/hooks/use-toast";
@@ -84,6 +84,11 @@ function SectionHealthBadge({ state }: { state: SectionHealthState }) {
 }
 
 type BuilderSection = "builder" | "context" | "tone" | "quality";
+
+const ENHANCE_THREAD_OPTIONS: EnhanceThreadOptions = {
+  modelReasoningEffort: "medium",
+  modelVerbosity: "low",
+};
 
 const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -198,6 +203,7 @@ const Index = () => {
     let hasReceivedDelta = false;
     streamEnhance({
       prompt: builtPrompt,
+      threadOptions: ENHANCE_THREAD_OPTIONS,
       onDelta: (text) => {
         if (!hasReceivedDelta) {
           hasReceivedDelta = true;

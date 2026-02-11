@@ -36,6 +36,8 @@ supabase/.temp/
 agent_service/__pycache__/
 __pycache__/
 *.pyc
+.venv/
+*.egg-info/
 
 # Local scratch/session notes
 copilot-session-*.md

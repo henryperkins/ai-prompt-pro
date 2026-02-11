@@ -97,6 +97,30 @@ serve(async (req) => {
       );
     }
 
+    const threadIdRaw = (body as { thread_id?: unknown; threadId?: unknown })?.thread_id
+      ?? (body as { thread_id?: unknown; threadId?: unknown })?.threadId;
+    const threadId = typeof threadIdRaw === "string" ? threadIdRaw.trim() : "";
+    if (threadIdRaw !== undefined && !threadId) {
+      return jsonResponse({ error: "thread_id must be a non-empty string when provided." }, 400, cors.headers);
+    }
+
+    const threadOptionsRaw = (body as { thread_options?: unknown; threadOptions?: unknown })?.thread_options
+      ?? (body as { thread_options?: unknown; threadOptions?: unknown })?.threadOptions;
+    if (
+      threadOptionsRaw !== undefined &&
+      (!threadOptionsRaw || typeof threadOptionsRaw !== "object" || Array.isArray(threadOptionsRaw))
+    ) {
+      return jsonResponse({ error: "thread_options must be an object when provided." }, 400, cors.headers);
+    }
+
+    const agentPayload: Record<string, unknown> = { prompt };
+    if (threadId) {
+      agentPayload.thread_id = threadId;
+    }
+    if (threadOptionsRaw && typeof threadOptionsRaw === "object" && !Array.isArray(threadOptionsRaw)) {
+      agentPayload.thread_options = threadOptionsRaw;
+    }
+
     if (!AGENT_SERVICE_URL) {
       throw new Error("AGENT_SERVICE_URL is not configured");
     }
@@ -111,7 +135,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
         ...(AGENT_SERVICE_TOKEN ? { "x-agent-token": AGENT_SERVICE_TOKEN } : {}),
       },
-      body: JSON.stringify({ prompt }),
+      body: JSON.stringify(agentPayload),
     });
 
     if (!response.ok) {

@@ -35,18 +35,31 @@ AZURE_429_BACKOFF_MAX_SECONDS = max(
     float(os.getenv("AZURE_429_BACKOFF_MAX_SECONDS", "20.0")),
 )
 
-PROMPT_ENHANCER_INSTRUCTIONS = """You are an expert prompt engineer. Your job is to take a structured prompt and enhance it to be more effective, clear, and optimized for large language models.
+PROMPT_ENHANCER_INSTRUCTIONS = """You are an expert prompt engineer. Rewrite the user's draft prompt so it is clearer, more structured, and better for GPT-5.2 class models.
 
-Rules:
-- Keep the original intent perfectly intact
-- Improve clarity, specificity, and structure
-- Add helpful instructions the user may have missed
-- Use clear section headers (Role, Task, Context, Format, Constraints)
-- Be concise but thorough
-- Return ONLY the enhanced prompt text, no explanations or meta-commentary
-- Do not wrap in markdown code blocks
-- Maintain a professional and direct tone
-- Use available tools when useful to verify structure before finalizing"""
+<output_verbosity_spec>
+- Return ONLY the enhanced prompt text.
+- Use concise structure: a short overview plus compact sections/bullets.
+- Avoid long narrative paragraphs and avoid meta-commentary.
+- Do not wrap the result in markdown code fences.
+</output_verbosity_spec>
+
+<design_and_scope_constraints>
+- Preserve the user's intent and constraints exactly.
+- Implement ONLY what the user asked for; no extra features or scope expansion.
+- For frontend/design requests, do not invent new colors, tokens, shadows, animations, or components unless explicitly requested.
+- If ambiguous, choose the simplest valid interpretation.
+</design_and_scope_constraints>
+
+<uncertainty_and_ambiguity>
+- Never fabricate facts, references, IDs, or exact figures.
+- If key details are missing, include an "Assumptions" section with up to 3 concise assumptions.
+</uncertainty_and_ambiguity>
+
+<structure_preferences>
+- Prefer clear sections such as: Role, Task, Context, Format, Constraints.
+- Keep relevant details from the original draft; remove redundancy and contradictions.
+</structure_preferences>"""
 
 CORE_SECTIONS = ("Role", "Task", "Context", "Format", "Constraints")
 
@@ -109,7 +122,7 @@ def _normalize_bool_env(name: str, default: bool = False) -> bool:
     )
 
 
-def _build_agent_tools() -> list[object]:
+def _build_agent_tools(client: AzureOpenAIResponsesClient) -> list[object]:
     tools: list[object] = [inspect_prompt_structure]
     if not _normalize_bool_env("ENABLE_HOSTED_WEB_SEARCH", default=False):
         return tools
@@ -127,7 +140,7 @@ def _build_agent_tools() -> list[object]:
         location_payload["region"] = region.strip()
 
     tools.append(
-        AzureOpenAIResponsesClient.get_web_search_tool(
+        client.get_web_search_tool(
             user_location=location_payload or None,
         )
     )
@@ -268,7 +281,7 @@ def get_agent() -> Any:
     agent_kwargs = {
         "name": "PromptEnhancer",
         "instructions": PROMPT_ENHANCER_INSTRUCTIONS,
-        "tools": _build_agent_tools(),
+        "tools": _build_agent_tools(client),
     }
 
     as_agent = getattr(client, "as_agent", None)

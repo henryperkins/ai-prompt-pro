@@ -324,6 +324,20 @@ function isResponseOutputTextDone(responseType: string | null): boolean {
   return responseType === "response.output_text.done";
 }
 
+export interface EnhanceThreadOptions {
+  model?: string;
+  sandboxMode?: "read-only" | "workspace-write" | "danger-full-access";
+  workingDirectory?: string;
+  skipGitRepoCheck?: boolean;
+  modelReasoningEffort?: "low" | "medium" | "high" | "xhigh";
+  modelVerbosity?: "low" | "medium" | "high";
+  networkAccessEnabled?: boolean;
+  webSearchMode?: "disabled" | "cached" | "live";
+  webSearchEnabled?: boolean;
+  approvalPolicy?: "never" | "on-request" | "on-failure" | "untrusted";
+  additionalDirectories?: string[];
+}
+
 function isRenderableItemType(itemType: string | null): boolean {
   if (!itemType) return true;
   const normalized = itemType.trim().toLowerCase();
@@ -478,12 +492,16 @@ export function readSseEventMeta(payload: unknown): {
 
 export async function streamEnhance({
   prompt,
+  threadId,
+  threadOptions,
   onDelta,
   onDone,
   onError,
   onEvent,
 }: {
   prompt: string;
+  threadId?: string;
+  threadOptions?: EnhanceThreadOptions;
   onDelta: (text: string) => void;
   onDone: () => void;
   onError: (error: string) => void;
@@ -498,7 +516,16 @@ export async function streamEnhance({
   }) => void;
 }) {
   try {
-    const resp = await postFunctionWithAuthRecovery("enhance-prompt", { prompt });
+    const payload: Record<string, unknown> = { prompt };
+    const normalizedThreadId = typeof threadId === "string" ? threadId.trim() : "";
+    if (normalizedThreadId) {
+      payload.thread_id = normalizedThreadId;
+    }
+    if (threadOptions && typeof threadOptions === "object") {
+      payload.thread_options = threadOptions;
+    }
+
+    const resp = await postFunctionWithAuthRecovery("enhance-prompt", payload);
 
     if (!resp.body) {
       onError("No response body");

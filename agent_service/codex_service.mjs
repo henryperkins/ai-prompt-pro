@@ -9,9 +9,37 @@ if (!Number.isFinite(MAX_PROMPT_CHARS) || MAX_PROMPT_CHARS <= 0) {
 }
 
 const SANDBOX_MODES = new Set(["read-only", "workspace-write", "danger-full-access"]);
-const REASONING_EFFORTS = new Set(["minimal", "low", "medium", "high", "xhigh"]);
+const REASONING_EFFORTS = new Set(["low", "medium", "high", "xhigh"]);
+const MODEL_VERBOSITIES = new Set(["low", "medium", "high"]);
 const WEB_SEARCH_MODES = new Set(["disabled", "cached", "live"]);
 const APPROVAL_POLICIES = new Set(["never", "on-request", "on-failure", "untrusted"]);
+const PROMPT_ENHANCER_INSTRUCTIONS = [
+  "You are an expert prompt engineer. Rewrite the user's draft prompt so it is clearer, more structured, and better for GPT-5.2 class models.",
+  "",
+  "<output_verbosity_spec>",
+  "- Return ONLY the enhanced prompt text.",
+  "- Use concise structure: a short overview plus compact sections/bullets.",
+  "- Avoid long narrative paragraphs and avoid meta-commentary.",
+  "- Do not wrap the result in markdown code fences.",
+  "</output_verbosity_spec>",
+  "",
+  "<design_and_scope_constraints>",
+  "- Preserve the user's intent and constraints exactly.",
+  "- Implement ONLY what the user asked for; no extra features or scope expansion.",
+  "- For frontend/design requests, do not invent new colors, tokens, shadows, animations, or components unless explicitly requested.",
+  "- If ambiguous, choose the simplest valid interpretation.",
+  "</design_and_scope_constraints>",
+  "",
+  "<uncertainty_and_ambiguity>",
+  "- Never fabricate facts, references, IDs, or exact figures.",
+  "- If key details are missing, include an \"Assumptions\" section with up to 3 concise assumptions.",
+  "</uncertainty_and_ambiguity>",
+  "",
+  "<structure_preferences>",
+  "- Prefer clear sections such as: Role, Task, Context, Format, Constraints.",
+  "- Keep relevant details from the original draft; remove redundancy and contradictions.",
+  "</structure_preferences>",
+].join("\n");
 
 function normalizeEnvValue(name) {
   const value = process.env[name];
@@ -124,6 +152,9 @@ const DEFAULT_THREAD_OPTIONS = (() => {
   const modelReasoningEffort = parseEnumEnv("CODEX_MODEL_REASONING_EFFORT", REASONING_EFFORTS);
   if (modelReasoningEffort) options.modelReasoningEffort = modelReasoningEffort;
 
+  const modelVerbosity = parseEnumEnv("CODEX_MODEL_VERBOSITY", MODEL_VERBOSITIES);
+  if (modelVerbosity) options.modelVerbosity = modelVerbosity;
+
   const networkAccessEnabledRaw = normalizeEnvValue("CODEX_NETWORK_ACCESS_ENABLED");
   if (networkAccessEnabledRaw) {
     options.networkAccessEnabled = normalizeBool(networkAccessEnabledRaw, false);
@@ -234,6 +265,10 @@ function asNonEmptyString(value) {
   return trimmed ? trimmed : undefined;
 }
 
+function buildEnhancerInput(prompt) {
+  return `${PROMPT_ENHANCER_INSTRUCTIONS}\n\n<source_prompt>\n${prompt}\n</source_prompt>`;
+}
+
 function extractThreadOptions(input) {
   if (!input || typeof input !== "object" || Array.isArray(input)) return {};
   const source = input;
@@ -256,6 +291,9 @@ function extractThreadOptions(input) {
     REASONING_EFFORTS.has(source.modelReasoningEffort)
   ) {
     options.modelReasoningEffort = source.modelReasoningEffort;
+  }
+  if (typeof source.modelVerbosity === "string" && MODEL_VERBOSITIES.has(source.modelVerbosity)) {
+    options.modelVerbosity = source.modelVerbosity;
   }
   if (typeof source.networkAccessEnabled === "boolean") {
     options.networkAccessEnabled = source.networkAccessEnabled;
@@ -335,7 +373,9 @@ async function streamWithCodex(req, res, body) {
     const thread = requestedThreadId
       ? codex.resumeThread(requestedThreadId, threadOptions)
       : codex.startThread(threadOptions);
-    const { events } = await thread.runStreamed(prompt, { signal: controller.signal });
+    const { events } = await thread.runStreamed(buildEnhancerInput(prompt), {
+      signal: controller.signal,
+    });
 
     let activeThreadId = requestedThreadId || null;
 
