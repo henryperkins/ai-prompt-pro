@@ -28,15 +28,15 @@ describe("buildPrompt", () => {
     expect(buildPrompt(buildConfig())).toBe("");
   });
 
-  it("includes default tone/complexity after meaningful input exists", () => {
+  it("omits default tone/complexity when user has not changed them", () => {
     const prompt = buildPrompt(
       buildConfig({
         originalPrompt: "Explain this architecture.",
       }),
     );
 
-    expect(prompt).toContain("Use a professional tone");
-    expect(prompt).toContain("Target moderate complexity level");
+    expect(prompt).not.toContain("Use a professional tone");
+    expect(prompt).not.toContain("Target moderate complexity level");
   });
 
   it("includes tone constraints when user explicitly changes tone", () => {

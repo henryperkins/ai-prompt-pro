@@ -2,13 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { CommunityPostDetail } from "@/components/community/CommunityPostDetail";
-import { Header } from "@/components/Header";
+import { PageShell } from "@/components/PageShell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { useTheme } from "@/hooks/useTheme";
 import {
   type CommunityPost as CommunityPostType,
   type CommunityProfile,
@@ -38,7 +37,6 @@ const CommunityPost = () => {
   const requestToken = useRef(0);
   const { toast } = useToast();
   const { user } = useAuth();
-  const { isDark, toggleTheme } = useTheme();
   const [post, setPost] = useState<CommunityPostType | null>(null);
   const [parentPost, setParentPost] = useState<CommunityPostType | null>(null);
   const [remixes, setRemixes] = useState<CommunityPostType[]>([]);
@@ -199,10 +197,7 @@ const CommunityPost = () => {
   const postAuthorName = postAuthor?.displayName || "Community member";
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Header isDark={isDark} onToggleTheme={toggleTheme} />
-
-      <main className="flex-1 container mx-auto px-4 py-4 sm:py-6">
+    <PageShell>
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <Button asChild variant="outline" size="sm" className="h-8 text-xs">
             <Link to="/community">
@@ -253,8 +248,7 @@ const CommunityPost = () => {
             onSaveToLibrary={handleSaveToLibrary}
           />
         )}
-      </main>
-    </div>
+    </PageShell>
   );
 };
 

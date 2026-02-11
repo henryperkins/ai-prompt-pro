@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Search } from "lucide-react";
-import { Header } from "@/components/Header";
 import { CommunityFeed } from "@/components/community/CommunityFeed";
+import { PageShell, PageHero } from "@/components/PageShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { useTheme } from "@/hooks/useTheme";
 import {
   type CommunityPost,
   type CommunityProfile,
@@ -51,7 +50,6 @@ function toParentTitleMap(posts: CommunityPost[]): Record<string, string> {
 }
 
 const Community = () => {
-  const { isDark, toggleTheme } = useTheme();
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [authorById, setAuthorById] = useState<Record<string, CommunityProfile>>({});
   const [parentTitleById, setParentTitleById] = useState<Record<string, string>>({});
@@ -271,16 +269,11 @@ const Community = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Header isDark={isDark} onToggleTheme={toggleTheme} />
-
-      <main className="flex-1 container mx-auto px-4 py-4 sm:py-6">
-        <div className="delight-hero mb-4 text-center sm:mb-6">
-          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Community Prompt Feed</h1>
-          <p className="mx-auto mt-1 max-w-2xl text-sm text-muted-foreground">
-            Browse developer-focused prompt recipes, filter by domain, and open any post to copy or remix.
-          </p>
-        </div>
+    <PageShell>
+        <PageHero
+          title="Community Prompt Feed"
+          subtitle="Browse developer-focused prompt recipes, filter by domain, and open any post to copy or remix."
+        />
 
         <Card className="mb-4 space-y-3 border-border/80 bg-card/85 p-3 sm:mb-5 sm:p-4">
           <div className="relative">
@@ -353,8 +346,7 @@ const Community = () => {
           isLoadingMore={isLoadingMore}
           onLoadMore={handleLoadMore}
         />
-      </main>
-    </div>
+    </PageShell>
   );
 };
 

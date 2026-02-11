@@ -26,7 +26,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -712,15 +714,20 @@ function PromptList({
               placeholder="Target model (optional)"
               className="bg-background"
             />
-            <label className="flex items-start gap-2 text-xs text-muted-foreground">
-              <input
-                type="checkbox"
+            <div className="flex items-start gap-2">
+              <Checkbox
+                id="library-share-confirm-safe"
                 checked={shareConfirmedSafe}
-                onChange={(event) => setShareConfirmedSafe(event.target.checked)}
+                onCheckedChange={(checked) => setShareConfirmedSafe(checked === true)}
                 className="mt-0.5"
               />
-              <span>I confirm this prompt contains no secrets or private data.</span>
-            </label>
+              <Label
+                htmlFor="library-share-confirm-safe"
+                className="cursor-pointer text-xs leading-snug text-muted-foreground"
+              >
+                I confirm this prompt contains no secrets or private data.
+              </Label>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={handleCloseShareDialog}>

@@ -82,6 +82,11 @@ export interface PromptShareInput {
   useCase?: string;
 }
 
+export interface ShareResult {
+  shared: boolean;
+  postId?: string;
+}
+
 export function getPersistenceErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message.trim()) return error.message;
   return fallback;
@@ -506,7 +511,7 @@ export async function sharePrompt(
   userId: string | null,
   id: string,
   input: PromptShareInput = {},
-): Promise<boolean> {
+): Promise<ShareResult> {
   if (!userId) {
     throw new PersistenceError("unauthorized", "Sign in to share prompts.");
   }
@@ -520,7 +525,7 @@ export async function sharePrompt(
       .maybeSingle();
 
     if (existingError) throw mapPostgrestError(existingError, "Failed to share prompt.");
-    if (!existing) return false;
+    if (!existing) return { shared: false };
 
     const normalizedUseCaseInput = input.useCase !== undefined
       ? normalizeUseCase(input.useCase) ?? ""
@@ -550,7 +555,16 @@ export async function sharePrompt(
       .maybeSingle();
 
     if (error) throw mapPostgrestError(error, "Failed to share prompt.");
-    return !!data;
+    if (!data) return { shared: false };
+
+    // Look up the community post created by the DB trigger
+    const { data: post } = await supabase
+      .from("community_posts")
+      .select("id")
+      .eq("saved_prompt_id", id)
+      .maybeSingle();
+
+    return { shared: true, postId: post?.id };
   } catch (error) {
     throw toPersistenceError(error, "Failed to share prompt.");
   }

@@ -363,11 +363,19 @@ describe("persistence", () => {
       },
     });
 
+    fromMock.mockReturnValueOnce({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: async () => ({ data: { id: "post_1" }, error: null }),
+        }),
+      }),
+    });
+
     await expect(
       sharePrompt("user_1", "tpl_1", {
         useCase: "  Build onboarding emails  ",
       }),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ shared: true, postId: "post_1" });
 
     expect(updatePayload?.use_case).toBe("Build onboarding emails");
     expect(updatePayload?.is_shared).toBe(true);

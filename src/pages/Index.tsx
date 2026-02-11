@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { PromptInput } from "@/components/PromptInput";
 import { BuilderTabs } from "@/components/BuilderTabs";
@@ -31,6 +31,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { ToastAction } from "@/components/ui/toast";
 import type { LucideIcon } from "lucide-react";
 import {
   Sparkles,
@@ -300,6 +301,11 @@ const Index = () => {
         toast({
           title: `Prompt shared: ${result.record.metadata.name}`,
           description: `Revision r${result.record.metadata.revision}.`,
+          action: result.postId ? (
+            <ToastAction altText="View post" asChild>
+              <Link to={`/community/${result.postId}`}>View</Link>
+            </ToastAction>
+          ) : undefined,
         });
         if (remixContext) {
           handleClearRemix();

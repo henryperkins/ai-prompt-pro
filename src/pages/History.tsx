@@ -1,15 +1,13 @@
 import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Header } from "@/components/Header";
+import { PageShell, PageHero } from "@/components/PageShell";
 import { VersionHistoryContent } from "@/components/VersionHistory";
 import { Card } from "@/components/ui/card";
 import { usePromptBuilder } from "@/hooks/usePromptBuilder";
 import { useToast } from "@/hooks/use-toast";
-import { useTheme } from "@/hooks/useTheme";
 import { queueRestoredVersionPrompt } from "@/lib/history-restore";
 
 const History = () => {
-  const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { versions } = usePromptBuilder();
@@ -32,16 +30,11 @@ const History = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Header isDark={isDark} onToggleTheme={toggleTheme} />
-
-      <main className="flex-1 container mx-auto px-4 py-4 sm:py-6">
-        <div className="delight-hero mb-4 text-center sm:mb-6">
-          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Version History</h1>
-          <p className="mx-auto mt-1 max-w-2xl text-sm text-muted-foreground">
-            Restore any previously saved prompt version back into the Builder.
-          </p>
-        </div>
+    <PageShell>
+        <PageHero
+          title="Version History"
+          subtitle="Restore any previously saved prompt version back into the Builder."
+        />
 
         <Card className="border-border/80 bg-card/85 p-3 sm:max-h-[calc(100vh-220px)] sm:overflow-hidden sm:p-4">
           <VersionHistoryContent
@@ -50,8 +43,7 @@ const History = () => {
             className="pr-1 sm:h-full sm:max-h-[calc(100vh-260px)]"
           />
         </Card>
-      </main>
-    </div>
+    </PageShell>
   );
 };
 

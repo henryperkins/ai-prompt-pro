@@ -1,71 +1,35 @@
 {
   "files": {
-    "agent_service/README.md": [
-      "base"
-    ],
-    "src/components/ui/input-otp.tsx": [
+    "src/components/ui/scroll-area.tsx": [
       "@/lib/utils",
-      "input-otp",
+      "@radix-ui/react-scroll-area",
+      "react"
+    ],
+    "src/components/AuthDialog.tsx": [
+      "@/components/ui/button",
+      "@/components/ui/input",
+      "@/components/ui/label",
+      "@/hooks/useAuth",
       "lucide-react",
       "react"
     ],
-    "src/test/setup.ts": [
-      "@testing-library/jest-dom"
+    "src/components/ui/switch.tsx": [
+      "@/lib/utils",
+      "@radix-ui/react-switch",
+      "react"
     ],
-    "src/components/StructuredContextForm.tsx": [
-      "@/components/ui/button",
-      "@/components/ui/input",
-      "@/lib/context-types",
-      "lucide-react",
-      "react",
-      "type"
+    "src/hooks/use-mobile.tsx": [
+      "react"
     ],
     "src/components/ui/badge.tsx": [
       "@/lib/utils",
       "class-variance-authority",
       "react"
     ],
-    "src/lib/template-store.ts": [
-      "@/lib/context-types",
-      "@/lib/prompt-builder",
+    "src/integrations/supabase/client.ts": [
+      "./types",
+      "@supabase/supabase-js",
       "type"
-    ],
-    "src/test/prompt-categories.test.ts": [
-      "vitest"
-    ],
-    "GEMINI.md": [
-      "ContextStream",
-      "built",
-      "fast",
-      "full",
-      "the",
-      "these"
-    ],
-    "src/components/ContextQualityMeter.tsx": [
-      "@/lib/context-types",
-      "lucide-react",
-      "type"
-    ],
-    "src/components/PromptInput.tsx": [
-      "@/components/ui/button",
-      "@/components/ui/textarea",
-      "lucide-react"
-    ],
-    "src/components/ui/pagination.tsx": [
-      "@/components/ui/button",
-      "@/lib/utils",
-      "lucide-react",
-      "react"
-    ],
-    "src/components/community/PromptPreviewPanel.tsx": [
-      "@/components/ui/button",
-      "@/lib/utils",
-      "react"
-    ],
-    "src/components/ui/chart.tsx": [
-      "@/lib/utils",
-      "react",
-      "recharts"
     ],
     "src/pages/Index.tsx": [
       "@/components/BuilderTabs",
@@ -93,45 +57,36 @@
       "the",
       "type"
     ],
-    "src/test/community-load-post.test.ts": [
-      "vitest"
-    ],
-    "src/test/prompt-builder-build.test.ts": [
-      "@/lib/prompt-builder",
-      "vitest"
-    ],
-    "src/test/rls-community-comments.test.ts": [
-      "@supabase/supabase-js",
-      "vitest"
-    ],
-    "src/components/ui/button.tsx": [
-      "@/lib/utils",
-      "@radix-ui/react-slot",
-      "class-variance-authority",
-      "react"
-    ],
-    "src/components/ui/progress.tsx": [
-      "@/lib/utils",
-      "@radix-ui/react-progress",
-      "react"
-    ],
-    "src/components/ContextInterview.tsx": [
-      "@/components/ui/badge",
+    "src/pages/NotFound.tsx": [
+      "@/components/Header",
       "@/components/ui/button",
-      "@/components/ui/input",
-      "@/lib/context-types",
-      "@/lib/utils",
-      "lucide-react",
+      "@/components/ui/card",
+      "@/hooks/useTheme",
       "react",
-      "type"
+      "react-router-dom"
     ],
-    "src/components/community/CommunityPostCard.tsx": [
-      "@/components/community/CommunityComments",
-      "@/components/community/PromptPreviewPanel",
-      "@/components/ui/avatar",
+    "completespec.md": [
+      "case",
+      "saved_prompts"
+    ],
+    "src/test/edge-auth.test.ts": [
+      "../../supabase/functions/_shared/security",
+      "vitest"
+    ],
+    "src/components/ui/accordion.tsx": [
+      "@/lib/utils",
+      "@radix-ui/react-accordion",
+      "lucide-react",
+      "react"
+    ],
+    "src/components/community/CommunityComments.tsx": [
       "@/components/ui/badge",
       "@/components/ui/button",
       "@/components/ui/card",
+      "@/components/ui/skeleton",
+      "@/components/ui/textarea",
+      "@/hooks/use-toast",
+      "@/hooks/useAuth",
       "@/lib/community",
       "@/lib/utils",
       "date-fns",
@@ -139,6 +94,82 @@
       "react",
       "react-router-dom",
       "type"
+    ],
+    "src/components/ui/carousel.tsx": [
+      "@/components/ui/button",
+      "@/lib/utils",
+      "embla-carousel-react",
+      "lucide-react",
+      "react",
+      "useEmblaCarousel"
+    ],
+    "src/test/ai-client-sse.test.ts": [
+      "@/lib/ai-client",
+      "vitest"
+    ],
+    "src/components/ui/command.tsx": [
+      "@/components/ui/dialog",
+      "@/lib/utils",
+      "@radix-ui/react-dialog",
+      "cmdk",
+      "lucide-react",
+      "react"
+    ],
+    "src/pages/History.tsx": [
+      "@/components/Header",
+      "@/components/VersionHistory",
+      "@/components/ui/card",
+      "@/hooks/use-toast",
+      "@/hooks/usePromptBuilder",
+      "@/hooks/useTheme",
+      "@/lib/history-restore",
+      "react",
+      "react-router-dom"
+    ],
+    "src/components/ui/breadcrumb.tsx": [
+      "@/lib/utils",
+      "@radix-ui/react-slot",
+      "lucide-react",
+      "react"
+    ],
+    "src/components/ui/label.tsx": [
+      "@/lib/utils",
+      "@radix-ui/react-label",
+      "class-variance-authority",
+      "react"
+    ],
+    "GEMINI.md": [
+      "ContextStream",
+      "built",
+      "fast",
+      "full",
+      "the",
+      "these"
+    ],
+    "src/test/codex-export.test.ts": [
+      "vitest"
+    ],
+    "src/components/ui/sheet.tsx": [
+      "@/lib/utils",
+      "@radix-ui/react-dialog",
+      "class-variance-authority",
+      "lucide-react",
+      "react"
+    ],
+    "src/components/ui/toaster.tsx": [
+      "@/components/ui/toast",
+      "@/hooks/use-toast"
+    ],
+    "src/components/ui/toggle-group.tsx": [
+      "@/components/ui/toggle",
+      "@/lib/utils",
+      "@radix-ui/react-toggle-group",
+      "class-variance-authority",
+      "react"
+    ],
+    "src/components/ui/input.tsx": [
+      "@/lib/utils",
+      "react"
     ],
     "src/components/ContextSourceChips.tsx": [
       "@/components/ui/badge",
@@ -152,34 +183,72 @@
       "react",
       "type"
     ],
-    "src/components/ui/aspect-ratio.tsx": [
-      "@radix-ui/react-aspect-ratio"
-    ],
-    "src/test/prompt-library-delete-confirm.test.tsx": [
-      "@/components/PromptLibrary",
-      "@/lib/persistence",
-      "@testing-library/react",
-      "type",
-      "vitest"
-    ],
-    "src/components/ui/toast.tsx": [
+    "src/components/ui/dropdown-menu.tsx": [
       "@/lib/utils",
-      "@radix-ui/react-toast",
-      "class-variance-authority",
+      "@radix-ui/react-dropdown-menu",
       "lucide-react",
       "react"
     ],
-    "src/components/Header.tsx": [
-      "@/components/AuthDialog",
-      "@/components/ui/avatar",
-      "@/components/ui/button",
-      "@/hooks/useAuth",
-      "lucide-react",
+    "vitest.config.ts": [
+      "@vitejs/plugin-react-swc",
+      "path",
       "react",
-      "react-router-dom"
+      "vitest/config"
     ],
     "src/components/ui/card.tsx": [
       "@/lib/utils",
+      "react"
+    ],
+    "agent_service/README.md": [
+      "base"
+    ],
+    "src/components/community/CommunityFeed.tsx": [
+      "@/components/community/CommunityPostCard",
+      "@/components/ui/button",
+      "@/components/ui/card",
+      "@/components/ui/skeleton",
+      "@/lib/community",
+      "react-router-dom",
+      "type"
+    ],
+    "src/components/StructuredContextForm.tsx": [
+      "@/components/ui/button",
+      "@/components/ui/input",
+      "@/lib/context-types",
+      "lucide-react",
+      "react",
+      "type"
+    ],
+    "src/components/BuilderTabs.tsx": [
+      "@/components/ui/badge",
+      "@/components/ui/checkbox",
+      "@/components/ui/input",
+      "@/components/ui/label",
+      "@/components/ui/select",
+      "@/components/ui/tabs",
+      "@/components/ui/textarea",
+      "@/lib/utils",
+      "lucide-react"
+    ],
+    "agentskills.md": [
+      "a",
+      "the"
+    ],
+    "src/components/ui/drawer.tsx": [
+      "@/lib/utils",
+      "react",
+      "vaul"
+    ],
+    "src/components/ui/menubar.tsx": [
+      "@/lib/utils",
+      "@radix-ui/react-menubar",
+      "lucide-react",
+      "react"
+    ],
+    "src/components/ui/input-otp.tsx": [
+      "@/lib/utils",
+      "input-otp",
+      "lucide-react",
       "react"
     ],
     "appserver.md": [
@@ -188,46 +257,117 @@
       "it",
       "the"
     ],
-    "src/components/ui/calendar.tsx": [
-      "@/components/ui/button",
-      "@/lib/utils",
-      "lucide-react",
-      "react",
-      "react-day-picker"
+    "src/lib/persistence.ts": [
+      "@/integrations/supabase/client",
+      "@/integrations/supabase/types",
+      "@/lib/community",
+      "@/lib/prompt-builder",
+      "@/lib/prompt-categories",
+      "@supabase/supabase-js",
+      "type"
+    ],
+    "src/main.tsx": [
+      "./App.tsx",
+      "./index.css",
+      "@fontsource-variable/inconsolata/wght.css",
+      "@fontsource-variable/work-sans/wght.css",
+      "App",
+      "react-dom/client"
     ],
     "supabase/functions/extract-url/index.ts": [
       "https://deno.land/std@0.168.0/http/server.ts"
     ],
-    "src/components/OutputPanel.tsx": [
-      "@/components/ui/button",
-      "@/components/ui/card",
-      "@/components/ui/checkbox",
-      "@/components/ui/input",
-      "@/components/ui/label",
-      "@/components/ui/textarea",
-      "@/hooks/use-toast",
-      "@/lib/prompt-categories",
-      "@/lib/text-diff",
+    "src/test/prompt-builder-input.test.ts": [
+      "@/lib/prompt-builder",
+      "vitest"
+    ],
+    "src/components/ui/navigation-menu.tsx": [
       "@/lib/utils",
+      "@radix-ui/react-navigation-menu",
+      "class-variance-authority",
       "lucide-react",
       "react"
     ],
-    "src/lib/utils.ts": [
-      "clsx",
-      "tailwind-merge"
+    "src/components/ui/avatar.tsx": [
+      "@/lib/utils",
+      "@radix-ui/react-avatar",
+      "react"
     ],
-    "src/components/ui/skeleton.tsx": [
-      "@/lib/utils"
+    "src/test/prompt-library-delete-confirm.test.tsx": [
+      "@/components/PromptLibrary",
+      "@/lib/persistence",
+      "@testing-library/react",
+      "type",
+      "vitest"
     ],
-    "src/App.tsx": [
-      "@/components/ui/sonner",
-      "@/components/ui/toaster",
-      "@/components/ui/tooltip",
+    "src/components/ui/hover-card.tsx": [
+      "@/lib/utils",
+      "@radix-ui/react-hover-card",
+      "react"
+    ],
+    "agentloop.md": [
+      "for",
+      "is",
+      "it",
+      "of",
+      "skills",
+      "the"
+    ],
+    "src/components/ui/dialog.tsx": [
+      "@/lib/utils",
+      "@radix-ui/react-dialog",
+      "lucide-react",
+      "react"
+    ],
+    "design-ux-review-report.md": [
+      "responsive"
+    ],
+    "README.md": [
+      "base_url"
+    ],
+    "src/components/ui/toggle.tsx": [
+      "@/lib/utils",
+      "@radix-ui/react-toggle",
+      "class-variance-authority",
+      "react"
+    ],
+    "src/components/ContextQualityMeter.tsx": [
+      "@/lib/context-types",
+      "lucide-react",
+      "type"
+    ],
+    "src/hooks/usePromptBuilder.ts": [
+      "@/hooks/use-toast",
       "@/hooks/useAuth",
-      "@/hooks/useTheme",
-      "@tanstack/react-query",
+      "@/lib/community",
+      "@/lib/context-types",
+      "@/lib/persistence",
+      "@/lib/prompt-builder",
       "react",
-      "react-router-dom"
+      "type"
+    ],
+    "skillsspec.md": [
+      "it",
+      "of",
+      "relative",
+      "this"
+    ],
+    "src/components/ui/use-toast.ts": [
+      "@/hooks/use-toast"
+    ],
+    "src/components/ContextInterview.tsx": [
+      "@/components/ui/badge",
+      "@/components/ui/button",
+      "@/components/ui/input",
+      "@/lib/context-types",
+      "@/lib/utils",
+      "lucide-react",
+      "react",
+      "type"
+    ],
+    "src/test/persistence.test.ts": [
+      "@/lib/prompt-builder",
+      "vitest"
     ],
     "agent_service/main.py": [
       "Annotated",
@@ -258,556 +398,9 @@
       "uuid",
       "uuid4"
     ],
-    "agentloop.md": [
-      "for",
-      "is",
-      "it",
-      "of",
-      "skills",
-      "the"
-    ],
-    "tailwind.config.ts": [
-      "tailwindcss",
-      "tailwindcss-animate",
-      "tailwindcssAnimate",
-      "type"
-    ],
-    "src/components/ui/navigation-menu.tsx": [
-      "@/lib/utils",
-      "@radix-ui/react-navigation-menu",
-      "class-variance-authority",
-      "lucide-react",
-      "react"
-    ],
-    "src/components/ui/toaster.tsx": [
-      "@/components/ui/toast",
-      "@/hooks/use-toast"
-    ],
-    "src/pages/CommunityPost.tsx": [
-      "@/components/Header",
-      "@/components/community/CommunityPostDetail",
-      "@/components/ui/button",
-      "@/components/ui/card",
-      "@/components/ui/skeleton",
-      "@/hooks/use-toast",
-      "@/hooks/useAuth",
-      "@/hooks/useTheme",
-      "lucide-react",
-      "react",
-      "react-router-dom"
-    ],
-    "src/test/prompt-builder-input.test.ts": [
-      "@/lib/prompt-builder",
-      "vitest"
-    ],
-    "src/components/QualityScore.tsx": [
-      "@/components/ui/card",
-      "@/components/ui/progress",
-      "lucide-react"
-    ],
-    "src/components/ui/label.tsx": [
-      "@/lib/utils",
-      "@radix-ui/react-label",
-      "class-variance-authority",
-      "react"
-    ],
     "src/hooks/useAuth.tsx": [
       "@/integrations/supabase/client",
       "@supabase/supabase-js",
-      "type"
-    ],
-    "src/components/ui/form.tsx": [
-      "@/components/ui/label",
-      "@/lib/utils",
-      "@radix-ui/react-label",
-      "@radix-ui/react-slot",
-      "react",
-      "react-hook-form"
-    ],
-    "src/test/persistence.test.ts": [
-      "@/lib/prompt-builder",
-      "vitest"
-    ],
-    "src/components/PromptLibrary.tsx": [
-      "@/components/ui/badge",
-      "@/components/ui/button",
-      "@/components/ui/card",
-      "@/components/ui/input",
-      "@/components/ui/textarea",
-      "@/hooks/use-mobile",
-      "@/lib/persistence",
-      "@/lib/prompt-categories",
-      "@/lib/templates",
-      "@/lib/utils",
-      "react",
-      "react-router-dom",
-      "type"
-    ],
-    "src/test/text-diff.test.ts": [
-      "@/lib/text-diff",
-      "vitest"
-    ],
-    "src/test/ai-client-sse.test.ts": [
-      "@/lib/ai-client",
-      "vitest"
-    ],
-    "src/test/ai-client-auth.test.ts": [
-      "vitest"
-    ],
-    "src/test/example.test.ts": [
-      "vitest"
-    ],
-    "README.md": [
-      "base_url"
-    ],
-    "src/components/ui/resizable.tsx": [
-      "@/lib/utils",
-      "lucide-react",
-      "react-resizable-panels"
-    ],
-    "design-ux-review-report.md": [
-      "responsive"
-    ],
-    "src/test/history-page-restore.test.tsx": [
-      "@/hooks/useTheme",
-      "@/pages/History",
-      "@testing-library/react",
-      "History",
-      "react-router-dom",
-      "vitest"
-    ],
-    "src/components/ui/collapsible.tsx": [
-      "@radix-ui/react-collapsible"
-    ],
-    "src/components/ui/checkbox.tsx": [
-      "@/lib/utils",
-      "@radix-ui/react-checkbox",
-      "lucide-react",
-      "react"
-    ],
-    "src/components/AuthDialog.tsx": [
-      "@/components/ui/button",
-      "@/components/ui/input",
-      "@/components/ui/label",
-      "@/hooks/useAuth",
-      "lucide-react",
-      "react"
-    ],
-    "src/components/VersionHistory.tsx": [
-      "@/components/ui/button",
-      "@/components/ui/card",
-      "lucide-react",
-      "react-router-dom"
-    ],
-    "src/components/ContextPanel.tsx": [
-      "@/components/ContextIntegrations",
-      "@/components/ContextInterview",
-      "@/components/ContextQualityMeter",
-      "@/components/ContextSourceChips",
-      "@/components/ProjectNotes",
-      "@/components/StructuredContextForm",
-      "@/components/ui/label",
-      "@/components/ui/switch",
-      "@/components/ui/tabs",
-      "type"
-    ],
-    "src/components/ui/alert.tsx": [
-      "@/lib/utils",
-      "class-variance-authority",
-      "react"
-    ],
-    "src/components/ui/context-menu.tsx": [
-      "@/lib/utils",
-      "@radix-ui/react-context-menu",
-      "lucide-react",
-      "react"
-    ],
-    "AGENTS.md": [
-      "symbol"
-    ],
-    "vite.config.ts": [
-      "@vitejs/plugin-react-swc",
-      "lovable-tagger",
-      "path",
-      "react",
-      "vite"
-    ],
-    "src/components/ui/accordion.tsx": [
-      "@/lib/utils",
-      "@radix-ui/react-accordion",
-      "lucide-react",
-      "react"
-    ],
-    "src/components/ui/sheet.tsx": [
-      "@/lib/utils",
-      "@radix-ui/react-dialog",
-      "class-variance-authority",
-      "lucide-react",
-      "react"
-    ],
-    "src/lib/section-health.ts": [
-      "@/lib/prompt-builder",
-      "type"
-    ],
-    "src/test/section-health.test.ts": [
-      "@/lib/prompt-builder",
-      "@/lib/section-health",
-      "vitest"
-    ],
-    "src/components/ui/sidebar.tsx": [
-      "@/components/ui/button",
-      "@/components/ui/input",
-      "@/components/ui/separator",
-      "@/components/ui/sheet",
-      "@/components/ui/skeleton",
-      "@/components/ui/tooltip",
-      "@/hooks/use-mobile",
-      "@/lib/utils",
-      "@radix-ui/react-slot",
-      "class-variance-authority",
-      "lucide-react",
-      "react"
-    ],
-    "src/components/ui/table.tsx": [
-      "@/lib/utils",
-      "react"
-    ],
-    "src/components/ContextIntegrations.tsx": [
-      "@/components/ui/badge",
-      "@/components/ui/button",
-      "@/components/ui/input",
-      "@/components/ui/label",
-      "@/components/ui/select",
-      "@/components/ui/switch",
-      "@/lib/context-types",
-      "lucide-react",
-      "react",
-      "type"
-    ],
-    "src/test/usePromptBuilder.test.tsx": [
-      "@/lib/prompt-builder",
-      "@testing-library/react",
-      "vitest"
-    ],
-    "src/components/ui/textarea.tsx": [
-      "@/lib/utils",
-      "react"
-    ],
-    "src/components/ui/separator.tsx": [
-      "@/lib/utils",
-      "@radix-ui/react-separator",
-      "react"
-    ],
-    "completespec.md": [
-      "case",
-      "saved_prompts"
-    ],
-    "src/lib/saved-prompt-shared.ts": [
-      "@/integrations/supabase/types",
-      "@supabase/supabase-js",
-      "type"
-    ],
-    "src/components/ProjectNotes.tsx": [
-      "@/components/ui/textarea",
-      "lucide-react"
-    ],
-    "src/hooks/use-mobile.tsx": [
-      "react"
-    ],
-    "src/components/ui/toggle.tsx": [
-      "@/lib/utils",
-      "@radix-ui/react-toggle",
-      "class-variance-authority",
-      "react"
-    ],
-    "src/integrations/supabase/client.ts": [
-      "./types",
-      "@supabase/supabase-js",
-      "type"
-    ],
-    "skillsspec.md": [
-      "it",
-      "of",
-      "relative",
-      "this"
-    ],
-    "src/test/index-remix-param.test.tsx": [
-      "@/hooks/useTheme",
-      "@/lib/prompt-builder",
-      "@testing-library/react",
-      "react",
-      "react-router-dom",
-      "type",
-      "vitest"
-    ],
-    "src/components/ui/use-toast.ts": [
-      "@/hooks/use-toast"
-    ],
-    "supabase/functions/enhance-prompt/index.ts": [
-      "https://deno.land/std@0.168.0/http/server.ts"
-    ],
-    "src/components/ui/slider.tsx": [
-      "@/lib/utils",
-      "@radix-ui/react-slider",
-      "react"
-    ],
-    "src/components/ToneControls.tsx": [
-      "@/components/ui/button",
-      "@/lib/prompt-builder"
-    ],
-    "src/pages/Community.tsx": [
-      "@/components/Header",
-      "@/components/community/CommunityFeed",
-      "@/components/ui/badge",
-      "@/components/ui/button",
-      "@/components/ui/card",
-      "@/components/ui/input",
-      "@/hooks/use-toast",
-      "@/hooks/useAuth",
-      "@/hooks/useTheme",
-      "@/lib/prompt-categories",
-      "lucide-react",
-      "react"
-    ],
-    "src/test/template-store.test.ts": [
-      "@/lib/prompt-builder",
-      "vitest"
-    ],
-    "src/test/rls-community-votes.test.ts": [
-      "@supabase/supabase-js",
-      "vitest"
-    ],
-    "src/components/community/CommunityFeed.tsx": [
-      "@/components/community/CommunityPostCard",
-      "@/components/ui/button",
-      "@/components/ui/card",
-      "@/components/ui/skeleton",
-      "@/lib/community",
-      "react-router-dom",
-      "type"
-    ],
-    "src/components/community/CommunityComments.tsx": [
-      "@/components/ui/badge",
-      "@/components/ui/button",
-      "@/components/ui/card",
-      "@/components/ui/skeleton",
-      "@/components/ui/textarea",
-      "@/hooks/use-toast",
-      "@/hooks/useAuth",
-      "@/lib/community",
-      "@/lib/utils",
-      "date-fns",
-      "lucide-react",
-      "react",
-      "react-router-dom",
-      "type"
-    ],
-    "src/components/ui/tooltip.tsx": [
-      "@/lib/utils",
-      "@radix-ui/react-tooltip",
-      "react"
-    ],
-    "src/components/ui/tabs.tsx": [
-      "@/lib/utils",
-      "@radix-ui/react-tabs",
-      "react"
-    ],
-    "src/hooks/use-toast.ts": [
-      "@/components/ui/toast",
-      "react",
-      "type"
-    ],
-    "src/components/ui/hover-card.tsx": [
-      "@/lib/utils",
-      "@radix-ui/react-hover-card",
-      "react"
-    ],
-    "src/components/NavLink.tsx": [
-      "@/lib/utils",
-      "react",
-      "react-router-dom"
-    ],
-    "src/components/BuilderTabs.tsx": [
-      "@/components/ui/badge",
-      "@/components/ui/checkbox",
-      "@/components/ui/input",
-      "@/components/ui/label",
-      "@/components/ui/select",
-      "@/components/ui/tabs",
-      "@/components/ui/textarea",
-      "@/lib/utils",
-      "lucide-react"
-    ],
-    "src/pages/NotFound.tsx": [
-      "@/components/Header",
-      "@/components/ui/button",
-      "@/components/ui/card",
-      "@/hooks/useTheme",
-      "react",
-      "react-router-dom"
-    ],
-    "src/components/ui/dialog.tsx": [
-      "@/lib/utils",
-      "@radix-ui/react-dialog",
-      "lucide-react",
-      "react"
-    ],
-    "eslint.config.js": [
-      "@eslint/js",
-      "eslint-plugin-react-hooks",
-      "eslint-plugin-react-refresh",
-      "globals",
-      "js",
-      "reactHooks",
-      "reactRefresh",
-      "tseslint",
-      "typescript-eslint"
-    ],
-    "src/lib/persistence.ts": [
-      "@/integrations/supabase/client",
-      "@/integrations/supabase/types",
-      "@/lib/community",
-      "@/lib/prompt-builder",
-      "@/lib/prompt-categories",
-      "@supabase/supabase-js",
-      "type"
-    ],
-    "src/components/ui/breadcrumb.tsx": [
-      "@/lib/utils",
-      "@radix-ui/react-slot",
-      "lucide-react",
-      "react"
-    ],
-    "src/components/community/CommunityPostDetail.tsx": [
-      "@/components/community/CommunityComments",
-      "@/components/community/PromptPreviewPanel",
-      "@/components/ui/avatar",
-      "@/components/ui/badge",
-      "@/components/ui/button",
-      "@/components/ui/card",
-      "@/lib/community",
-      "date-fns",
-      "react-router-dom",
-      "type"
-    ],
-    "src/main.tsx": [
-      "./App.tsx",
-      "./index.css",
-      "@fontsource-variable/inconsolata/wght.css",
-      "@fontsource-variable/work-sans/wght.css",
-      "App",
-      "react-dom/client"
-    ],
-    "src/test/history-restore.test.ts": [
-      "@/lib/history-restore",
-      "vitest"
-    ],
-    "src/pages/History.tsx": [
-      "@/components/Header",
-      "@/components/VersionHistory",
-      "@/components/ui/card",
-      "@/hooks/use-toast",
-      "@/hooks/usePromptBuilder",
-      "@/hooks/useTheme",
-      "@/lib/history-restore",
-      "react",
-      "react-router-dom"
-    ],
-    "src/components/ui/radio-group.tsx": [
-      "@/lib/utils",
-      "@radix-ui/react-radio-group",
-      "lucide-react",
-      "react"
-    ],
-    "src/components/ui/avatar.tsx": [
-      "@/lib/utils",
-      "@radix-ui/react-avatar",
-      "react"
-    ],
-    "src/components/ui/drawer.tsx": [
-      "@/lib/utils",
-      "react",
-      "vaul"
-    ],
-    "src/components/ui/select.tsx": [
-      "@/lib/utils",
-      "@radix-ui/react-select",
-      "lucide-react",
-      "react"
-    ],
-    "src/lib/community.ts": [
-      "@/integrations/supabase/client",
-      "@/integrations/supabase/types",
-      "@/lib/prompt-builder",
-      "@/lib/prompt-categories",
-      "type"
-    ],
-    "src/components/ui/dropdown-menu.tsx": [
-      "@/lib/utils",
-      "@radix-ui/react-dropdown-menu",
-      "lucide-react",
-      "react"
-    ],
-    "src/test/codex-export.test.ts": [
-      "vitest"
-    ],
-    "src/components/ui/input.tsx": [
-      "@/lib/utils",
-      "react"
-    ],
-    "src/lib/prompt-builder.ts": [
-      "@/lib/context-types",
-      "type"
-    ],
-    "src/components/ui/switch.tsx": [
-      "@/lib/utils",
-      "@radix-ui/react-switch",
-      "react"
-    ],
-    "src/components/ui/carousel.tsx": [
-      "@/components/ui/button",
-      "@/lib/utils",
-      "embla-carousel-react",
-      "lucide-react",
-      "react",
-      "useEmblaCarousel"
-    ],
-    "src/components/ui/command.tsx": [
-      "@/components/ui/dialog",
-      "@/lib/utils",
-      "@radix-ui/react-dialog",
-      "cmdk",
-      "lucide-react",
-      "react"
-    ],
-    "src/components/ui/sonner.tsx": [
-      "next-themes",
-      "sonner"
-    ],
-    "src/components/ui/alert-dialog.tsx": [
-      "@/components/ui/button",
-      "@/lib/utils",
-      "@radix-ui/react-alert-dialog",
-      "react"
-    ],
-    "src/lib/ai-client.ts": [
-      "@/integrations/supabase/client"
-    ],
-    "agentskills.md": [
-      "a",
-      "the"
-    ],
-    "src/hooks/useTheme.tsx": [
-      "react"
-    ],
-    "src/hooks/usePromptBuilder.ts": [
-      "@/hooks/use-toast",
-      "@/hooks/useAuth",
-      "@/lib/community",
-      "@/lib/context-types",
-      "@/lib/persistence",
-      "@/lib/prompt-builder",
-      "react",
       "type"
     ],
     "src/pages/Library.tsx": [
@@ -824,27 +417,26 @@
       "react",
       "react-router-dom"
     ],
-    "src/test/edge-auth.test.ts": [
-      "../../supabase/functions/_shared/security",
-      "vitest"
-    ],
-    "vitest.config.ts": [
-      "@vitejs/plugin-react-swc",
-      "path",
-      "react",
-      "vitest/config"
-    ],
-    "src/components/ui/menubar.tsx": [
+    "src/components/ui/select.tsx": [
       "@/lib/utils",
-      "@radix-ui/react-menubar",
+      "@radix-ui/react-select",
       "lucide-react",
       "react"
     ],
-    "src/components/ui/toggle-group.tsx": [
-      "@/components/ui/toggle",
+    "src/components/ui/checkbox.tsx": [
       "@/lib/utils",
-      "@radix-ui/react-toggle-group",
-      "class-variance-authority",
+      "@radix-ui/react-checkbox",
+      "lucide-react",
+      "react"
+    ],
+    "src/components/ui/resizable.tsx": [
+      "@/lib/utils",
+      "lucide-react",
+      "react-resizable-panels"
+    ],
+    "src/components/ui/slider.tsx": [
+      "@/lib/utils",
+      "@radix-ui/react-slider",
       "react"
     ],
     "src/components/ui/popover.tsx": [
@@ -852,80 +444,440 @@
       "@radix-ui/react-popover",
       "react"
     ],
-    "src/components/ui/scroll-area.tsx": [
+    "eslint.config.js": [
+      "@eslint/js",
+      "eslint-plugin-react-hooks",
+      "eslint-plugin-react-refresh",
+      "globals",
+      "js",
+      "reactHooks",
+      "reactRefresh",
+      "tseslint",
+      "typescript-eslint"
+    ],
+    "src/components/ToneControls.tsx": [
+      "@/components/ui/button",
+      "@/lib/prompt-builder"
+    ],
+    "src/components/community/PromptPreviewPanel.tsx": [
+      "@/components/ui/button",
       "@/lib/utils",
-      "@radix-ui/react-scroll-area",
       "react"
+    ],
+    "src/components/ui/tabs.tsx": [
+      "@/lib/utils",
+      "@radix-ui/react-tabs",
+      "react"
+    ],
+    "src/test/section-health.test.ts": [
+      "@/lib/prompt-builder",
+      "@/lib/section-health",
+      "vitest"
+    ],
+    "AGENTS.md": [
+      "symbol"
+    ],
+    "src/test/usePromptBuilder.test.tsx": [
+      "@/lib/prompt-builder",
+      "@testing-library/react",
+      "vitest"
+    ],
+    "src/components/ContextIntegrations.tsx": [
+      "@/components/ui/badge",
+      "@/components/ui/button",
+      "@/components/ui/input",
+      "@/components/ui/label",
+      "@/components/ui/select",
+      "@/components/ui/switch",
+      "@/lib/context-types",
+      "lucide-react",
+      "react",
+      "type"
+    ],
+    "src/components/ui/alert-dialog.tsx": [
+      "@/components/ui/button",
+      "@/lib/utils",
+      "@radix-ui/react-alert-dialog",
+      "react"
+    ],
+    "src/components/ui/calendar.tsx": [
+      "@/components/ui/button",
+      "@/lib/utils",
+      "lucide-react",
+      "react",
+      "react-day-picker"
+    ],
+    "src/test/example.test.ts": [
+      "vitest"
+    ],
+    "src/components/ui/textarea.tsx": [
+      "@/lib/utils",
+      "react"
+    ],
+    "src/components/ui/tooltip.tsx": [
+      "@/lib/utils",
+      "@radix-ui/react-tooltip",
+      "react"
+    ],
+    "src/components/NavLink.tsx": [
+      "@/lib/utils",
+      "react",
+      "react-router-dom"
+    ],
+    "src/test/text-diff.test.ts": [
+      "@/lib/text-diff",
+      "vitest"
+    ],
+    "src/test/ai-client-auth.test.ts": [
+      "vitest"
+    ],
+    "src/lib/ai-client.ts": [
+      "@/integrations/supabase/client"
+    ],
+    "src/components/ui/table.tsx": [
+      "@/lib/utils",
+      "react"
+    ],
+    "src/test/history-restore.test.ts": [
+      "@/lib/history-restore",
+      "vitest"
+    ],
+    "src/lib/saved-prompt-shared.ts": [
+      "@/integrations/supabase/types",
+      "@supabase/supabase-js",
+      "type"
+    ],
+    "src/test/rls-community-comments.test.ts": [
+      "@supabase/supabase-js",
+      "vitest"
+    ],
+    "tailwind.config.ts": [
+      "tailwindcss",
+      "tailwindcss-animate",
+      "tailwindcssAnimate",
+      "type"
+    ],
+    "src/components/ui/skeleton.tsx": [
+      "@/lib/utils"
+    ],
+    "src/lib/template-store.ts": [
+      "@/lib/context-types",
+      "@/lib/prompt-builder",
+      "type"
+    ],
+    "src/components/ui/radio-group.tsx": [
+      "@/lib/utils",
+      "@radix-ui/react-radio-group",
+      "lucide-react",
+      "react"
+    ],
+    "src/hooks/use-toast.ts": [
+      "@/components/ui/toast",
+      "react",
+      "type"
+    ],
+    "supabase/functions/enhance-prompt/index.ts": [
+      "https://deno.land/std@0.168.0/http/server.ts"
+    ],
+    "src/components/ui/sonner.tsx": [
+      "next-themes",
+      "sonner"
+    ],
+    "src/lib/community.ts": [
+      "@/integrations/supabase/client",
+      "@/integrations/supabase/types",
+      "@/lib/prompt-builder",
+      "@/lib/prompt-categories",
+      "type"
+    ],
+    "src/test/template-store.test.ts": [
+      "@/lib/prompt-builder",
+      "vitest"
+    ],
+    "src/components/ui/context-menu.tsx": [
+      "@/lib/utils",
+      "@radix-ui/react-context-menu",
+      "lucide-react",
+      "react"
+    ],
+    "src/components/community/CommunityPostDetail.tsx": [
+      "@/components/community/CommunityComments",
+      "@/components/community/PromptPreviewPanel",
+      "@/components/ui/avatar",
+      "@/components/ui/badge",
+      "@/components/ui/button",
+      "@/components/ui/card",
+      "@/lib/community",
+      "date-fns",
+      "react-router-dom",
+      "type"
+    ],
+    "src/test/community-load-post.test.ts": [
+      "vitest"
+    ],
+    "src/hooks/useTheme.tsx": [
+      "react"
+    ],
+    "src/test/history-page-restore.test.tsx": [
+      "@/hooks/useTheme",
+      "@/pages/History",
+      "@testing-library/react",
+      "History",
+      "react-router-dom",
+      "vitest"
+    ],
+    "src/components/OutputPanel.tsx": [
+      "@/components/ui/button",
+      "@/components/ui/card",
+      "@/components/ui/checkbox",
+      "@/components/ui/input",
+      "@/components/ui/label",
+      "@/components/ui/textarea",
+      "@/hooks/use-toast",
+      "@/lib/prompt-categories",
+      "@/lib/text-diff",
+      "@/lib/utils",
+      "lucide-react",
+      "react"
+    ],
+    "src/test/setup.ts": [
+      "@testing-library/jest-dom"
+    ],
+    "main.py": [
+      "agent_service.main",
+      "app"
+    ],
+    "src/components/ui/separator.tsx": [
+      "@/lib/utils",
+      "@radix-ui/react-separator",
+      "react"
+    ],
+    "src/lib/prompt-builder.ts": [
+      "@/lib/context-types",
+      "type"
+    ],
+    "src/components/PromptLibrary.tsx": [
+      "@/components/ui/badge",
+      "@/components/ui/button",
+      "@/components/ui/card",
+      "@/components/ui/input",
+      "@/components/ui/textarea",
+      "@/hooks/use-mobile",
+      "@/lib/persistence",
+      "@/lib/prompt-categories",
+      "@/lib/templates",
+      "@/lib/utils",
+      "react",
+      "react-router-dom",
+      "type"
+    ],
+    "src/lib/utils.ts": [
+      "clsx",
+      "tailwind-merge"
+    ],
+    "src/components/community/CommunityPostCard.tsx": [
+      "@/components/community/CommunityComments",
+      "@/components/community/PromptPreviewPanel",
+      "@/components/ui/avatar",
+      "@/components/ui/badge",
+      "@/components/ui/button",
+      "@/components/ui/card",
+      "@/lib/community",
+      "@/lib/utils",
+      "date-fns",
+      "lucide-react",
+      "react",
+      "react-router-dom",
+      "type"
+    ],
+    "src/components/ui/toast.tsx": [
+      "@/lib/utils",
+      "@radix-ui/react-toast",
+      "class-variance-authority",
+      "lucide-react",
+      "react"
+    ],
+    "src/components/ContextPanel.tsx": [
+      "@/components/ContextIntegrations",
+      "@/components/ContextInterview",
+      "@/components/ContextQualityMeter",
+      "@/components/ContextSourceChips",
+      "@/components/ProjectNotes",
+      "@/components/StructuredContextForm",
+      "@/components/ui/label",
+      "@/components/ui/switch",
+      "@/components/ui/tabs",
+      "type"
+    ],
+    "src/pages/CommunityPost.tsx": [
+      "@/components/Header",
+      "@/components/community/CommunityPostDetail",
+      "@/components/ui/button",
+      "@/components/ui/card",
+      "@/components/ui/skeleton",
+      "@/hooks/use-toast",
+      "@/hooks/useAuth",
+      "@/hooks/useTheme",
+      "lucide-react",
+      "react",
+      "react-router-dom"
+    ],
+    "src/components/ui/chart.tsx": [
+      "@/lib/utils",
+      "react",
+      "recharts"
+    ],
+    "src/components/ui/progress.tsx": [
+      "@/lib/utils",
+      "@radix-ui/react-progress",
+      "react"
+    ],
+    "vite.config.ts": [
+      "@vitejs/plugin-react-swc",
+      "lovable-tagger",
+      "path",
+      "react",
+      "vite"
+    ],
+    "src/components/Header.tsx": [
+      "@/components/AuthDialog",
+      "@/components/ui/avatar",
+      "@/components/ui/button",
+      "@/hooks/useAuth",
+      "lucide-react",
+      "react",
+      "react-router-dom"
+    ],
+    "src/test/prompt-categories.test.ts": [
+      "vitest"
+    ],
+    "src/App.tsx": [
+      "@/components/ui/sonner",
+      "@/components/ui/toaster",
+      "@/components/ui/tooltip",
+      "@/hooks/useAuth",
+      "@/hooks/useTheme",
+      "@tanstack/react-query",
+      "react",
+      "react-router-dom"
+    ],
+    "src/components/ui/form.tsx": [
+      "@/components/ui/label",
+      "@/lib/utils",
+      "@radix-ui/react-label",
+      "@radix-ui/react-slot",
+      "react",
+      "react-hook-form"
+    ],
+    "src/components/QualityScore.tsx": [
+      "@/components/ui/card",
+      "@/components/ui/progress",
+      "lucide-react"
+    ],
+    "src/test/prompt-builder-build.test.ts": [
+      "@/lib/prompt-builder",
+      "vitest"
+    ],
+    "src/components/PromptInput.tsx": [
+      "@/components/ui/button",
+      "@/components/ui/textarea",
+      "lucide-react"
+    ],
+    "src/components/ui/sidebar.tsx": [
+      "@/components/ui/button",
+      "@/components/ui/input",
+      "@/components/ui/separator",
+      "@/components/ui/sheet",
+      "@/components/ui/skeleton",
+      "@/components/ui/tooltip",
+      "@/hooks/use-mobile",
+      "@/lib/utils",
+      "@radix-ui/react-slot",
+      "class-variance-authority",
+      "lucide-react",
+      "react"
+    ],
+    "src/lib/section-health.ts": [
+      "@/lib/prompt-builder",
+      "type"
+    ],
+    "src/pages/Community.tsx": [
+      "@/components/Header",
+      "@/components/community/CommunityFeed",
+      "@/components/ui/badge",
+      "@/components/ui/button",
+      "@/components/ui/card",
+      "@/components/ui/input",
+      "@/hooks/use-toast",
+      "@/hooks/useAuth",
+      "@/hooks/useTheme",
+      "@/lib/prompt-categories",
+      "lucide-react",
+      "react"
+    ],
+    "src/components/ui/aspect-ratio.tsx": [
+      "@radix-ui/react-aspect-ratio"
+    ],
+    "src/test/index-remix-param.test.tsx": [
+      "@/hooks/useTheme",
+      "@/lib/prompt-builder",
+      "@testing-library/react",
+      "react",
+      "react-router-dom",
+      "type",
+      "vitest"
+    ],
+    "src/components/ui/alert.tsx": [
+      "@/lib/utils",
+      "class-variance-authority",
+      "react"
+    ],
+    "src/components/ui/button.tsx": [
+      "@/lib/utils",
+      "@radix-ui/react-slot",
+      "class-variance-authority",
+      "react"
+    ],
+    "src/components/ui/collapsible.tsx": [
+      "@radix-ui/react-collapsible"
+    ],
+    "src/test/rls-community-votes.test.ts": [
+      "@supabase/supabase-js",
+      "vitest"
+    ],
+    "src/components/ui/pagination.tsx": [
+      "@/components/ui/button",
+      "@/lib/utils",
+      "lucide-react",
+      "react"
+    ],
+    "src/components/VersionHistory.tsx": [
+      "@/components/ui/button",
+      "@/components/ui/card",
+      "lucide-react",
+      "react-router-dom"
+    ],
+    "src/components/ProjectNotes.tsx": [
+      "@/components/ui/textarea",
+      "lucide-react"
     ]
   },
   "exports": {
-    "src/components/ProjectNotes.tsx": [
-      "ProjectNotes"
+    "src/components/ui/toggle-group.tsx": [
+      "ToggleGroup",
+      "ToggleGroupItem"
     ],
-    "src/components/ui/drawer.tsx": [
-      "Drawer",
-      "DrawerClose",
-      "DrawerContent",
-      "DrawerDescription",
-      "DrawerFooter",
-      "DrawerHeader",
-      "DrawerOverlay",
-      "DrawerPortal",
-      "DrawerTitle",
-      "DrawerTrigger"
+    "src/lib/prompt-categories.ts": [
+      "PROMPT_CATEGORIES",
+      "PROMPT_CATEGORY_LABELS",
+      "PROMPT_CATEGORY_OPTIONS",
+      "PromptCategory",
+      "isPromptCategory",
+      "normalizePromptCategory"
     ],
-    "src/components/ui/alert.tsx": [
-      "Alert",
-      "AlertDescription",
-      "AlertTitle"
-    ],
-    "src/pages/Index.tsx": [
-      "Index"
-    ],
-    "src/integrations/supabase/types.ts": [
-      "CompositeTypes",
-      "Constants",
-      "Database",
-      "Enums",
-      "Json",
-      "Tables",
-      "TablesInsert",
-      "TablesUpdate"
-    ],
-    "src/components/ui/use-toast.ts": [
-      "toast",
-      "useToast"
-    ],
-    "src/components/ui/collapsible.tsx": [
-      "Collapsible",
-      "CollapsibleContent",
-      "CollapsibleTrigger"
-    ],
-    "src/components/ToneControls.tsx": [
-      "ToneControls"
-    ],
-    "src/components/ui/carousel.tsx": [
-      "Carousel",
-      "CarouselContent",
-      "CarouselItem",
-      "CarouselNext",
-      "CarouselPrevious",
-      "type CarouselApi"
-    ],
-    "src/components/ui/popover.tsx": [
-      "Popover",
-      "PopoverContent",
-      "PopoverTrigger"
-    ],
-    "src/components/ui/calendar.tsx": [
-      "Calendar",
-      "CalendarProps"
-    ],
-    "vitest.config.ts": [
-      "defineConfig"
-    ],
-    "src/lib/utils.ts": [
-      "cn"
+    "src/components/VersionHistory.tsx": [
+      "VersionHistory",
+      "VersionHistoryContent"
     ],
     "src/lib/community.ts": [
       "CommunityComment",
@@ -961,22 +913,230 @@
       "toggleVote",
       "unsharePrompt"
     ],
-    "src/components/ui/toggle-group.tsx": [
-      "ToggleGroup",
-      "ToggleGroupItem"
+    "src/components/ui/input-otp.tsx": [
+      "InputOTP",
+      "InputOTPGroup",
+      "InputOTPSeparator",
+      "InputOTPSlot"
     ],
-    "src/components/ui/avatar.tsx": [
-      "Avatar",
-      "AvatarFallback",
-      "AvatarImage"
+    "src/components/ui/calendar.tsx": [
+      "Calendar",
+      "CalendarProps"
     ],
-    "src/lib/section-health.ts": [
-      "SectionHealth",
-      "SectionHealthState",
-      "getSectionHealth"
+    "src/components/ui/skeleton.tsx": [
+      "Skeleton"
     ],
-    "src/components/ContextQualityMeter.tsx": [
-      "ContextQualityMeter"
+    "src/components/NavLink.tsx": [
+      "NavLink"
+    ],
+    "src/components/ui/popover.tsx": [
+      "Popover",
+      "PopoverContent",
+      "PopoverTrigger"
+    ],
+    "src/components/ContextInterview.tsx": [
+      "ContextInterview"
+    ],
+    "src/components/ui/dropdown-menu.tsx": [
+      "DropdownMenu",
+      "DropdownMenuCheckboxItem",
+      "DropdownMenuContent",
+      "DropdownMenuGroup",
+      "DropdownMenuItem",
+      "DropdownMenuLabel",
+      "DropdownMenuPortal",
+      "DropdownMenuRadioGroup",
+      "DropdownMenuRadioItem",
+      "DropdownMenuSeparator",
+      "DropdownMenuShortcut",
+      "DropdownMenuSub",
+      "DropdownMenuSubContent",
+      "DropdownMenuSubTrigger",
+      "DropdownMenuTrigger"
+    ],
+    "src/components/Header.tsx": [
+      "Header"
+    ],
+    "src/components/ui/collapsible.tsx": [
+      "Collapsible",
+      "CollapsibleContent",
+      "CollapsibleTrigger"
+    ],
+    "src/components/ui/carousel.tsx": [
+      "Carousel",
+      "CarouselContent",
+      "CarouselItem",
+      "CarouselNext",
+      "CarouselPrevious",
+      "type CarouselApi"
+    ],
+    "src/components/ui/pagination.tsx": [
+      "Pagination",
+      "PaginationContent",
+      "PaginationEllipsis",
+      "PaginationItem",
+      "PaginationLink",
+      "PaginationNext",
+      "PaginationPrevious"
+    ],
+    "src/components/ui/switch.tsx": [
+      "Switch"
+    ],
+    "src/hooks/useAuth.tsx": [
+      "AuthProvider",
+      "useAuth"
+    ],
+    "src/App.tsx": [
+      "App"
+    ],
+    "src/integrations/supabase/types.ts": [
+      "CompositeTypes",
+      "Constants",
+      "Database",
+      "Enums",
+      "Json",
+      "Tables",
+      "TablesInsert",
+      "TablesUpdate"
+    ],
+    "src/components/community/CommunityPostCard.tsx": [
+      "CommunityPostCard"
+    ],
+    "src/components/ui/accordion.tsx": [
+      "Accordion",
+      "AccordionContent",
+      "AccordionItem",
+      "AccordionTrigger"
+    ],
+    "src/lib/persistence.ts": [
+      "PersistenceError",
+      "PromptSaveInput",
+      "PromptShareInput",
+      "PromptSummary",
+      "PromptVersion",
+      "clearLocalDraft",
+      "deletePrompt",
+      "getPersistenceErrorMessage",
+      "loadDraft",
+      "loadPromptById",
+      "loadPrompts",
+      "loadVersions",
+      "saveDraft",
+      "savePrompt",
+      "saveVersion",
+      "sharePrompt",
+      "unsharePrompt"
+    ],
+    "src/components/BuilderTabs.tsx": [
+      "BuilderTabs"
+    ],
+    "src/components/ui/toast.tsx": [
+      "Toast",
+      "ToastAction",
+      "ToastClose",
+      "ToastDescription",
+      "ToastProvider",
+      "ToastTitle",
+      "ToastViewport",
+      "type ToastActionElement",
+      "type ToastProps"
+    ],
+    "src/hooks/use-toast.ts": [
+      "reducer",
+      "toast",
+      "useToast"
+    ],
+    "src/pages/CommunityPost.tsx": [
+      "CommunityPost"
+    ],
+    "src/pages/Index.tsx": [
+      "Index"
+    ],
+    "src/components/ui/resizable.tsx": [
+      "ResizableHandle",
+      "ResizablePanel",
+      "ResizablePanelGroup"
+    ],
+    "src/components/ui/use-toast.ts": [
+      "toast",
+      "useToast"
+    ],
+    "src/components/ui/toaster.tsx": [
+      "Toaster"
+    ],
+    "src/lib/templates.ts": [
+      "PromptCategory",
+      "PromptTemplate",
+      "categoryColors",
+      "categoryLabels",
+      "templates"
+    ],
+    "src/components/ui/textarea.tsx": [
+      "Textarea",
+      "TextareaProps"
+    ],
+    "src/components/PromptInput.tsx": [
+      "PromptInput"
+    ],
+    "src/components/ui/input.tsx": [
+      "Input"
+    ],
+    "src/components/ContextSourceChips.tsx": [
+      "ContextSourceChips"
+    ],
+    "src/components/ToneControls.tsx": [
+      "ToneControls"
+    ],
+    "src/components/ui/hover-card.tsx": [
+      "HoverCard",
+      "HoverCardContent",
+      "HoverCardTrigger"
+    ],
+    "src/lib/codex-export.ts": [
+      "CODEX_DEFAULT_PROJECT_DOC_MAX_BYTES",
+      "CODEX_DEFAULT_SKILL_DESCRIPTION",
+      "CODEX_DEFAULT_SKILL_NAME",
+      "buildBashHereDocSubstitution",
+      "chooseHereDocDelimiter",
+      "generateAgentsMdFromPrompt",
+      "generateAgentsOverrideMdFromPrompt",
+      "generateCodexAppServerSendMessageV2CommandBash",
+      "generateCodexExecCommandBash",
+      "generateCodexSkillScaffoldCommandBash",
+      "generateCodexTuiCommandBash",
+      "generateSkillDescriptionFromPrompt",
+      "generateSkillMdFromPrompt",
+      "sanitizeSkillName",
+      "truncateToUtf8Bytes",
+      "utf8ByteLength"
+    ],
+    "src/components/ui/card.tsx": [
+      "Card",
+      "CardContent",
+      "CardDescription",
+      "CardFooter",
+      "CardHeader",
+      "CardTitle"
+    ],
+    "src/components/community/CommunityFeed.tsx": [
+      "CommunityFeed"
+    ],
+    "src/components/ui/context-menu.tsx": [
+      "ContextMenu",
+      "ContextMenuCheckboxItem",
+      "ContextMenuContent",
+      "ContextMenuGroup",
+      "ContextMenuItem",
+      "ContextMenuLabel",
+      "ContextMenuPortal",
+      "ContextMenuRadioGroup",
+      "ContextMenuRadioItem",
+      "ContextMenuSeparator",
+      "ContextMenuShortcut",
+      "ContextMenuSub",
+      "ContextMenuSubContent",
+      "ContextMenuSubTrigger",
+      "ContextMenuTrigger"
     ],
     "src/components/ui/tooltip.tsx": [
       "Tooltip",
@@ -984,8 +1144,186 @@
       "TooltipProvider",
       "TooltipTrigger"
     ],
+    "src/components/ui/sonner.tsx": [
+      "Toaster",
+      "toast"
+    ],
+    "src/hooks/useTheme.tsx": [
+      "ThemeProvider",
+      "useTheme"
+    ],
+    "src/components/ui/scroll-area.tsx": [
+      "ScrollArea",
+      "ScrollBar"
+    ],
+    "src/components/ui/slider.tsx": [
+      "Slider"
+    ],
+    "src/components/ui/navigation-menu.tsx": [
+      "NavigationMenu",
+      "NavigationMenuContent",
+      "NavigationMenuIndicator",
+      "NavigationMenuItem",
+      "NavigationMenuLink",
+      "NavigationMenuList",
+      "NavigationMenuTrigger",
+      "NavigationMenuViewport",
+      "navigationMenuTriggerStyle"
+    ],
+    "src/components/ui/command.tsx": [
+      "Command",
+      "CommandDialog",
+      "CommandEmpty",
+      "CommandGroup",
+      "CommandInput",
+      "CommandItem",
+      "CommandList",
+      "CommandSeparator",
+      "CommandShortcut"
+    ],
+    "src/components/StructuredContextForm.tsx": [
+      "StructuredContextForm"
+    ],
+    "src/components/OutputPanel.tsx": [
+      "EnhancePhase",
+      "OutputPanel"
+    ],
+    "src/components/community/CommunityComments.tsx": [
+      "CommunityComments"
+    ],
+    "src/components/AuthDialog.tsx": [
+      "AuthDialog"
+    ],
+    "src/components/ProjectNotes.tsx": [
+      "ProjectNotes"
+    ],
     "src/pages/Library.tsx": [
       "Library"
+    ],
+    "src/components/ui/alert-dialog.tsx": [
+      "AlertDialog",
+      "AlertDialogAction",
+      "AlertDialogCancel",
+      "AlertDialogContent",
+      "AlertDialogDescription",
+      "AlertDialogFooter",
+      "AlertDialogHeader",
+      "AlertDialogOverlay",
+      "AlertDialogPortal",
+      "AlertDialogTitle",
+      "AlertDialogTrigger"
+    ],
+    "src/components/ui/tabs.tsx": [
+      "Tabs",
+      "TabsContent",
+      "TabsList",
+      "TabsTrigger"
+    ],
+    "src/components/ui/checkbox.tsx": [
+      "Checkbox"
+    ],
+    "src/components/QualityScore.tsx": [
+      "QualityScore"
+    ],
+    "src/lib/history-restore.ts": [
+      "consumeRestoredVersionPrompt",
+      "queueRestoredVersionPrompt"
+    ],
+    "src/components/ui/badge.tsx": [
+      "Badge",
+      "BadgeProps",
+      "badgeVariants"
+    ],
+    "src/lib/utils.ts": [
+      "cn"
+    ],
+    "src/components/ContextQualityMeter.tsx": [
+      "ContextQualityMeter"
+    ],
+    "src/components/ui/button.tsx": [
+      "Button",
+      "ButtonProps",
+      "buttonVariants"
+    ],
+    "src/components/ui/select.tsx": [
+      "Select",
+      "SelectContent",
+      "SelectGroup",
+      "SelectItem",
+      "SelectLabel",
+      "SelectScrollDownButton",
+      "SelectScrollUpButton",
+      "SelectSeparator",
+      "SelectTrigger",
+      "SelectValue"
+    ],
+    "src/components/ui/chart.tsx": [
+      "ChartConfig",
+      "ChartContainer",
+      "ChartLegend",
+      "ChartLegendContent",
+      "ChartStyle",
+      "ChartTooltip",
+      "ChartTooltipContent"
+    ],
+    "src/components/ui/menubar.tsx": [
+      "Menubar",
+      "MenubarCheckboxItem",
+      "MenubarContent",
+      "MenubarGroup",
+      "MenubarItem",
+      "MenubarLabel",
+      "MenubarMenu",
+      "MenubarPortal",
+      "MenubarRadioGroup",
+      "MenubarRadioItem",
+      "MenubarSeparator",
+      "MenubarShortcut",
+      "MenubarSub",
+      "MenubarSubContent",
+      "MenubarSubTrigger",
+      "MenubarTrigger"
+    ],
+    "src/components/ui/toggle.tsx": [
+      "Toggle",
+      "toggleVariants"
+    ],
+    "src/components/ContextPanel.tsx": [
+      "ContextPanel"
+    ],
+    "src/lib/context-types.ts": [
+      "ContextConfig",
+      "ContextReference",
+      "ContextSource",
+      "ContextSourceType",
+      "DatabaseConnection",
+      "InterviewAnswer",
+      "RagParameters",
+      "SourceValidation",
+      "SourceValidationStatus",
+      "StructuredContext",
+      "buildContextBlock",
+      "defaultContextConfig",
+      "interviewQuestions",
+      "scoreContext",
+      "structuredFieldsMeta",
+      "summarizeSource"
+    ],
+    "vitest.config.ts": [
+      "defineConfig"
+    ],
+    "src/hooks/usePromptBuilder.ts": [
+      "usePromptBuilder"
+    ],
+    "src/components/community/PromptPreviewPanel.tsx": [
+      "PromptPreviewPanel"
+    ],
+    "src/components/ui/radio-group.tsx": [
+      "RadioGroup",
+      "RadioGroupItem"
+    ],
+    "src/components/ui/label.tsx": [
+      "Label"
     ],
     "supabase/functions/_shared/security.ts": [
       "applyRateLimit",
@@ -994,15 +1332,103 @@
       "requireAuthenticatedUser",
       "resolveCors"
     ],
-    "src/hooks/useTheme.tsx": [
-      "ThemeProvider",
-      "useTheme"
+    "src/components/ui/alert.tsx": [
+      "Alert",
+      "AlertDescription",
+      "AlertTitle"
     ],
-    "src/components/ui/aspect-ratio.tsx": [
-      "AspectRatio"
+    "src/components/ui/form.tsx": [
+      "Form",
+      "FormControl",
+      "FormDescription",
+      "FormField",
+      "FormItem",
+      "FormLabel",
+      "FormMessage",
+      "useFormField"
+    ],
+    "src/integrations/supabase/client.ts": [
+      "supabase"
+    ],
+    "src/pages/NotFound.tsx": [
+      "NotFound"
+    ],
+    "src/lib/saved-prompt-shared.ts": [
+      "SavedPromptListRow",
+      "SavedPromptRow",
+      "escapePostgrestLikePattern",
+      "isPostgrestError",
+      "normalizePromptTags",
+      "normalizePromptTagsOptional"
+    ],
+    "src/pages/History.tsx": [
+      "History"
+    ],
+    "src/components/ui/drawer.tsx": [
+      "Drawer",
+      "DrawerClose",
+      "DrawerContent",
+      "DrawerDescription",
+      "DrawerFooter",
+      "DrawerHeader",
+      "DrawerOverlay",
+      "DrawerPortal",
+      "DrawerTitle",
+      "DrawerTrigger"
+    ],
+    "vite.config.ts": [
+      "defineConfig"
+    ],
+    "src/components/community/CommunityPostDetail.tsx": [
+      "CommunityPostDetail"
+    ],
+    "src/components/ui/avatar.tsx": [
+      "Avatar",
+      "AvatarFallback",
+      "AvatarImage"
+    ],
+    "src/lib/text-diff.ts": [
+      "DiffLine",
+      "DiffLineType",
+      "LineDiffResult",
+      "buildLineDiff"
+    ],
+    "src/lib/prompt-builder.ts": [
+      "PromptConfig",
+      "buildPrompt",
+      "complexityOptions",
+      "constraintOptions",
+      "defaultConfig",
+      "formatOptions",
+      "hasPromptInput",
+      "lengthOptions",
+      "roles",
+      "scorePrompt",
+      "toneOptions"
+    ],
+    "src/components/ContextIntegrations.tsx": [
+      "ContextIntegrations"
     ],
     "src/components/ui/separator.tsx": [
       "Separator"
+    ],
+    "src/components/ui/sheet.tsx": [
+      "Sheet",
+      "SheetClose",
+      "SheetContent",
+      "SheetDescription",
+      "SheetFooter",
+      "SheetHeader",
+      "SheetOverlay",
+      "SheetPortal",
+      "SheetTitle",
+      "SheetTrigger"
+    ],
+    "eslint.config.js": [
+      "tseslint"
+    ],
+    "src/pages/Community.tsx": [
+      "Community"
     ],
     "src/components/ui/sidebar.tsx": [
       "Sidebar",
@@ -1030,203 +1456,20 @@
       "SidebarTrigger",
       "useSidebar"
     ],
-    "src/components/ui/input-otp.tsx": [
-      "InputOTP",
-      "InputOTPGroup",
-      "InputOTPSeparator",
-      "InputOTPSlot"
+    "src/components/ui/dialog.tsx": [
+      "Dialog",
+      "DialogClose",
+      "DialogContent",
+      "DialogDescription",
+      "DialogFooter",
+      "DialogHeader",
+      "DialogOverlay",
+      "DialogPortal",
+      "DialogTitle",
+      "DialogTrigger"
     ],
-    "src/components/community/CommunityPostCard.tsx": [
-      "CommunityPostCard"
-    ],
-    "src/lib/prompt-categories.ts": [
-      "PROMPT_CATEGORIES",
-      "PROMPT_CATEGORY_LABELS",
-      "PROMPT_CATEGORY_OPTIONS",
-      "PromptCategory",
-      "isPromptCategory",
-      "normalizePromptCategory"
-    ],
-    "src/components/community/CommunityPostDetail.tsx": [
-      "CommunityPostDetail"
-    ],
-    "src/components/ui/command.tsx": [
-      "Command",
-      "CommandDialog",
-      "CommandEmpty",
-      "CommandGroup",
-      "CommandInput",
-      "CommandItem",
-      "CommandList",
-      "CommandSeparator",
-      "CommandShortcut"
-    ],
-    "src/components/ui/select.tsx": [
-      "Select",
-      "SelectContent",
-      "SelectGroup",
-      "SelectItem",
-      "SelectLabel",
-      "SelectScrollDownButton",
-      "SelectScrollUpButton",
-      "SelectSeparator",
-      "SelectTrigger",
-      "SelectValue"
-    ],
-    "src/components/ui/tabs.tsx": [
-      "Tabs",
-      "TabsContent",
-      "TabsList",
-      "TabsTrigger"
-    ],
-    "src/components/StructuredContextForm.tsx": [
-      "StructuredContextForm"
-    ],
-    "src/components/ui/scroll-area.tsx": [
-      "ScrollArea",
-      "ScrollBar"
-    ],
-    "src/components/ContextIntegrations.tsx": [
-      "ContextIntegrations"
-    ],
-    "src/lib/history-restore.ts": [
-      "consumeRestoredVersionPrompt",
-      "queueRestoredVersionPrompt"
-    ],
-    "src/pages/NotFound.tsx": [
-      "NotFound"
-    ],
-    "vite.config.ts": [
-      "defineConfig"
-    ],
-    "src/components/ui/alert-dialog.tsx": [
-      "AlertDialog",
-      "AlertDialogAction",
-      "AlertDialogCancel",
-      "AlertDialogContent",
-      "AlertDialogDescription",
-      "AlertDialogFooter",
-      "AlertDialogHeader",
-      "AlertDialogOverlay",
-      "AlertDialogPortal",
-      "AlertDialogTitle",
-      "AlertDialogTrigger"
-    ],
-    "src/components/ui/skeleton.tsx": [
-      "Skeleton"
-    ],
-    "src/integrations/supabase/client.ts": [
-      "supabase"
-    ],
-    "src/components/ContextInterview.tsx": [
-      "ContextInterview"
-    ],
-    "src/lib/prompt-builder.ts": [
-      "PromptConfig",
-      "buildPrompt",
-      "complexityOptions",
-      "constraintOptions",
-      "defaultConfig",
-      "formatOptions",
-      "hasPromptInput",
-      "lengthOptions",
-      "roles",
-      "scorePrompt",
-      "toneOptions"
-    ],
-    "src/components/community/PromptPreviewPanel.tsx": [
-      "PromptPreviewPanel"
-    ],
-    "eslint.config.js": [
-      "tseslint"
-    ],
-    "src/components/ui/breadcrumb.tsx": [
-      "Breadcrumb",
-      "BreadcrumbEllipsis",
-      "BreadcrumbItem",
-      "BreadcrumbLink",
-      "BreadcrumbList",
-      "BreadcrumbPage",
-      "BreadcrumbSeparator"
-    ],
-    "src/components/ui/menubar.tsx": [
-      "Menubar",
-      "MenubarCheckboxItem",
-      "MenubarContent",
-      "MenubarGroup",
-      "MenubarItem",
-      "MenubarLabel",
-      "MenubarMenu",
-      "MenubarPortal",
-      "MenubarRadioGroup",
-      "MenubarRadioItem",
-      "MenubarSeparator",
-      "MenubarShortcut",
-      "MenubarSub",
-      "MenubarSubContent",
-      "MenubarSubTrigger",
-      "MenubarTrigger"
-    ],
-    "src/pages/History.tsx": [
-      "History"
-    ],
-    "src/components/ui/toggle.tsx": [
-      "Toggle",
-      "toggleVariants"
-    ],
-    "src/components/ui/sonner.tsx": [
-      "Toaster",
-      "toast"
-    ],
-    "src/App.tsx": [
-      "App"
-    ],
-    "src/pages/CommunityPost.tsx": [
-      "CommunityPost"
-    ],
-    "src/components/ui/toast.tsx": [
-      "Toast",
-      "ToastAction",
-      "ToastClose",
-      "ToastDescription",
-      "ToastProvider",
-      "ToastTitle",
-      "ToastViewport",
-      "type ToastActionElement",
-      "type ToastProps"
-    ],
-    "src/lib/templates.ts": [
-      "PromptCategory",
-      "PromptTemplate",
-      "categoryColors",
-      "categoryLabels",
-      "templates"
-    ],
-    "src/components/ui/pagination.tsx": [
-      "Pagination",
-      "PaginationContent",
-      "PaginationEllipsis",
-      "PaginationItem",
-      "PaginationLink",
-      "PaginationNext",
-      "PaginationPrevious"
-    ],
-    "src/pages/Community.tsx": [
-      "Community"
-    ],
-    "src/components/PromptLibrary.tsx": [
-      "PromptLibrary",
-      "PromptLibraryContent"
-    ],
-    "src/components/ui/resizable.tsx": [
-      "ResizableHandle",
-      "ResizablePanel",
-      "ResizablePanelGroup"
-    ],
-    "src/components/ui/button.tsx": [
-      "Button",
-      "ButtonProps",
-      "buttonVariants"
+    "src/components/ui/progress.tsx": [
+      "Progress"
     ],
     "src/lib/template-store.ts": [
       "SaveTemplateResult",
@@ -1249,221 +1492,13 @@
       "normalizeTemplateConfig",
       "saveTemplateSnapshot"
     ],
-    "src/components/ui/checkbox.tsx": [
-      "Checkbox"
-    ],
-    "src/components/ui/dialog.tsx": [
-      "Dialog",
-      "DialogClose",
-      "DialogContent",
-      "DialogDescription",
-      "DialogFooter",
-      "DialogHeader",
-      "DialogOverlay",
-      "DialogPortal",
-      "DialogTitle",
-      "DialogTrigger"
-    ],
-    "src/components/ui/sheet.tsx": [
-      "Sheet",
-      "SheetClose",
-      "SheetContent",
-      "SheetDescription",
-      "SheetFooter",
-      "SheetHeader",
-      "SheetOverlay",
-      "SheetPortal",
-      "SheetTitle",
-      "SheetTrigger"
-    ],
-    "src/components/ui/chart.tsx": [
-      "ChartConfig",
-      "ChartContainer",
-      "ChartLegend",
-      "ChartLegendContent",
-      "ChartStyle",
-      "ChartTooltip",
-      "ChartTooltipContent"
-    ],
-    "src/components/NavLink.tsx": [
-      "NavLink"
-    ],
-    "src/components/ui/badge.tsx": [
-      "Badge",
-      "BadgeProps",
-      "badgeVariants"
-    ],
-    "src/components/ui/progress.tsx": [
-      "Progress"
-    ],
-    "src/components/ui/navigation-menu.tsx": [
-      "NavigationMenu",
-      "NavigationMenuContent",
-      "NavigationMenuIndicator",
-      "NavigationMenuItem",
-      "NavigationMenuLink",
-      "NavigationMenuList",
-      "NavigationMenuTrigger",
-      "NavigationMenuViewport",
-      "navigationMenuTriggerStyle"
-    ],
-    "src/components/ui/dropdown-menu.tsx": [
-      "DropdownMenu",
-      "DropdownMenuCheckboxItem",
-      "DropdownMenuContent",
-      "DropdownMenuGroup",
-      "DropdownMenuItem",
-      "DropdownMenuLabel",
-      "DropdownMenuPortal",
-      "DropdownMenuRadioGroup",
-      "DropdownMenuRadioItem",
-      "DropdownMenuSeparator",
-      "DropdownMenuShortcut",
-      "DropdownMenuSub",
-      "DropdownMenuSubContent",
-      "DropdownMenuSubTrigger",
-      "DropdownMenuTrigger"
-    ],
-    "src/hooks/use-toast.ts": [
-      "reducer",
-      "toast",
-      "useToast"
+    "src/lib/section-health.ts": [
+      "SectionHealth",
+      "SectionHealthState",
+      "getSectionHealth"
     ],
     "src/hooks/use-mobile.tsx": [
       "useIsMobile"
-    ],
-    "src/components/ui/label.tsx": [
-      "Label"
-    ],
-    "src/components/ui/radio-group.tsx": [
-      "RadioGroup",
-      "RadioGroupItem"
-    ],
-    "src/components/ui/card.tsx": [
-      "Card",
-      "CardContent",
-      "CardDescription",
-      "CardFooter",
-      "CardHeader",
-      "CardTitle"
-    ],
-    "src/components/ContextPanel.tsx": [
-      "ContextPanel"
-    ],
-    "src/lib/saved-prompt-shared.ts": [
-      "SavedPromptListRow",
-      "SavedPromptRow",
-      "escapePostgrestLikePattern",
-      "isPostgrestError",
-      "normalizePromptTags",
-      "normalizePromptTagsOptional"
-    ],
-    "src/components/ContextSourceChips.tsx": [
-      "ContextSourceChips"
-    ],
-    "src/lib/persistence.ts": [
-      "PersistenceError",
-      "PromptSaveInput",
-      "PromptShareInput",
-      "PromptSummary",
-      "PromptVersion",
-      "clearLocalDraft",
-      "deletePrompt",
-      "getPersistenceErrorMessage",
-      "loadDraft",
-      "loadPromptById",
-      "loadPrompts",
-      "loadVersions",
-      "saveDraft",
-      "savePrompt",
-      "saveVersion",
-      "sharePrompt",
-      "unsharePrompt"
-    ],
-    "src/components/ui/context-menu.tsx": [
-      "ContextMenu",
-      "ContextMenuCheckboxItem",
-      "ContextMenuContent",
-      "ContextMenuGroup",
-      "ContextMenuItem",
-      "ContextMenuLabel",
-      "ContextMenuPortal",
-      "ContextMenuRadioGroup",
-      "ContextMenuRadioItem",
-      "ContextMenuSeparator",
-      "ContextMenuShortcut",
-      "ContextMenuSub",
-      "ContextMenuSubContent",
-      "ContextMenuSubTrigger",
-      "ContextMenuTrigger"
-    ],
-    "src/components/community/CommunityFeed.tsx": [
-      "CommunityFeed"
-    ],
-    "src/components/ui/textarea.tsx": [
-      "Textarea",
-      "TextareaProps"
-    ],
-    "src/components/ui/toaster.tsx": [
-      "Toaster"
-    ],
-    "src/lib/ai-client.ts": [
-      "extractSseText",
-      "extractUrl",
-      "readSseEventMeta",
-      "streamEnhance"
-    ],
-    "src/components/ui/input.tsx": [
-      "Input"
-    ],
-    "src/components/VersionHistory.tsx": [
-      "VersionHistory",
-      "VersionHistoryContent"
-    ],
-    "src/components/PromptInput.tsx": [
-      "PromptInput"
-    ],
-    "src/components/ui/accordion.tsx": [
-      "Accordion",
-      "AccordionContent",
-      "AccordionItem",
-      "AccordionTrigger"
-    ],
-    "src/components/ui/slider.tsx": [
-      "Slider"
-    ],
-    "src/lib/text-diff.ts": [
-      "DiffLine",
-      "DiffLineType",
-      "LineDiffResult",
-      "buildLineDiff"
-    ],
-    "src/components/community/CommunityComments.tsx": [
-      "CommunityComments"
-    ],
-    "src/components/QualityScore.tsx": [
-      "QualityScore"
-    ],
-    "src/lib/codex-export.ts": [
-      "CODEX_DEFAULT_PROJECT_DOC_MAX_BYTES",
-      "CODEX_DEFAULT_SKILL_DESCRIPTION",
-      "CODEX_DEFAULT_SKILL_NAME",
-      "buildBashHereDocSubstitution",
-      "chooseHereDocDelimiter",
-      "generateAgentsMdFromPrompt",
-      "generateAgentsOverrideMdFromPrompt",
-      "generateCodexAppServerSendMessageV2CommandBash",
-      "generateCodexExecCommandBash",
-      "generateCodexSkillScaffoldCommandBash",
-      "generateCodexTuiCommandBash",
-      "generateSkillDescriptionFromPrompt",
-      "generateSkillMdFromPrompt",
-      "sanitizeSkillName",
-      "truncateToUtf8Bytes",
-      "utf8ByteLength"
-    ],
-    "src/components/AuthDialog.tsx": [
-      "AuthDialog"
     ],
     "src/components/ui/table.tsx": [
       "Table",
@@ -1475,58 +1510,27 @@
       "TableHeader",
       "TableRow"
     ],
-    "src/components/Header.tsx": [
-      "Header"
+    "src/lib/ai-client.ts": [
+      "extractSseText",
+      "extractUrl",
+      "readSseEventMeta",
+      "streamEnhance"
     ],
-    "src/components/ui/hover-card.tsx": [
-      "HoverCard",
-      "HoverCardContent",
-      "HoverCardTrigger"
+    "src/components/PromptLibrary.tsx": [
+      "PromptLibrary",
+      "PromptLibraryContent"
     ],
-    "src/hooks/usePromptBuilder.ts": [
-      "usePromptBuilder"
+    "src/components/ui/breadcrumb.tsx": [
+      "Breadcrumb",
+      "BreadcrumbEllipsis",
+      "BreadcrumbItem",
+      "BreadcrumbLink",
+      "BreadcrumbList",
+      "BreadcrumbPage",
+      "BreadcrumbSeparator"
     ],
-    "src/components/BuilderTabs.tsx": [
-      "BuilderTabs"
-    ],
-    "src/components/ui/switch.tsx": [
-      "Switch"
-    ],
-    "src/components/ui/form.tsx": [
-      "Form",
-      "FormControl",
-      "FormDescription",
-      "FormField",
-      "FormItem",
-      "FormLabel",
-      "FormMessage",
-      "useFormField"
-    ],
-    "src/lib/context-types.ts": [
-      "ContextConfig",
-      "ContextReference",
-      "ContextSource",
-      "ContextSourceType",
-      "DatabaseConnection",
-      "InterviewAnswer",
-      "RagParameters",
-      "SourceValidation",
-      "SourceValidationStatus",
-      "StructuredContext",
-      "buildContextBlock",
-      "defaultContextConfig",
-      "interviewQuestions",
-      "scoreContext",
-      "structuredFieldsMeta",
-      "summarizeSource"
-    ],
-    "src/components/OutputPanel.tsx": [
-      "EnhancePhase",
-      "OutputPanel"
-    ],
-    "src/hooks/useAuth.tsx": [
-      "AuthProvider",
-      "useAuth"
+    "src/components/ui/aspect-ratio.tsx": [
+      "AspectRatio"
     ]
   }
 }

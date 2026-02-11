@@ -1,22 +1,18 @@
 import { Link, useLocation } from "react-router-dom";
 import { useEffect } from "react";
-import { Header } from "@/components/Header";
+import { PageShell } from "@/components/PageShell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useTheme } from "@/hooks/useTheme";
 
 const NotFound = () => {
   const location = useLocation();
-  const { isDark, toggleTheme } = useTheme();
 
   useEffect(() => {
     console.error("404 Error: User attempted to access non-existent route:", location.pathname);
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Header isDark={isDark} onToggleTheme={toggleTheme} />
-      <main className="flex-1 container mx-auto px-4 py-10 flex items-center justify-center">
+    <PageShell mainClassName="py-10 flex items-center justify-center">
         <Card className="w-full max-w-lg border-border/80 bg-card p-8 text-center">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Error 404</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground">Page not found</h1>
@@ -32,8 +28,7 @@ const NotFound = () => {
             </Button>
           </div>
         </Card>
-      </main>
-    </div>
+    </PageShell>
   );
 };
 

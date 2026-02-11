@@ -577,7 +577,7 @@ export function usePromptBuilder() {
       targetModel?: string;
       useCase: string;
       remixNote?: string;
-    }): Promise<SaveTemplateResult> => {
+    }): Promise<SaveTemplateResult & { postId?: string }> => {
       if (!userId) {
         throw new Error("Sign in to share prompts.");
       }
@@ -607,7 +607,7 @@ export function usePromptBuilder() {
         ...remixPayload,
       });
 
-      const shared = await persistence.sharePrompt(userId, result.record.metadata.id, {
+      const shareResult = await persistence.sharePrompt(userId, result.record.metadata.id, {
         title: input.title,
         description: input.description,
         category: input.category,
@@ -615,22 +615,22 @@ export function usePromptBuilder() {
         targetModel: input.targetModel,
         useCase: input.useCase,
       });
-      if (!shared) {
+      if (!shareResult.shared) {
         throw new Error("Prompt was saved but could not be shared.");
       }
 
       await refreshTemplateSummaries();
       if (remixContext) setRemixContext(null);
-      return result;
+      return { ...result, postId: shareResult.postId };
     },
     [config, builtPrompt, enhancedPrompt, userId, refreshTemplateSummaries, remixContext],
   );
 
   const shareSavedPrompt = useCallback(
-    async (id: string, input?: persistence.PromptShareInput): Promise<boolean> => {
-      const shared = await persistence.sharePrompt(userId, id, input);
-      if (shared) await refreshTemplateSummaries();
-      return shared;
+    async (id: string, input?: persistence.PromptShareInput): Promise<persistence.ShareResult> => {
+      const result = await persistence.sharePrompt(userId, id, input);
+      if (result.shared) await refreshTemplateSummaries();
+      return result;
     },
     [userId, refreshTemplateSummaries],
   );

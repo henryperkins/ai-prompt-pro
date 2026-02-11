@@ -1,12 +1,12 @@
 import { useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { Header } from "@/components/Header";
+import { Link, useNavigate } from "react-router-dom";
+import { PageShell, PageHero } from "@/components/PageShell";
 import { PromptLibraryContent } from "@/components/PromptLibrary";
 import { Card } from "@/components/ui/card";
+import { ToastAction } from "@/components/ui/toast";
 import { usePromptBuilder } from "@/hooks/usePromptBuilder";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { useTheme } from "@/hooks/useTheme";
 import { defaultConfig, type PromptConfig } from "@/lib/prompt-builder";
 import { type PromptTemplate } from "@/lib/templates";
 import * as persistence from "@/lib/persistence";
@@ -27,7 +27,6 @@ function toTemplateConfig(template: PromptTemplate): PromptConfig {
 }
 
 const Library = () => {
-  const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -114,12 +113,19 @@ const Library = () => {
       }
 
       try {
-        const shared = await shareSavedPrompt(id, input);
-        if (!shared) {
+        const result = await shareSavedPrompt(id, input);
+        if (!result.shared) {
           toast({ title: "Prompt not found", variant: "destructive" });
           return;
         }
-        toast({ title: "Prompt shared to community" });
+        toast({
+          title: "Prompt shared to community",
+          action: result.postId ? (
+            <ToastAction altText="View post" asChild>
+              <Link to={`/community/${result.postId}`}>View</Link>
+            </ToastAction>
+          ) : undefined,
+        });
       } catch (error) {
         toast({
           title: "Failed to share prompt",
@@ -152,16 +158,11 @@ const Library = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Header isDark={isDark} onToggleTheme={toggleTheme} />
-
-      <main className="flex-1 container mx-auto px-4 py-4 sm:py-6">
-        <div className="delight-hero mb-4 text-center sm:mb-6">
-          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Prompt Library</h1>
-          <p className="mx-auto mt-1 max-w-2xl text-sm text-muted-foreground">
-            Load starter templates or your saved prompts directly into the Builder.
-          </p>
-        </div>
+    <PageShell>
+        <PageHero
+          title="Prompt Library"
+          subtitle="Load starter templates or your saved prompts directly into the Builder."
+        />
 
         <Card className="border-border/80 bg-card/85 p-3 sm:max-h-[calc(100vh-220px)] sm:overflow-hidden sm:p-4">
           <div className="pr-1 sm:h-full sm:overflow-y-auto">
@@ -176,8 +177,7 @@ const Library = () => {
             />
           </div>
         </Card>
-      </main>
-    </div>
+    </PageShell>
   );
 };
 
