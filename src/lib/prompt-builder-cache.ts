@@ -1,5 +1,5 @@
-import { defaultContextConfig } from "@/lib/context-types";
 import { defaultConfig, type PromptConfig } from "@/lib/prompt-builder";
+import { hydrateConfigV1ToWorkingState } from "@/lib/prompt-config-adapters";
 import type { PromptSummary, PromptVersion } from "@/lib/persistence";
 import type { TemplateSummary } from "@/lib/template-store";
 
@@ -25,36 +25,7 @@ function cloudVersionsKey(userId: string): string {
 }
 
 export function hydrateConfig(raw: unknown): PromptConfig {
-  if (!raw || typeof raw !== "object") return defaultConfig;
-  const candidate = raw as Partial<PromptConfig>;
-  return {
-    ...defaultConfig,
-    ...candidate,
-    format: Array.isArray(candidate.format) ? candidate.format : [],
-    constraints: Array.isArray(candidate.constraints) ? candidate.constraints : [],
-    contextConfig: {
-      ...defaultContextConfig,
-      ...(candidate.contextConfig || {}),
-      sources: Array.isArray(candidate.contextConfig?.sources) ? candidate.contextConfig.sources : [],
-      databaseConnections: Array.isArray(candidate.contextConfig?.databaseConnections)
-        ? candidate.contextConfig.databaseConnections
-        : [],
-      rag: {
-        ...defaultContextConfig.rag,
-        ...(candidate.contextConfig?.rag || {}),
-        documentRefs: Array.isArray(candidate.contextConfig?.rag?.documentRefs)
-          ? candidate.contextConfig.rag.documentRefs
-          : [],
-      },
-      structured: {
-        ...defaultContextConfig.structured,
-        ...(candidate.contextConfig?.structured || {}),
-      },
-      interviewAnswers: Array.isArray(candidate.contextConfig?.interviewAnswers)
-        ? candidate.contextConfig.interviewAnswers
-        : [],
-    },
-  };
+  return hydrateConfigV1ToWorkingState(raw);
 }
 
 export function loadLocalDraft(): PromptConfig {

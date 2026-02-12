@@ -36,6 +36,7 @@ function toProfileMap(profiles: CommunityProfile[]): Record<string, CommunityPro
 const CommunityPost = () => {
   const { postId } = useParams<{ postId: string }>();
   const requestToken = useRef(0);
+  const voteInFlightByPost = useRef<Set<string>>(new Set());
   const { toast } = useToast();
   const { user } = useAuth();
   const [post, setPost] = useState<CommunityPostType | null>(null);
@@ -143,6 +144,8 @@ const CommunityPost = () => {
         toast({ title: "Sign in required", description: "Create an account to vote." });
         return;
       }
+      if (voteInFlightByPost.current.has(targetId)) return;
+      voteInFlightByPost.current.add(targetId);
       try {
         const result = await toggleVote(targetId, voteType);
         setVoteState((prev) => ({
@@ -163,6 +166,8 @@ const CommunityPost = () => {
           description: error instanceof Error ? error.message : "Unexpected error",
           variant: "destructive",
         });
+      } finally {
+        voteInFlightByPost.current.delete(targetId);
       }
     },
     [toast, user],

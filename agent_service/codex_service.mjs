@@ -9,8 +9,7 @@ if (!Number.isFinite(MAX_PROMPT_CHARS) || MAX_PROMPT_CHARS <= 0) {
 }
 
 const SANDBOX_MODES = new Set(["read-only", "workspace-write", "danger-full-access"]);
-const REASONING_EFFORTS = new Set(["low", "medium", "high", "xhigh"]);
-const MODEL_VERBOSITIES = new Set(["low", "medium", "high"]);
+const REASONING_EFFORTS = new Set(["minimal", "low", "medium", "high", "xhigh"]);
 const WEB_SEARCH_MODES = new Set(["disabled", "cached", "live"]);
 const APPROVAL_POLICIES = new Set(["never", "on-request", "on-failure", "untrusted"]);
 const PROMPT_ENHANCER_INSTRUCTIONS = [
@@ -152,9 +151,6 @@ const DEFAULT_THREAD_OPTIONS = (() => {
   const modelReasoningEffort = parseEnumEnv("CODEX_MODEL_REASONING_EFFORT", REASONING_EFFORTS);
   if (modelReasoningEffort) options.modelReasoningEffort = modelReasoningEffort;
 
-  const modelVerbosity = parseEnumEnv("CODEX_MODEL_VERBOSITY", MODEL_VERBOSITIES);
-  if (modelVerbosity) options.modelVerbosity = modelVerbosity;
-
   const networkAccessEnabledRaw = normalizeEnvValue("CODEX_NETWORK_ACCESS_ENABLED");
   if (networkAccessEnabledRaw) {
     options.networkAccessEnabled = normalizeBool(networkAccessEnabledRaw, false);
@@ -274,47 +270,11 @@ function extractThreadOptions(input) {
   const source = input;
   const options = {};
 
-  if (typeof source.model === "string" && source.model.trim()) {
-    options.model = source.model.trim();
-  }
-  if (typeof source.sandboxMode === "string" && SANDBOX_MODES.has(source.sandboxMode)) {
-    options.sandboxMode = source.sandboxMode;
-  }
-  if (typeof source.workingDirectory === "string" && source.workingDirectory.trim()) {
-    options.workingDirectory = source.workingDirectory.trim();
-  }
-  if (typeof source.skipGitRepoCheck === "boolean") {
-    options.skipGitRepoCheck = source.skipGitRepoCheck;
-  }
   if (
     typeof source.modelReasoningEffort === "string" &&
     REASONING_EFFORTS.has(source.modelReasoningEffort)
   ) {
     options.modelReasoningEffort = source.modelReasoningEffort;
-  }
-  if (typeof source.modelVerbosity === "string" && MODEL_VERBOSITIES.has(source.modelVerbosity)) {
-    options.modelVerbosity = source.modelVerbosity;
-  }
-  if (typeof source.networkAccessEnabled === "boolean") {
-    options.networkAccessEnabled = source.networkAccessEnabled;
-  }
-  if (typeof source.webSearchMode === "string" && WEB_SEARCH_MODES.has(source.webSearchMode)) {
-    options.webSearchMode = source.webSearchMode;
-  }
-  if (typeof source.webSearchEnabled === "boolean") {
-    options.webSearchEnabled = source.webSearchEnabled;
-  }
-  if (typeof source.approvalPolicy === "string" && APPROVAL_POLICIES.has(source.approvalPolicy)) {
-    options.approvalPolicy = source.approvalPolicy;
-  }
-  if (Array.isArray(source.additionalDirectories)) {
-    const dirs = source.additionalDirectories
-      .filter((entry) => typeof entry === "string")
-      .map((entry) => entry.trim())
-      .filter(Boolean);
-    if (dirs.length > 0) {
-      options.additionalDirectories = dirs;
-    }
   }
 
   return options;

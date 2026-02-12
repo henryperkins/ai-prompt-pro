@@ -311,7 +311,7 @@ function mapCommunityProfile(row: CommunityProfileRow): CommunityProfile {
   return {
     id: row.id,
     displayName: row.display_name?.trim() || "Community member",
-    avatarUrl: row.avatar_url,
+    avatarUrl: row.avatar_url?.trim() || null,
   };
 }
 
@@ -933,6 +933,7 @@ export function computeRemixDiff(
   const child = normalizeTemplateConfig(childConfig);
 
   const fields: Array<keyof PromptConfig> = [
+    "originalPrompt",
     "role",
     "task",
     "tone",

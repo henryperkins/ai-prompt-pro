@@ -2,6 +2,11 @@ import type { PostgrestError } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import type { RemixDiff } from "@/lib/community";
+import {
+  hydrateConfigV1ToWorkingState,
+  serializeWorkingStateToV1,
+} from "@/lib/prompt-config-adapters";
+import { builderRedesignFlags } from "@/lib/feature-flags";
 import { normalizePromptCategory } from "@/lib/prompt-categories";
 import type { PromptConfig } from "@/lib/prompt-builder";
 import { defaultConfig } from "@/lib/prompt-builder";
@@ -19,7 +24,6 @@ import {
   inferTemplateStarterPrompt,
   listTemplateSummaries as listLocalTemplates,
   loadTemplateById as loadLocalTemplate,
-  normalizeTemplateConfig,
   saveTemplateSnapshot as saveLocalTemplate,
   deleteTemplateById as deleteLocalTemplate,
   type TemplateSummary,
@@ -154,7 +158,7 @@ export async function loadDraft(userId: string | null): Promise<PromptConfig | n
   if (!userId) {
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
-      return raw ? (JSON.parse(raw) as PromptConfig) : null;
+      return raw ? hydrateConfigV1ToWorkingState(JSON.parse(raw)) : null;
     } catch {
       return null;
     }
@@ -169,16 +173,20 @@ export async function loadDraft(userId: string | null): Promise<PromptConfig | n
 
     if (error) throw mapPostgrestError(error, "Failed to load cloud draft.");
     if (!data) return null;
-    return data.config as unknown as PromptConfig;
+    return hydrateConfigV1ToWorkingState(data.config);
   } catch (error) {
     throw toPersistenceError(error, "Failed to load cloud draft.");
   }
 }
 
 export async function saveDraft(userId: string | null, config: PromptConfig): Promise<void> {
+  const normalizedConfig = serializeWorkingStateToV1(config, {
+    includeV2Compat: builderRedesignFlags.builderRedesignPhase4,
+    preserveSourceRawContent: true,
+  });
   if (!userId) {
     try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(config));
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(normalizedConfig));
     } catch {
       // quota errors are intentionally ignored to keep the UI responsive
     }
@@ -189,7 +197,7 @@ export async function saveDraft(userId: string | null, config: PromptConfig): Pr
     const { error } = await supabase.from("drafts").upsert(
       {
         user_id: userId,
-        config: config as unknown as Json,
+        config: normalizedConfig as unknown as Json,
       },
       { onConflict: "user_id" },
     );
@@ -275,7 +283,7 @@ export async function loadPrompts(userId: string | null): Promise<PromptSummary[
 
     return savedRows.map((savedRow) => {
       const metrics = metricsByPromptId.get(savedRow.id);
-      const cfg = normalizeTemplateConfig((savedRow.config ?? defaultConfig) as unknown as PromptConfig);
+      const cfg = hydrateConfigV1ToWorkingState(savedRow.config ?? defaultConfig);
       return {
         id: savedRow.id,
         name: savedRow.title,
@@ -323,7 +331,7 @@ export async function loadPromptById(userId: string | null, id: string): Promise
     if (!data) return null;
 
     const row = data as SavedPromptRow;
-    const cfg = normalizeTemplateConfig((row.config ?? defaultConfig) as unknown as PromptConfig);
+    const cfg = hydrateConfigV1ToWorkingState(row.config ?? defaultConfig);
     return {
       record: rowToRecord(row, cfg),
       warnings: collectTemplateWarnings(cfg),
@@ -381,7 +389,12 @@ export async function savePrompt(userId: string | null, input: PromptSaveInput):
   const name = toPresetName(input.name || "");
   if (!name) throw new PersistenceError("unknown", "Prompt title is required.");
 
-  const normalizedConfig = normalizeTemplateConfig(input.config);
+  const normalizedConfig = serializeWorkingStateToV1(input.config, {
+    includeV2Compat: false,
+  });
+  const persistedConfig = serializeWorkingStateToV1(normalizedConfig, {
+    includeV2Compat: builderRedesignFlags.builderRedesignPhase4,
+  });
   const normalizedDescription = normalizeDescription(input.description);
   const normalizedCategory = normalizePromptCategory(input.category) ?? "general";
   const normalizedTargetModel = normalizeTargetModel(input.targetModel);
@@ -415,7 +428,7 @@ export async function savePrompt(userId: string | null, input: PromptSaveInput):
       const updatePayload: Record<string, unknown> = {
         title: name,
         tags: tags ?? existing.tags ?? [],
-        config: normalizedConfig as unknown as Json,
+        config: persistedConfig as unknown as Json,
         fingerprint,
         revision: existing.revision + 1,
       };
@@ -478,7 +491,7 @@ export async function savePrompt(userId: string | null, input: PromptSaveInput):
         description: normalizedDescription ?? "",
         category: normalizedCategory,
         tags: tags ?? [],
-        config: normalizedConfig as unknown as Json,
+        config: persistedConfig as unknown as Json,
         built_prompt: input.builtPrompt ?? "",
         enhanced_prompt: input.enhancedPrompt ?? "",
         fingerprint,
@@ -679,7 +692,7 @@ export async function saveVersion(
 // ---------------------------------------------------------------------------
 
 function rowToRecord(row: SavedPromptRow, normalizedConfig?: PromptConfig) {
-  const cfg = normalizedConfig || normalizeTemplateConfig((row.config ?? defaultConfig) as unknown as PromptConfig);
+  const cfg = normalizedConfig || hydrateConfigV1ToWorkingState(row.config ?? defaultConfig);
   return {
     metadata: {
       id: row.id,

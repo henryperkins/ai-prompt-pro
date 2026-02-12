@@ -195,7 +195,12 @@ function mergeContextConfig(input?: ContextConfig): ContextConfig {
   };
 }
 
-export function normalizeTemplateConfig(config: PromptConfig): PromptConfig {
+export function normalizeTemplateConfig(
+  config: PromptConfig,
+  options?: {
+    preserveSourceRawContent?: boolean;
+  },
+): PromptConfig {
   const merged: PromptConfig = {
     ...defaultConfig,
     ...config,
@@ -208,7 +213,9 @@ export function normalizeTemplateConfig(config: PromptConfig): PromptConfig {
     ...merged,
     contextConfig: {
       ...merged.contextConfig,
-      sources: merged.contextConfig.sources.map((source) => normalizeSource(source)),
+      sources: merged.contextConfig.sources.map((source) =>
+        normalizeSource(source, options?.preserveSourceRawContent === true),
+      ),
     },
   };
 }
@@ -254,7 +261,7 @@ function createReference(source: ContextSource): ContextReference | undefined {
   return source.reference;
 }
 
-function normalizeSource(source: ContextSource): ContextSource {
+function normalizeSource(source: ContextSource, preserveRawContent: boolean): ContextSource {
   const normalizedReference = createReference(source);
   const shouldStripRaw =
     source.type === "url" || source.type === "file" || source.type === "database" || source.type === "rag";
@@ -262,7 +269,7 @@ function normalizeSource(source: ContextSource): ContextSource {
   return {
     ...source,
     title: source.title || "Source",
-    rawContent: shouldStripRaw ? "" : source.rawContent || "",
+    rawContent: shouldStripRaw && !preserveRawContent ? "" : source.rawContent || "",
     summary: source.summary || "",
     reference: normalizedReference,
     validation: validateSource({ ...source, reference: normalizedReference }),
@@ -549,8 +556,8 @@ function clipText(value: string, limit: number): string {
 
 export function inferTemplateStarterPrompt(config: PromptConfig): string {
   const candidates = [
-    config.task,
     config.originalPrompt,
+    config.task,
     config.contextConfig.structured.offer,
     config.contextConfig.structured.product,
   ];

@@ -6,6 +6,7 @@ import {
   requireAuthenticatedUser,
   resolveCors,
 } from "../_shared/security.ts";
+import { sanitizeEnhanceThreadOptions } from "./thread-options.ts";
 
 const MAX_PROMPT_CHARS = Number(Deno.env.get("MAX_PROMPT_CHARS") || "16000");
 const ENHANCE_PER_MINUTE = Number(Deno.env.get("ENHANCE_PER_MINUTE") || "12");
@@ -106,19 +107,17 @@ serve(async (req) => {
 
     const threadOptionsRaw = (body as { thread_options?: unknown; threadOptions?: unknown })?.thread_options
       ?? (body as { thread_options?: unknown; threadOptions?: unknown })?.threadOptions;
-    if (
-      threadOptionsRaw !== undefined &&
-      (!threadOptionsRaw || typeof threadOptionsRaw !== "object" || Array.isArray(threadOptionsRaw))
-    ) {
-      return jsonResponse({ error: "thread_options must be an object when provided." }, 400, cors.headers);
+    const sanitizedThreadOptions = sanitizeEnhanceThreadOptions(threadOptionsRaw);
+    if (!sanitizedThreadOptions.ok) {
+      return jsonResponse({ error: sanitizedThreadOptions.error }, 400, cors.headers);
     }
 
     const agentPayload: Record<string, unknown> = { prompt };
     if (threadId) {
       agentPayload.thread_id = threadId;
     }
-    if (threadOptionsRaw && typeof threadOptionsRaw === "object" && !Array.isArray(threadOptionsRaw)) {
-      agentPayload.thread_options = threadOptionsRaw;
+    if (sanitizedThreadOptions.value) {
+      agentPayload.thread_options = sanitizedThreadOptions.value;
     }
 
     if (!AGENT_SERVICE_URL) {

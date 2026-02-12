@@ -24,17 +24,21 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { PROMPT_CATEGORY_OPTIONS } from "@/lib/prompt-categories";
 import {
-  validateSaveAndSharePromptInput,
-  validateSavePromptInput,
+  validateSaveDialogInput,
 } from "@/lib/output-panel-validation";
+import { trackBuilderEvent } from "@/lib/telemetry";
 import { buildLineDiff, type DiffLine } from "@/lib/text-diff";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 
 export type EnhancePhase = "idle" | "starting" | "streaming" | "settling" | "done";
 
@@ -63,6 +67,7 @@ interface OutputPanelProps {
   canSharePrompt: boolean;
   hideEnhanceButton?: boolean;
   enhancePhase?: EnhancePhase;
+  phase2Enabled?: boolean;
   remixContext?: { title: string; authorName: string };
 }
 
@@ -97,36 +102,38 @@ export function OutputPanel({
   canSharePrompt,
   hideEnhanceButton = false,
   enhancePhase = "idle",
+  phase2Enabled = true,
   remixContext,
 }: OutputPanelProps) {
   const [copied, setCopied] = useState(false);
-  const [promptDialogOpen, setPromptDialogOpen] = useState(false);
-  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [shareEnabled, setShareEnabled] = useState(false);
   const [compareDialogOpen, setCompareDialogOpen] = useState(false);
 
-  const [promptName, setPromptName] = useState("");
-  const [promptDescription, setPromptDescription] = useState("");
-  const [promptTags, setPromptTags] = useState("");
-  const [promptCategory, setPromptCategory] = useState("general");
-  const [promptRemixNote, setPromptRemixNote] = useState("");
-
-  const [shareName, setShareName] = useState("");
-  const [shareDescription, setShareDescription] = useState("");
-  const [shareTags, setShareTags] = useState("");
-  const [shareCategory, setShareCategory] = useState("general");
-  const [shareUseCase, setShareUseCase] = useState("");
-  const [shareTargetModel, setShareTargetModel] = useState("");
-  const [shareConfirmedSafe, setShareConfirmedSafe] = useState(false);
-  const [shareRemixNote, setShareRemixNote] = useState("");
-  const [promptNameTouched, setPromptNameTouched] = useState(false);
-  const [promptSubmitAttempted, setPromptSubmitAttempted] = useState(false);
-  const [shareNameTouched, setShareNameTouched] = useState(false);
-  const [shareUseCaseTouched, setShareUseCaseTouched] = useState(false);
-  const [shareConfirmedSafeTouched, setShareConfirmedSafeTouched] = useState(false);
-  const [shareSubmitAttempted, setShareSubmitAttempted] = useState(false);
+  const [saveName, setSaveName] = useState("");
+  const [saveDescription, setSaveDescription] = useState("");
+  const [saveTags, setSaveTags] = useState("");
+  const [saveCategory, setSaveCategory] = useState("general");
+  const [saveUseCase, setSaveUseCase] = useState("");
+  const [saveTargetModel, setSaveTargetModel] = useState("");
+  const [saveConfirmedSafe, setSaveConfirmedSafe] = useState(false);
+  const [saveRemixNote, setSaveRemixNote] = useState("");
+  const [saveNameTouched, setSaveNameTouched] = useState(false);
+  const [saveUseCaseTouched, setSaveUseCaseTouched] = useState(false);
+  const [saveConfirmedSafeTouched, setSaveConfirmedSafeTouched] = useState(false);
+  const [saveSubmitAttempted, setSaveSubmitAttempted] = useState(false);
 
   const { toast } = useToast();
   const displayPrompt = enhancedPrompt || builtPrompt;
+
+  useEffect(() => {
+    if (shareEnabled && !canSharePrompt) {
+      setShareEnabled(false);
+      setSaveUseCaseTouched(false);
+      setSaveConfirmedSafeTouched(false);
+    }
+  }, [canSharePrompt, shareEnabled]);
+
   const downloadTextFile = (filename: string, content: string) => {
     const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -160,6 +167,10 @@ export function OutputPanel({
               ? "Copied `codex` TUI command."
               : "Copied app-server debug command.",
       });
+      trackBuilderEvent("builder_dev_export_used", {
+        action: "copy_codex",
+        variant,
+      });
     } catch (error) {
       toast({
         title: "Copy failed",
@@ -184,6 +195,10 @@ export function OutputPanel({
         title: "Downloaded",
         description: `${filename} generated from the current output.`,
       });
+      trackBuilderEvent("builder_dev_export_used", {
+        action: "download_agents",
+        variant,
+      });
     } catch (error) {
       toast({
         title: "Download failed",
@@ -206,6 +221,9 @@ export function OutputPanel({
         title: "Copied for Codex",
         description: `Copied command to scaffold .agents/skills/${codexExport.CODEX_DEFAULT_SKILL_NAME}/SKILL.md.`,
       });
+      trackBuilderEvent("builder_dev_export_used", {
+        action: "copy_skill_scaffold",
+      });
     } catch (error) {
       toast({
         title: "Copy failed",
@@ -227,6 +245,9 @@ export function OutputPanel({
       toast({
         title: "Downloaded",
         description: `SKILL.md generated for skill name "${codexExport.CODEX_DEFAULT_SKILL_NAME}".`,
+      });
+      trackBuilderEvent("builder_dev_export_used", {
+        action: "download_skill",
       });
     } catch (error) {
       toast({
@@ -272,21 +293,19 @@ export function OutputPanel({
     builtPrompt.trim() && enhancedPrompt.trim() && builtPrompt.trim() !== enhancedPrompt.trim()
   );
   const canUseSaveMenu = canSavePrompt || canSharePrompt || Boolean(displayPrompt);
-  const promptValidationErrors = validateSavePromptInput(promptName);
-  const promptNameError = promptValidationErrors.name ?? null;
-  const showPromptNameError = Boolean(promptNameError && (promptNameTouched || promptSubmitAttempted));
-  const shareValidationErrors = validateSaveAndSharePromptInput({
-    name: shareName,
-    useCase: shareUseCase,
-    confirmedSafe: shareConfirmedSafe,
+  const saveValidationErrors = validateSaveDialogInput({
+    name: saveName,
+    shareEnabled,
+    useCase: saveUseCase,
+    confirmedSafe: saveConfirmedSafe,
   });
-  const shareNameError = shareValidationErrors.name ?? null;
-  const showShareNameError = Boolean(shareNameError && (shareNameTouched || shareSubmitAttempted));
-  const shareUseCaseError = shareValidationErrors.useCase ?? null;
-  const showShareUseCaseError = Boolean(shareUseCaseError && (shareUseCaseTouched || shareSubmitAttempted));
-  const shareConfirmedSafeError = shareValidationErrors.confirmedSafe ?? null;
-  const showShareConfirmedSafeError = Boolean(
-    shareConfirmedSafeError && (shareConfirmedSafeTouched || shareSubmitAttempted),
+  const saveNameError = saveValidationErrors.name ?? null;
+  const showSaveNameError = Boolean(saveNameError && (saveNameTouched || saveSubmitAttempted));
+  const saveUseCaseError = saveValidationErrors.useCase ?? null;
+  const showSaveUseCaseError = Boolean(saveUseCaseError && (saveUseCaseTouched || saveSubmitAttempted));
+  const saveConfirmedSafeError = saveValidationErrors.confirmedSafe ?? null;
+  const showSaveConfirmedSafeError = Boolean(
+    saveConfirmedSafeError && (saveConfirmedSafeTouched || saveSubmitAttempted),
   );
 
   const diff = useMemo(() => {
@@ -296,17 +315,13 @@ export function OutputPanel({
 
   useEffect(() => {
     if (remixContext) {
-      if (!promptName.trim()) {
-        setPromptName(`Remix of ${remixContext.title}`);
-      }
-      if (!shareName.trim()) {
-        setShareName(`Remix of ${remixContext.title}`);
+      if (!saveName.trim()) {
+        setSaveName(`Remix of ${remixContext.title}`);
       }
     } else {
-      setPromptRemixNote("");
-      setShareRemixNote("");
+      setSaveRemixNote("");
     }
-  }, [remixContext, promptName, shareName]);
+  }, [remixContext, saveName]);
 
   const handleCopy = async () => {
     if (!displayPrompt) return;
@@ -324,80 +339,90 @@ export function OutputPanel({
     }
   };
 
-  const handleSavePrompt = () => {
-    setPromptSubmitAttempted(true);
-    if (promptNameError) {
-      setPromptNameTouched(true);
+  const resetSaveDialogState = () => {
+    setSaveName("");
+    setSaveDescription("");
+    setSaveTags("");
+    setSaveCategory("general");
+    setSaveUseCase("");
+    setSaveTargetModel("");
+    setSaveConfirmedSafe(false);
+    setSaveRemixNote("");
+    setShareEnabled(false);
+    setSaveNameTouched(false);
+    setSaveUseCaseTouched(false);
+    setSaveConfirmedSafeTouched(false);
+    setSaveSubmitAttempted(false);
+  };
+
+  const handleSaveSubmit = () => {
+    setSaveSubmitAttempted(true);
+
+    const canShareNow = shareEnabled && canSharePrompt;
+    if (shareEnabled && !canSharePrompt) {
+      setShareEnabled(false);
+    }
+
+    const effectiveErrors = canShareNow
+      ? { nameErr: saveNameError, useCaseErr: saveUseCaseError, safeErr: saveConfirmedSafeError }
+      : { nameErr: saveNameError, useCaseErr: null, safeErr: null };
+    if (effectiveErrors.nameErr || effectiveErrors.useCaseErr || effectiveErrors.safeErr) {
+      setSaveNameTouched(true);
+      if (canShareNow) {
+        setSaveUseCaseTouched(true);
+        setSaveConfirmedSafeTouched(true);
+      }
       return;
     }
 
-    onSavePrompt({
-      name: promptName.trim(),
-      description: promptDescription.trim() || undefined,
-      tags: parseTags(promptTags),
-      category: promptCategory,
-      remixNote: remixContext ? promptRemixNote.trim() || undefined : undefined,
-    });
-
-    setPromptDialogOpen(false);
-    setPromptName("");
-    setPromptDescription("");
-    setPromptTags("");
-    setPromptCategory("general");
-    setPromptRemixNote("");
-    setPromptNameTouched(false);
-    setPromptSubmitAttempted(false);
-  };
-
-  const handleSaveAndSharePrompt = () => {
-    if (!canSharePrompt) return;
-    setShareSubmitAttempted(true);
-    if (shareNameError || shareUseCaseError || shareConfirmedSafeError) {
-      setShareNameTouched(true);
-      setShareUseCaseTouched(true);
-      setShareConfirmedSafeTouched(true);
-      return;
+    if (canShareNow) {
+      onSaveAndSharePrompt({
+        name: saveName.trim(),
+        description: saveDescription.trim() || undefined,
+        tags: parseTags(saveTags),
+        category: saveCategory,
+        useCase: saveUseCase.trim(),
+        targetModel: saveTargetModel.trim() || undefined,
+        remixNote: remixContext ? saveRemixNote.trim() || undefined : undefined,
+      });
+    } else {
+      onSavePrompt({
+        name: saveName.trim(),
+        description: saveDescription.trim() || undefined,
+        tags: parseTags(saveTags),
+        category: saveCategory,
+        remixNote: remixContext ? saveRemixNote.trim() || undefined : undefined,
+      });
     }
 
-    onSaveAndSharePrompt({
-      name: shareName.trim(),
-      description: shareDescription.trim() || undefined,
-      tags: parseTags(shareTags),
-      category: shareCategory,
-      useCase: shareUseCase.trim(),
-      targetModel: shareTargetModel.trim() || undefined,
-      remixNote: remixContext ? shareRemixNote.trim() || undefined : undefined,
-    });
-
-    setShareDialogOpen(false);
-    setShareName("");
-    setShareDescription("");
-    setShareTags("");
-    setShareCategory("general");
-    setShareUseCase("");
-    setShareTargetModel("");
-    setShareConfirmedSafe(false);
-    setShareRemixNote("");
-    setShareNameTouched(false);
-    setShareUseCaseTouched(false);
-    setShareConfirmedSafeTouched(false);
-    setShareSubmitAttempted(false);
+    setSaveDialogOpen(false);
+    resetSaveDialogState();
   };
 
-  const handlePromptDialogOpenChange = (open: boolean) => {
-    setPromptDialogOpen(open);
+  const handleSaveDialogOpenChange = (open: boolean) => {
+    setSaveDialogOpen(open);
     if (open) return;
-    setPromptNameTouched(false);
-    setPromptSubmitAttempted(false);
+    setSaveNameTouched(false);
+    setSaveUseCaseTouched(false);
+    setSaveConfirmedSafeTouched(false);
+    setSaveSubmitAttempted(false);
   };
 
-  const handleShareDialogOpenChange = (open: boolean) => {
-    setShareDialogOpen(open);
-    if (open) return;
-    setShareNameTouched(false);
-    setShareUseCaseTouched(false);
-    setShareConfirmedSafeTouched(false);
-    setShareSubmitAttempted(false);
+  const handleShareToggleChange = (enabled: boolean) => {
+    if (enabled && !canSharePrompt) return;
+    setShareEnabled(enabled);
+    trackBuilderEvent("builder_share_toggled", { enabled });
+    if (!enabled) {
+      setSaveUseCaseTouched(false);
+      setSaveConfirmedSafeTouched(false);
+    }
+  };
+
+  const openSaveDialog = (share: boolean) => {
+    if (share && !canSharePrompt) return;
+    setShareEnabled(share);
+    trackBuilderEvent("builder_save_clicked", { shareEnabled: share });
+    setSaveDialogOpen(true);
   };
 
   return (
@@ -414,6 +439,17 @@ export function OutputPanel({
             <span className="interactive-chip inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
               {statusLabel}
             </span>
+          )}
+          {hasCompare && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => setCompareDialogOpen(true)}
+            >
+              Show changes
+            </Button>
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
@@ -436,12 +472,29 @@ export function OutputPanel({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem disabled={!canSavePrompt} onSelect={() => setPromptDialogOpen(true)}>
-                Save Prompt
-              </DropdownMenuItem>
-              <DropdownMenuItem disabled={!canSharePrompt} onSelect={() => setShareDialogOpen(true)}>
-                Save & Share
-              </DropdownMenuItem>
+              {phase2Enabled ? (
+                <DropdownMenuItem
+                  disabled={!canSavePrompt}
+                  onSelect={() => openSaveDialog(false)}
+                >
+                  Save Prompt
+                </DropdownMenuItem>
+              ) : (
+                <>
+                  <DropdownMenuItem
+                    disabled={!canSavePrompt}
+                    onSelect={() => openSaveDialog(false)}
+                  >
+                    Save Prompt
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={!canSharePrompt}
+                    onSelect={() => openSaveDialog(true)}
+                  >
+                    Save & Share Prompt
+                  </DropdownMenuItem>
+                </>
+              )}
               <DropdownMenuItem disabled={!displayPrompt} onSelect={() => onSaveVersion()}>
                 Save Version
               </DropdownMenuItem>
@@ -456,30 +509,32 @@ export function OutputPanel({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem disabled={!hasCompare} onSelect={() => setCompareDialogOpen(true)}>
-                Compare changes
-              </DropdownMenuItem>
-              <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodex("exec")}>
-                Copy `codex exec` (stdin)
-              </DropdownMenuItem>
-              <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodex("tui")}>
-                Copy `codex` (TUI prefilled)
-              </DropdownMenuItem>
-              <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodex("appServer")}>
-                Copy app-server send-message-v2
-              </DropdownMenuItem>
-              <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodexSkillScaffold()}>
-                Copy skill scaffold command
-              </DropdownMenuItem>
-              <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleDownloadSkill()}>
-                Download SKILL.md
-              </DropdownMenuItem>
-              <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleDownloadAgents("agents")}>
-                Download AGENTS.md
-              </DropdownMenuItem>
-              <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleDownloadAgents("override")}>
-                Download AGENTS.override.md
-              </DropdownMenuItem>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>Developer tools</DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodex("exec")}>
+                    Copy `codex exec` (stdin)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodex("tui")}>
+                    Copy `codex` (TUI prefilled)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodex("appServer")}>
+                    Copy app-server send-message-v2
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodexSkillScaffold()}>
+                    Copy skill scaffold command
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleDownloadSkill()}>
+                    Download SKILL.md
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleDownloadAgents("agents")}>
+                    Download AGENTS.md
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleDownloadAgents("override")}>
+                    Download AGENTS.override.md
+                  </DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -511,114 +566,14 @@ export function OutputPanel({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={promptDialogOpen} onOpenChange={handlePromptDialogOpenChange}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Save Prompt</DialogTitle>
-            <DialogDescription>
-              Save a private prompt snapshot to your library.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            {remixContext && (
-              <div className="rounded-md border border-primary/25 bg-primary/10 px-3 py-2 text-xs text-primary">
-                Remixing {remixContext.authorName}’s “{remixContext.title}”
-              </div>
-            )}
-            <div className="space-y-1">
-              <Label htmlFor="save-prompt-name" className="text-xs font-medium">
-                Prompt title
-              </Label>
-              <Input
-                id="save-prompt-name"
-                value={promptName}
-                onChange={(event) => setPromptName(event.target.value)}
-                onBlur={() => setPromptNameTouched(true)}
-                placeholder="Prompt title"
-                className="bg-background"
-                aria-invalid={showPromptNameError}
-                aria-describedby="save-prompt-name-help"
-              />
-              <p
-                id="save-prompt-name-help"
-                className={cn("text-xs", showPromptNameError ? "text-destructive" : "text-muted-foreground")}
-              >
-                {showPromptNameError ? promptNameError : "Required."}
-              </p>
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="save-prompt-category" className="text-xs font-medium">
-                Category
-              </Label>
-              <Select value={promptCategory} onValueChange={setPromptCategory}>
-                <SelectTrigger id="save-prompt-category" className="bg-background">
-                  <SelectValue placeholder="Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {PROMPT_CATEGORY_OPTIONS.map((category) => (
-                    <SelectItem key={category.value} value={category.value}>
-                      {category.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="save-prompt-description" className="text-xs font-medium">
-                Description
-              </Label>
-              <Textarea
-                id="save-prompt-description"
-                value={promptDescription}
-                onChange={(event) => setPromptDescription(event.target.value)}
-                placeholder="Description (optional)"
-                className="min-h-[90px] bg-background"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="save-prompt-tags" className="text-xs font-medium">
-                Tags
-              </Label>
-              <Input
-                id="save-prompt-tags"
-                value={promptTags}
-                onChange={(event) => setPromptTags(event.target.value)}
-                placeholder="Tags (comma-separated, optional)"
-                className="bg-background"
-              />
-            </div>
-            {remixContext && (
-              <div className="space-y-1">
-                <Label htmlFor="save-prompt-remix-note" className="text-xs font-medium">
-                  Remix note
-                </Label>
-                <Textarea
-                  id="save-prompt-remix-note"
-                  value={promptRemixNote}
-                  onChange={(event) => setPromptRemixNote(event.target.value)}
-                  placeholder="Remix note (optional)"
-                  className="min-h-[80px] bg-background"
-                />
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => handlePromptDialogOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSavePrompt}>
-              Save Prompt
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={shareDialogOpen} onOpenChange={handleShareDialogOpenChange}>
+      <Dialog open={saveDialogOpen} onOpenChange={handleSaveDialogOpenChange}>
         <DialogContent className="sm:max-w-md max-h-[85vh] overflow-auto">
           <DialogHeader>
-            <DialogTitle>Save & Share Prompt</DialogTitle>
+            <DialogTitle>{shareEnabled ? "Save & Share Prompt" : "Save Prompt"}</DialogTitle>
             <DialogDescription>
-              Publish this prompt recipe to the community feed.
+              {shareEnabled
+                ? "Publish this prompt recipe to the community feed."
+                : "Save a private prompt snapshot to your library."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -628,32 +583,32 @@ export function OutputPanel({
               </div>
             )}
             <div className="space-y-1">
-              <Label htmlFor="share-prompt-name" className="text-xs font-medium">
+              <Label htmlFor="save-dialog-name" className="text-xs font-medium">
                 Prompt title
               </Label>
               <Input
-                id="share-prompt-name"
-                value={shareName}
-                onChange={(event) => setShareName(event.target.value)}
-                onBlur={() => setShareNameTouched(true)}
+                id="save-dialog-name"
+                value={saveName}
+                onChange={(event) => setSaveName(event.target.value)}
+                onBlur={() => setSaveNameTouched(true)}
                 placeholder="Prompt title"
                 className="bg-background"
-                aria-invalid={showShareNameError}
-                aria-describedby="share-prompt-name-help"
+                aria-invalid={showSaveNameError}
+                aria-describedby="save-dialog-name-help"
               />
               <p
-                id="share-prompt-name-help"
-                className={cn("text-xs", showShareNameError ? "text-destructive" : "text-muted-foreground")}
+                id="save-dialog-name-help"
+                className={cn("text-xs", showSaveNameError ? "text-destructive" : "text-muted-foreground")}
               >
-                {showShareNameError ? shareNameError : "Required."}
+                {showSaveNameError ? saveNameError : "Required."}
               </p>
             </div>
             <div className="space-y-1">
-              <Label htmlFor="share-prompt-category" className="text-xs font-medium">
+              <Label htmlFor="save-dialog-category" className="text-xs font-medium">
                 Category
               </Label>
-              <Select value={shareCategory} onValueChange={setShareCategory}>
-                <SelectTrigger id="share-prompt-category" className="bg-background">
+              <Select value={saveCategory} onValueChange={setSaveCategory}>
+                <SelectTrigger id="save-dialog-category" className="bg-background">
                   <SelectValue placeholder="Category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -666,111 +621,142 @@ export function OutputPanel({
               </Select>
             </div>
             <div className="space-y-1">
-              <Label htmlFor="share-prompt-description" className="text-xs font-medium">
+              <Label htmlFor="save-dialog-description" className="text-xs font-medium">
                 Description
               </Label>
               <Textarea
-                id="share-prompt-description"
-                value={shareDescription}
-                onChange={(event) => setShareDescription(event.target.value)}
+                id="save-dialog-description"
+                value={saveDescription}
+                onChange={(event) => setSaveDescription(event.target.value)}
                 placeholder="Description (optional)"
                 className="min-h-[80px] bg-background"
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="share-prompt-tags" className="text-xs font-medium">
+              <Label htmlFor="save-dialog-tags" className="text-xs font-medium">
                 Tags
               </Label>
               <Input
-                id="share-prompt-tags"
-                value={shareTags}
-                onChange={(event) => setShareTags(event.target.value)}
+                id="save-dialog-tags"
+                value={saveTags}
+                onChange={(event) => setSaveTags(event.target.value)}
                 placeholder="Tags (comma-separated, optional)"
-                className="bg-background"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="share-prompt-use-case" className="text-xs font-medium">
-                Use case
-              </Label>
-              <Textarea
-                id="share-prompt-use-case"
-                value={shareUseCase}
-                onChange={(event) => setShareUseCase(event.target.value)}
-                onBlur={() => setShareUseCaseTouched(true)}
-                placeholder="Describe how this prompt should be used"
-                className="min-h-[90px] bg-background"
-                aria-invalid={showShareUseCaseError}
-                aria-describedby="share-prompt-use-case-help"
-              />
-              <p
-                id="share-prompt-use-case-help"
-                className={cn("text-xs", showShareUseCaseError ? "text-destructive" : "text-muted-foreground")}
-              >
-                {showShareUseCaseError ? shareUseCaseError : "Required."}
-              </p>
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="share-prompt-target-model" className="text-xs font-medium">
-                Target model
-              </Label>
-              <Input
-                id="share-prompt-target-model"
-                value={shareTargetModel}
-                onChange={(event) => setShareTargetModel(event.target.value)}
-                placeholder="Target model (optional)"
                 className="bg-background"
               />
             </div>
             {remixContext && (
               <div className="space-y-1">
-                <Label htmlFor="share-prompt-remix-note" className="text-xs font-medium">
+                <Label htmlFor="save-dialog-remix-note" className="text-xs font-medium">
                   Remix note
                 </Label>
                 <Textarea
-                  id="share-prompt-remix-note"
-                  value={shareRemixNote}
-                  onChange={(event) => setShareRemixNote(event.target.value)}
+                  id="save-dialog-remix-note"
+                  value={saveRemixNote}
+                  onChange={(event) => setSaveRemixNote(event.target.value)}
                   placeholder="Remix note (optional)"
                   className="min-h-[80px] bg-background"
                 />
               </div>
             )}
-            <div className="flex items-start gap-2">
-              <Checkbox
-                id="share-confirm-safe"
-                checked={shareConfirmedSafe}
-                onCheckedChange={(checked) => {
-                  setShareConfirmedSafe(checked === true);
-                  setShareConfirmedSafeTouched(true);
-                }}
-                className="mt-0.5"
-                aria-invalid={showShareConfirmedSafeError}
-                aria-describedby="share-confirm-safe-help"
-              />
-              <Label
-                htmlFor="share-confirm-safe"
-                className="cursor-pointer text-xs leading-snug text-muted-foreground"
-              >
-                I confirm this prompt contains no secrets or private data.
-              </Label>
-            </div>
-            <p
-              id="share-confirm-safe-help"
-              className={cn(
-                "text-xs",
-                showShareConfirmedSafeError ? "text-destructive" : "text-muted-foreground",
-              )}
-            >
-              {showShareConfirmedSafeError ? shareConfirmedSafeError : "Required."}
-            </p>
+
+            {phase2Enabled && (
+              <div className="rounded-md border border-border/80 bg-muted/30 px-3 py-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="save-dialog-share-toggle" className="text-xs font-medium text-foreground">
+                      Share to community
+                    </Label>
+                    <p className="text-[11px] text-muted-foreground">
+                      Enable to publish after saving.
+                    </p>
+                  </div>
+                  <Switch
+                    id="save-dialog-share-toggle"
+                    checked={shareEnabled}
+                    onCheckedChange={handleShareToggleChange}
+                    disabled={!canSharePrompt}
+                  />
+                </div>
+                {!canSharePrompt && (
+                  <p className="mt-2 text-[11px] text-muted-foreground">
+                    Sign in to enable sharing.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {shareEnabled && (
+              <>
+                <div className="space-y-1">
+                  <Label htmlFor="save-dialog-use-case" className="text-xs font-medium">
+                    Use case
+                  </Label>
+                  <Textarea
+                    id="save-dialog-use-case"
+                    value={saveUseCase}
+                    onChange={(event) => setSaveUseCase(event.target.value)}
+                    onBlur={() => setSaveUseCaseTouched(true)}
+                    placeholder="Describe how this prompt should be used"
+                    className="min-h-[90px] bg-background"
+                    aria-invalid={showSaveUseCaseError}
+                    aria-describedby="save-dialog-use-case-help"
+                  />
+                  <p
+                    id="save-dialog-use-case-help"
+                    className={cn("text-xs", showSaveUseCaseError ? "text-destructive" : "text-muted-foreground")}
+                  >
+                    {showSaveUseCaseError ? saveUseCaseError : "Required when sharing."}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="save-dialog-target-model" className="text-xs font-medium">
+                    Target model
+                  </Label>
+                  <Input
+                    id="save-dialog-target-model"
+                    value={saveTargetModel}
+                    onChange={(event) => setSaveTargetModel(event.target.value)}
+                    placeholder="Target model (optional)"
+                    className="bg-background"
+                  />
+                </div>
+                <div className="flex items-start gap-2">
+                  <Checkbox
+                    id="save-dialog-confirm-safe"
+                    checked={saveConfirmedSafe}
+                    onCheckedChange={(checked) => {
+                      setSaveConfirmedSafe(checked === true);
+                      setSaveConfirmedSafeTouched(true);
+                    }}
+                    className="mt-0.5"
+                    aria-invalid={showSaveConfirmedSafeError}
+                    aria-describedby="save-dialog-confirm-safe-help"
+                  />
+                  <Label
+                    htmlFor="save-dialog-confirm-safe"
+                    className="cursor-pointer text-xs leading-snug text-muted-foreground"
+                  >
+                    I confirm this prompt contains no secrets or private data.
+                  </Label>
+                </div>
+                <p
+                  id="save-dialog-confirm-safe-help"
+                  className={cn(
+                    "text-xs",
+                    showSaveConfirmedSafeError ? "text-destructive" : "text-muted-foreground",
+                  )}
+                >
+                  {showSaveConfirmedSafeError ? saveConfirmedSafeError : "Required when sharing."}
+                </p>
+              </>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => handleShareDialogOpenChange(false)}>
+            <Button variant="outline" onClick={() => handleSaveDialogOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSaveAndSharePrompt}>
-              Save & Share
+            <Button onClick={handleSaveSubmit}>
+              {shareEnabled ? "Save & Share" : "Save Prompt"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -3,7 +3,6 @@ import {
   ArrowUp,
   BookmarkPlus,
   CheckCircle2,
-  Copy,
   ExternalLink,
   GitBranch,
   MessageCircle,
@@ -128,6 +127,7 @@ export function CommunityPostDetail({
 }: CommunityPostDetailProps) {
   const createdAgo = formatDistanceToNow(new Date(post.createdAt), { addSuffix: true });
   const remixDiff = parseRemixDiff(post.remixDiff);
+  const promptBody = (post.enhancedPrompt || post.starterPrompt || "").trim();
 
   return (
     <div className="space-y-4">
@@ -157,16 +157,6 @@ export function CommunityPostDetail({
             >
               <BookmarkPlus className="h-3.5 w-3.5" />
               Save to Library
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 w-full text-xs sm:w-auto"
-              onClick={() => onCopyPrompt(post)}
-            >
-              <Copy className="h-3.5 w-3.5" />
-              Copy prompt
             </Button>
           </div>
         </div>
@@ -261,7 +251,7 @@ export function CommunityPostDetail({
           ))}
         </div>
 
-        <PromptPreviewPanel text={post.enhancedPrompt} mode="full" />
+        <PromptPreviewPanel text={promptBody} mode="full" onCopy={() => onCopyPrompt(post)} />
 
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <Button

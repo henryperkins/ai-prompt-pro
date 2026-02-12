@@ -102,7 +102,7 @@ function assertSupabaseEnv(): void {
   }
 }
 
-function functionUrl(name: "enhance-prompt" | "extract-url"): string {
+function functionUrl(name: "enhance-prompt" | "extract-url" | "infer-builder-fields"): string {
   assertSupabaseEnv();
   return `${SUPABASE_URL}/functions/v1/${name}`;
 }
@@ -235,7 +235,7 @@ function isInvalidSupabaseSessionError(status: number, errorMessage: string): bo
 }
 
 async function postFunctionWithAuthRecovery(
-  name: "enhance-prompt" | "extract-url",
+  name: "enhance-prompt" | "extract-url" | "infer-builder-fields",
   payload: Record<string, unknown>,
 ): Promise<Response> {
   const request = (headers: Record<string, string>) =>
@@ -325,17 +325,7 @@ function isResponseOutputTextDone(responseType: string | null): boolean {
 }
 
 export interface EnhanceThreadOptions {
-  model?: string;
-  sandboxMode?: "read-only" | "workspace-write" | "danger-full-access";
-  workingDirectory?: string;
-  skipGitRepoCheck?: boolean;
-  modelReasoningEffort?: "low" | "medium" | "high" | "xhigh";
-  modelVerbosity?: "low" | "medium" | "high";
-  networkAccessEnabled?: boolean;
-  webSearchMode?: "disabled" | "cached" | "live";
-  webSearchEnabled?: boolean;
-  approvalPolicy?: "never" | "on-request" | "on-failure" | "untrusted";
-  additionalDirectories?: string[];
+  modelReasoningEffort?: "minimal" | "low" | "medium" | "high" | "xhigh";
 }
 
 function isRenderableItemType(itemType: string | null): boolean {
@@ -659,4 +649,78 @@ export async function extractUrl(url: string): Promise<{ title: string; content:
   const resp = await postFunctionWithAuthRecovery("extract-url", { url });
 
   return resp.json();
+}
+
+export interface InferBuilderFieldsInput {
+  prompt: string;
+  sourceSummaries?: string[];
+  currentFields?: {
+    role?: string;
+    tone?: string;
+    lengthPreference?: string;
+    format?: string[];
+    constraints?: string[];
+  };
+  lockMetadata?: Record<string, "ai" | "user" | "empty">;
+}
+
+export interface InferBuilderFieldsOutput {
+  inferredUpdates?: {
+    role?: string;
+    tone?: string;
+    lengthPreference?: string;
+    format?: string[];
+    constraints?: string[];
+  };
+  inferredFields?: string[];
+  suggestionChips?: Array<{
+    id?: string;
+    label?: string;
+    description?: string;
+    action?: {
+      type?: string;
+      updates?: Record<string, unknown>;
+      fields?: string[];
+      text?: string;
+    };
+  }>;
+  confidence?: Record<string, number>;
+}
+
+export async function inferBuilderFields(
+  input: InferBuilderFieldsInput,
+): Promise<InferBuilderFieldsOutput> {
+  const prompt = input.prompt.trim();
+  if (!prompt) {
+    return {
+      inferredUpdates: {},
+      inferredFields: [],
+      suggestionChips: [],
+    };
+  }
+
+  const payload: Record<string, unknown> = {
+    prompt,
+  };
+
+  if (Array.isArray(input.sourceSummaries) && input.sourceSummaries.length > 0) {
+    payload.source_summaries = input.sourceSummaries;
+  }
+  if (input.currentFields && typeof input.currentFields === "object") {
+    payload.current_fields = input.currentFields;
+  }
+  if (input.lockMetadata && typeof input.lockMetadata === "object") {
+    payload.lock_metadata = input.lockMetadata;
+  }
+
+  const resp = await postFunctionWithAuthRecovery("infer-builder-fields", payload);
+  const data = await resp.json().catch(() => ({}));
+
+  return data && typeof data === "object"
+    ? (data as InferBuilderFieldsOutput)
+    : {
+        inferredUpdates: {},
+        inferredFields: [],
+        suggestionChips: [],
+      };
 }

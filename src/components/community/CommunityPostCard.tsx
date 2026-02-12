@@ -1,7 +1,7 @@
 import { memo, useMemo, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { ArrowUp, CheckCircle2, Copy, Database, GitBranch, MessageCircle } from "lucide-react";
-import { Link } from "react-router-dom";
+import { ArrowUp, CheckCircle2, Database, GitBranch, MessageCircle } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import type { CommunityPost, VoteState, VoteType } from "@/lib/community";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -45,6 +45,15 @@ function estimateTokens(text: string): string {
   return String(tokens);
 }
 
+function shouldIgnoreCardOpen(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return Boolean(
+    target.closest(
+      "a,button,input,textarea,select,summary,[role='button'],[data-prevent-card-open]",
+    ),
+  );
+}
+
 function CommunityPostCardComponent({
   post,
   isFeatured = false,
@@ -58,6 +67,7 @@ function CommunityPostCardComponent({
   onCommentAdded,
   canVote,
 }: CommunityPostCardProps) {
+  const navigate = useNavigate();
   const createdAgo = useMemo(
     () => formatDistanceToNow(new Date(post.createdAt), { addSuffix: true }),
     [post.createdAt],
@@ -65,14 +75,29 @@ function CommunityPostCardComponent({
   const [commentsOpen, setCommentsOpen] = useState(false);
   const promptBody = (post.enhancedPrompt || post.starterPrompt || "").trim();
   const tokenEstimate = useMemo(() => estimateTokens(promptBody), [promptBody]);
+  const postPath = `/community/${post.id}`;
 
   return (
     <Card
       className={cn(
-        "community-feed-card interactive-card overflow-hidden border-border/80 bg-card/85 p-3 sm:p-4",
+        "community-feed-card interactive-card cursor-pointer overflow-hidden border-border/80 bg-card/85 p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:p-4",
         isFeatured && "lg:col-span-2 border-primary/35 bg-gradient-to-br from-primary/10 via-card/90 to-card/85",
       )}
       style={{ animationDelay: `${animationDelayMs}ms` }}
+      role="link"
+      tabIndex={0}
+      aria-label={`Open ${post.title}`}
+      onClick={(event) => {
+        if (shouldIgnoreCardOpen(event.target)) return;
+        navigate(postPath);
+      }}
+      onKeyDown={(event) => {
+        if (shouldIgnoreCardOpen(event.target)) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          navigate(postPath);
+        }
+      }}
     >
       <div className="space-y-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
@@ -112,9 +137,10 @@ function CommunityPostCardComponent({
         </div>
 
         <PromptPreviewPanel
-          text={post.enhancedPrompt}
+          text={promptBody}
           mode="compact"
           className={cn("bg-background/65", isFeatured && "border-primary/25")}
+          onCopy={() => onCopyPrompt(post)}
         />
 
         <div className="flex flex-wrap items-center gap-1.5">
@@ -134,10 +160,6 @@ function CommunityPostCardComponent({
             <span className="inline-flex items-center gap-1">
               <GitBranch className="h-3.5 w-3.5" />
               {post.remixCount}
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <MessageCircle className="h-3.5 w-3.5" />
-              {post.commentCount}
             </span>
           </div>
           <Button asChild variant={isFeatured ? "default" : "outline"} size="sm" className="h-8 text-xs">
@@ -172,24 +194,19 @@ function CommunityPostCardComponent({
             type="button"
             variant="ghost"
             size="sm"
-            className="h-9 sm:h-8 text-xs"
-            onClick={() => onCopyPrompt(post)}
-          >
-            <Copy className="h-3.5 w-3.5" />
-            Copy
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="interactive-chip h-9 sm:h-8 text-xs"
+            className="interactive-chip h-9 gap-1.5 sm:h-8 text-xs"
             onClick={() => setCommentsOpen((prev) => !prev)}
           >
             <MessageCircle className="h-3.5 w-3.5" />
             {commentsOpen ? "Hide comments" : "Comments"}
-          </Button>
-          <Button asChild variant="soft" size="sm" className="h-9 sm:h-8 text-xs">
-            <Link to={`/community/${post.id}`}>Open</Link>
+            {post.commentCount > 0 && (
+              <Badge
+                variant="secondary"
+                className="ml-0.5 h-4 min-w-4 px-1 text-[10px] leading-none"
+              >
+                {post.commentCount}
+              </Badge>
+            )}
           </Button>
         </div>
 

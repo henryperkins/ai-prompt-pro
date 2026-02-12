@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { Bell, Menu, Moon, Sun, Zap, LogIn, LogOut } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import { Bell, Loader2, LogIn, LogOut, Menu, Moon, Sun, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,13 +13,18 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useToast } from "@/hooks/use-toast";
 import { AuthDialog } from "@/components/AuthDialog";
 import { NotificationPanel } from "@/components/NotificationPanel";
 import { APP_ROUTE_NAV_ITEMS, isRouteActive } from "@/lib/navigation";
+import { getGravatarUrl } from "@/lib/gravatar";
+import { DISPLAY_NAME_MAX_LENGTH, validateDisplayName } from "@/lib/profile";
 
 interface HeaderProps {
   isDark: boolean;
@@ -26,7 +32,8 @@ interface HeaderProps {
 }
 
 export function Header({ isDark, onToggleTheme }: HeaderProps) {
-  const { user, signOut } = useAuth();
+  const { user, signOut, updateDisplayName } = useAuth();
+  const { toast } = useToast();
   const {
     notifications,
     unreadCount,
@@ -39,19 +46,77 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
   const [authOpen, setAuthOpen] = useState(false);
   const [desktopNotificationsOpen, setDesktopNotificationsOpen] = useState(false);
   const [mobileNotificationsOpen, setMobileNotificationsOpen] = useState(false);
+  const [gravatarUrl, setGravatarUrl] = useState<string | null>(null);
+  const [displayNameOpen, setDisplayNameOpen] = useState(false);
+  const [displayNameDraft, setDisplayNameDraft] = useState("");
+  const [displayNameError, setDisplayNameError] = useState("");
+  const [savingDisplayName, setSavingDisplayName] = useState(false);
 
   const unreadCountLabel = unreadCount > 99 ? "99+" : String(unreadCount);
 
-  const initials = user?.user_metadata?.full_name
-    ? (user.user_metadata.full_name as string)
+  const oauthAvatar = user?.user_metadata?.avatar_url as string | undefined;
+
+  useEffect(() => {
+    if (oauthAvatar || !user?.email) {
+      setGravatarUrl(null);
+      return;
+    }
+    let cancelled = false;
+    getGravatarUrl(user.email, 80).then((url) => {
+      if (!cancelled) setGravatarUrl(url);
+    });
+    return () => { cancelled = true; };
+  }, [oauthAvatar, user?.email]);
+
+  const avatarSrc = oauthAvatar || gravatarUrl || undefined;
+
+  const metadataDisplayName =
+    typeof user?.user_metadata?.display_name === "string"
+      ? user.user_metadata.display_name.trim()
+      : "";
+  const metadataFullName =
+    typeof user?.user_metadata?.full_name === "string"
+      ? user.user_metadata.full_name.trim()
+      : "";
+  const initialsSource = metadataDisplayName || metadataFullName || user?.email || "";
+  const initials = initialsSource
+    ? initialsSource
         .split(" ")
-        .map((n: string) => n[0])
+        .map((value) => value.trim())
+        .filter(Boolean)
+        .map((value) => value[0] || "")
         .join("")
         .slice(0, 2)
-        .toUpperCase()
-    : user?.email
-      ? user.email[0].toUpperCase()
-      : "?";
+        .toUpperCase() || initialsSource[0]?.toUpperCase() || "?"
+    : "?";
+
+  const openDisplayNameDialog = () => {
+    setDisplayNameDraft(metadataDisplayName);
+    setDisplayNameError("");
+    setDisplayNameOpen(true);
+  };
+
+  const handleDisplayNameSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    const normalized = displayNameDraft.trim();
+    const validationError = validateDisplayName(normalized);
+    if (validationError) {
+      setDisplayNameError(validationError);
+      return;
+    }
+
+    setSavingDisplayName(true);
+    const result = await updateDisplayName(normalized);
+    setSavingDisplayName(false);
+    if (result.error) {
+      setDisplayNameError(result.error);
+      return;
+    }
+
+    setDisplayNameOpen(false);
+    setDisplayNameError("");
+    toast({ title: "Display name updated" });
+  };
 
   return (
     <>
@@ -126,6 +191,14 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
                   <>
                     <DropdownMenuItem disabled className="text-xs text-muted-foreground">
                       {user.email}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        openDisplayNameDialog();
+                      }}
+                    >
+                      Edit display name
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onSelect={(event) => {
@@ -226,7 +299,7 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
                     className="interactive-chip hidden sm:inline-flex w-11 h-11 sm:w-9 sm:h-9 rounded-full p-0"
                   >
                     <Avatar className="w-7 h-7 sm:w-8 sm:h-8">
-                      <AvatarImage src={user.user_metadata?.avatar_url as string | undefined} />
+                      <AvatarImage src={avatarSrc} />
                       <AvatarFallback className="text-xs">{initials}</AvatarFallback>
                     </Avatar>
                   </Button>
@@ -234,6 +307,9 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem disabled className="text-xs text-muted-foreground">
                     {user.email}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={openDisplayNameDialog}>
+                    Edit display name
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => signOut()}>
                     <LogOut className="w-4 h-4 mr-2" />
@@ -258,6 +334,60 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
       </header>
 
       <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
+      <Dialog
+        open={displayNameOpen}
+        onOpenChange={(open) => {
+          setDisplayNameOpen(open);
+          if (!open) {
+            setDisplayNameError("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Edit display name</DialogTitle>
+          </DialogHeader>
+          <form className="space-y-3" onSubmit={handleDisplayNameSubmit}>
+            <div className="space-y-1.5">
+              <Label htmlFor="display-name">Display name</Label>
+              <Input
+                id="display-name"
+                value={displayNameDraft}
+                onChange={(event) => {
+                  setDisplayNameDraft(event.target.value);
+                  if (displayNameError) {
+                    setDisplayNameError("");
+                  }
+                }}
+                autoComplete="nickname"
+                maxLength={DISPLAY_NAME_MAX_LENGTH}
+                placeholder="Letters and numbers only"
+                aria-invalid={displayNameError ? true : undefined}
+              />
+              <p className="text-xs text-muted-foreground">
+                Use letters and numbers only. Max {DISPLAY_NAME_MAX_LENGTH} characters.
+              </p>
+            </div>
+            {displayNameError && (
+              <p className="text-sm text-destructive">{displayNameError}</p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setDisplayNameOpen(false)}
+                disabled={savingDisplayName}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={savingDisplayName}>
+                {savingDisplayName && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

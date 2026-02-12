@@ -7,6 +7,13 @@ export interface SaveAndSharePromptValidationErrors extends SavePromptValidation
   confirmedSafe?: string;
 }
 
+export interface SaveDialogValidationInput {
+  name: string;
+  shareEnabled: boolean;
+  useCase?: string;
+  confirmedSafe?: boolean;
+}
+
 export function validateSavePromptInput(name: string): SavePromptValidationErrors {
   if (!name.trim()) {
     return { name: "Prompt title is required." };
@@ -30,4 +37,20 @@ export function validateSaveAndSharePromptInput(input: {
     errors.confirmedSafe = "Confirm that the prompt contains no private or secret data.";
   }
   return errors;
+}
+
+export function validateSaveDialogInput(
+  input: SaveDialogValidationInput,
+): SaveAndSharePromptValidationErrors {
+  const baseErrors = validateSavePromptInput(input.name);
+  if (!input.shareEnabled) {
+    return baseErrors;
+  }
+
+  const shareErrors = validateSaveAndSharePromptInput({
+    name: input.name,
+    useCase: input.useCase ?? "",
+    confirmedSafe: input.confirmedSafe === true,
+  });
+  return { ...baseErrors, ...shareErrors };
 }

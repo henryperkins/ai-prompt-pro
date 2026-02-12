@@ -353,7 +353,7 @@ describe("ai-client auth recovery", () => {
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
-  it("sends optional thread_id and thread_options when provided", async () => {
+  it("sends optional thread_id and supported thread_options when provided", async () => {
     const nowSeconds = Math.floor(Date.now() / 1000);
 
     mocks.getSession.mockResolvedValue({
@@ -379,8 +379,7 @@ describe("ai-client auth recovery", () => {
       prompt: "Improve this",
       threadId: "thread_abc123",
       threadOptions: {
-        modelReasoningEffort: "high",
-        modelVerbosity: "low",
+        modelReasoningEffort: "minimal",
       },
       onDelta,
       onDone,
@@ -392,13 +391,12 @@ describe("ai-client auth recovery", () => {
     const body = JSON.parse((request.body as string) || "{}") as {
       prompt?: string;
       thread_id?: string;
-      thread_options?: { modelReasoningEffort?: string; modelVerbosity?: string };
+      thread_options?: { modelReasoningEffort?: string };
     };
 
     expect(body.prompt).toBe("Improve this");
     expect(body.thread_id).toBe("thread_abc123");
-    expect(body.thread_options?.modelReasoningEffort).toBe("high");
-    expect(body.thread_options?.modelVerbosity).toBe("low");
+    expect(body.thread_options).toEqual({ modelReasoningEffort: "minimal" });
     expect(onError).not.toHaveBeenCalled();
     expect(onDelta).toHaveBeenCalledWith("configured");
     expect(onDone).toHaveBeenCalledTimes(1);

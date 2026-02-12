@@ -77,6 +77,22 @@ describe("template-store", () => {
     expect(summaries[0].starterPrompt).toContain("Build a safer deployment checklist");
   });
 
+  it("uses original prompt as starter text when both original and task exist", () => {
+    saveTemplateSnapshot({
+      name: "Remix Starter Priority",
+      config: buildConfig({
+        originalPrompt: "Rewrite this announcement for non-technical stakeholders.",
+        task: "Legacy task value",
+      }),
+    });
+
+    const summaries = listTemplateSummaries();
+    expect(summaries[0].starterPrompt).toContain(
+      "Rewrite this announcement for non-technical stakeholders.",
+    );
+    expect(summaries[0].starterPrompt).not.toContain("Legacy task value");
+  });
+
   it("stores external sources as references and strips raw payloads", () => {
     const result = saveTemplateSnapshot({
       name: "External Sources",

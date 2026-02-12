@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { defaultConfig, type PromptConfig } from "@/lib/prompt-builder";
+import {
+  PROMPT_CONFIG_SCHEMA_VERSION_KEY,
+  PROMPT_CONFIG_V2_COMPAT_KEY,
+} from "@/lib/prompt-config-adapters";
 
 const { fromMock } = vi.hoisted(() => ({
   fromMock: vi.fn(),
@@ -8,6 +12,15 @@ const { fromMock } = vi.hoisted(() => ({
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     from: fromMock,
+  },
+}));
+
+vi.mock("@/lib/feature-flags", () => ({
+  builderRedesignFlags: {
+    builderRedesignPhase1: true,
+    builderRedesignPhase2: true,
+    builderRedesignPhase3: true,
+    builderRedesignPhase4: true,
   },
 }));
 
@@ -152,10 +165,36 @@ describe("persistence", () => {
     });
 
     const source = (insertedPayload?.config as PromptConfig).contextConfig.sources[0];
+    const serializedConfig = insertedPayload?.config as PromptConfig & Record<string, unknown>;
     expect(source.rawContent).toBe("");
+    expect(serializedConfig[PROMPT_CONFIG_SCHEMA_VERSION_KEY]).toBe(2);
+    expect(serializedConfig[PROMPT_CONFIG_V2_COMPAT_KEY]).toBeTruthy();
     expect(typeof insertedPayload?.fingerprint).toBe("string");
     expect(result.outcome).toBe("created");
     expect(result.warnings.length).toBeGreaterThan(0);
+  });
+
+  it("preserves draft source raw content during local draft save/load", async () => {
+    const { saveDraft, loadDraft } = await import("@/lib/persistence");
+    const config = buildConfig({
+      contextConfig: {
+        ...defaultConfig.contextConfig,
+        sources: [
+          {
+            id: "url-1",
+            type: "url",
+            title: "Runbook",
+            rawContent: "https://example.com/runbook",
+            summary: "Summary",
+            addedAt: Date.now(),
+          },
+        ],
+      },
+    });
+
+    await saveDraft(null, config);
+    const loaded = await loadDraft(null);
+    expect(loaded?.contextConfig.sources[0]?.rawContent).toBe("https://example.com/runbook");
   });
 
   it("returns false on delete when no row is removed", async () => {
@@ -238,6 +277,47 @@ describe("persistence", () => {
       name: "PersistenceError",
       code: "unauthorized",
     });
+  });
+
+  it("hydrates legacy saved prompt sources with normalized reference metadata", async () => {
+    const { loadPromptById } = await import("@/lib/persistence");
+    const legacyConfig = buildConfig({
+      contextConfig: {
+        ...defaultConfig.contextConfig,
+        sources: [
+          {
+            id: "url-1",
+            type: "url",
+            title: "Runbook",
+            rawContent: "https://example.com/runbook",
+            summary: "Runbook summary",
+            addedAt: Date.now(),
+          },
+        ],
+      },
+    });
+    const row = buildSavedPromptRow(legacyConfig, {
+      id: "tpl_legacy",
+    });
+
+    fromMock.mockReturnValueOnce({
+      select: () => ({
+        eq: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({ data: row, error: null }),
+          }),
+        }),
+      }),
+    });
+
+    const loaded = await loadPromptById("user_1", "tpl_legacy");
+    const source = loaded?.record.state.promptConfig.contextConfig.sources[0];
+    const externalRef = loaded?.record.state.externalReferences[0];
+
+    expect(source?.reference?.refId).toBe("url:url-1");
+    expect(source?.reference?.locator).toBe("https://example.com/runbook");
+    expect(source?.validation?.status).toBe("unknown");
+    expect(externalRef?.locator).toBe("https://example.com/runbook");
   });
 
   it("escapes wildcard characters and uses revision locking when updating prompts", async () => {

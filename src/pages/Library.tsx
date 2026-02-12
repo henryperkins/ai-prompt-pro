@@ -39,6 +39,15 @@ function formatUpdatedAt(timestamp: number): string {
   });
 }
 
+function resolveShareUseCase(prompt: persistence.PromptSummary): string | undefined {
+  const candidates = [prompt.useCase, prompt.description, prompt.starterPrompt];
+  for (const candidate of candidates) {
+    const normalized = candidate.trim();
+    if (normalized) return normalized;
+  }
+  return undefined;
+}
+
 const Library = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -175,13 +184,22 @@ const Library = () => {
   );
 
   const handleShareSaved = useCallback(
-    async (id: string) => {
+    async (prompt: persistence.PromptSummary) => {
       if (!isSignedIn) {
         toast({ title: "Sign in required", description: "Sign in to share prompts.", variant: "destructive" });
         return;
       }
+      const shareUseCase = resolveShareUseCase(prompt);
+      if (!shareUseCase) {
+        toast({
+          title: "Missing share metadata",
+          description: "Load this prompt, add a use case, then try sharing again.",
+          variant: "destructive",
+        });
+        return;
+      }
       try {
-        const result = await shareSavedPrompt(id);
+        const result = await shareSavedPrompt(prompt.id, { useCase: shareUseCase });
         if (!result.shared) {
           toast({ title: "Prompt not found", variant: "destructive" });
           return;
@@ -357,6 +375,7 @@ const Library = () => {
             <div className="space-y-2">
               {filteredSaved.map((prompt) => {
                 const isSelected = selectedSet.has(prompt.id);
+                const shareUseCase = resolveShareUseCase(prompt);
                 return (
                   <Card
                     key={prompt.id}
@@ -466,9 +485,15 @@ const Library = () => {
                             variant="outline"
                             size="sm"
                             className="h-9 sm:h-7 px-2.5 text-xs"
-                            disabled={!isSignedIn}
-                            onClick={() => void handleShareSaved(prompt.id)}
-                            title={!isSignedIn ? "Sign in to share prompts." : undefined}
+                            disabled={!isSignedIn || !shareUseCase}
+                            onClick={() => void handleShareSaved(prompt)}
+                            title={
+                              !isSignedIn
+                                ? "Sign in to share prompts."
+                                : !shareUseCase
+                                  ? "Add prompt context before sharing."
+                                  : undefined
+                            }
                           >
                             Share
                           </Button>

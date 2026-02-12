@@ -144,3 +144,6 @@ drop trigger if exists community_posts_after_insert_notification on public.commu
 create trigger community_posts_after_insert_notification
 after insert on public.community_posts
 for each row execute function public.create_notification_for_remix();
+
+-- Enable Realtime so useNotifications receives postgres_changes events
+alter publication supabase_realtime add table public.notifications;

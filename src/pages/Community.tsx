@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { CommunityFeed } from "@/components/community/CommunityFeed";
-import { PageShell } from "@/components/PageShell";
+import { PageHero, PageShell } from "@/components/PageShell";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -63,6 +63,7 @@ const Community = () => {
   const [page, setPage] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const requestToken = useRef(0);
+  const voteInFlightByPost = useRef<Set<string>>(new Set());
   const { toast } = useToast();
   const { user } = useAuth();
   const showCategorySuggestions = isSearchFocused;
@@ -233,6 +234,8 @@ const Community = () => {
         toast({ title: "Sign in required", description: "Create an account to vote." });
         return;
       }
+      if (voteInFlightByPost.current.has(postId)) return;
+      voteInFlightByPost.current.add(postId);
       try {
         const result = await toggleVote(postId, voteType);
         setVoteStateByPost((prev) => ({
@@ -258,6 +261,8 @@ const Community = () => {
           description: error instanceof Error ? error.message : "Unexpected error",
           variant: "destructive",
         });
+      } finally {
+        voteInFlightByPost.current.delete(postId);
       }
     },
     [toast, user],
@@ -273,6 +278,10 @@ const Community = () => {
 
   return (
     <PageShell>
+        <PageHero
+          title="Community Prompt Feed"
+          subtitle="Browse developer-focused prompt recipes, filter by domain, and open any post to copy or remix."
+        />
         {/* Search bar with inline category filters */}
         <div className="relative mb-3 rounded-xl border border-border bg-card/85 shadow-sm">
           <div className="relative">

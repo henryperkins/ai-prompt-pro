@@ -2,19 +2,38 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { PageShell } from "@/components/PageShell";
 import { PromptInput } from "@/components/PromptInput";
+import { BuilderHeroInput } from "@/components/BuilderHeroInput";
+import { BuilderAdjustDetails } from "@/components/BuilderAdjustDetails";
+import { BuilderSourcesAdvanced } from "@/components/BuilderSourcesAdvanced";
 import { BuilderTabs } from "@/components/BuilderTabs";
 import { ContextPanel } from "@/components/ContextPanel";
 import { ToneControls } from "@/components/ToneControls";
 import { QualityScore } from "@/components/QualityScore";
 import { OutputPanel, type EnhancePhase } from "@/components/OutputPanel";
 import { usePromptBuilder } from "@/hooks/usePromptBuilder";
-import { streamEnhance, type EnhanceThreadOptions } from "@/lib/ai-client";
+import {
+  inferBuilderFields,
+  streamEnhance,
+  type EnhanceThreadOptions,
+} from "@/lib/ai-client";
+import {
+  applyInferenceUpdates,
+  clearAiOwnedFields,
+  createFieldOwnershipFromConfig,
+  inferBuilderFieldsLocally,
+  listInferenceFieldsFromUpdates,
+  markOwnershipFields,
+  type BuilderFieldOwnershipMap,
+  type BuilderSuggestionChip,
+} from "@/lib/builder-inference";
 import { getSectionHealth, type SectionHealthState } from "@/lib/section-health";
-import { hasPromptInput } from "@/lib/prompt-builder";
+import { buildPrompt, defaultConfig, hasPromptInput } from "@/lib/prompt-builder";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { loadPost, loadProfilesByIds } from "@/lib/community";
 import { consumeRestoredVersionPrompt } from "@/lib/history-restore";
+import { builderRedesignFlags } from "@/lib/feature-flags";
+import { trackBuilderEvent } from "@/lib/telemetry";
 import { templates } from "@/lib/templates";
 import {
   Accordion,
@@ -88,18 +107,214 @@ type BuilderSection = "builder" | "context" | "tone" | "quality";
 
 const ENHANCE_THREAD_OPTIONS: EnhanceThreadOptions = {
   modelReasoningEffort: "medium",
-  modelVerbosity: "low",
+};
+
+function hasFieldOwnershipValue(
+  ownership: BuilderFieldOwnershipMap,
+  value: "ai" | "user" | "empty",
+): boolean {
+  return Object.values(ownership).some((entry) => entry === value);
+}
+
+function normalizeRemoteInferenceResult(
+  response: Awaited<ReturnType<typeof inferBuilderFields>>,
+): ReturnType<typeof inferBuilderFieldsLocally> {
+  const inferredUpdatesRaw = response.inferredUpdates;
+  const inferredFieldsRaw = response.inferredFields;
+  const suggestionChipsRaw = response.suggestionChips;
+
+  const inferredUpdates: {
+    role?: string;
+    tone?: string;
+    lengthPreference?: string;
+    format?: string[];
+    constraints?: string[];
+  } = {};
+  if (typeof inferredUpdatesRaw?.role === "string") {
+    inferredUpdates.role = inferredUpdatesRaw.role;
+  }
+  if (typeof inferredUpdatesRaw?.tone === "string") {
+    inferredUpdates.tone = inferredUpdatesRaw.tone;
+  }
+  if (typeof inferredUpdatesRaw?.lengthPreference === "string") {
+    inferredUpdates.lengthPreference = inferredUpdatesRaw.lengthPreference;
+  }
+  if (Array.isArray(inferredUpdatesRaw?.format)) {
+    inferredUpdates.format = inferredUpdatesRaw.format.filter(
+      (entry): entry is string => typeof entry === "string",
+    );
+  }
+  if (Array.isArray(inferredUpdatesRaw?.constraints)) {
+    inferredUpdates.constraints = inferredUpdatesRaw.constraints.filter(
+      (entry): entry is string => typeof entry === "string",
+    );
+  }
+
+  const inferredFields = Array.isArray(inferredFieldsRaw)
+    ? inferredFieldsRaw.filter(
+        (field): field is "role" | "tone" | "lengthPreference" | "format" | "constraints" =>
+          field === "role" ||
+          field === "tone" ||
+          field === "lengthPreference" ||
+          field === "format" ||
+          field === "constraints",
+      )
+    : [];
+  if (inferredFields.length === 0) {
+    if (typeof inferredUpdates.role === "string") inferredFields.push("role");
+    if (typeof inferredUpdates.tone === "string") inferredFields.push("tone");
+    if (typeof inferredUpdates.lengthPreference === "string") inferredFields.push("lengthPreference");
+    if (Array.isArray(inferredUpdates.format)) inferredFields.push("format");
+    if (Array.isArray(inferredUpdates.constraints)) inferredFields.push("constraints");
+  }
+
+  const suggestionChips = Array.isArray(suggestionChipsRaw)
+    ? suggestionChipsRaw
+        .map((chip): BuilderSuggestionChip | null => {
+          if (!chip || typeof chip !== "object") return null;
+          const id = typeof chip.id === "string" ? chip.id : null;
+          const label = typeof chip.label === "string" ? chip.label : null;
+          const description = typeof chip.description === "string" ? chip.description : "";
+          const action = chip.action;
+          if (!id || !label || !action || typeof action !== "object") return null;
+
+          const actionType = action.type;
+          if (actionType === "append_prompt" && typeof action.text === "string") {
+            return {
+              id,
+              label,
+              description,
+              action: {
+                type: "append_prompt",
+                text: action.text,
+              },
+            };
+          }
+
+          if (actionType === "set_fields" && action.updates && typeof action.updates === "object") {
+            const updates = action.updates as Record<string, unknown>;
+            const fields = Array.isArray(action.fields)
+              ? action.fields.filter(
+                  (field): field is "role" | "tone" | "lengthPreference" | "format" | "constraints" =>
+                    field === "role" ||
+                    field === "tone" ||
+                    field === "lengthPreference" ||
+                    field === "format" ||
+                    field === "constraints",
+                )
+              : [];
+
+            return {
+              id,
+              label,
+              description,
+              action: {
+                type: "set_fields",
+                updates: (() => {
+                  const normalizedUpdates: {
+                    role?: string;
+                    tone?: string;
+                    lengthPreference?: string;
+                    format?: string[];
+                    constraints?: string[];
+                    customRole?: string;
+                    customFormat?: string;
+                    customConstraint?: string;
+                  } = {};
+                  if (typeof updates.role === "string") {
+                    normalizedUpdates.role = updates.role;
+                    normalizedUpdates.customRole = "";
+                  }
+                  if (typeof updates.tone === "string") {
+                    normalizedUpdates.tone = updates.tone;
+                  }
+                  if (typeof updates.lengthPreference === "string") {
+                    normalizedUpdates.lengthPreference = updates.lengthPreference;
+                  }
+                  if (Array.isArray(updates.format)) {
+                    normalizedUpdates.format = updates.format.filter(
+                      (entry): entry is string => typeof entry === "string",
+                    );
+                    normalizedUpdates.customFormat = "";
+                  }
+                  if (Array.isArray(updates.constraints)) {
+                    normalizedUpdates.constraints = updates.constraints.filter(
+                      (entry): entry is string => typeof entry === "string",
+                    );
+                    normalizedUpdates.customConstraint = "";
+                  }
+                  return normalizedUpdates;
+                })(),
+                fields,
+              },
+            };
+          }
+
+          return null;
+        })
+        .filter((chip): chip is BuilderSuggestionChip => chip !== null)
+    : [];
+
+  return {
+    inferredUpdates,
+    inferredFields,
+    suggestionChips,
+    confidence: response.confidence,
+  };
+}
+
+const buildInferenceCurrentFields = (config: typeof defaultConfig) => {
+  const currentFields: {
+    role?: string;
+    tone?: string;
+    lengthPreference?: string;
+    format?: string[];
+    constraints?: string[];
+  } = {
+    role: config.customRole.trim() || config.role.trim(),
+    format: config.format,
+    constraints: config.constraints,
+  };
+
+  if (config.tone && config.tone !== defaultConfig.tone) {
+    currentFields.tone = config.tone;
+  }
+  if (config.lengthPreference && config.lengthPreference !== defaultConfig.lengthPreference) {
+    currentFields.lengthPreference = config.lengthPreference;
+  }
+
+  return currentFields;
 };
 
 const Index = () => {
+  const isBuilderRedesignPhase1 = builderRedesignFlags.builderRedesignPhase1;
+  const isBuilderRedesignPhase2 =
+    isBuilderRedesignPhase1 && builderRedesignFlags.builderRedesignPhase2;
+  const isBuilderRedesignPhase3 =
+    isBuilderRedesignPhase1 && builderRedesignFlags.builderRedesignPhase3;
   const [searchParams, setSearchParams] = useSearchParams();
   const remixId = searchParams.get("remix");
   const presetId = searchParams.get("preset");
   const remixLoadToken = useRef(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [openSections, setOpenSections] = useState<BuilderSection[]>(["builder"]);
+  const [isAdjustDetailsOpen, setIsAdjustDetailsOpen] = useState(false);
+  const [isSourcesAdvancedOpen, setIsSourcesAdvancedOpen] = useState(false);
   const [enhancePhase, setEnhancePhase] = useState<EnhancePhase>("idle");
   const enhancePhaseTimers = useRef<number[]>([]);
+  const hasTrackedBuilderLoaded = useRef(false);
+  const hasTrackedFirstInput = useRef(false);
+  const hasTrackedZone2Opened = useRef(false);
+  const hasTrackedZone3Opened = useRef(false);
+  const suggestionLoadToken = useRef(0);
+  const enhanceStartedAt = useRef<number | null>(null);
+  const enhancePending = useRef(false);
+  const [suggestionChips, setSuggestionChips] = useState<BuilderSuggestionChip[]>([]);
+  const [isInferringSuggestions, setIsInferringSuggestions] = useState(false);
+  const [hasInferenceError, setHasInferenceError] = useState(false);
+  const [fieldOwnership, setFieldOwnership] = useState<BuilderFieldOwnershipMap>(() =>
+    createFieldOwnershipFromConfig(defaultConfig),
+  );
   const { toast } = useToast();
   const isMobile = useIsMobile();
 
@@ -129,6 +344,28 @@ const Index = () => {
     updateProjectNotes,
     toggleDelimiters,
   } = usePromptBuilder();
+
+  useEffect(() => {
+    if (hasTrackedBuilderLoaded.current) return;
+    hasTrackedBuilderLoaded.current = true;
+    trackBuilderEvent("builder_loaded", {
+      isMobile,
+      isSignedIn,
+      redesignPhase1: isBuilderRedesignPhase1,
+      redesignPhase2: isBuilderRedesignPhase2,
+      redesignPhase3: isBuilderRedesignPhase3,
+      hasRemixParam: Boolean(remixId),
+      hasPresetParam: Boolean(presetId),
+    });
+  }, [
+    isMobile,
+    isSignedIn,
+    isBuilderRedesignPhase1,
+    isBuilderRedesignPhase2,
+    isBuilderRedesignPhase3,
+    remixId,
+    presetId,
+  ]);
 
   useEffect(() => {
     const restoredPrompt = consumeRestoredVersionPrompt();
@@ -206,48 +443,204 @@ const Index = () => {
     return () => clearEnhanceTimers();
   }, [clearEnhanceTimers]);
 
-  const handleEnhance = useCallback(() => {
-    if (!builtPrompt || isEnhancing) return;
-    clearEnhanceTimers();
-    setEnhancePhase("starting");
-    setIsEnhancing(true);
-    setEnhancedPrompt("");
-
-    if (isMobile) setDrawerOpen(true);
-
-    let accumulated = "";
-    let hasReceivedDelta = false;
-    streamEnhance({
-      prompt: builtPrompt,
-      threadOptions: ENHANCE_THREAD_OPTIONS,
-      onDelta: (text) => {
-        if (!hasReceivedDelta) {
-          hasReceivedDelta = true;
-          setEnhancePhase("streaming");
+  const handleAdjustDetailsUpdate = useCallback(
+    (updates: Partial<typeof config>) => {
+      if (isBuilderRedesignPhase3) {
+        const fields = listInferenceFieldsFromUpdates(updates);
+        if (fields.length > 0) {
+          setFieldOwnership((previous) => markOwnershipFields(previous, fields, "user"));
+          trackBuilderEvent("builder_field_manual_override", {
+            fields: fields.join(","),
+          });
         }
-        accumulated += text;
-        setEnhancedPrompt(accumulated);
-      },
-      onDone: () => {
-        setIsEnhancing(false);
-        setEnhancePhase("settling");
-        const doneTimer = window.setTimeout(() => {
-          setEnhancePhase("done");
-        }, 260);
-        const idleTimer = window.setTimeout(() => {
-          setEnhancePhase("idle");
-        }, 1800);
-        enhancePhaseTimers.current.push(doneTimer, idleTimer);
-        toast({ title: "Prompt enhanced!", description: "Your prompt has been optimized by AI." });
-      },
-      onError: (error) => {
-        clearEnhanceTimers();
-        setIsEnhancing(false);
-        setEnhancePhase("idle");
-        toast({ title: "Enhancement failed", description: error, variant: "destructive" });
-      },
+      }
+
+      updateConfig(updates);
+    },
+    [isBuilderRedesignPhase3, updateConfig],
+  );
+
+  const handleApplySuggestionChip = useCallback(
+    (chip: BuilderSuggestionChip) => {
+      if (chip.action.type === "append_prompt") {
+        updateConfig({
+          originalPrompt: `${config.originalPrompt}${chip.action.text}`,
+        });
+        return;
+      }
+
+      const fields = chip.action.fields.length > 0
+        ? chip.action.fields
+        : listInferenceFieldsFromUpdates(chip.action.updates);
+      updateConfig(chip.action.updates);
+      setFieldOwnership((previous) => markOwnershipFields(previous, fields, "ai"));
+      setIsAdjustDetailsOpen(true);
+      trackBuilderEvent("builder_inference_applied", {
+        source: "chip",
+        fields: fields.join(","),
+      });
+    },
+    [config.originalPrompt, updateConfig],
+  );
+
+  const handleResetInferredDetails = useCallback(() => {
+    const { updates, clearedFields, nextOwnership } = clearAiOwnedFields(fieldOwnership);
+    if (clearedFields.length === 0) return;
+    updateConfig(updates);
+    setFieldOwnership(nextOwnership);
+    setSuggestionChips([]);
+    setHasInferenceError(false);
+    trackBuilderEvent("builder_inference_applied", {
+      source: "reset",
+      clearedFields: clearedFields.join(","),
     });
-  }, [builtPrompt, clearEnhanceTimers, isEnhancing, setIsEnhancing, setEnhancedPrompt, toast, isMobile]);
+  }, [fieldOwnership, updateConfig]);
+
+  const handleEnhance = useCallback(() => {
+    if (isEnhancing || enhancePending.current) return;
+    enhancePending.current = true;
+
+    void (async () => {
+      let configForEnhance = config;
+      let promptForEnhance = buildPrompt(configForEnhance);
+      if (!promptForEnhance) {
+        enhancePending.current = false;
+        return;
+      }
+
+      if (isBuilderRedesignPhase3) {
+        clearEnhanceTimers();
+        setEnhancePhase("starting");
+        setIsEnhancing(true);
+        enhancePending.current = false;
+        const applyInferenceResult = (
+          inference: ReturnType<typeof inferBuilderFieldsLocally>,
+          source: "enhance_remote" | "enhance_local",
+        ) => {
+          if (inference.suggestionChips.length > 0) {
+            setSuggestionChips(inference.suggestionChips);
+          }
+
+          const { updates, appliedFields } = applyInferenceUpdates(configForEnhance, fieldOwnership, inference);
+          if (appliedFields.length === 0) return;
+
+          updateConfig(updates);
+          setFieldOwnership((previous) => markOwnershipFields(previous, appliedFields, "ai"));
+          setIsAdjustDetailsOpen(true);
+          configForEnhance = { ...configForEnhance, ...updates };
+          promptForEnhance = buildPrompt(configForEnhance);
+          trackBuilderEvent("builder_inference_applied", {
+            source,
+            fields: appliedFields.join(","),
+          });
+        };
+
+        try {
+          const remote = await inferBuilderFields({
+            prompt: config.originalPrompt,
+            currentFields: buildInferenceCurrentFields(configForEnhance),
+            lockMetadata: fieldOwnership,
+          });
+
+          const normalized = normalizeRemoteInferenceResult(remote);
+          if (normalized.inferredFields.length > 0 || normalized.suggestionChips.length > 0) {
+            applyInferenceResult(normalized, "enhance_remote");
+          } else {
+            applyInferenceResult(inferBuilderFieldsLocally(config.originalPrompt, config), "enhance_local");
+          }
+          setHasInferenceError(false);
+        } catch {
+          setHasInferenceError(true);
+          applyInferenceResult(inferBuilderFieldsLocally(config.originalPrompt, config), "enhance_local");
+        }
+      }
+
+      if (!promptForEnhance) {
+        if (isBuilderRedesignPhase3) {
+          setIsEnhancing(false);
+          setEnhancePhase("idle");
+        }
+        enhancePending.current = false;
+        return;
+      }
+
+      enhanceStartedAt.current = Date.now();
+      trackBuilderEvent("builder_enhance_clicked", {
+        promptChars: promptForEnhance.length,
+        redesignPhase1: isBuilderRedesignPhase1,
+        hasExistingEnhancedPrompt: Boolean(enhancedPrompt.trim()),
+      });
+      clearEnhanceTimers();
+      setEnhancePhase("starting");
+      setIsEnhancing(true);
+      enhancePending.current = false;
+      setEnhancedPrompt("");
+
+      if (isMobile) setDrawerOpen(true);
+
+      let accumulated = "";
+      let hasReceivedDelta = false;
+      streamEnhance({
+        prompt: promptForEnhance,
+        threadOptions: ENHANCE_THREAD_OPTIONS,
+        onDelta: (text) => {
+          if (!hasReceivedDelta) {
+            hasReceivedDelta = true;
+            setEnhancePhase("streaming");
+          }
+          accumulated += text;
+          setEnhancedPrompt(accumulated);
+        },
+        onDone: () => {
+          const startedAt = enhanceStartedAt.current;
+          const durationMs = startedAt ? Math.max(Date.now() - startedAt, 0) : -1;
+          enhanceStartedAt.current = null;
+          trackBuilderEvent("builder_enhance_completed", {
+            success: true,
+            durationMs,
+            outputChars: accumulated.length,
+          });
+          setIsEnhancing(false);
+          setEnhancePhase("settling");
+          const doneTimer = window.setTimeout(() => {
+            setEnhancePhase("done");
+          }, 260);
+          const idleTimer = window.setTimeout(() => {
+            setEnhancePhase("idle");
+          }, 1800);
+          enhancePhaseTimers.current.push(doneTimer, idleTimer);
+          toast({ title: "Prompt enhanced!", description: "Your prompt has been optimized by AI." });
+        },
+        onError: (error) => {
+          const startedAt = enhanceStartedAt.current;
+          const durationMs = startedAt ? Math.max(Date.now() - startedAt, 0) : -1;
+          enhanceStartedAt.current = null;
+          trackBuilderEvent("builder_enhance_completed", {
+            success: false,
+            durationMs,
+            error,
+          });
+          clearEnhanceTimers();
+          setIsEnhancing(false);
+          setEnhancePhase("idle");
+          toast({ title: "Enhancement failed", description: error, variant: "destructive" });
+        },
+      });
+    })();
+  }, [
+    clearEnhanceTimers,
+    config,
+    enhancedPrompt,
+    fieldOwnership,
+    isBuilderRedesignPhase1,
+    isBuilderRedesignPhase3,
+    isEnhancing,
+    isMobile,
+    setEnhancedPrompt,
+    setIsEnhancing,
+    toast,
+    updateConfig,
+  ]);
 
   useEffect(() => {
     if (isEnhancing) return;
@@ -363,7 +756,7 @@ const Index = () => {
     sectionHealth.builder === "complete" &&
     sectionHealth.context === "complete" &&
     sectionHealth.tone === "complete";
-  const showEnhanceFirstCard = !hasEnhancedOnce && !allSectionsComplete;
+  const showEnhanceFirstCard = !hasEnhancedOnce && (isBuilderRedesignPhase1 || !allSectionsComplete);
   const canSavePrompt = hasPromptInput(config);
   const canSharePrompt = canSavePrompt && isSignedIn;
   const mobileEnhanceLabel = isEnhancing
@@ -423,7 +816,196 @@ const Index = () => {
     return suggestions.slice(0, 3);
   }, [sectionHealth.builder, sectionHealth.context, sectionHealth.tone, selectedRole]);
   const showRefineSuggestions = Boolean(enhancedPrompt.trim()) && refineSuggestions.length > 0;
+  const hasAiOwnedFields = hasFieldOwnershipValue(fieldOwnership, "ai");
+
+  useEffect(() => {
+    if (hasTrackedFirstInput.current) return;
+    const trimmedPrompt = config.originalPrompt.trim();
+    if (!trimmedPrompt) return;
+
+    hasTrackedFirstInput.current = true;
+    trackBuilderEvent("builder_first_input", {
+      promptChars: trimmedPrompt.length,
+      redesignPhase1: isBuilderRedesignPhase1,
+    });
+  }, [config.originalPrompt, isBuilderRedesignPhase1]);
+
+  useEffect(() => {
+    if (isBuilderRedesignPhase3) return;
+    setSuggestionChips([]);
+    setIsInferringSuggestions(false);
+    setHasInferenceError(false);
+    setFieldOwnership(createFieldOwnershipFromConfig(config));
+  }, [isBuilderRedesignPhase3, config]);
+
+  useEffect(() => {
+    if (!isBuilderRedesignPhase3) return;
+    setFieldOwnership((previous) => {
+      const baseline = createFieldOwnershipFromConfig(config);
+      let changed = false;
+      const next: BuilderFieldOwnershipMap = { ...previous };
+      (Object.keys(next) as Array<keyof BuilderFieldOwnershipMap>).forEach((field) => {
+        if (baseline[field] === "user" && previous[field] === "empty") {
+          next[field] = "user";
+          changed = true;
+        }
+        if (baseline[field] === "empty" && previous[field] === "user") {
+          next[field] = "empty";
+          changed = true;
+        }
+      });
+      return changed ? next : previous;
+    });
+  }, [isBuilderRedesignPhase3, config]);
+
+  useEffect(() => {
+    if (!isBuilderRedesignPhase1) return;
+    const hasDetailSelections = Boolean(
+      selectedRole ||
+      config.format.length ||
+      config.customFormat.trim() ||
+      config.constraints.length ||
+      config.customConstraint.trim() ||
+      config.examples.trim(),
+    );
+    const hasSourceOrAdvancedSelections = Boolean(
+      config.contextConfig.sources.length ||
+      config.contextConfig.projectNotes.trim() ||
+      config.contextConfig.databaseConnections.length ||
+      config.contextConfig.rag.enabled,
+    );
+    if (hasDetailSelections) {
+      setIsAdjustDetailsOpen(true);
+    }
+    if (hasSourceOrAdvancedSelections) {
+      setIsSourcesAdvancedOpen(true);
+    }
+  }, [
+    isBuilderRedesignPhase1,
+    selectedRole,
+    config.format,
+    config.customFormat,
+    config.constraints,
+    config.customConstraint,
+    config.examples,
+    config.contextConfig.sources.length,
+    config.contextConfig.projectNotes,
+    config.contextConfig.databaseConnections.length,
+    config.contextConfig.rag.enabled,
+  ]);
+
+  useEffect(() => {
+    if (!isBuilderRedesignPhase1) return;
+    if (!isAdjustDetailsOpen || hasTrackedZone2Opened.current) return;
+
+    hasTrackedZone2Opened.current = true;
+    trackBuilderEvent("builder_zone2_opened", {
+      selectedRole: Boolean(selectedRole),
+      formatCount: config.format.length,
+      constraintCount: config.constraints.length,
+      hasExamples: Boolean(config.examples.trim()),
+    });
+  }, [
+    isBuilderRedesignPhase1,
+    isAdjustDetailsOpen,
+    selectedRole,
+    config.format.length,
+    config.constraints.length,
+    config.examples,
+  ]);
+
+  useEffect(() => {
+    if (!isBuilderRedesignPhase1) return;
+    if (!isSourcesAdvancedOpen || hasTrackedZone3Opened.current) return;
+
+    hasTrackedZone3Opened.current = true;
+    trackBuilderEvent("builder_zone3_opened", {
+      sourceCount: config.contextConfig.sources.length,
+      hasProjectNotes: Boolean(config.contextConfig.projectNotes.trim()),
+      databaseCount: config.contextConfig.databaseConnections.length,
+      ragEnabled: config.contextConfig.rag.enabled,
+    });
+  }, [
+    isBuilderRedesignPhase1,
+    isSourcesAdvancedOpen,
+    config.contextConfig.sources.length,
+    config.contextConfig.projectNotes,
+    config.contextConfig.databaseConnections.length,
+    config.contextConfig.rag.enabled,
+  ]);
+
+  useEffect(() => {
+    if (!isBuilderRedesignPhase3) {
+      suggestionLoadToken.current += 1;
+      return;
+    }
+    const prompt = config.originalPrompt.trim();
+    if (prompt.length < 24) {
+      suggestionLoadToken.current += 1;
+      setSuggestionChips([]);
+      setHasInferenceError(false);
+      setIsInferringSuggestions(false);
+      return;
+    }
+
+    const token = ++suggestionLoadToken.current;
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        setIsInferringSuggestions(true);
+        try {
+          const remote = await inferBuilderFields({
+            prompt,
+            currentFields: buildInferenceCurrentFields(config),
+            lockMetadata: fieldOwnership,
+          });
+
+          if (token !== suggestionLoadToken.current) return;
+
+          const normalized = normalizeRemoteInferenceResult(remote);
+          if (normalized.suggestionChips.length > 0) {
+            setSuggestionChips(normalized.suggestionChips);
+          } else {
+            setSuggestionChips(inferBuilderFieldsLocally(prompt, config).suggestionChips);
+          }
+          setHasInferenceError(false);
+        } catch {
+          if (token !== suggestionLoadToken.current) return;
+          setSuggestionChips(inferBuilderFieldsLocally(prompt, config).suggestionChips);
+          setHasInferenceError(true);
+        } finally {
+          if (token === suggestionLoadToken.current) {
+            setIsInferringSuggestions(false);
+          }
+        }
+      })();
+    }, 450);
+
+    return () => {
+      window.clearTimeout(timer);
+      suggestionLoadToken.current += 1;
+    };
+  }, [
+    isBuilderRedesignPhase3,
+    config,
+    fieldOwnership,
+  ]);
+
   const openAndFocusSection = useCallback((section: BuilderSection) => {
+    if (isBuilderRedesignPhase1) {
+      const targetId = section === "context" ? "builder-zone-3" : "builder-zone-2";
+      if (section === "context") {
+        setIsSourcesAdvancedOpen(true);
+      } else {
+        setIsAdjustDetailsOpen(true);
+      }
+      window.requestAnimationFrame(() => {
+        document.getElementById(targetId)?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      });
+      return;
+    }
     setOpenSections((prev) => (prev.includes(section) ? prev : [...prev, section]));
     window.requestAnimationFrame(() => {
       document.getElementById(`accordion-${section}`)?.scrollIntoView({
@@ -431,7 +1013,7 @@ const Index = () => {
         block: "center",
       });
     });
-  }, []);
+  }, [isBuilderRedesignPhase1]);
 
   return (
     <PageShell mainClassName="py-3 sm:py-6">
@@ -474,155 +1056,239 @@ const Index = () => {
 
         {/* Split layout */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-          {/* Left: Input & Builder — accordion on all sizes for consistency */}
+          {/* Left: Input & Builder */}
           <div className="space-y-3 sm:space-y-4">
-            {/* Prompt input always visible */}
-            <PromptInput
-              value={config.originalPrompt}
-              onChange={(v) => updateConfig({ originalPrompt: v })}
-              onClear={clearOriginalPrompt}
-            />
+            {isBuilderRedesignPhase1 ? (
+              <>
+                <BuilderHeroInput
+                  value={config.originalPrompt}
+                  onChange={(value) => updateConfig({ originalPrompt: value })}
+                  onClear={clearOriginalPrompt}
+                  phase3Enabled={isBuilderRedesignPhase3}
+                  suggestionChips={suggestionChips}
+                  isInferringSuggestions={isInferringSuggestions}
+                  hasInferenceError={hasInferenceError}
+                  onApplySuggestion={handleApplySuggestionChip}
+                  onResetInferred={handleResetInferredDetails}
+                  canResetInferred={hasAiOwnedFields}
+                />
 
-            {showEnhanceFirstCard && (
-              <Card className="border-border/70 bg-card/80 p-3">
-                <div>
-                  <p className="text-xs font-medium text-foreground">Enhance first, refine after</p>
-                  <p className="text-xs text-muted-foreground">
-                    Start with a rough prompt, then use the main Enhance button to generate your first draft.
-                  </p>
-                </div>
-              </Card>
+                {showEnhanceFirstCard && (
+                  <Card className="border-border/70 bg-card/80 p-3">
+                    <div>
+                      <p className="text-xs font-medium text-foreground">Enhance first, refine after</p>
+                      <p className="text-xs text-muted-foreground">
+                        Start with a rough prompt, then use the main Enhance button to generate your first draft.
+                      </p>
+                    </div>
+                  </Card>
+                )}
+
+                {showRefineSuggestions && (
+                  <Card className="border-primary/25 bg-primary/5 p-3">
+                    <p className="text-xs font-medium text-primary">Improve this result</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {refineSuggestions.map((suggestion) => (
+                        <Button
+                          key={suggestion.id}
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-8 text-xs"
+                          onClick={() => openAndFocusSection(suggestion.id)}
+                        >
+                          {suggestion.title}
+                        </Button>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {refineSuggestions[0]?.description}
+                    </p>
+                  </Card>
+                )}
+
+                <BuilderAdjustDetails
+                  config={config}
+                  isOpen={isAdjustDetailsOpen}
+                  onOpenChange={setIsAdjustDetailsOpen}
+                  onUpdate={handleAdjustDetailsUpdate}
+                />
+
+                <BuilderSourcesAdvanced
+                  contextConfig={config.contextConfig}
+                  isOpen={isSourcesAdvancedOpen}
+                  onOpenChange={setIsSourcesAdvancedOpen}
+                  onUpdateSources={updateContextSources}
+                  onUpdateDatabaseConnections={updateDatabaseConnections}
+                  onUpdateRag={updateRagParameters}
+                  onUpdateProjectNotes={updateProjectNotes}
+                  onToggleDelimiters={toggleDelimiters}
+                />
+              </>
+            ) : (
+              <>
+                <PromptInput
+                  value={config.originalPrompt}
+                  onChange={(v) => updateConfig({ originalPrompt: v })}
+                  onClear={clearOriginalPrompt}
+                />
+
+                {showEnhanceFirstCard && (
+                  <Card className="border-border/70 bg-card/80 p-3">
+                    <div>
+                      <p className="text-xs font-medium text-foreground">Enhance first, refine after</p>
+                      <p className="text-xs text-muted-foreground">
+                        Start with a rough prompt, then use the main Enhance button to generate your first draft.
+                      </p>
+                    </div>
+                  </Card>
+                )}
+
+                {showRefineSuggestions && (
+                  <Card className="border-primary/25 bg-primary/5 p-3">
+                    <p className="text-xs font-medium text-primary">Improve this result</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {refineSuggestions.map((suggestion) => (
+                        <Button
+                          key={suggestion.id}
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-8 text-xs"
+                          onClick={() => openAndFocusSection(suggestion.id)}
+                        >
+                          {suggestion.title}
+                        </Button>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {refineSuggestions[0]?.description}
+                    </p>
+                  </Card>
+                )}
+
+                <Accordion
+                  type="multiple"
+                  value={openSections}
+                  onValueChange={(value) => setOpenSections(value as BuilderSection[])}
+                  className="space-y-1"
+                >
+                  <AccordionItem id="accordion-builder" value="builder" className="border rounded-lg px-3">
+                    <AccordionTrigger className="py-3 text-sm hover:no-underline gap-2">
+                      <span className="flex items-center gap-2">
+                        <Target className="w-3.5 h-3.5 text-muted-foreground" />
+                        Builder
+                      </span>
+                      <span className="ml-auto mr-2 flex items-center gap-1.5">
+                        {selectedRole && (
+                          <Badge variant="secondary" className="max-w-[120px] truncate text-xs">
+                            {selectedRole}
+                          </Badge>
+                        )}
+                        <SectionHealthBadge state={sectionHealth.builder} />
+                      </span>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <BuilderTabs config={config} onUpdate={updateConfig} />
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem id="accordion-context" value="context" className="border rounded-lg px-3">
+                    <AccordionTrigger className="py-3 text-sm hover:no-underline gap-2">
+                      <span className="flex items-center gap-2">
+                        <LayoutIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                        Context & Sources
+                      </span>
+                      <span className="ml-auto mr-2 flex items-center gap-1.5">
+                        {sourceCount > 0 && (
+                          <Badge variant="secondary" className="text-xs">
+                            {sourceCount} src
+                          </Badge>
+                        )}
+                        <SectionHealthBadge state={sectionHealth.context} />
+                      </span>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <ContextPanel
+                        contextConfig={config.contextConfig}
+                        onUpdateSources={updateContextSources}
+                        onUpdateDatabaseConnections={updateDatabaseConnections}
+                        onUpdateRag={updateRagParameters}
+                        onUpdateStructured={updateContextStructured}
+                        onUpdateInterview={updateContextInterview}
+                        onUpdateProjectNotes={updateProjectNotes}
+                        onToggleDelimiters={toggleDelimiters}
+                      />
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem id="accordion-tone" value="tone" className="border rounded-lg px-3">
+                    <AccordionTrigger className="py-3 text-sm hover:no-underline gap-2">
+                      <span className="flex items-center gap-2">
+                        <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
+                        Tone & Style
+                      </span>
+                      <span className="ml-auto mr-2 flex items-center gap-1.5">
+                        {config.tone && (
+                          <Badge variant="secondary" className="text-xs">
+                            {config.tone}
+                          </Badge>
+                        )}
+                        <SectionHealthBadge state={sectionHealth.tone} />
+                      </span>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <ToneControls
+                        tone={config.tone}
+                        complexity={config.complexity}
+                        onUpdate={updateConfig}
+                      />
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem id="accordion-quality" value="quality" className="border rounded-lg px-3">
+                    <AccordionTrigger className="py-3 text-sm hover:no-underline gap-2">
+                      <span className="flex items-center gap-2">
+                        <BarChart3 className="w-3.5 h-3.5 text-muted-foreground" />
+                        Quality Score
+                      </span>
+                      <span className="ml-auto mr-2 flex items-center gap-1.5">
+                        <Badge
+                          variant={score.total >= 75 ? "default" : "secondary"}
+                          className="text-xs"
+                        >
+                          {score.total}/100
+                        </Badge>
+                        <SectionHealthBadge state={sectionHealth.quality} />
+                      </span>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <QualityScore score={score} />
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </>
             )}
-
-            {showRefineSuggestions && (
-              <Card className="border-primary/25 bg-primary/5 p-3">
-                <p className="text-xs font-medium text-primary">Improve this result</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {refineSuggestions.map((suggestion) => (
-                    <Button
-                      key={suggestion.id}
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="h-8 text-xs"
-                      onClick={() => openAndFocusSection(suggestion.id)}
-                    >
-                      {suggestion.title}
-                    </Button>
-                  ))}
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {refineSuggestions[0]?.description}
-                </p>
-              </Card>
-            )}
-
-            {/* Accordion sections */}
-            <Accordion
-              type="multiple"
-              value={openSections}
-              onValueChange={(value) => setOpenSections(value as BuilderSection[])}
-              className="space-y-1"
-            >
-              <AccordionItem id="accordion-builder" value="builder" className="border rounded-lg px-3">
-                <AccordionTrigger className="py-3 text-sm hover:no-underline gap-2">
-                  <span className="flex items-center gap-2">
-                    <Target className="w-3.5 h-3.5 text-muted-foreground" />
-                    Builder
-                  </span>
-                  <span className="ml-auto mr-2 flex items-center gap-1.5">
-                    {selectedRole && (
-                      <Badge variant="secondary" className="max-w-[120px] truncate text-xs">
-                        {selectedRole}
-                      </Badge>
-                    )}
-                    <SectionHealthBadge state={sectionHealth.builder} />
-                  </span>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <BuilderTabs config={config} onUpdate={updateConfig} />
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem id="accordion-context" value="context" className="border rounded-lg px-3">
-                <AccordionTrigger className="py-3 text-sm hover:no-underline gap-2">
-                  <span className="flex items-center gap-2">
-                    <LayoutIcon className="w-3.5 h-3.5 text-muted-foreground" />
-                    Context & Sources
-                  </span>
-                  <span className="ml-auto mr-2 flex items-center gap-1.5">
-                    {sourceCount > 0 && (
-                      <Badge variant="secondary" className="text-xs">
-                        {sourceCount} src
-                      </Badge>
-                    )}
-                    <SectionHealthBadge state={sectionHealth.context} />
-                  </span>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <ContextPanel
-                    contextConfig={config.contextConfig}
-                    onUpdateSources={updateContextSources}
-                    onUpdateDatabaseConnections={updateDatabaseConnections}
-                    onUpdateRag={updateRagParameters}
-                    onUpdateStructured={updateContextStructured}
-                    onUpdateInterview={updateContextInterview}
-                    onUpdateProjectNotes={updateProjectNotes}
-                    onToggleDelimiters={toggleDelimiters}
-                  />
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem id="accordion-tone" value="tone" className="border rounded-lg px-3">
-                <AccordionTrigger className="py-3 text-sm hover:no-underline gap-2">
-                  <span className="flex items-center gap-2">
-                    <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
-                    Tone & Style
-                  </span>
-                  <span className="ml-auto mr-2 flex items-center gap-1.5">
-                    {config.tone && (
-                      <Badge variant="secondary" className="text-xs">
-                        {config.tone}
-                      </Badge>
-                    )}
-                    <SectionHealthBadge state={sectionHealth.tone} />
-                  </span>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <ToneControls
-                    tone={config.tone}
-                    complexity={config.complexity}
-                    onUpdate={updateConfig}
-                  />
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem id="accordion-quality" value="quality" className="border rounded-lg px-3">
-                <AccordionTrigger className="py-3 text-sm hover:no-underline gap-2">
-                  <span className="flex items-center gap-2">
-                    <BarChart3 className="w-3.5 h-3.5 text-muted-foreground" />
-                    Quality Score
-                  </span>
-                  <span className="ml-auto mr-2 flex items-center gap-1.5">
-                    <Badge
-                      variant={score.total >= 75 ? "default" : "secondary"}
-                      className="text-xs"
-                    >
-                      {score.total}/100
-                    </Badge>
-                    <SectionHealthBadge state={sectionHealth.quality} />
-                  </span>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <QualityScore score={score} />
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
           </div>
 
           {/* Right: Output — inline on desktop, drawer on mobile */}
           {!isMobile && (
             <div className="lg:sticky lg:top-20 lg:self-start">
+              {isBuilderRedesignPhase1 && (
+                <Card className="mb-3 border-border/70 bg-card/80 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-medium text-foreground">Quality signal</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {score.tips[0]}
+                      </p>
+                    </div>
+                    <Badge variant={score.total >= 75 ? "default" : "secondary"} className="text-xs">
+                      {score.total}/100
+                    </Badge>
+                  </div>
+                </Card>
+              )}
               <OutputPanel
                 builtPrompt={builtPrompt}
                 enhancedPrompt={enhancedPrompt}
@@ -634,6 +1300,7 @@ const Index = () => {
                 onSaveAndSharePrompt={handleSaveAndSharePrompt}
                 canSavePrompt={canSavePrompt}
                 canSharePrompt={canSharePrompt}
+                phase2Enabled={isBuilderRedesignPhase2}
                 remixContext={
                   remixContext
                     ? { title: remixContext.parentTitle, authorName: remixContext.parentAuthor }
@@ -717,6 +1384,7 @@ const Index = () => {
                 onSaveAndSharePrompt={handleSaveAndSharePrompt}
                 canSavePrompt={canSavePrompt}
                 canSharePrompt={canSharePrompt}
+                phase2Enabled={isBuilderRedesignPhase2}
                 hideEnhanceButton
                 remixContext={
                   remixContext

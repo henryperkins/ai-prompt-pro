@@ -8,6 +8,7 @@ import {
 } from "react";
 import type { User, Session, Provider } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { validateDisplayName } from "@/lib/profile";
 
 interface AuthContextValue {
   user: User | null;
@@ -23,6 +24,7 @@ interface AuthContextValue {
   ) => Promise<{ error: string | null; session: Session | null; user: User | null }>;
   signInWithOAuth: (provider: Provider) => Promise<{ error: string | null; session: Session | null }>;
   signOut: () => Promise<void>;
+  updateDisplayName: (displayName: string) => Promise<{ error: string | null; user: User | null }>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -91,9 +93,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   }, []);
 
+  const updateDisplayName = useCallback(async (displayName: string) => {
+    const normalized = displayName.trim();
+    const validationError = validateDisplayName(normalized);
+    if (validationError) {
+      return { error: validationError, user: null };
+    }
+
+    if (!user || user.is_anonymous) {
+      return { error: "Sign in required.", user: null };
+    }
+
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .update({ display_name: normalized })
+      .eq("id", user.id);
+    if (profileError) {
+      return { error: profileError.message || "Failed to update display name.", user: null };
+    }
+
+    const { data, error } = await supabase.auth.updateUser({
+      data: { display_name: normalized },
+    });
+    if (error) {
+      return { error: error.message || "Failed to update display name.", user: null };
+    }
+
+    const nextUser = data.user ?? user;
+    setUser(nextUser);
+    setSession((previous) => {
+      if (!previous) return previous;
+      return { ...previous, user: nextUser };
+    });
+
+    return { error: null, user: nextUser };
+  }, [user]);
+
   return (
     <AuthContext.Provider
-      value={{ user, session, loading, signUp, signIn, signInWithOAuth, signOut }}
+      value={{ user, session, loading, signUp, signIn, signInWithOAuth, signOut, updateDisplayName }}
     >
       {children}
     </AuthContext.Provider>

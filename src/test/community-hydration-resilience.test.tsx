@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import type { CommunityPost, CommunityProfile } from "@/lib/community";
@@ -47,17 +47,42 @@ vi.mock("@/components/community/CommunityFeed", () => ({
     errorMessage,
     canVote,
     voteStateByPost,
+    onToggleVote,
+    onCopyPrompt,
   }: {
-    posts: Array<{ id: string; title: string }>;
+    posts: Array<{
+      id: string;
+      title: string;
+      upvoteCount: number;
+      enhancedPrompt: string;
+      starterPrompt: string;
+    }>;
     errorMessage?: string | null;
     canVote: boolean;
     voteStateByPost: Record<string, unknown>;
+    onToggleVote: (postId: string, voteType: "upvote" | "verified") => void;
+    onCopyPrompt: (post: { enhancedPrompt: string; starterPrompt: string }) => void;
   }) => (
     <div data-testid="community-feed">
       <div data-testid="feed-error">{errorMessage ?? "ok"}</div>
       <div data-testid="feed-can-vote">{String(canVote)}</div>
       <div data-testid="feed-post-count">{String(posts.length)}</div>
       <div data-testid="feed-vote-state">{JSON.stringify(voteStateByPost)}</div>
+      {posts[0] && <div data-testid="feed-first-upvotes">{String(posts[0].upvoteCount)}</div>}
+      {posts[0] && (
+        <button
+          type="button"
+          onClick={() => onToggleVote(posts[0].id, "upvote")}
+          disabled={!canVote}
+        >
+          feed upvote
+        </button>
+      )}
+      {posts[0] && (
+        <button type="button" onClick={() => onCopyPrompt(posts[0])}>
+          feed copy
+        </button>
+      )}
       {posts.map((post) => (
         <span key={post.id}>{post.title}</span>
       ))}
@@ -70,15 +95,30 @@ vi.mock("@/components/community/CommunityPostDetail", () => ({
     post,
     canVote,
     voteState,
+    onToggleVote,
+    onCopyPrompt,
   }: {
-    post: { title: string };
+    post: { id: string; title: string; upvoteCount: number; enhancedPrompt: string; starterPrompt: string };
     canVote: boolean;
     voteState?: Record<string, unknown>;
+    onToggleVote: (postId: string, voteType: "upvote" | "verified") => void;
+    onCopyPrompt: (post: { enhancedPrompt: string; starterPrompt: string }) => void;
   }) => (
     <div data-testid="post-detail">
       <span>{post.title}</span>
       <div data-testid="detail-can-vote">{String(canVote)}</div>
       <div data-testid="detail-vote-state">{JSON.stringify(voteState ?? null)}</div>
+      <div data-testid="detail-upvotes">{String(post.upvoteCount)}</div>
+      <button
+        type="button"
+        onClick={() => onToggleVote(post.id, "upvote")}
+        disabled={!canVote}
+      >
+        detail upvote
+      </button>
+      <button type="button" onClick={() => onCopyPrompt(post)}>
+        detail copy
+      </button>
     </div>
   ),
 }));
@@ -123,6 +163,16 @@ function createProfile(overrides: Partial<CommunityProfile> = {}): CommunityProf
     avatarUrl: null,
     ...overrides,
   };
+}
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
 }
 
 describe("community hydration resilience", () => {
@@ -184,5 +234,127 @@ describe("community hydration resilience", () => {
       '{"upvote":false,"verified":false}',
     );
     expect(screen.queryByText("Failed to load this post right now. Please try again.")).toBeNull();
+  });
+
+  it("guards feed vote toggles while a request is in flight", async () => {
+    mocks.user.current = { id: "user-1" };
+    const deferredVote = createDeferred<{ active: boolean; rowId: string }>();
+    mocks.toggleVote.mockReturnValueOnce(deferredVote.promise);
+    const { default: Community } = await import("@/pages/Community");
+
+    render(
+      <MemoryRouter>
+        <Community />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("feed-post-count")).toHaveTextContent("1");
+    });
+
+    const voteButton = screen.getByRole("button", { name: "feed upvote" });
+    fireEvent.click(voteButton);
+    fireEvent.click(voteButton);
+
+    expect(mocks.toggleVote).toHaveBeenCalledTimes(1);
+
+    deferredVote.resolve({ active: true, rowId: "vote-1" });
+    await waitFor(() => {
+      expect(screen.getByTestId("feed-first-upvotes")).toHaveTextContent("3");
+    });
+  });
+
+  it("shows copied toast when feed copy is triggered", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+
+    const { default: Community } = await import("@/pages/Community");
+
+    render(
+      <MemoryRouter>
+        <Community />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("feed-post-count")).toHaveTextContent("1");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "feed copy" }));
+
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith("Enhanced prompt");
+    });
+
+    expect(mocks.toast).toHaveBeenCalledWith({
+      title: "Prompt copied",
+      description: "Prompt text copied to your clipboard.",
+    });
+  });
+
+  it("guards post-detail vote toggles while a request is in flight", async () => {
+    mocks.user.current = { id: "user-1" };
+    const deferredVote = createDeferred<{ active: boolean; rowId: string }>();
+    mocks.toggleVote.mockReturnValueOnce(deferredVote.promise);
+    const { default: CommunityPost } = await import("@/pages/CommunityPost");
+
+    render(
+      <MemoryRouter initialEntries={[`/community/${POST_ID}`]}>
+        <Routes>
+          <Route path="/community/:postId" element={<CommunityPost />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("post-detail")).toBeInTheDocument();
+    });
+
+    const voteButton = screen.getByRole("button", { name: "detail upvote" });
+    fireEvent.click(voteButton);
+    fireEvent.click(voteButton);
+
+    expect(mocks.toggleVote).toHaveBeenCalledTimes(1);
+
+    deferredVote.resolve({ active: true, rowId: "vote-1" });
+    await waitFor(() => {
+      expect(screen.getByTestId("detail-upvotes")).toHaveTextContent("3");
+    });
+  });
+
+  it("shows copied toast when post detail copy is triggered", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+
+    const { default: CommunityPost } = await import("@/pages/CommunityPost");
+
+    render(
+      <MemoryRouter initialEntries={[`/community/${POST_ID}`]}>
+        <Routes>
+          <Route path="/community/:postId" element={<CommunityPost />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("post-detail")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "detail copy" }));
+
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith("Enhanced prompt");
+    });
+
+    expect(mocks.toast).toHaveBeenCalledWith({
+      title: "Prompt copied",
+      description: "Prompt text copied to your clipboard.",
+    });
   });
 });

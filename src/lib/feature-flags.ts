@@ -1,0 +1,19 @@
+function parseBooleanFlag(value: string | undefined): boolean {
+  if (!value) return false;
+  const normalized = value.trim().toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+}
+
+export interface BuilderRedesignFlags {
+  builderRedesignPhase1: boolean;
+  builderRedesignPhase2: boolean;
+  builderRedesignPhase3: boolean;
+  builderRedesignPhase4: boolean;
+}
+
+export const builderRedesignFlags: BuilderRedesignFlags = {
+  builderRedesignPhase1: parseBooleanFlag(import.meta.env.VITE_BUILDER_REDESIGN_PHASE1),
+  builderRedesignPhase2: parseBooleanFlag(import.meta.env.VITE_BUILDER_REDESIGN_PHASE2),
+  builderRedesignPhase3: parseBooleanFlag(import.meta.env.VITE_BUILDER_REDESIGN_PHASE3),
+  builderRedesignPhase4: parseBooleanFlag(import.meta.env.VITE_BUILDER_REDESIGN_PHASE4),
+};

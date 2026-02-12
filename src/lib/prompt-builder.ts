@@ -37,6 +37,12 @@ export const defaultConfig: PromptConfig = {
 
 const hasText = (value: string): boolean => value.trim().length > 0;
 
+function getPrimaryTaskInput(config: PromptConfig): string {
+  const originalPrompt = config.originalPrompt.trim();
+  if (originalPrompt) return originalPrompt;
+  return config.task.trim();
+}
+
 export function hasPromptInput(config: PromptConfig): boolean {
   const hasStructuredContext = Object.values(config.contextConfig.structured).some(
     (value) => typeof value === "string" && hasText(value),
@@ -123,8 +129,9 @@ export function buildPrompt(config: PromptConfig): string {
     parts.push(`**Role:** Act as a ${actualRole}.`);
   }
 
-  if (config.task || config.originalPrompt) {
-    parts.push(`**Task:** ${config.task || config.originalPrompt}`);
+  const primaryTaskInput = getPrimaryTaskInput(config);
+  if (primaryTaskInput) {
+    parts.push(`**Task:** ${primaryTaskInput}`);
   }
 
   // Rich context from ContextPanel
@@ -185,8 +192,9 @@ export function scorePrompt(config: PromptConfig): {
   const tips: string[] = [];
 
   // Clarity (0-25)
-  if (config.task || config.originalPrompt) {
-    const taskLen = (config.task || config.originalPrompt).length;
+  const primaryTaskInput = getPrimaryTaskInput(config);
+  if (primaryTaskInput) {
+    const taskLen = primaryTaskInput.length;
     clarity = Math.min(25, Math.round((taskLen / 100) * 25));
   }
   if (clarity < 15) tips.push("Make your task description more specific and detailed.");

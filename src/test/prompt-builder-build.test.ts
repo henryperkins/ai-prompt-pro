@@ -48,4 +48,16 @@ describe("buildPrompt", () => {
 
     expect(prompt).toContain("Use a casual tone");
   });
+
+  it("prioritizes original prompt text over legacy task text", () => {
+    const prompt = buildPrompt(
+      buildConfig({
+        originalPrompt: "Draft a concise customer-facing outage update.",
+        task: "Legacy internal task text",
+      }),
+    );
+
+    expect(prompt).toContain("**Task:** Draft a concise customer-facing outage update.");
+    expect(prompt).not.toContain("Legacy internal task text");
+  });
 });
