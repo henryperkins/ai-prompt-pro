@@ -116,7 +116,7 @@ export function ContextIntegrations({
           <Input
             value={draft.connectionRef}
             onChange={(e) => setDraft((prev) => ({ ...prev, connectionRef: e.target.value }))}
-            placeholder="Connection ref (secret ID)"
+            placeholder="Connection ID (secret)"
             className="h-11 text-sm sm:h-10 sm:text-base"
           />
           <Input
@@ -134,7 +134,7 @@ export function ContextIntegrations({
           <Input
             value={draft.tables}
             onChange={(e) => setDraft((prev) => ({ ...prev, tables: e.target.value }))}
-            placeholder="Tables CSV (optional)"
+            placeholder="Tables (comma-separated, optional)"
             className="h-11 text-sm sm:h-10 sm:text-base"
           />
         </div>
@@ -149,7 +149,7 @@ export function ContextIntegrations({
           </div>
           <Button size="sm" className="h-11 gap-1.5 text-sm sm:h-9 sm:text-base" onClick={addDatabase}>
             <Plus className="w-3 h-3" />
-            Add DB
+            Add connection
           </Button>
         </div>
 
@@ -174,7 +174,7 @@ export function ContextIntegrations({
 
       <div className="space-y-2 border-t border-border pt-3">
         <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium text-foreground sm:text-base">RAG parameters</Label>
+          <Label className="text-sm font-medium text-foreground sm:text-base">Retrieval settings (RAG)</Label>
           <Switch
             checked={rag.enabled}
             onCheckedChange={(enabled) => onUpdateRag({ enabled })}
@@ -185,7 +185,7 @@ export function ContextIntegrations({
           <Input
             value={rag.vectorStoreRef}
             onChange={(e) => onUpdateRag({ vectorStoreRef: e.target.value })}
-            placeholder="Vector store ref"
+            placeholder="Vector store ID"
             className="h-11 text-sm sm:h-10 sm:text-base"
             disabled={!rag.enabled}
           />
@@ -221,21 +221,21 @@ export function ContextIntegrations({
           <Input
             value={String(rag.topK)}
             onChange={(e) => onUpdateRag({ topK: Number(e.target.value) || 0 })}
-            placeholder="topK"
+            placeholder="Top results (topK)"
             className="h-11 text-sm sm:h-10 sm:text-base"
             disabled={!rag.enabled}
           />
           <Input
             value={String(rag.minScore)}
             onChange={(e) => onUpdateRag({ minScore: Number(e.target.value) || 0 })}
-            placeholder="minScore (0..1)"
+            placeholder="Minimum score (0-1)"
             className="h-11 text-sm sm:h-10 sm:text-base"
             disabled={!rag.enabled}
           />
           <Input
             value={String(rag.chunkWindow)}
             onChange={(e) => onUpdateRag({ chunkWindow: Number(e.target.value) || 0 })}
-            placeholder="chunkWindow"
+            placeholder="Context window (chunks)"
             className="h-11 text-sm sm:h-10 sm:text-base"
             disabled={!rag.enabled}
           />
@@ -250,7 +250,7 @@ export function ContextIntegrations({
                 .filter(Boolean),
             })
           }
-          placeholder="Document refs CSV"
+          placeholder="Document IDs (comma-separated)"
           className="h-11 text-sm sm:h-10 sm:text-base"
           disabled={!rag.enabled}
         />

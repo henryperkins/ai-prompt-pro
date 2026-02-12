@@ -536,16 +536,16 @@ export function OutputPanel({
                 <DropdownMenuSubTrigger>Developer tools</DropdownMenuSubTrigger>
                 <DropdownMenuSubContent>
                   <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodex("exec")}>
-                    Copy `codex exec` (stdin)
+                    Copy Codex exec command
                   </DropdownMenuItem>
                   <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodex("tui")}>
-                    Copy `codex` (TUI prefilled)
+                    Copy Codex TUI command
                   </DropdownMenuItem>
                   <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodex("appServer")}>
-                    Copy app-server send-message-v2
+                    Copy app server command
                   </DropdownMenuItem>
                   <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodexSkillScaffold()}>
-                    Copy skill scaffold command
+                    Copy skill scaffold
                   </DropdownMenuItem>
                   <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleDownloadSkill()}>
                     Download SKILL.md

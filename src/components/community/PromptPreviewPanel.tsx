@@ -49,7 +49,7 @@ export function PromptPreviewPanel({ text, mode = "compact", className, onCopy }
             isCollapsed && "line-clamp-6",
           )}
         >
-          {normalized || "No prompt content available yet."}
+          {normalized || "No prompt content yet."}
         </pre>
       </div>
       {canExpand && (
