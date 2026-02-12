@@ -78,13 +78,35 @@ function isRetryableAuthSessionError(error: unknown): boolean {
   );
 }
 
+function errorMessage(error: unknown): string {
+  if (error instanceof Error && typeof error.message === "string" && error.message.trim()) {
+    return error.message.trim();
+  }
+
+  if (error && typeof error === "object") {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim()) {
+      return message.trim();
+    }
+  }
+
+  return "Unknown error";
+}
+
 async function refreshSessionAccessToken(): Promise<string | null> {
-  const {
-    data: { session },
-    error,
-  } = await supabase.auth.refreshSession();
-  if (error) return null;
-  return session?.access_token ?? null;
+  try {
+    const {
+      data: { session },
+      error,
+    } = await supabase.auth.refreshSession();
+    if (error) return null;
+    return session?.access_token ?? null;
+  } catch (error) {
+    if (isRetryableAuthSessionError(error)) {
+      await clearLocalSupabaseSession();
+    }
+    return null;
+  }
 }
 
 async function clearLocalSupabaseSession(): Promise<void> {
@@ -142,17 +164,35 @@ async function getAccessToken({
     if (forcedToken) return forcedToken;
   }
 
+  let sessionResult:
+    | {
+        data: { session: { access_token?: string; expires_at?: number | null } | null };
+        error: unknown;
+      }
+    | null = null;
+
+  try {
+    sessionResult = await supabase.auth.getSession();
+  } catch (sessionError) {
+    if (isRetryableAuthSessionError(sessionError)) {
+      // Auth gateway/network outage: continue with anon-key fallback instead of failing hard.
+      await clearLocalSupabaseSession();
+      return SUPABASE_PUBLISHABLE_KEY as string;
+    }
+    throw new Error(`Could not read auth session: ${errorMessage(sessionError)}`);
+  }
+
   const {
     data: { session },
     error: sessionError,
-  } = await supabase.auth.getSession();
+  } = sessionResult;
   if (sessionError) {
     if (isRetryableAuthSessionError(sessionError)) {
       // Auth gateway/network outage: continue with anon-key fallback instead of failing hard.
       await clearLocalSupabaseSession();
       return SUPABASE_PUBLISHABLE_KEY as string;
     }
-    throw new Error(`Could not read auth session: ${sessionError.message}`);
+    throw new Error(`Could not read auth session: ${errorMessage(sessionError)}`);
   }
   if (session?.access_token) {
     if (!allowSessionToken) {
@@ -167,16 +207,20 @@ async function getAccessToken({
   }
 
   if (!anonAuthDisabled) {
-    const { data, error } = await supabase.auth.signInAnonymously();
-    if (!error && data.session?.access_token) {
-      anonAuthDisabled = false;
-      persistAnonAuthDisabled(false);
-      return data.session.access_token;
-    }
-    if (error && shouldPersistAnonAuthDisabled(error)) {
-      // Anonymous sign-ins are disabled in this project — stop retrying across refreshes.
-      anonAuthDisabled = true;
-      persistAnonAuthDisabled(true);
+    try {
+      const { data, error } = await supabase.auth.signInAnonymously();
+      if (!error && data.session?.access_token) {
+        anonAuthDisabled = false;
+        persistAnonAuthDisabled(false);
+        return data.session.access_token;
+      }
+      if (error && shouldPersistAnonAuthDisabled(error)) {
+        // Anonymous sign-ins are disabled in this project — stop retrying across refreshes.
+        anonAuthDisabled = true;
+        persistAnonAuthDisabled(true);
+      }
+    } catch {
+      // Ignore anon sign-in transport failures and continue with publishable-key fallback.
     }
   }
 

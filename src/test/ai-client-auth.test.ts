@@ -200,6 +200,38 @@ describe("ai-client auth recovery", () => {
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
+  it("falls back to publishable key when getSession throws a retryable fetch error", async () => {
+    mocks.getSession.mockRejectedValue({
+      message: "Failed to fetch",
+      name: "AuthRetryableFetchError",
+      status: 0,
+    });
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(streamingResponse("network-fallback-throw"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { streamEnhance } = await import("@/lib/ai-client");
+
+    const onDelta = vi.fn();
+    const onDone = vi.fn();
+    const onError = vi.fn();
+
+    await streamEnhance({
+      prompt: "Improve this",
+      onDelta,
+      onDone,
+      onError,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const headers = (fetchMock.mock.calls[0]?.[1] as RequestInit).headers as Record<string, string>;
+    expect(headers.Authorization).toBe("Bearer sb_publishable_test");
+    expect(mocks.signOut).toHaveBeenCalledTimes(1);
+    expect(onError).not.toHaveBeenCalled();
+    expect(onDelta).toHaveBeenCalledWith("network-fallback-throw");
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
   it("surfaces non-retryable getSession errors", async () => {
     mocks.getSession.mockResolvedValue({
       data: { session: null },
@@ -415,6 +447,62 @@ describe("ai-client auth recovery", () => {
     expect(mocks.signOut).toHaveBeenCalledTimes(1);
     expect(onError).not.toHaveBeenCalled();
     expect(onDelta).toHaveBeenCalledWith("third-try-success");
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to publishable key when refreshSession throws during forced refresh", async () => {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "stale-token",
+          expires_at: nowSeconds + 3600,
+        },
+      },
+      error: null,
+    });
+
+    mocks.refreshSession.mockRejectedValue({
+      message: "Failed to fetch",
+      name: "AuthRetryableFetchError",
+      status: 0,
+    });
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "Invalid or expired Supabase session." }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(streamingResponse("refresh-throw-fallback"));
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { streamEnhance } = await import("@/lib/ai-client");
+
+    const onDelta = vi.fn();
+    const onDone = vi.fn();
+    const onError = vi.fn();
+
+    await streamEnhance({
+      prompt: "Improve this",
+      onDelta,
+      onDone,
+      onError,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    const firstHeaders = (fetchMock.mock.calls[0]?.[1] as RequestInit).headers as Record<string, string>;
+    const secondHeaders = (fetchMock.mock.calls[1]?.[1] as RequestInit).headers as Record<string, string>;
+
+    expect(firstHeaders.Authorization).toBe("Bearer stale-token");
+    expect(secondHeaders.Authorization).toBe("Bearer sb_publishable_test");
+    expect(onError).not.toHaveBeenCalled();
+    expect(onDelta).toHaveBeenCalledWith("refresh-throw-fallback");
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
