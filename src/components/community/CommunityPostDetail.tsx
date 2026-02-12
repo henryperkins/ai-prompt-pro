@@ -145,22 +145,22 @@ export function CommunityPostDetail({
           <div className="flex min-w-0 items-center gap-2">
             <Avatar className="h-9 w-9 border border-border/60">
               <AvatarImage src={authorAvatarUrl ?? undefined} alt={authorName} />
-              <AvatarFallback className="text-[11px]">{getInitials(authorName)}</AvatarFallback>
+              <AvatarFallback className="type-reply-label">{getInitials(authorName)}</AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-foreground">{authorName}</p>
-              <p className="text-xs text-muted-foreground">{createdAgo}</p>
+              <p className="type-author truncate text-foreground">{authorName}</p>
+              <p className="type-timestamp text-muted-foreground">{createdAgo}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-            <Button asChild variant="ghost" size="sm" className="h-11 w-full text-sm sm:h-8 sm:w-auto sm:text-xs">
+            <Button asChild variant="ghost" size="sm" className="type-button-label h-11 w-full sm:h-8 sm:w-auto">
               <Link to={`/?remix=${post.id}`}>Remix</Link>
             </Button>
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              className="h-11 w-full gap-1.5 text-sm sm:h-8 sm:w-auto sm:text-xs"
+              className="type-button-label h-11 w-full gap-1.5 sm:h-8 sm:w-auto"
               disabled={!canSaveToLibrary}
               onClick={() => onSaveToLibrary(post.id)}
             >
@@ -171,21 +171,23 @@ export function CommunityPostDetail({
         </div>
 
         <div className="space-y-1">
-          <h1 className="text-lg font-semibold text-foreground sm:text-xl">{post.title}</h1>
-          {post.useCase && <p className="text-sm text-muted-foreground">{post.useCase}</p>}
+          <h1 className="type-post-title text-foreground">{post.title}</h1>
+          {post.useCase && (
+            <p className="type-post-body type-prose-measure type-wrap-safe text-muted-foreground">{post.useCase}</p>
+          )}
         </div>
 
         {parentPost && (
-          <div className="rounded-md border border-primary/25 bg-primary/10 px-3 py-2 text-xs text-primary">
+          <div className="type-meta rounded-md border border-primary/25 bg-primary/10 px-3 py-2 text-primary">
             <span className="font-medium">Remixed from:</span>{" "}
-            <Link to={`/community/${parentPost.id}`} className="underline underline-offset-2">
+            <Link to={`/community/${parentPost.id}`} className="type-link-inline type-wrap-safe">
               {parentPost.title}
             </Link>
           </div>
         )}
 
         {post.remixNote && (
-          <div className="rounded-md border border-border/70 bg-background/60 px-3 py-2 text-xs text-muted-foreground">
+          <div className="type-meta type-wrap-safe rounded-md border border-border/70 bg-background/60 px-3 py-2 text-muted-foreground">
             <span className="font-medium text-foreground">Remix note:</span> {post.remixNote}
           </div>
         )}
@@ -193,17 +195,17 @@ export function CommunityPostDetail({
         {remixDiff && (
           <div className="space-y-3 rounded-lg border border-primary/25 bg-primary/5 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-primary">Prompt diff</p>
-              <Badge variant="secondary" className="h-5 px-1.5 text-[11px] font-mono">
+              <p className="type-reply-label type-label-caps text-primary">Prompt diff</p>
+              <Badge variant="secondary" className="type-chip h-5 px-1.5 font-mono">
                 Unified
               </Badge>
             </div>
 
             {remixDiff.changes.length > 0 ? (
-              <div className="overflow-hidden rounded-md border border-border/80 bg-background/65 font-mono text-[11px]">
+              <div className="type-code overflow-hidden rounded-md border border-border/80 bg-background/65 font-mono">
                 {remixDiff.changes.map((change) => (
                   <div key={`${post.id}-${change.field}`} className="border-b border-border/70 last:border-b-0">
-                    <div className="border-b border-border/70 px-3 py-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+                    <div className="type-reply-label type-label-caps border-b border-border/70 px-3 py-1.5 text-muted-foreground">
                       {change.field}
                     </div>
                     <div className="flex items-start gap-2 bg-red-500/10 px-3 py-1.5 text-red-700 dark:text-red-300">
@@ -218,7 +220,7 @@ export function CommunityPostDetail({
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground">No field-level text changes captured.</p>
+              <p className="type-help text-muted-foreground">No field-level text changes captured.</p>
             )}
 
             {(remixDiff.added_tags.length > 0 ||
@@ -226,21 +228,21 @@ export function CommunityPostDetail({
               remixDiff.category_changed) && (
               <div className="grid gap-2 sm:grid-cols-2">
                 {remixDiff.added_tags.length > 0 && (
-                  <div className="rounded-md border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300">
+                  <div className="type-meta rounded-md border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-emerald-700 dark:text-emerald-300">
                     <span className="font-semibold">Added tags</span>
-                    <p className="mt-1 font-mono text-[11px]">{remixDiff.added_tags.join(", ")}</p>
+                    <p className="type-code mt-1 font-mono">{remixDiff.added_tags.join(", ")}</p>
                   </div>
                 )}
                 {remixDiff.removed_tags.length > 0 && (
-                  <div className="rounded-md border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">
+                  <div className="type-meta rounded-md border border-red-500/20 bg-red-500/10 px-3 py-2 text-red-700 dark:text-red-300">
                     <span className="font-semibold">Removed tags</span>
-                    <p className="mt-1 font-mono text-[11px]">{remixDiff.removed_tags.join(", ")}</p>
+                    <p className="type-code mt-1 font-mono">{remixDiff.removed_tags.join(", ")}</p>
                   </div>
                 )}
                 {remixDiff.category_changed && (
-                  <div className="rounded-md border border-border/70 bg-background/60 px-3 py-2 text-xs text-muted-foreground sm:col-span-2">
+                  <div className="type-meta rounded-md border border-border/70 bg-background/60 px-3 py-2 text-muted-foreground sm:col-span-2">
                     <span className="font-semibold text-foreground">Category changed</span>
-                    <p className="mt-1">This remix is published under a different category than the parent prompt.</p>
+                    <p className="type-wrap-safe mt-1">This remix is published under a different category than the parent prompt.</p>
                   </div>
                 )}
               </div>
@@ -249,12 +251,12 @@ export function CommunityPostDetail({
         )}
 
         <div className="flex flex-wrap items-center gap-1.5">
-          <Badge variant="outline" className="capitalize">
+          <Badge variant="outline" className="type-chip capitalize">
             {post.category}
           </Badge>
-          {post.targetModel && <Badge variant="secondary">{post.targetModel}</Badge>}
+          {post.targetModel && <Badge variant="secondary" className="type-chip">{post.targetModel}</Badge>}
           {post.tags.slice(0, 8).map((tag) => (
-            <Badge key={`${post.id}-${tag}`} variant="outline">
+            <Badge key={`${post.id}-${tag}`} variant="outline" className="type-chip">
               #{tag}
             </Badge>
           ))}
@@ -262,32 +264,32 @@ export function CommunityPostDetail({
 
         <PromptPreviewPanel text={promptBody} mode="full" onCopy={() => onCopyPrompt(post)} />
 
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <div className="type-meta flex flex-wrap items-center gap-2 text-muted-foreground">
           <Button
             type="button"
             size="sm"
             variant={voteState?.upvote ? "soft" : "outline"}
-            className="interactive-chip h-11 gap-1.5 px-3 text-sm sm:h-8 sm:gap-1 sm:px-2.5 sm:text-[11px]"
+            className="type-button-label interactive-chip h-11 gap-1.5 px-3 sm:h-8 sm:gap-1 sm:px-2.5"
             disabled={!canVote}
             onClick={() => onToggleVote(post.id, "upvote")}
             data-testid="community-vote-upvote"
           >
             <ArrowUp className="h-3.5 w-3.5" />
-            {post.upvoteCount}
+            <span className="type-numeric">{post.upvoteCount}</span>
           </Button>
           <Button
             type="button"
             size="sm"
             variant={voteState?.verified ? "soft" : "outline"}
-            className="interactive-chip h-11 gap-1.5 px-3 text-sm sm:h-8 sm:gap-1 sm:px-2.5 sm:text-[11px]"
+            className="type-button-label interactive-chip h-11 gap-1.5 px-3 sm:h-8 sm:gap-1 sm:px-2.5"
             disabled={!canVote}
             onClick={() => onToggleVote(post.id, "verified")}
             data-testid="community-vote-verified"
           >
             <CheckCircle2 className="h-3.5 w-3.5" />
-            {post.verifiedCount}
+            <span className="type-numeric">{post.verifiedCount}</span>
           </Button>
-          <span className="inline-flex items-center gap-1">
+          <span className="type-numeric inline-flex items-center gap-1">
             <GitBranch className="h-3.5 w-3.5" />
             {post.remixCount}
           </span>
@@ -296,7 +298,7 @@ export function CommunityPostDetail({
               type="button"
               size="sm"
               variant="default"
-              className="h-11 gap-1.5 px-3 text-sm sm:h-8 sm:px-2.5 sm:text-xs"
+              className="type-button-label h-11 gap-1.5 px-3 sm:h-8 sm:px-2.5"
               onClick={() => {
                 setCommentsOpen(true);
                 onCommentThreadOpen?.(post.id);
@@ -305,12 +307,12 @@ export function CommunityPostDetail({
             >
               <MessageCircle className="h-3.5 w-3.5" />
               Open comments thread
-              <Badge variant="secondary" className="ml-0.5 h-4 min-w-4 px-1 text-[10px] leading-none">
+              <Badge variant="secondary" className="type-reply-label type-numeric ml-0.5 h-4 min-w-4 px-1 leading-none">
                 {post.commentCount}
               </Badge>
             </Button>
           ) : (
-            <span className="inline-flex items-center gap-1">
+            <span className="type-numeric inline-flex items-center gap-1">
               <MessageCircle className="h-3.5 w-3.5" />
               {post.commentCount}
             </span>
@@ -335,7 +337,7 @@ export function CommunityPostDetail({
             data-testid="community-comments-sheet"
           >
             <DrawerHeader className="pb-1">
-              <DrawerTitle className="text-base">Comments</DrawerTitle>
+              <DrawerTitle className="type-post-title">Comments</DrawerTitle>
             </DrawerHeader>
             <div className="px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
               <CommunityComments
@@ -351,12 +353,12 @@ export function CommunityPostDetail({
 
       <Card className="space-y-3 border-border/80 bg-card/85 p-4 sm:p-5">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-foreground">Remixes</h2>
-          <Badge variant="secondary">{remixes.length}</Badge>
+          <h2 className="type-tab-label text-foreground">Remixes</h2>
+          <Badge variant="secondary" className="type-chip type-numeric">{remixes.length}</Badge>
         </div>
 
         {remixes.length === 0 && (
-          <p className="text-xs text-muted-foreground">No public remixes yet.</p>
+          <p className="type-help text-muted-foreground">No public remixes yet.</p>
         )}
 
         {remixes.map((remix) => {
@@ -365,16 +367,16 @@ export function CommunityPostDetail({
           return (
             <div
               key={remix.id}
-              className="rounded-md border border-border/70 bg-background/50 px-3 py-2 text-xs"
+              className="rounded-md border border-border/70 bg-background/50 px-3 py-2"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="truncate font-medium text-foreground">{remix.title}</p>
-                  <p className="text-muted-foreground">
+                  <p className="type-author truncate text-foreground">{remix.title}</p>
+                  <p className="type-meta text-muted-foreground">
                     by {remixAuthor} • {created}
                   </p>
                 </div>
-                <Button asChild variant="ghost" size="sm" className="h-11 px-3 text-sm sm:h-7 sm:px-2 sm:text-[11px]">
+                <Button asChild variant="ghost" size="sm" className="type-button-label h-11 px-3 sm:h-7 sm:px-2">
                   <Link to={`/community/${remix.id}`}>
                     Open
                     <ExternalLink className="h-3 w-3" />

@@ -53,6 +53,18 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_6108801119154E0DB94F9CD80314E673 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_A34CBAD9B8184248B9A31387985B7908 }}
 
+      - name: Enforce Web App Runtime Configuration
+        run: |
+          az webapp config set \
+            --resource-group rg-ai-prompt-pro \
+            --name ai-prompt-pro-agent \
+            --linux-fx-version "NODE|20-lts" \
+            --startup-file "node agent_service/codex_service.mjs"
+          az webapp config appsettings set \
+            --resource-group rg-ai-prompt-pro \
+            --name ai-prompt-pro-agent \
+            --settings CODEX_SKIP_GIT_REPO_CHECK=true
+
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         id: deploy-to-webapp

@@ -226,8 +226,9 @@ const CommunityPost = () => {
 
   return (
     <PageShell>
+      <div className="community-typography" data-density="comfortable">
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          <Button asChild variant="outline" size="sm" className="h-11 px-4 text-sm sm:h-8 sm:px-3 sm:text-xs">
+          <Button asChild variant="outline" size="sm" className="type-button-label h-11 px-4 sm:h-8 sm:px-3">
             <Link to="/community">
               <ArrowLeft className="h-3.5 w-3.5" />
               Back to feed
@@ -278,6 +279,7 @@ const CommunityPost = () => {
             onSaveToLibrary={handleSaveToLibrary}
           />
         )}
+      </div>
     </PageShell>
   );
 };

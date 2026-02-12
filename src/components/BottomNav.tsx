@@ -28,7 +28,7 @@ export function BottomNav() {
                 <button
                   type="button"
                   className={cn(
-                    "mobile-route-link flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-md px-1 py-2 text-[11px] font-medium transition-colors",
+                    "mobile-route-link flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-md px-1 py-2 text-xs leading-4 tracking-[0.01em] font-medium transition-colors",
                     isActive || isPresetsActive
                       ? "text-primary font-medium"
                       : "text-muted-foreground hover:text-foreground",
@@ -88,7 +88,7 @@ export function BottomNav() {
             key={to}
             to={to}
             className={cn(
-              "mobile-route-link flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-md px-1 py-2 text-[11px] font-medium transition-colors",
+              "mobile-route-link flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-md px-1 py-2 text-xs leading-4 tracking-[0.01em] font-medium transition-colors",
               isActive
                 ? "text-primary font-medium"
                 : "text-muted-foreground hover:text-foreground",

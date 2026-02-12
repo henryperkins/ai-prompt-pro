@@ -300,189 +300,191 @@ const Community = () => {
 
   return (
     <PageShell>
-      <PageHero
-        title="Community Prompt Feed"
-        subtitle="Browse developer-focused prompt recipes, filter by domain, and open any post to copy or remix."
-      />
+      <div className="community-typography" data-density="comfortable">
+        <PageHero
+          title="Community Prompt Feed"
+          subtitle="Browse developer-focused prompt recipes, filter by domain, and open any post to copy or remix."
+        />
 
-      <div className="relative mb-3 rounded-xl border border-border bg-card/85 shadow-sm">
-        <div className="p-2 sm:p-0">
-          <div className="relative">
-            <label htmlFor="community-feed-search" className="sr-only">
-              Search community posts
-            </label>
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              id="community-feed-search"
-              value={queryInput}
-              onChange={(event) => setQueryInput(event.target.value)}
-              onFocus={() => {
-                if (!mobileEnhancementsEnabled) setIsSearchFocused(true);
-              }}
-              onBlur={() => {
-                if (!mobileEnhancementsEnabled) setIsSearchFocused(false);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Escape") {
-                  setIsSearchFocused(false);
-                  (event.target as HTMLInputElement).blur();
-                }
-              }}
-              placeholder="Search prompts by title or use case..."
-              className="h-11 border-0 bg-transparent pl-9 text-sm shadow-none focus-visible:ring-0"
-              aria-expanded={showCategorySuggestions}
-              aria-controls={showCategorySuggestions ? categoryPanelId : undefined}
-            />
+        <div className="relative mb-3 rounded-xl border border-border bg-card/85 shadow-sm">
+          <div className="p-2 sm:p-0">
+            <div className="relative">
+              <label htmlFor="community-feed-search" className="sr-only">
+                Search community posts
+              </label>
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="community-feed-search"
+                value={queryInput}
+                onChange={(event) => setQueryInput(event.target.value)}
+                onFocus={() => {
+                  if (!mobileEnhancementsEnabled) setIsSearchFocused(true);
+                }}
+                onBlur={() => {
+                  if (!mobileEnhancementsEnabled) setIsSearchFocused(false);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    setIsSearchFocused(false);
+                    (event.target as HTMLInputElement).blur();
+                  }
+                }}
+                placeholder="Search prompts by title or use case..."
+                className="type-input h-11 border-0 bg-transparent pl-9 shadow-none focus-visible:ring-0"
+                aria-expanded={showCategorySuggestions}
+                aria-controls={showCategorySuggestions ? categoryPanelId : undefined}
+              />
+            </div>
+            {mobileEnhancementsEnabled && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="type-button-label mt-2 h-11 w-full items-center justify-between px-3"
+                onClick={() => {
+                  trackFirstMeaningfulAction("filter_drawer_opened");
+                  setMobileCategorySheetOpen(true);
+                }}
+                data-testid="community-filter-trigger"
+              >
+                <span>Filter</span>
+                <span className="type-meta truncate text-muted-foreground">{selectedCategoryLabel}</span>
+              </Button>
+            )}
           </div>
-          {mobileEnhancementsEnabled && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="mt-2 h-11 w-full items-center justify-between px-3 text-sm"
-              onClick={() => {
-                trackFirstMeaningfulAction("filter_drawer_opened");
-                setMobileCategorySheetOpen(true);
-              }}
-              data-testid="community-filter-trigger"
+
+          {showCategorySuggestions && (
+            <div
+              id={categoryPanelId}
+              className="type-post-body absolute left-0 right-0 top-full z-20 mt-2 rounded-xl border border-border/70 bg-popover p-2 shadow-lg"
+              role="listbox"
+              aria-label="Category filters"
             >
-              <span>Filter</span>
-              <span className="truncate text-muted-foreground">{selectedCategoryLabel}</span>
-            </Button>
+              <div className="type-label-caps type-reply-label flex items-center justify-between px-2 py-1 text-muted-foreground">
+                <span>Categories</span>
+                <span>Action</span>
+              </div>
+              <div className="mt-1 flex flex-col gap-1">
+                {CATEGORY_OPTIONS.map((option) => {
+                  const isSelected = category === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => setCategory(option.value)}
+                      className={cn(
+                        "type-tab-label flex min-h-10 items-center justify-between rounded-md px-2 py-2 transition-colors",
+                        isSelected
+                          ? "bg-accent text-accent-foreground"
+                          : "text-foreground hover:bg-muted",
+                      )}
+                    >
+                      <span>{option.label}</span>
+                      <span className="type-meta text-muted-foreground">
+                        {isSelected ? "Selected" : "Filter"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="type-help px-2 pt-2 text-muted-foreground">
+                Current: <span className="font-medium text-foreground">{selectedCategoryLabel}</span>
+              </div>
+            </div>
           )}
         </div>
 
-        {showCategorySuggestions && (
-          <div
-            id={categoryPanelId}
-            className="absolute left-0 right-0 top-full z-20 mt-2 rounded-xl border border-border/70 bg-popover p-2 text-sm shadow-lg"
-            role="listbox"
-            aria-label="Category filters"
-          >
-            <div className="flex items-center justify-between px-2 py-1 text-[11px] uppercase tracking-wide text-muted-foreground">
-              <span>Categories</span>
-              <span>Action</span>
-            </div>
-            <div className="mt-1 flex flex-col gap-1">
-              {CATEGORY_OPTIONS.map((option) => {
-                const isSelected = category === option.value;
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    role="option"
-                    aria-selected={isSelected}
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => setCategory(option.value)}
-                    className={cn(
-                      "flex min-h-10 items-center justify-between rounded-md px-2 py-2 text-sm transition-colors",
-                      isSelected
-                        ? "bg-accent text-accent-foreground"
-                        : "text-foreground hover:bg-muted",
-                    )}
-                  >
-                    <span>{option.label}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {isSelected ? "Selected" : "Filter"}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-            <div className="px-2 pt-2 text-[11px] text-muted-foreground">
-              Current: <span className="font-medium text-foreground">{selectedCategoryLabel}</span>
-            </div>
-          </div>
+        <div className="mb-4 grid grid-cols-2 gap-2 sm:flex sm:rounded-lg sm:bg-muted sm:p-1">
+          {SORT_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => {
+                setSort(option.value);
+                trackFirstMeaningfulAction("sort_changed", { sort: option.value });
+              }}
+              aria-pressed={sort === option.value}
+              data-testid="community-sort-button"
+              className={cn(
+                "type-tab-label h-11 rounded-md px-3 transition-all sm:h-8 sm:flex-1 sm:px-2",
+                sort === option.value
+                  ? "bg-background text-foreground shadow-sm"
+                  : "bg-muted text-muted-foreground hover:text-foreground sm:bg-transparent",
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
+        {mobileEnhancementsEnabled && (
+          <Drawer open={mobileCategorySheetOpen} onOpenChange={setMobileCategorySheetOpen}>
+            <DrawerContent
+              className="max-h-[80vh] pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+              aria-describedby={undefined}
+              data-testid="community-filter-sheet"
+            >
+              <DrawerHeader className="pb-1">
+                <DrawerTitle className="type-post-title">Filter Categories</DrawerTitle>
+              </DrawerHeader>
+              <div className="px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+                <p className="type-help mb-2 text-muted-foreground">
+                  Current: <span className="font-medium text-foreground">{selectedCategoryLabel}</span>
+                </p>
+                <ScrollArea className="max-h-[52vh] pr-2">
+                  <div className="space-y-1.5 pb-1">
+                    {CATEGORY_OPTIONS.map((option) => {
+                      const isSelected = category === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          className={cn(
+                            "type-tab-label flex h-11 w-full items-center justify-between rounded-md border px-3 text-left",
+                            isSelected
+                              ? "border-primary/35 bg-primary/10 text-foreground"
+                              : "border-border/70 bg-background text-foreground",
+                          )}
+                          onClick={() => {
+                            trackFirstMeaningfulAction("filter_selected", { category: option.value });
+                            setCategory(option.value);
+                            setMobileCategorySheetOpen(false);
+                          }}
+                        >
+                          <span>{option.label}</span>
+                          <span className="type-meta text-muted-foreground">
+                            {isSelected ? "Selected" : "Filter"}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+              </div>
+            </DrawerContent>
+          </Drawer>
         )}
+
+        <CommunityFeed
+          posts={posts}
+          loading={loading}
+          errorMessage={errorMessage}
+          authorById={authorById}
+          parentTitleById={parentTitleById}
+          onCopyPrompt={handleCopyPrompt}
+          onToggleVote={handleToggleVote}
+          voteStateByPost={voteStateByPost}
+          onCommentAdded={handleCommentAdded}
+          onCommentThreadOpen={handleCommentThreadOpen}
+          canVote={Boolean(user)}
+          hasMore={hasMore}
+          isLoadingMore={isLoadingMore}
+          onLoadMore={handleLoadMore}
+        />
       </div>
-
-      <div className="mb-4 grid grid-cols-2 gap-2 sm:flex sm:rounded-lg sm:bg-muted sm:p-1">
-        {SORT_OPTIONS.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => {
-              setSort(option.value);
-              trackFirstMeaningfulAction("sort_changed", { sort: option.value });
-            }}
-            aria-pressed={sort === option.value}
-            data-testid="community-sort-button"
-            className={cn(
-              "h-11 rounded-md px-3 text-sm font-medium transition-all sm:h-8 sm:flex-1 sm:px-2 sm:text-xs",
-              sort === option.value
-                ? "bg-background text-foreground shadow-sm"
-                : "bg-muted text-muted-foreground hover:text-foreground sm:bg-transparent",
-            )}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
-
-      {mobileEnhancementsEnabled && (
-        <Drawer open={mobileCategorySheetOpen} onOpenChange={setMobileCategorySheetOpen}>
-          <DrawerContent
-            className="max-h-[80vh] pb-[max(0.75rem,env(safe-area-inset-bottom))]"
-            aria-describedby={undefined}
-            data-testid="community-filter-sheet"
-          >
-            <DrawerHeader className="pb-1">
-              <DrawerTitle className="text-base">Filter Categories</DrawerTitle>
-            </DrawerHeader>
-            <div className="px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-              <p className="mb-2 text-xs text-muted-foreground">
-                Current: <span className="font-medium text-foreground">{selectedCategoryLabel}</span>
-              </p>
-              <ScrollArea className="max-h-[52vh] pr-2">
-                <div className="space-y-1.5 pb-1">
-                  {CATEGORY_OPTIONS.map((option) => {
-                    const isSelected = category === option.value;
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        className={cn(
-                          "flex h-11 w-full items-center justify-between rounded-md border px-3 text-left text-sm",
-                          isSelected
-                            ? "border-primary/35 bg-primary/10 text-foreground"
-                            : "border-border/70 bg-background text-foreground",
-                        )}
-                        onClick={() => {
-                          trackFirstMeaningfulAction("filter_selected", { category: option.value });
-                          setCategory(option.value);
-                          setMobileCategorySheetOpen(false);
-                        }}
-                      >
-                        <span>{option.label}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {isSelected ? "Selected" : "Filter"}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </ScrollArea>
-            </div>
-          </DrawerContent>
-        </Drawer>
-      )}
-
-      <CommunityFeed
-        posts={posts}
-        loading={loading}
-        errorMessage={errorMessage}
-        authorById={authorById}
-        parentTitleById={parentTitleById}
-        onCopyPrompt={handleCopyPrompt}
-        onToggleVote={handleToggleVote}
-        voteStateByPost={voteStateByPost}
-        onCommentAdded={handleCommentAdded}
-        onCommentThreadOpen={handleCommentThreadOpen}
-        canVote={Boolean(user)}
-        hasMore={hasMore}
-        isLoadingMore={isLoadingMore}
-        onLoadMore={handleLoadMore}
-      />
     </PageShell>
   );
 };

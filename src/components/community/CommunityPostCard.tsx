@@ -117,36 +117,40 @@ function CommunityPostCardComponent({
           <div className="flex min-w-0 items-center gap-2">
             <Avatar className="h-8 w-8 border border-border/60">
               <AvatarImage src={authorAvatarUrl ?? undefined} alt={authorName} />
-              <AvatarFallback className="text-[11px]">{getInitials(authorName)}</AvatarFallback>
+              <AvatarFallback className="type-reply-label">{getInitials(authorName)}</AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <p className="truncate text-xs font-medium text-foreground">{authorName}</p>
-              <p className="text-xs text-muted-foreground sm:text-[11px]">{createdAgo}</p>
+              <p className="type-author truncate text-foreground">{authorName}</p>
+              <p className="type-timestamp text-muted-foreground">{createdAgo}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-1 self-start sm:self-auto sm:justify-end">
             {post.targetModel && (
-              <Badge variant="secondary" className="h-6 px-2 text-xs font-mono sm:h-5 sm:px-1.5 sm:text-[11px]">
+              <Badge variant="secondary" className="type-chip h-6 px-2 font-mono sm:h-5 sm:px-1.5">
                 {post.targetModel}
               </Badge>
             )}
-            <Badge variant="outline" className="h-6 px-2 text-xs capitalize sm:h-5 sm:px-1.5 sm:text-[11px]">
+            <Badge variant="outline" className="type-chip h-6 px-2 capitalize sm:h-5 sm:px-1.5">
               {post.category}
             </Badge>
           </div>
         </div>
 
         {post.remixedFrom && (
-          <div className="rounded-md border border-primary/20 bg-primary/10 px-2.5 py-1.5 text-xs text-primary sm:text-[11px]">
+          <div className="type-meta rounded-md border border-primary/20 bg-primary/10 px-2.5 py-1.5 text-primary">
             <span className="font-medium">Remixed from:</span> {parentPostTitle || "another community prompt"}
           </div>
         )}
 
         <div>
-          <h3 className={cn("text-sm font-semibold text-foreground", isFeatured && "text-base")}>
+          <h3 className={cn("type-post-title text-foreground", isFeatured && "sm:text-[1.25rem] sm:leading-7")}>
             {post.title}
           </h3>
-          {post.useCase && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{post.useCase}</p>}
+          {post.useCase && (
+            <p className="type-post-body type-prose-measure type-wrap-safe mt-1 line-clamp-3 text-muted-foreground">
+              {post.useCase}
+            </p>
+          )}
         </div>
 
         <PromptPreviewPanel
@@ -159,20 +163,20 @@ function CommunityPostCardComponent({
         {visibleTags.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5">
             {visibleTags.map((tag) => (
-              <Badge key={`${post.id}-${tag}`} variant="outline" className="text-xs sm:text-[11px]">
+              <Badge key={`${post.id}-${tag}`} variant="outline" className="type-chip">
                 #{tag}
               </Badge>
             ))}
           </div>
         )}
 
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-2 text-xs text-muted-foreground sm:text-[11px]">
+        <div className="type-meta flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-2 text-muted-foreground">
           <div className="flex flex-wrap items-center gap-3">
-            <span className="inline-flex items-center gap-1 font-mono">
+            <span className="type-numeric inline-flex items-center gap-1 font-mono">
               <Database className="h-3.5 w-3.5" />
               {tokenEstimate}t
             </span>
-            <span className="inline-flex items-center gap-1">
+            <span className="type-numeric inline-flex items-center gap-1">
               <GitBranch className="h-3.5 w-3.5" />
               {post.remixCount}
             </span>
@@ -181,43 +185,48 @@ function CommunityPostCardComponent({
             asChild
             variant={isMobile || isFeatured ? "default" : "outline"}
             size="sm"
-            className="h-11 px-4 text-sm sm:h-8 sm:px-3 sm:text-xs"
+            className="type-button-label h-11 px-4 sm:h-8 sm:px-3"
             data-testid="community-remix-cta"
           >
             <Link to={`/?remix=${post.id}`}>Remix</Link>
           </Button>
         </div>
 
-        <div className={cn("gap-2 text-muted-foreground", isMobile ? "grid grid-cols-3 text-xs" : "flex flex-wrap items-center text-[11px]")}>
+        <div
+          className={cn(
+            "type-meta gap-2 text-muted-foreground",
+            isMobile ? "grid grid-cols-3" : "flex flex-wrap items-center",
+          )}
+        >
           <Button
             type="button"
             size="sm"
             variant={voteState?.upvote ? "soft" : "outline"}
-            className="interactive-chip h-11 gap-1.5 px-3 text-sm sm:h-8 sm:gap-1 sm:px-2.5 sm:text-[11px]"
+            className="type-button-label interactive-chip h-11 gap-1.5 px-3 sm:h-8 sm:gap-1 sm:px-2.5"
             disabled={!canVote}
             onClick={() => onToggleVote(post.id, "upvote")}
             data-testid="community-vote-upvote"
           >
             <ArrowUp className="h-3.5 w-3.5" />
-            {post.upvoteCount}
+            <span className="type-numeric">{post.upvoteCount}</span>
           </Button>
           <Button
             type="button"
             size="sm"
             variant={voteState?.verified ? "soft" : "outline"}
-            className="interactive-chip h-11 gap-1.5 px-3 text-sm sm:h-8 sm:gap-1 sm:px-2.5 sm:text-[11px]"
+            className="type-button-label interactive-chip h-11 gap-1.5 px-3 sm:h-8 sm:gap-1 sm:px-2.5"
             disabled={!canVote}
             onClick={() => onToggleVote(post.id, "verified")}
             data-testid="community-vote-verified"
           >
             <CheckCircle2 className="h-3.5 w-3.5" />
-            {post.verifiedCount}
+            <span className="type-numeric">{post.verifiedCount}</span>
           </Button>
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="interactive-chip h-11 gap-1.5 px-3 text-sm sm:h-8 sm:px-2.5 sm:text-xs"
+            className="type-button-label interactive-chip h-11 gap-1.5 px-3 sm:h-8 sm:px-2.5"
             onClick={() => {
               if (useMobileCommentsDrawer) {
                 setCommentsOpen(true);
@@ -233,7 +242,7 @@ function CommunityPostCardComponent({
             {post.commentCount > 0 && (
               <Badge
                 variant="secondary"
-                className="ml-0.5 h-4 min-w-4 px-1 text-[10px] leading-none"
+                className="type-reply-label type-numeric ml-0.5 h-4 min-w-4 px-1 leading-none"
               >
                 {post.commentCount}
               </Badge>
@@ -258,7 +267,7 @@ function CommunityPostCardComponent({
               data-testid="community-comments-sheet"
             >
               <DrawerHeader className="pb-1">
-                <DrawerTitle className="text-base">Comments</DrawerTitle>
+                <DrawerTitle className="type-post-title">Comments</DrawerTitle>
               </DrawerHeader>
               <div className="px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
                 <CommunityComments
