@@ -326,6 +326,7 @@ function isResponseOutputTextDone(responseType: string | null): boolean {
 
 export interface EnhanceThreadOptions {
   modelReasoningEffort?: "minimal" | "low" | "medium" | "high" | "xhigh";
+  webSearchEnabled?: boolean;
 }
 
 function isRenderableItemType(itemType: string | null): boolean {

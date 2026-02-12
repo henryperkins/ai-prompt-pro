@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Copy, Check, Sparkles, Save, Loader2, MoreHorizontal } from "lucide-react";
+import { Copy, Check, Sparkles, Save, Loader2, MoreHorizontal, Globe } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,6 +37,7 @@ import {
 import { trackBuilderEvent } from "@/lib/telemetry";
 import { buildLineDiff, type DiffLine } from "@/lib/text-diff";
 import { cn } from "@/lib/utils";
+import { normalizeHttpUrl } from "@/lib/url-utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 
@@ -69,6 +70,9 @@ interface OutputPanelProps {
   enhancePhase?: EnhancePhase;
   phase2Enabled?: boolean;
   remixContext?: { title: string; authorName: string };
+  webSearchEnabled?: boolean;
+  onWebSearchToggle?: (enabled: boolean) => void;
+  webSearchSources?: string[];
 }
 
 type CodexExportModule = typeof import("@/lib/codex-export");
@@ -90,6 +94,19 @@ function parseTags(value: string): string[] | undefined {
   return tags.length > 0 ? tags : undefined;
 }
 
+function parseWebSourceLink(value: string): { title: string; href: string } | null {
+  const mdLink = value.match(/^\[(.+?)]\((.+?)\)$/);
+  if (!mdLink) return null;
+
+  const normalizedHref = normalizeHttpUrl(mdLink[2]);
+  if (!normalizedHref) return null;
+
+  return {
+    title: mdLink[1],
+    href: normalizedHref,
+  };
+}
+
 export function OutputPanel({
   builtPrompt,
   enhancedPrompt,
@@ -104,6 +121,9 @@ export function OutputPanel({
   enhancePhase = "idle",
   phase2Enabled = true,
   remixContext,
+  webSearchEnabled = false,
+  onWebSearchToggle,
+  webSearchSources = [],
 }: OutputPanelProps) {
   const [copied, setCopied] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -784,27 +804,68 @@ export function OutputPanel({
         )}
       </Card>
 
+      {webSearchSources.length > 0 && (
+        <div className="px-1 pt-1 pb-0">
+          <p className="text-xs font-medium text-muted-foreground mb-1">Sources</p>
+          <ul className="space-y-0.5">
+            {webSearchSources.map((source, i) => {
+              const safeLink = parseWebSourceLink(source);
+              return (
+                <li key={i} className="text-xs text-muted-foreground">
+                  {safeLink ? (
+                    <a
+                      href={safeLink.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      {safeLink.title}
+                    </a>
+                  ) : (
+                    source
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
       {!hideEnhanceButton && (
-        <Button
-          variant="glow"
-          size="lg"
-          onClick={onEnhance}
-          disabled={isEnhancing || !builtPrompt}
-          className="signature-enhance-button w-full gap-2"
-          data-phase={enhancePhase}
-        >
-          {isEnhancing ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              {enhanceLabel}
-            </>
-          ) : (
-            <>
-              {enhancePhase === "done" ? <Check className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
-              {enhanceLabel}
-            </>
+        <div className="flex flex-col gap-2">
+          {onWebSearchToggle && (
+            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+              <Switch
+                checked={webSearchEnabled}
+                onCheckedChange={onWebSearchToggle}
+                disabled={isEnhancing}
+                aria-label="Enable web search during enhancement"
+              />
+              <Globe className="w-3.5 h-3.5" />
+              <span>Search the web</span>
+            </label>
           )}
-        </Button>
+          <Button
+            variant="glow"
+            size="lg"
+            onClick={onEnhance}
+            disabled={isEnhancing || !builtPrompt}
+            className="signature-enhance-button w-full gap-2"
+            data-phase={enhancePhase}
+          >
+            {isEnhancing ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {enhanceLabel}
+              </>
+            ) : (
+              <>
+                {enhancePhase === "done" ? <Check className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
+                {enhanceLabel}
+              </>
+            )}
+          </Button>
+        </div>
       )}
     </div>
   );

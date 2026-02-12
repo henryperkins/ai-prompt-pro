@@ -556,7 +556,7 @@ Provide a SQL helper:
   * takes built prompt + config
   * calls Codex via `@openai/codex-sdk` (recommended runtime)
   * streams SSE chunks back
-* Legacy compatibility: Python Azure/Microsoft Agent Framework backend remains available, but Codex SDK is the primary path.
+* Backend: Node Codex SDK service (`agent_service/codex_service.mjs`).
 
 ## C) Request/streaming flow (summary)
 
@@ -567,9 +567,7 @@ Browser UI
 Supabase Edge Function: enhance-prompt
   | (HTTP stream proxy)
   v
-Agent Service
-  | recommended: Node Codex SDK service
-  | fallback: Python Agent Framework service
+Agent Service (Node Codex SDK)
   v
 Codex SDK event stream
   | (SSE stream of deltas / events)

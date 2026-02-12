@@ -1,15 +1,10 @@
 # Agent Service
 
-This repo supports two `/enhance` backends:
+Prompt enhancement backend powered by `@openai/codex-sdk`.
 
-1. `agent_service/codex_service.mjs` (recommended): Node service using `@openai/codex-sdk`
-2. `agent_service/main.py` (legacy): Python service using Microsoft Agent Framework + Azure OpenAI
+The frontend calls `supabase/functions/enhance-prompt` which proxies to this service's `POST /enhance` endpoint.
 
-Both expose the same HTTP shape used by `supabase/functions/enhance-prompt`.
-
-## Codex SDK service (recommended)
-
-### Start
+## Quick start
 
 ```bash
 npm install
@@ -17,55 +12,81 @@ export OPENAI_API_KEY="<your-openai-api-key>"
 npm run agent:codex
 ```
 
-### Optional environment
+## Endpoints
 
-```bash
-export HOST="0.0.0.0"
-export PORT="8001"
-export AGENT_SERVICE_TOKEN="<shared-secret>"
-export MAX_PROMPT_CHARS="16000"
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/` | Service info |
+| `GET` | `/health` | Health check (returns model and sandbox mode) |
+| `POST` | `/enhance` | Stream-enhanced prompt via SSE |
 
-# Codex client options
-export OPENAI_BASE_URL="https://api.openai.com/v1"
-export CODEX_API_KEY="<override-openai-api-key>"
-export CODEX_PATH_OVERRIDE="/absolute/path/to/codex"
-export CODEX_CONFIG_JSON='{"show_raw_agent_reasoning":true}'
-export CODEX_ENV_JSON='{"PATH":"/usr/local/bin"}'
+### `POST /enhance` body
 
-# Default thread options
-export CODEX_MODEL="gpt-5.2-codex"
-export CODEX_SANDBOX_MODE="workspace-write"      # read-only|workspace-write|danger-full-access
-export CODEX_WORKING_DIRECTORY="/absolute/path/to/repo"
-export CODEX_SKIP_GIT_REPO_CHECK="true"
-export CODEX_MODEL_REASONING_EFFORT="medium"     # minimal|low|medium|high|xhigh
-export CODEX_NETWORK_ACCESS_ENABLED="true"
-export CODEX_WEB_SEARCH_MODE="live"              # disabled|cached|live
-export CODEX_WEB_SEARCH_ENABLED="true"
-export CODEX_APPROVAL_POLICY="never"             # never|on-request|on-failure|untrusted
-export CODEX_ADDITIONAL_DIRECTORIES='["/tmp"]'   # JSON array or comma-delimited
+```jsonc
+{
+  "prompt": "Your draft prompt text",       // required
+  "thread_id": "thread_abc123",             // optional: resume a previous thread
+  "thread_options": {                       // optional
+    "modelReasoningEffort": "medium"        // minimal|low|medium|high|xhigh
+  }
+}
 ```
 
-### Endpoints
+## Environment variables
 
-- `GET /health`
-- `POST /enhance` with body `{ "prompt": "..." }`
-- Optional request fields:
-  - `thread_id`
-  - `thread_options` (currently supports `modelReasoningEffort` only)
+### Required
 
-## Legacy Python Azure service
+| Variable | Description |
+|----------|-------------|
+| `OPENAI_API_KEY` or `CODEX_API_KEY` | OpenAI API key |
 
-If you still need the Azure Agent Framework backend, use `agent_service/main.py`.
+### Service configuration
 
-### Start
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `HOST` | `0.0.0.0` | Bind address |
+| `PORT` | `8001` | Listen port |
+| `AGENT_SERVICE_TOKEN` | _(none)_ | Shared secret for `x-agent-token` header auth |
+| `MAX_PROMPT_CHARS` | `16000` | Maximum prompt character length |
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r agent_service/requirements.txt
-export AZURE_OPENAI_ENDPOINT="https://<your-resource>.openai.azure.com"
-export AZURE_OPENAI_RESPONSES_DEPLOYMENT_NAME="gpt-5.2"
-export AZURE_OPENAI_API_VERSION="preview"
-export AZURE_OPENAI_API_KEY="<your-azure-openai-key>"
-uvicorn agent_service.main:app --host 0.0.0.0 --port 8001 --reload
-```
+### Codex client options
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OPENAI_BASE_URL` / `CODEX_BASE_URL` | _(none)_ | OpenAI-compatible API base URL |
+| `CODEX_PATH_OVERRIDE` | _(none)_ | Absolute path to Codex CLI binary |
+| `CODEX_CONFIG_JSON` | _(none)_ | JSON object of CLI `--config` overrides |
+| `CODEX_ENV_JSON` | _(none)_ | JSON object of env vars for the CLI process |
+| `CODEX_MAX_OUTPUT_TOKENS` | _(none)_ | Max output tokens (passed via CLI config) |
+
+### Default thread options
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CODEX_MODEL` | `gpt-5.2` | Model name (e.g., `gpt-5.2`, `gpt-5.2-codex`) |
+| `CODEX_SANDBOX_MODE` | _(none)_ | `read-only` \| `workspace-write` \| `danger-full-access` |
+| `CODEX_WORKING_DIRECTORY` | _(none)_ | Working directory for the Codex agent |
+| `CODEX_SKIP_GIT_REPO_CHECK` | `false` | Skip git repo validation |
+| `CODEX_MODEL_REASONING_EFFORT` | `high` | `minimal` \| `low` \| `medium` \| `high` \| `xhigh` |
+| `CODEX_MODEL_REASONING_SUMMARY` | `detailed` | `auto` \| `concise` \| `detailed` |
+| `CODEX_NETWORK_ACCESS_ENABLED` | `false` | Enable network access |
+| `CODEX_WEB_SEARCH_MODE` | _(none)_ | `disabled` \| `cached` \| `live` |
+| `CODEX_WEB_SEARCH_ENABLED` | `false` | Enable web search |
+| `CODEX_APPROVAL_POLICY` | _(none)_ | `never` \| `on-request` \| `on-failure` \| `untrusted` |
+| `CODEX_ADDITIONAL_DIRECTORIES` | _(none)_ | JSON array or comma-delimited paths |
+
+### Rate-limit retry
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CODEX_429_MAX_RETRIES` | `2` | Max retry attempts on 429 errors |
+| `CODEX_429_BACKOFF_BASE_SECONDS` | `1.0` | Base delay for exponential backoff |
+| `CODEX_429_BACKOFF_MAX_SECONDS` | `20.0` | Maximum backoff delay |
+
+## Features
+
+- **Prompt structure analysis**: Pre-flight inspection checks for Role/Task/Context/Format/Constraints sections and includes findings in the prompt input so the enhancer can address gaps.
+- **429 retry with backoff**: Automatic retry on rate-limit errors with exponential backoff and jitter. Only retries if no chunks have been emitted yet.
+- **Thread resumption**: Pass `thread_id` to continue a previous conversation.
+- **SSE streaming**: Compatible with the frontend's `streamEnhance()` parser (supports both `/` and `.` event separators).
+- **Client disconnect detection**: Aborts the Codex process when the client disconnects.

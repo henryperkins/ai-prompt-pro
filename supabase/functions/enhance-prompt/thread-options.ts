@@ -2,6 +2,7 @@ export type EnhanceReasoningEffort = "minimal" | "low" | "medium" | "high" | "xh
 
 export type SanitizedThreadOptions = {
   modelReasoningEffort?: EnhanceReasoningEffort;
+  webSearchEnabled?: boolean;
 };
 
 export type ThreadOptionsSanitizeResult =
@@ -15,7 +16,7 @@ const REASONING_EFFORTS = new Set<EnhanceReasoningEffort>([
   "high",
   "xhigh",
 ]);
-const ALLOWED_THREAD_OPTION_KEYS = new Set(["modelReasoningEffort"]);
+const ALLOWED_THREAD_OPTION_KEYS = new Set(["modelReasoningEffort", "webSearchEnabled"]);
 
 export function sanitizeEnhanceThreadOptions(input: unknown): ThreadOptionsSanitizeResult {
   if (input === undefined) {
@@ -36,6 +37,13 @@ export function sanitizeEnhanceThreadOptions(input: unknown): ThreadOptionsSanit
     if (REASONING_EFFORTS.has(normalizedEffort as EnhanceReasoningEffort)) {
       sanitized.modelReasoningEffort = normalizedEffort as EnhanceReasoningEffort;
     }
+  }
+
+  if (
+    ALLOWED_THREAD_OPTION_KEYS.has("webSearchEnabled") &&
+    typeof source.webSearchEnabled === "boolean"
+  ) {
+    sanitized.webSearchEnabled = source.webSearchEnabled;
   }
 
   return {

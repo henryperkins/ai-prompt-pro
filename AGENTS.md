@@ -3,7 +3,7 @@
 ## Project Structure & Module Organization
 `src/` contains the Vite + React TypeScript app. Keep feature UI in `src/components/`, shared primitives in `src/components/ui/`, route-level screens in `src/pages/`, reusable stateful logic in `src/hooks/`, and domain logic/helpers in `src/lib/`.  
 Tests live in `src/test/` (Vitest).  
-Backend-adjacent code is split across `supabase/functions/` (Edge Functions), `supabase/migrations/` (SQL), and `agent_service/` (FastAPI service for Azure OpenAI integration).  
+Backend-adjacent code is split across `supabase/functions/` (Edge Functions), `supabase/migrations/` (SQL), and `agent_service/` (Codex SDK service for prompt enhancement).  
 Static assets go in `public/`; build output is `dist/` (generated, do not edit manually).
 
 ## Build, Test, and Development Commands
@@ -15,7 +15,7 @@ Static assets go in `public/`; build output is `dist/` (generated, do not edit m
 - `npm run test:watch`: run Vitest in watch mode.
 - `npm run test:rls`: run Supabase RLS-focused tests.
 - `npm run check:prod`: lint + tests + build (pre-merge gate).
-- `uvicorn agent_service.main:app --host 0.0.0.0 --port 8001 --reload`: run local Python agent service.
+- `npm run agent:codex`: run local Codex SDK agent service.
 
 ## Coding Style & Naming Conventions
 Use TypeScript with React function components. Follow existing formatting: 2-space indentation, semicolons, and double quotes.  

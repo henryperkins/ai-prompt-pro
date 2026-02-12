@@ -14,6 +14,7 @@ import { X, Link, FileText, Type, Plus, Upload, Loader2, Globe } from "lucide-re
 import type { ContextSource } from "@/lib/context-types";
 import { summarizeSource } from "@/lib/context-types";
 import { extractUrl } from "@/lib/ai-client";
+import { normalizeHttpUrl } from "@/lib/url-utils";
 import { toast } from "@/hooks/use-toast";
 
 interface ContextSourceChipsProps {
@@ -26,19 +27,6 @@ type AddMode = "text" | "url" | null;
 
 const ALLOWED_EXTENSIONS = [".txt", ".md", ".csv", ".json", ".xml", ".log", ".yaml", ".yml"];
 const MAX_FILE_SIZE = 500 * 1024; // 500KB
-
-function normalizeUrlInput(value: string): string | null {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-  try {
-    const parsed = new URL(candidate);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
-    return parsed.href;
-  } catch {
-    return null;
-  }
-}
 
 export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceChipsProps) {
   const [mode, setMode] = useState<AddMode>(null);
@@ -53,7 +41,7 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
     if (!content.trim()) return;
     const isUrl = mode === "url";
     const trimmedUrl = urlInput.trim();
-    const normalizedUrl = isUrl ? normalizeUrlInput(trimmedUrl) : null;
+    const normalizedUrl = isUrl ? normalizeHttpUrl(trimmedUrl) : null;
     if (isUrl && !normalizedUrl) {
       toast({
         title: "Invalid URL",

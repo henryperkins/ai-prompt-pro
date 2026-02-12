@@ -1,3 +1,0 @@
-# Azure App Service Oryx build entrypoint for the Python agent deployment.
-# Keeps dependency source-of-truth in agent_service/requirements.txt.
--r agent_service/requirements.txt

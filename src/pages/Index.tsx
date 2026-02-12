@@ -51,6 +51,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { ToastAction } from "@/components/ui/toast";
+import { Switch } from "@/components/ui/switch";
 import type { LucideIcon } from "lucide-react";
 import {
   Sparkles,
@@ -65,6 +66,7 @@ import {
   Gauge,
   CheckCircle2,
   X,
+  Globe,
 } from "lucide-react";
 
 const healthBadgeStyles: Record<
@@ -105,7 +107,7 @@ function SectionHealthBadge({ state }: { state: SectionHealthState }) {
 
 type BuilderSection = "builder" | "context" | "tone" | "quality";
 
-const ENHANCE_THREAD_OPTIONS: EnhanceThreadOptions = {
+const ENHANCE_THREAD_OPTIONS_BASE: Omit<EnhanceThreadOptions, "webSearchEnabled"> = {
   modelReasoningEffort: "medium",
 };
 
@@ -312,6 +314,8 @@ const Index = () => {
   const [suggestionChips, setSuggestionChips] = useState<BuilderSuggestionChip[]>([]);
   const [isInferringSuggestions, setIsInferringSuggestions] = useState(false);
   const [hasInferenceError, setHasInferenceError] = useState(false);
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  const [webSearchSources, setWebSearchSources] = useState<string[]>([]);
   const [fieldOwnership, setFieldOwnership] = useState<BuilderFieldOwnershipMap>(() =>
     createFieldOwnershipFromConfig(defaultConfig),
   );
@@ -575,6 +579,7 @@ const Index = () => {
       setIsEnhancing(true);
       enhancePending.current = false;
       setEnhancedPrompt("");
+      setWebSearchSources([]);
 
       if (isMobile) setDrawerOpen(true);
 
@@ -582,14 +587,27 @@ const Index = () => {
       let hasReceivedDelta = false;
       streamEnhance({
         prompt: promptForEnhance,
-        threadOptions: ENHANCE_THREAD_OPTIONS,
+        threadOptions: { ...ENHANCE_THREAD_OPTIONS_BASE, webSearchEnabled },
         onDelta: (text) => {
           if (!hasReceivedDelta) {
             hasReceivedDelta = true;
             setEnhancePhase("streaming");
           }
           accumulated += text;
-          setEnhancedPrompt(accumulated);
+
+          // Split sources block from enhanced prompt so sources render outside the copy area
+          const separatorIdx = accumulated.search(/\n---\n\s*Sources:\s*\n/i);
+          if (separatorIdx !== -1) {
+            setEnhancedPrompt(accumulated.slice(0, separatorIdx).trimEnd());
+            const sourcesBlock = accumulated.slice(separatorIdx);
+            const sourceLines = sourcesBlock
+              .split("\n")
+              .map((l) => l.trim())
+              .filter((l) => l.startsWith("- "));
+            setWebSearchSources(sourceLines.map((l) => l.slice(2)));
+          } else {
+            setEnhancedPrompt(accumulated);
+          }
         },
         onDone: () => {
           const startedAt = enhanceStartedAt.current;
@@ -640,6 +658,7 @@ const Index = () => {
     setIsEnhancing,
     toast,
     updateConfig,
+    webSearchEnabled,
   ]);
 
   useEffect(() => {
@@ -1301,6 +1320,9 @@ const Index = () => {
                 canSavePrompt={canSavePrompt}
                 canSharePrompt={canSharePrompt}
                 phase2Enabled={isBuilderRedesignPhase2}
+                webSearchEnabled={webSearchEnabled}
+                onWebSearchToggle={setWebSearchEnabled}
+                webSearchSources={webSearchSources}
                 remixContext={
                   remixContext
                     ? { title: remixContext.parentTitle, authorName: remixContext.parentAuthor }
@@ -1333,6 +1355,17 @@ const Index = () => {
           </button>
 
           <div className="flex items-center gap-2">
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
+              <Switch
+                checked={webSearchEnabled}
+                onCheckedChange={setWebSearchEnabled}
+                disabled={isEnhancing}
+                aria-label="Enable web search during enhancement"
+                className="scale-75 origin-left"
+              />
+              <Globe className="w-3 h-3" />
+              <span>Web</span>
+            </label>
             <Badge
               variant={score.total >= 75 ? "default" : "secondary"}
               className="h-10 min-w-[64px] justify-center rounded-md px-2 text-xs font-semibold"

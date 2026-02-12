@@ -380,6 +380,7 @@ describe("ai-client auth recovery", () => {
       threadId: "thread_abc123",
       threadOptions: {
         modelReasoningEffort: "minimal",
+        webSearchEnabled: true,
       },
       onDelta,
       onDone,
@@ -391,12 +392,15 @@ describe("ai-client auth recovery", () => {
     const body = JSON.parse((request.body as string) || "{}") as {
       prompt?: string;
       thread_id?: string;
-      thread_options?: { modelReasoningEffort?: string };
+      thread_options?: { modelReasoningEffort?: string; webSearchEnabled?: boolean };
     };
 
     expect(body.prompt).toBe("Improve this");
     expect(body.thread_id).toBe("thread_abc123");
-    expect(body.thread_options).toEqual({ modelReasoningEffort: "minimal" });
+    expect(body.thread_options).toEqual({
+      modelReasoningEffort: "minimal",
+      webSearchEnabled: true,
+    });
     expect(onError).not.toHaveBeenCalled();
     expect(onDelta).toHaveBeenCalledWith("configured");
     expect(onDone).toHaveBeenCalledTimes(1);

@@ -8,35 +8,75 @@ if (!Number.isFinite(MAX_PROMPT_CHARS) || MAX_PROMPT_CHARS <= 0) {
   throw new Error("MAX_PROMPT_CHARS must be a positive integer.");
 }
 
+// ---------------------------------------------------------------------------
+// 429 retry configuration
+// ---------------------------------------------------------------------------
+const CODEX_429_MAX_RETRIES = (() => {
+  const raw = process.env.CODEX_429_MAX_RETRIES;
+  if (!raw) return 2;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error("CODEX_429_MAX_RETRIES must be a non-negative integer.");
+  }
+  return parsed;
+})();
+
+const CODEX_429_BACKOFF_BASE_SECONDS = (() => {
+  const raw = process.env.CODEX_429_BACKOFF_BASE_SECONDS;
+  if (!raw) return 1.0;
+  const parsed = Number.parseFloat(raw);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error("CODEX_429_BACKOFF_BASE_SECONDS must be a non-negative number.");
+  }
+  return parsed;
+})();
+
+const CODEX_429_BACKOFF_MAX_SECONDS = (() => {
+  const raw = process.env.CODEX_429_BACKOFF_MAX_SECONDS;
+  if (!raw) return 20.0;
+  const parsed = Number.parseFloat(raw);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error("CODEX_429_BACKOFF_MAX_SECONDS must be a non-negative number.");
+  }
+  return parsed;
+})();
+
 const SANDBOX_MODES = new Set(["read-only", "workspace-write", "danger-full-access"]);
 const REASONING_EFFORTS = new Set(["minimal", "low", "medium", "high", "xhigh"]);
+const REASONING_SUMMARIES = new Set(["auto", "concise", "detailed"]);
 const WEB_SEARCH_MODES = new Set(["disabled", "cached", "live"]);
 const APPROVAL_POLICIES = new Set(["never", "on-request", "on-failure", "untrusted"]);
 const PROMPT_ENHANCER_INSTRUCTIONS = [
-  "You are an expert prompt engineer. Rewrite the user's draft prompt so it is clearer, more structured, and better for GPT-5.2 class models.",
+  "You are an expert prompt engineer. Rewrite the user's draft prompt so it is clearer, more specific, and easier for GPT-5 class models to execute.",
   "",
-  "<output_verbosity_spec>",
-  "- Return ONLY the enhanced prompt text.",
-  "- Use concise structure: a short overview plus compact sections/bullets.",
-  "- Avoid long narrative paragraphs and avoid meta-commentary.",
+  "<core_behavior>",
+  "- Preserve the user's intent, requirements, and constraints.",
+  "- Improve clarity, specificity, structure, and completeness without changing scope.",
+  "- Remove redundancy, resolve contradictions, and keep essential details.",
+  "- Do not add features, requirements, or assumptions unless needed for coherence.",
+  "</core_behavior>",
+  "",
+  "<output_contract>",
+  "- Return the enhanced prompt as plain text, ready to use.",
   "- Do not wrap the result in markdown code fences.",
-  "</output_verbosity_spec>",
+  "- Keep the format concise and easy to scan.",
+  "- Use explicit sections or bullets only when they improve clarity.",
+  "</output_contract>",
   "",
-  "<design_and_scope_constraints>",
-  "- Preserve the user's intent and constraints exactly.",
-  "- Implement ONLY what the user asked for; no extra features or scope expansion.",
-  "- For frontend/design requests, do not invent new colors, tokens, shadows, animations, or components unless explicitly requested.",
-  "- If ambiguous, choose the simplest valid interpretation.",
-  "</design_and_scope_constraints>",
-  "",
-  "<uncertainty_and_ambiguity>",
-  "- Never fabricate facts, references, IDs, or exact figures.",
+  "<ambiguity_handling>",
   "- If key details are missing, include an \"Assumptions\" section with up to 3 concise assumptions.",
-  "</uncertainty_and_ambiguity>",
+  "- Never fabricate facts, references, IDs, or exact figures.",
+  "</ambiguity_handling>",
+  "",
+  "<web_search_citations>",
+  "- Only if web search was used, append a sources block AFTER the enhanced prompt.",
+  "- Format: a blank line, then '---', then 'Sources:', then each source as '- [Title](URL)' on its own line.",
+  "- Do NOT embed URLs or citations inside the enhanced prompt body.",
+  "</web_search_citations>",
   "",
   "<structure_preferences>",
-  "- Prefer clear sections such as: Role, Task, Context, Format, Constraints.",
-  "- Keep relevant details from the original draft; remove redundancy and contradictions.",
+  "- When appropriate, organize with labels such as: Role, Task, Context, Format, Constraints.",
+  "- If a rigid template hurts clarity, keep the structure natural and concise.",
   "</structure_preferences>",
 ].join("\n");
 
@@ -134,8 +174,7 @@ const SERVICE_CONFIG = (() => {
 
 const DEFAULT_THREAD_OPTIONS = (() => {
   const options = {};
-  const model = normalizeEnvValue("CODEX_MODEL");
-  if (model) options.model = model;
+  options.model = normalizeEnvValue("CODEX_MODEL") || "gpt-5.2";
 
   const sandboxMode = parseEnumEnv("CODEX_SANDBOX_MODE", SANDBOX_MODES);
   if (sandboxMode) options.sandboxMode = sandboxMode;
@@ -148,8 +187,8 @@ const DEFAULT_THREAD_OPTIONS = (() => {
     options.skipGitRepoCheck = normalizeBool(skipGitRepoCheckRaw, false);
   }
 
-  const modelReasoningEffort = parseEnumEnv("CODEX_MODEL_REASONING_EFFORT", REASONING_EFFORTS);
-  if (modelReasoningEffort) options.modelReasoningEffort = modelReasoningEffort;
+  options.modelReasoningEffort =
+    parseEnumEnv("CODEX_MODEL_REASONING_EFFORT", REASONING_EFFORTS) || "high";
 
   const networkAccessEnabledRaw = normalizeEnvValue("CODEX_NETWORK_ACCESS_ENABLED");
   if (networkAccessEnabledRaw) {
@@ -185,8 +224,21 @@ const DEFAULT_CODEX_OPTIONS = (() => {
   const codexPathOverride = normalizeEnvValue("CODEX_PATH_OVERRIDE");
   if (codexPathOverride) options.codexPathOverride = codexPathOverride;
 
-  const config = parseJsonObjectEnv("CODEX_CONFIG_JSON");
-  if (config) options.config = config;
+  const config = parseJsonObjectEnv("CODEX_CONFIG_JSON") || {};
+
+  // Reasoning summary format: auto | concise | detailed
+  config.model_reasoning_summary =
+    parseEnumEnv("CODEX_MODEL_REASONING_SUMMARY", REASONING_SUMMARIES) || "detailed";
+
+  const maxOutputTokensRaw = normalizeEnvValue("CODEX_MAX_OUTPUT_TOKENS");
+  if (maxOutputTokensRaw) {
+    const parsed = Number.parseInt(maxOutputTokensRaw, 10);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      throw new Error("CODEX_MAX_OUTPUT_TOKENS must be a positive integer.");
+    }
+    config.max_output_tokens = parsed;
+  }
+  if (Object.keys(config).length > 0) options.config = config;
 
   const envConfig = parseJsonObjectEnv("CODEX_ENV_JSON");
   const normalizedEnv = normalizeStringRecord(envConfig);
@@ -261,8 +313,40 @@ function asNonEmptyString(value) {
   return trimmed ? trimmed : undefined;
 }
 
+// ---------------------------------------------------------------------------
+// Prompt structure inspection (ported from Python inspect_prompt_structure)
+// ---------------------------------------------------------------------------
+const CORE_SECTIONS = ["Role", "Task", "Context", "Format", "Constraints"];
+
+function inspectPromptStructure(prompt) {
+  const normalized = prompt.toLowerCase();
+  function hasSection(name) {
+    const token = name.toLowerCase();
+    return [
+      `${token}:`,
+      `${token} -`,
+      `## ${token}`,
+      `### ${token}`,
+      `[${token}]`,
+    ].some((pattern) => normalized.includes(pattern));
+  }
+  const present = CORE_SECTIONS.filter(hasSection);
+  const missing = CORE_SECTIONS.filter((s) => !present.includes(s));
+  return { present_sections: present, missing_sections: missing, char_count: prompt.length };
+}
+
 function buildEnhancerInput(prompt) {
-  return `${PROMPT_ENHANCER_INSTRUCTIONS}\n\n<source_prompt>\n${prompt}\n</source_prompt>`;
+  const analysis = inspectPromptStructure(prompt);
+  let structureHint = "";
+  if (analysis.missing_sections.length > 0) {
+    structureHint =
+      `\n\n<prompt_structure_analysis>\n` +
+      `Present sections: ${analysis.present_sections.join(", ") || "none"}\n` +
+      `Missing sections: ${analysis.missing_sections.join(", ")}\n` +
+      `Character count: ${analysis.char_count}\n` +
+      `</prompt_structure_analysis>`;
+  }
+  return `${PROMPT_ENHANCER_INSTRUCTIONS}${structureHint}\n\n<source_prompt>\n${prompt}\n</source_prompt>`;
 }
 
 function extractThreadOptions(input) {
@@ -275,6 +359,10 @@ function extractThreadOptions(input) {
     REASONING_EFFORTS.has(source.modelReasoningEffort)
   ) {
     options.modelReasoningEffort = source.modelReasoningEffort;
+  }
+
+  if (typeof source.webSearchEnabled === "boolean") {
+    options.webSearchEnabled = source.webSearchEnabled;
   }
 
   return options;
@@ -299,6 +387,75 @@ function typeFromItem(item) {
 function toErrorMessage(error) {
   if (error instanceof Error && typeof error.message === "string") return error.message;
   return String(error);
+}
+
+// ---------------------------------------------------------------------------
+// 429 rate-limit retry helpers
+// ---------------------------------------------------------------------------
+function isRateLimitError(err) {
+  if (!err) return false;
+  const status = err.status ?? err.statusCode ?? err.response?.status ?? err.cause?.status ?? err.cause?.statusCode ?? err.cause?.response?.status;
+  if (status === 429) return true;
+
+  const code = err.code ?? err.cause?.code;
+  if (code === 429 || code === "rate_limit_exceeded") return true;
+
+  const msg = String(err.message ?? err.cause?.message ?? "");
+  return /(^|\b)429(\b|$)|rate.limit|too many requests|throttl/i.test(msg);
+}
+
+function isRateLimitTurnFailure(event) {
+  if (event?.type !== "turn.failed") return false;
+  const msg = event.error?.message ?? "";
+  return /(^|\b)429(\b|$)|rate.limit|too many requests|throttl/i.test(msg);
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function runStreamedWithRetry(thread, input, turnOptions) {
+  let attempt = 0;
+  while (true) {
+    let sawAnyEvent = false;
+    try {
+      const { events } = await thread.runStreamed(input, turnOptions);
+      const iterator = events[Symbol.asyncIterator]();
+      const first = await iterator.next();
+      sawAnyEvent = !first.done;
+
+      if (!first.done && isRateLimitTurnFailure(first.value) && attempt < CODEX_429_MAX_RETRIES) {
+        const backoff = CODEX_429_BACKOFF_BASE_SECONDS * (2 ** attempt);
+        const delay = Math.min(Math.random() * backoff, CODEX_429_BACKOFF_MAX_SECONDS) * 1000;
+        console.log(`Codex 429 detected; retrying (attempt ${attempt + 1}/${CODEX_429_MAX_RETRIES}) after ${(delay / 1000).toFixed(2)}s`);
+        await sleep(delay);
+        attempt++;
+        continue;
+      }
+
+      // Return a generator that yields the first event then the rest
+      async function* replayEvents() {
+        if (!first.done) {
+          yield first.value;
+          while (true) {
+            const next = await iterator.next();
+            if (next.done) break;
+            yield next.value;
+          }
+        }
+      }
+      return { events: replayEvents() };
+    } catch (err) {
+      if (sawAnyEvent || !isRateLimitError(err) || attempt >= CODEX_429_MAX_RETRIES) {
+        throw err;
+      }
+      const backoff = CODEX_429_BACKOFF_BASE_SECONDS * (2 ** attempt);
+      const delay = Math.min(Math.random() * backoff, CODEX_429_BACKOFF_MAX_SECONDS) * 1000;
+      console.log(`Codex 429 thrown; retrying (attempt ${attempt + 1}/${CODEX_429_MAX_RETRIES}) after ${(delay / 1000).toFixed(2)}s`);
+      await sleep(delay);
+      attempt++;
+    }
+  }
 }
 
 async function streamWithCodex(req, res, body) {
@@ -333,7 +490,7 @@ async function streamWithCodex(req, res, body) {
     const thread = requestedThreadId
       ? codex.resumeThread(requestedThreadId, threadOptions)
       : codex.startThread(threadOptions);
-    const { events } = await thread.runStreamed(buildEnhancerInput(prompt), {
+    const { events } = await runStreamedWithRetry(thread, buildEnhancerInput(prompt), {
       signal: controller.signal,
     });
 

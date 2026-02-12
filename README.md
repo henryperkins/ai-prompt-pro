@@ -116,9 +116,9 @@ Local dev note:
 npm run dev
 ```
 
-## Legacy Azure agent service
+## Agent service
 
-The previous Python service (`agent_service/main.py`) that uses Microsoft Agent Framework + Azure OpenAI is still available. See `agent_service/README.md` for its setup.
+The prompt enhancement backend uses `@openai/codex-sdk`. See `agent_service/README.md` for setup and configuration.
 
 ## Database rollout notes
 

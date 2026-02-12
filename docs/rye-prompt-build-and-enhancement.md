@@ -14,7 +14,6 @@ The flow described here reflects the current implementation in:
 - `src/lib/ai-client.ts`
 - `supabase/functions/enhance-prompt/index.ts`
 - `agent_service/codex_service.mjs`
-- `agent_service/main.py` (legacy backend)
 
 ## 1) User Input State Model
 
@@ -46,7 +45,7 @@ in `src/hooks/usePromptBuilder.ts`.
 `buildPrompt(config)` in `src/lib/prompt-builder.ts` appends sections in this order:
 
 1. `Role` (uses `customRole` first, otherwise `role`)
-2. `Task` (uses `task` first, otherwise `originalPrompt`)
+2. `Task` (uses `originalPrompt` first, otherwise legacy `task`)
 3. `Context` block from `buildContextBlock(contextConfig, useDelimiters)`
 4. fallback legacy context field if no structured context block exists
 5. `Format` with length preference text
@@ -80,9 +79,13 @@ Current request includes:
 - `prompt: builtPrompt`
 - `threadOptions` defaults:
   - `modelReasoningEffort: "medium"`
-  - `modelVerbosity: "low"`
+  - `webSearchEnabled` (UI toggle, currently default `false`)
 
-The UI streams incremental text (`onDelta`), appends it to local `enhancedPrompt`, and moves phase state:
+The UI streams incremental text (`onDelta`) and:
+
+- accumulates enhanced prompt text into local `enhancedPrompt`
+- if a trailing `Sources` block appears (`\n---\nSources:\n...`), splits it out into `webSearchSources` for separate rendering
+- moves phase state:
 
 - `starting` -> `streaming` -> `settling` -> `done` -> `idle`
 
@@ -115,6 +118,9 @@ The UI streams incremental text (`onDelta`), appends it to local `enhancedPrompt
    - `prompt` required, trimmed, max length enforced
    - optional `thread_id` must be non-empty string
    - optional `thread_options` must be an object
+   - allowed `thread_options` keys are sanitized to:
+     - `modelReasoningEffort`
+     - `webSearchEnabled`
 5. proxy call to agent service:
    - `POST {AGENT_SERVICE_URL}/enhance`
    - includes `x-agent-token` when configured
@@ -132,28 +138,22 @@ The UI streams incremental text (`onDelta`), appends it to local `enhancedPrompt
 
 ### Thread options and controls
 
-Supported options include:
+Service-level default thread options are configured via env (model, sandbox, network/search, approval policy, etc.).
 
-- `model`
-- `sandboxMode`
-- `workingDirectory`
-- `skipGitRepoCheck`
-- `modelReasoningEffort` (`low|medium|high|xhigh`)
-- `modelVerbosity` (`low|medium|high`)
-- `networkAccessEnabled`
-- `webSearchMode`
+Per-request `thread_options` accepted from caller are currently limited to:
+
+- `modelReasoningEffort` (`minimal|low|medium|high|xhigh`)
 - `webSearchEnabled`
-- `approvalPolicy`
-- `additionalDirectories`
 
 ### Enhancement instruction wrapping
 
 The raw user-built prompt is wrapped in a service-side enhancer instruction template:
 
-- verbosity clamp
-- scope discipline (no feature expansion)
-- ambiguity rules (no fabrication)
-- preferred output structure
+- preserve user intent/constraints
+- improve clarity/specificity/structure without changing scope
+- bounded ambiguity handling (`Assumptions` when required)
+- conditional source citation block only when web search was used
+- optional prompt-structure analysis hints (Role/Task/Context/Format/Constraints coverage)
 
 Then sent as:
 
@@ -169,17 +169,7 @@ Codex events are mapped to SSE events compatible with frontend parsers:
 - final text done packet (`response.output_text.done`)
 - `[DONE]` terminator
 
-## 7) Legacy Python Backend (Optional/Fallback)
-
-`agent_service/main.py` provides the same enhancement concept through Microsoft Agent Framework + Azure OpenAI.
-
-- It uses a matching `PROMPT_ENHANCER_INSTRUCTIONS` block.
-- It streams text chunks in SSE-compatible envelopes.
-- It includes optional 429 retry behavior with backoff.
-
-Use this path only when the deployment intentionally runs the legacy backend.
-
-## 8) End-to-End Sequence
+## 7) End-to-End Sequence
 
 ```text
 User edits builder fields
@@ -195,7 +185,7 @@ User clicks Enhance
   -> UI shows enhanced prompt and marks completion
 ```
 
-## 9) Practical Debugging Points
+## 8) Practical Debugging Points
 
 If enhancement fails, check in this order:
 
@@ -204,7 +194,7 @@ If enhancement fails, check in this order:
 3. Agent service reachability and token (`AGENT_SERVICE_URL`, `AGENT_SERVICE_TOKEN`)
 4. Codex service env config and model/thread option values (`agent_service/codex_service.mjs`)
 
-## 10) Notes for Future Changes
+## 9) Notes for Future Changes
 
 If you add new builder controls:
 

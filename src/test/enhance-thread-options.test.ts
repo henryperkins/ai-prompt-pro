@@ -45,15 +45,33 @@ describe("sanitizeEnhanceThreadOptions", () => {
     });
   });
 
+  it("accepts webSearchEnabled as boolean only", () => {
+    expect(sanitizeEnhanceThreadOptions({ webSearchEnabled: true })).toEqual({
+      ok: true,
+      value: { webSearchEnabled: true },
+    });
+
+    expect(sanitizeEnhanceThreadOptions({ webSearchEnabled: false })).toEqual({
+      ok: true,
+      value: { webSearchEnabled: false },
+    });
+
+    expect(sanitizeEnhanceThreadOptions({ webSearchEnabled: "true" })).toEqual({
+      ok: true,
+      value: undefined,
+    });
+  });
+
   it("keeps supported keys and drops unsupported keys", () => {
     expect(
       sanitizeEnhanceThreadOptions({
         modelReasoningEffort: "medium",
+        webSearchEnabled: true,
         sandboxMode: "danger-full-access",
       }),
     ).toEqual({
       ok: true,
-      value: { modelReasoningEffort: "medium" },
+      value: { modelReasoningEffort: "medium", webSearchEnabled: true },
     });
   });
 });

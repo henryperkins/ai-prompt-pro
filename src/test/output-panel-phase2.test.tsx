@@ -136,4 +136,23 @@ describe("OutputPanel phase 2 save flow", () => {
     expect(onSaveAndSharePrompt).toHaveBeenCalledTimes(1);
     expect(onSavePrompt).not.toHaveBeenCalled();
   });
+
+  it("only renders clickable web source links for safe http(s) URLs", () => {
+    renderPanel({
+      webSearchSources: [
+        "[Release notes](example.com/changelog)",
+        "[Unsafe](javascript:alert(1))",
+        "[Unsafe proto](javascript://evil.com/path)",
+        "[Data URL](data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==)",
+      ],
+    });
+
+    const safe = screen.getByRole("link", { name: "Release notes" });
+    expect(safe).toHaveAttribute("href", "https://example.com/changelog");
+
+    expect(screen.queryByRole("link", { name: "Unsafe" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Unsafe proto" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Data URL" })).not.toBeInTheDocument();
+    expect(screen.getByText("[Unsafe](javascript:alert(1))")).toBeInTheDocument();
+  });
 });
