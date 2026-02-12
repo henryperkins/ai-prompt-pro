@@ -49,14 +49,14 @@ function renderAction(action: StateCardAction, fallbackVariant: StateCardAction[
   const variant = action.variant ?? fallbackVariant;
   if (action.to) {
     return (
-      <Button asChild size="sm" variant={variant} className="h-8 text-xs">
+      <Button asChild size="sm" variant={variant} className="h-11 text-xs sm:h-9">
         <Link to={action.to}>{action.label}</Link>
       </Button>
     );
   }
 
   return (
-    <Button type="button" size="sm" variant={variant} className="h-8 text-xs" onClick={action.onClick}>
+    <Button type="button" size="sm" variant={variant} className="h-11 text-xs sm:h-9" onClick={action.onClick}>
       {action.label}
     </Button>
   );

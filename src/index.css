@@ -66,11 +66,34 @@ All colors MUST be HSL.
 
     --sidebar: 0 0% 98%;
 
-    --font-sans: 'Work Sans Variable', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+    --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
 
-    --font-serif: ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
+    --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
 
-    --font-mono: 'Inconsolata Variable', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+    --type-2xs-size: 0.6875rem;
+    --type-2xs-line: 1rem;
+    --type-xs-size: 0.75rem;
+    --type-xs-line: 1.125rem;
+    --type-sm-size: 0.875rem;
+    --type-sm-line: 1.375rem;
+    --type-base-size: 1rem;
+    --type-base-line: 1.5rem;
+    --type-lg-size: 1.125rem;
+    --type-lg-line: 1.625rem;
+    --type-xl-size: 1.25rem;
+    --type-xl-line: 1.75rem;
+    --type-2xl-size: 1.5rem;
+    --type-2xl-line: 2rem;
+    --type-3xl-size: 1.875rem;
+    --type-3xl-line: 2.25rem;
+    --type-4xl-size: 2.25rem;
+    --type-4xl-line: 2.625rem;
+    --type-5xl-size: 3rem;
+    --type-5xl-line: 1.1;
+    --type-label-caps-tracking: 0.04em;
+    --type-label-shortcut-tracking: 0.08em;
 
     --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
 
@@ -162,12 +185,109 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background font-sans text-base text-foreground antialiased;
     background-image:
       radial-gradient(1100px 520px at -6% -12%, hsl(var(--delight-warm) / 0.17), transparent 58%),
       radial-gradient(900px 500px at 102% -8%, hsl(var(--delight-cool) / 0.12), transparent 56%),
       linear-gradient(180deg, hsl(var(--background)), hsl(var(--background)));
     background-attachment: fixed;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-sans);
+    color: hsl(var(--foreground));
+  }
+
+  h1 {
+    font-size: var(--type-3xl-size);
+    line-height: var(--type-3xl-line);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  h2 {
+    font-size: var(--type-2xl-size);
+    line-height: var(--type-2xl-line);
+    font-weight: 700;
+  }
+
+  h3 {
+    font-size: var(--type-xl-size);
+    line-height: var(--type-xl-line);
+    font-weight: 600;
+  }
+
+  h4 {
+    font-size: var(--type-lg-size);
+    line-height: var(--type-lg-line);
+    font-weight: 600;
+  }
+
+  h5,
+  h6 {
+    font-size: var(--type-base-size);
+    line-height: var(--type-base-line);
+    font-weight: 600;
+  }
+
+  p,
+  li,
+  dt,
+  dd,
+  blockquote,
+  label,
+  input,
+  textarea,
+  select,
+  button {
+    font-size: var(--type-sm-size);
+    line-height: var(--type-sm-line);
+  }
+
+  small {
+    font-size: var(--type-xs-size);
+    line-height: var(--type-xs-line);
+  }
+
+  code,
+  pre,
+  kbd,
+  samp {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs-size);
+    line-height: var(--type-xs-line);
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (min-width: 640px) {
+    h1 {
+      font-size: var(--type-4xl-size);
+      line-height: var(--type-4xl-line);
+    }
+
+    h2 {
+      font-size: var(--type-3xl-size);
+      line-height: var(--type-3xl-line);
+    }
+
+    p,
+    li,
+    dt,
+    dd,
+    blockquote,
+    label,
+    input,
+    textarea,
+    select,
+    button {
+      font-size: var(--type-base-size);
+      line-height: var(--type-base-line);
+    }
   }
 }
 
@@ -426,68 +546,68 @@ All colors MUST be HSL.
   .community-typography {
     --community-type-screen-title-size: 1.75rem;
     --community-type-screen-title-line: 2.125rem;
-    --community-type-screen-subtitle-size: 0.9375rem;
-    --community-type-screen-subtitle-line: 1.375rem;
-    --community-type-tab-size: 0.8125rem;
-    --community-type-tab-line: 1.125rem;
+    --community-type-screen-subtitle-size: var(--type-sm-size);
+    --community-type-screen-subtitle-line: var(--type-sm-line);
+    --community-type-tab-size: var(--type-xs-size);
+    --community-type-tab-line: var(--type-xs-line);
     --community-type-post-title-size: 1.125rem;
     --community-type-post-title-line: 1.5rem;
-    --community-type-post-body-size: 0.9375rem;
-    --community-type-post-body-line: 1.375rem;
-    --community-type-author-size: 0.8125rem;
-    --community-type-author-line: 1.125rem;
-    --community-type-time-size: 0.75rem;
-    --community-type-time-line: 1rem;
-    --community-type-meta-size: 0.75rem;
-    --community-type-meta-line: 1rem;
-    --community-type-button-size: 0.875rem;
-    --community-type-button-line: 1.25rem;
-    --community-type-chip-size: 0.75rem;
-    --community-type-chip-line: 1rem;
-    --community-type-comment-size: 0.9375rem;
-    --community-type-comment-line: 1.375rem;
-    --community-type-reply-size: 0.6875rem;
-    --community-type-reply-line: 0.875rem;
-    --community-type-input-size: 1rem;
-    --community-type-input-line: 1.5rem;
-    --community-type-help-size: 0.75rem;
-    --community-type-help-line: 1rem;
-    --community-type-code-size: 0.8125rem;
-    --community-type-code-line: 1.25rem;
-    --community-type-letter-caps: 0.05em;
+    --community-type-post-body-size: var(--type-sm-size);
+    --community-type-post-body-line: var(--type-sm-line);
+    --community-type-author-size: var(--type-xs-size);
+    --community-type-author-line: var(--type-xs-line);
+    --community-type-time-size: var(--type-xs-size);
+    --community-type-time-line: var(--type-xs-line);
+    --community-type-meta-size: var(--type-xs-size);
+    --community-type-meta-line: var(--type-xs-line);
+    --community-type-button-size: var(--type-sm-size);
+    --community-type-button-line: var(--type-sm-line);
+    --community-type-chip-size: var(--type-xs-size);
+    --community-type-chip-line: var(--type-xs-line);
+    --community-type-comment-size: var(--type-sm-size);
+    --community-type-comment-line: var(--type-sm-line);
+    --community-type-reply-size: var(--type-2xs-size);
+    --community-type-reply-line: var(--type-2xs-line);
+    --community-type-input-size: var(--type-base-size);
+    --community-type-input-line: var(--type-base-line);
+    --community-type-help-size: var(--type-xs-size);
+    --community-type-help-line: var(--type-xs-line);
+    --community-type-code-size: var(--type-xs-size);
+    --community-type-code-line: var(--type-xs-line);
+    --community-type-letter-caps: var(--type-label-caps-tracking);
   }
 
   .community-typography[data-density="compact"] {
     --community-type-screen-title-size: 1.625rem;
     --community-type-screen-title-line: 2rem;
-    --community-type-screen-subtitle-size: 0.875rem;
-    --community-type-screen-subtitle-line: 1.25rem;
-    --community-type-tab-size: 0.75rem;
-    --community-type-tab-line: 1rem;
+    --community-type-screen-subtitle-size: var(--type-xs-size);
+    --community-type-screen-subtitle-line: var(--type-xs-line);
+    --community-type-tab-size: var(--type-2xs-size);
+    --community-type-tab-line: var(--type-2xs-line);
     --community-type-post-title-size: 1rem;
     --community-type-post-title-line: 1.375rem;
-    --community-type-post-body-size: 0.875rem;
-    --community-type-post-body-line: 1.25rem;
-    --community-type-author-size: 0.75rem;
-    --community-type-author-line: 1rem;
-    --community-type-time-size: 0.6875rem;
-    --community-type-time-line: 0.9375rem;
-    --community-type-meta-size: 0.6875rem;
-    --community-type-meta-line: 0.9375rem;
-    --community-type-button-size: 0.8125rem;
-    --community-type-button-line: 1.125rem;
-    --community-type-chip-size: 0.6875rem;
-    --community-type-chip-line: 0.9375rem;
-    --community-type-comment-size: 0.875rem;
-    --community-type-comment-line: 1.25rem;
-    --community-type-reply-size: 0.6875rem;
-    --community-type-reply-line: 0.875rem;
-    --community-type-input-size: 0.9375rem;
-    --community-type-input-line: 1.375rem;
-    --community-type-help-size: 0.6875rem;
-    --community-type-help-line: 0.9375rem;
-    --community-type-code-size: 0.75rem;
-    --community-type-code-line: 1.125rem;
+    --community-type-post-body-size: var(--type-xs-size);
+    --community-type-post-body-line: var(--type-xs-line);
+    --community-type-author-size: var(--type-2xs-size);
+    --community-type-author-line: var(--type-2xs-line);
+    --community-type-time-size: var(--type-2xs-size);
+    --community-type-time-line: var(--type-2xs-line);
+    --community-type-meta-size: var(--type-2xs-size);
+    --community-type-meta-line: var(--type-2xs-line);
+    --community-type-button-size: var(--type-xs-size);
+    --community-type-button-line: var(--type-xs-line);
+    --community-type-chip-size: var(--type-2xs-size);
+    --community-type-chip-line: var(--type-2xs-line);
+    --community-type-comment-size: var(--type-xs-size);
+    --community-type-comment-line: var(--type-xs-line);
+    --community-type-reply-size: var(--type-2xs-size);
+    --community-type-reply-line: var(--type-2xs-line);
+    --community-type-input-size: var(--type-sm-size);
+    --community-type-input-line: var(--type-sm-line);
+    --community-type-help-size: var(--type-2xs-size);
+    --community-type-help-line: var(--type-2xs-line);
+    --community-type-code-size: var(--type-2xs-size);
+    --community-type-code-line: var(--type-2xs-line);
   }
 
   .community-typography .type-screen-title {

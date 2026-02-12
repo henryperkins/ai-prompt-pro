@@ -376,7 +376,7 @@ const Community = () => {
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => setCategory(option.value)}
                       className={cn(
-                        "type-tab-label flex min-h-10 items-center justify-between rounded-md px-2 py-2 transition-colors",
+                        "type-tab-label flex min-h-11 items-center justify-between rounded-md px-2 py-2 transition-colors sm:min-h-10",
                         isSelected
                           ? "bg-accent text-accent-foreground"
                           : "text-foreground hover:bg-muted",
@@ -409,7 +409,7 @@ const Community = () => {
               aria-pressed={sort === option.value}
               data-testid="community-sort-button"
               className={cn(
-                "type-tab-label h-11 rounded-md px-3 transition-all sm:h-8 sm:flex-1 sm:px-2",
+                "type-tab-label h-11 rounded-md px-3 transition-all sm:h-10 sm:flex-1 sm:px-2",
                 sort === option.value
                   ? "bg-background text-foreground shadow-sm"
                   : "bg-muted text-muted-foreground hover:text-foreground sm:bg-transparent",

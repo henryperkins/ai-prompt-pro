@@ -13,11 +13,23 @@ export default {
   			'2xl': '1400px'
   		}
   	},
-  	extend: {
-  		colors: {
-  			border: 'hsl(var(--border))',
-  			input: 'hsl(var(--input))',
-  			ring: 'hsl(var(--ring))',
+		extend: {
+			fontSize: {
+				"2xs": ["var(--type-2xs-size)", { lineHeight: "var(--type-2xs-line)" }],
+				xs: ["var(--type-xs-size)", { lineHeight: "var(--type-xs-line)" }],
+				sm: ["var(--type-sm-size)", { lineHeight: "var(--type-sm-line)" }],
+				base: ["var(--type-base-size)", { lineHeight: "var(--type-base-line)" }],
+				lg: ["var(--type-lg-size)", { lineHeight: "var(--type-lg-line)" }],
+				xl: ["var(--type-xl-size)", { lineHeight: "var(--type-xl-line)" }],
+				"2xl": ["var(--type-2xl-size)", { lineHeight: "var(--type-2xl-line)" }],
+				"3xl": ["var(--type-3xl-size)", { lineHeight: "var(--type-3xl-line)" }],
+				"4xl": ["var(--type-4xl-size)", { lineHeight: "var(--type-4xl-line)" }],
+				"5xl": ["var(--type-5xl-size)", { lineHeight: "var(--type-5xl-line)" }]
+			},
+			colors: {
+				border: 'hsl(var(--border))',
+				input: 'hsl(var(--input))',
+				ring: 'hsl(var(--ring))',
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			primary: {
@@ -95,41 +107,14 @@ export default {
   			xl: 'var(--shadow-xl)',
   			'2xl': 'var(--shadow-2xl)'
   		},
-  		fontFamily: {
-  			sans: [
-  				'Work Sans Variable',
-  				'ui-sans-serif',
-  				'system-ui',
-  				'-apple-system',
-  				'BlinkMacSystemFont',
-  				'Segoe UI',
-  				'Roboto',
-  				'Helvetica Neue',
-  				'Arial',
-  				'Noto Sans',
-  				'sans-serif'
-  			],
-  			serif: [
-  				'ui-serif',
-  				'Georgia',
-  				'Cambria',
-  				'Times New Roman',
-  				'Times',
-  				'serif'
-  			],
-  			mono: [
-  				'Inconsolata Variable',
-  				'ui-monospace',
-  				'SFMono-Regular',
-  				'Menlo',
-  				'Monaco',
-  				'Consolas',
-  				'Liberation Mono',
-  				'Courier New',
-  				'monospace'
-  			]
-  		}
-  	}
+			fontFamily: {
+				sans: ['var(--font-sans)'],
+				serif: [
+					'var(--font-serif)'
+				],
+				mono: ['var(--font-mono)']
+			}
+		}
   },
   plugins: [tailwindcssAnimate],
 } satisfies Config;

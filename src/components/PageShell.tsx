@@ -14,7 +14,7 @@ export function PageShell({ children, mainClassName }: PageShellProps) {
 
   return (
     <div
-      className="min-h-screen bg-background flex flex-col pb-[calc(4.25rem+env(safe-area-inset-bottom))] sm:pb-0"
+      className="min-h-screen bg-background flex flex-col pb-[calc(4.375rem+env(safe-area-inset-bottom))] sm:pb-0"
       data-testid="page-shell"
     >
       <Header isDark={isDark} onToggleTheme={toggleTheme} />

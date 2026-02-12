@@ -155,4 +155,13 @@ describe("OutputPanel phase 2 save flow", () => {
     expect(screen.queryByRole("link", { name: "Data URL" })).not.toBeInTheDocument();
     expect(screen.getByText("[Unsafe](javascript:alert(1))")).toBeInTheDocument();
   });
+
+  it("renders reasoning summary once when provided", () => {
+    renderPanel({
+      reasoningSummary: "Summarized reasoning content.",
+    });
+
+    expect(screen.getByText("Summarized reasoning content.")).toBeInTheDocument();
+    expect(screen.getAllByText("Reasoning summary")).toHaveLength(1);
+  });
 });

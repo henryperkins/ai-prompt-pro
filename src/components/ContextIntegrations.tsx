@@ -83,8 +83,8 @@ export function ContextIntegrations({
     <div className="space-y-4">
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label className="text-xs font-medium text-foreground">Database connections</Label>
-          <Badge variant="secondary" className="text-[11px]">
+          <Label className="text-sm font-medium text-foreground sm:text-base">Database connections</Label>
+          <Badge variant="secondary" className="text-xs">
             {databaseConnections.length}
           </Badge>
         </div>
@@ -94,7 +94,7 @@ export function ContextIntegrations({
             value={draft.label}
             onChange={(e) => setDraft((prev) => ({ ...prev, label: e.target.value }))}
             placeholder="Label (optional)"
-            className="h-8 text-xs"
+            className="h-11 text-sm sm:h-10 sm:text-base"
           />
           <Select
             value={draft.provider}
@@ -102,12 +102,12 @@ export function ContextIntegrations({
               setDraft((prev) => ({ ...prev, provider }))
             }
           >
-            <SelectTrigger className="h-8 text-xs bg-background">
+            <SelectTrigger className="h-11 text-sm bg-background sm:h-10 sm:text-base">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {PROVIDER_OPTIONS.map((provider) => (
-                <SelectItem key={provider} value={provider} className="text-xs capitalize">
+                <SelectItem key={provider} value={provider} className="text-sm capitalize sm:text-base">
                   {provider}
                 </SelectItem>
               ))}
@@ -117,25 +117,25 @@ export function ContextIntegrations({
             value={draft.connectionRef}
             onChange={(e) => setDraft((prev) => ({ ...prev, connectionRef: e.target.value }))}
             placeholder="Connection ref (secret ID)"
-            className="h-8 text-xs"
+            className="h-11 text-sm sm:h-10 sm:text-base"
           />
           <Input
             value={draft.database}
             onChange={(e) => setDraft((prev) => ({ ...prev, database: e.target.value }))}
             placeholder="Database name"
-            className="h-8 text-xs"
+            className="h-11 text-sm sm:h-10 sm:text-base"
           />
           <Input
             value={draft.schema}
             onChange={(e) => setDraft((prev) => ({ ...prev, schema: e.target.value }))}
             placeholder="Schema (optional)"
-            className="h-8 text-xs"
+            className="h-11 text-sm sm:h-10 sm:text-base"
           />
           <Input
             value={draft.tables}
             onChange={(e) => setDraft((prev) => ({ ...prev, tables: e.target.value }))}
             placeholder="Tables CSV (optional)"
-            className="h-8 text-xs"
+            className="h-11 text-sm sm:h-10 sm:text-base"
           />
         </div>
 
@@ -144,11 +144,10 @@ export function ContextIntegrations({
             <Switch
               checked={draft.readOnly}
               onCheckedChange={(value) => setDraft((prev) => ({ ...prev, readOnly: value }))}
-              className="scale-90"
             />
-            <Label className="text-[11px] text-muted-foreground">Read-only</Label>
+            <Label className="text-sm text-muted-foreground sm:text-base">Read-only</Label>
           </div>
-          <Button size="sm" className="h-7 text-xs gap-1.5" onClick={addDatabase}>
+          <Button size="sm" className="h-11 gap-1.5 text-sm sm:h-9 sm:text-base" onClick={addDatabase}>
             <Plus className="w-3 h-3" />
             Add DB
           </Button>
@@ -157,7 +156,7 @@ export function ContextIntegrations({
         {databaseConnections.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {databaseConnections.map((db) => (
-              <Badge key={db.id} variant="secondary" className="gap-1.5 text-[11px]">
+              <Badge key={db.id} variant="secondary" className="gap-1.5 text-xs">
                 <Database className="w-3 h-3" />
                 {db.label}
                 <button
@@ -175,11 +174,10 @@ export function ContextIntegrations({
 
       <div className="space-y-2 border-t border-border pt-3">
         <div className="flex items-center justify-between">
-          <Label className="text-xs font-medium text-foreground">RAG parameters</Label>
+          <Label className="text-sm font-medium text-foreground sm:text-base">RAG parameters</Label>
           <Switch
             checked={rag.enabled}
             onCheckedChange={(enabled) => onUpdateRag({ enabled })}
-            className="scale-90"
           />
         </div>
 
@@ -188,14 +186,14 @@ export function ContextIntegrations({
             value={rag.vectorStoreRef}
             onChange={(e) => onUpdateRag({ vectorStoreRef: e.target.value })}
             placeholder="Vector store ref"
-            className="h-8 text-xs"
+            className="h-11 text-sm sm:h-10 sm:text-base"
             disabled={!rag.enabled}
           />
           <Input
             value={rag.namespace}
             onChange={(e) => onUpdateRag({ namespace: e.target.value })}
             placeholder="Namespace"
-            className="h-8 text-xs"
+            className="h-11 text-sm sm:h-10 sm:text-base"
             disabled={!rag.enabled}
           />
           <Select
@@ -205,17 +203,17 @@ export function ContextIntegrations({
             }
             disabled={!rag.enabled}
           >
-            <SelectTrigger className="h-8 text-xs bg-background">
+            <SelectTrigger className="h-11 text-sm bg-background sm:h-10 sm:text-base">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="hybrid" className="text-xs">
+              <SelectItem value="hybrid" className="text-sm sm:text-base">
                 Hybrid
               </SelectItem>
-              <SelectItem value="semantic" className="text-xs">
+              <SelectItem value="semantic" className="text-sm sm:text-base">
                 Semantic
               </SelectItem>
-              <SelectItem value="keyword" className="text-xs">
+              <SelectItem value="keyword" className="text-sm sm:text-base">
                 Keyword
               </SelectItem>
             </SelectContent>
@@ -224,21 +222,21 @@ export function ContextIntegrations({
             value={String(rag.topK)}
             onChange={(e) => onUpdateRag({ topK: Number(e.target.value) || 0 })}
             placeholder="topK"
-            className="h-8 text-xs"
+            className="h-11 text-sm sm:h-10 sm:text-base"
             disabled={!rag.enabled}
           />
           <Input
             value={String(rag.minScore)}
             onChange={(e) => onUpdateRag({ minScore: Number(e.target.value) || 0 })}
             placeholder="minScore (0..1)"
-            className="h-8 text-xs"
+            className="h-11 text-sm sm:h-10 sm:text-base"
             disabled={!rag.enabled}
           />
           <Input
             value={String(rag.chunkWindow)}
             onChange={(e) => onUpdateRag({ chunkWindow: Number(e.target.value) || 0 })}
             placeholder="chunkWindow"
-            className="h-8 text-xs"
+            className="h-11 text-sm sm:h-10 sm:text-base"
             disabled={!rag.enabled}
           />
         </div>
@@ -253,7 +251,7 @@ export function ContextIntegrations({
             })
           }
           placeholder="Document refs CSV"
-          className="h-8 text-xs"
+          className="h-11 text-sm sm:h-10 sm:text-base"
           disabled={!rag.enabled}
         />
       </div>

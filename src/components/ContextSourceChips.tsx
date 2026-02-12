@@ -209,17 +209,17 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
             : "border-muted-foreground/20 hover:border-muted-foreground/40"
         }`}
       >
-        <div className="flex items-center justify-center gap-1.5 text-[11px] sm:text-xs text-muted-foreground">
+        <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
           <Upload className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
           <span>Drop files ({ALLOWED_EXTENSIONS.slice(0, 4).join(", ")}…)</span>
         </div>
       </div>
 
       <div className="flex items-center justify-between">
-        <label className="text-xs font-medium text-foreground">Sources</label>
+        <label className="text-sm font-medium text-foreground sm:text-base">Sources</label>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
+            <Button variant="outline" size="sm" className="h-11 gap-1 text-sm sm:h-9 sm:text-base">
               <Plus className="w-3 h-3" />
               Add
             </Button>
@@ -237,7 +237,7 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
                   onClick={() => setMode("text")}
                 >
                   <Type className="w-5 h-5" />
-                  <span className="text-xs">Paste text</span>
+                  <span className="text-sm sm:text-base">Paste text</span>
                 </Button>
                 <Button
                   variant="outline"
@@ -245,7 +245,7 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
                   onClick={() => setMode("url")}
                 >
                   <Globe className="w-5 h-5" />
-                  <span className="text-xs">Fetch from URL</span>
+                  <span className="text-sm sm:text-base">Fetch from URL</span>
                 </Button>
               </div>
             ) : (
@@ -288,9 +288,9 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
                   }
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  className="min-h-[100px] sm:min-h-[120px] bg-background"
+                  className="min-h-24 bg-background sm:min-h-28"
                 />
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Long content will be auto-summarized into compact bullet points.
                 </p>
                 <div className="flex gap-2 justify-end">
@@ -326,7 +326,7 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
               title={`${source.title}\n${source.summary}`}
             >
               {chipIcon(source.type)}
-              <span className="truncate text-[11px] sm:text-xs">{source.title}</span>
+              <span className="truncate text-xs">{source.title}</span>
               <button
                 onClick={() => onRemove(source.id)}
                 className="ml-0.5 rounded-full p-0.5 hover:bg-destructive/20 transition-colors"
@@ -340,7 +340,7 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
       )}
 
       {sources.length === 0 && (
-        <p className="text-[11px] sm:text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           No sources yet. Add text, fetch URLs, or drop files.
         </p>
       )}

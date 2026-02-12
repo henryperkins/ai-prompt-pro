@@ -31,7 +31,7 @@ export function PromptPreviewPanel({ text, mode = "compact", className, onCopy }
             type="button"
             variant="outline"
             size="sm"
-            className="type-button-label absolute right-2 top-2 z-10 h-11 bg-background/85 px-3 backdrop-blur sm:h-7 sm:px-2"
+            className="type-button-label absolute right-2 top-2 z-10 h-11 bg-background/85 px-3 backdrop-blur sm:h-9 sm:px-2"
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -58,7 +58,7 @@ export function PromptPreviewPanel({ text, mode = "compact", className, onCopy }
             type="button"
             variant="ghost"
             size="sm"
-            className="type-button-label h-11 px-3 sm:h-7 sm:px-2"
+            className="type-button-label h-11 px-3 sm:h-9 sm:px-2"
             onClick={() => setExpanded((prev) => !prev)}
           >
             {expanded ? "Show less" : "Read more"}

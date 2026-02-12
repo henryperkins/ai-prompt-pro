@@ -152,14 +152,14 @@ const LibraryBulkEdit = () => {
         <Card className="border-border/80 bg-card/85 p-3 sm:p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-primary">Selection</p>
+              <p className="text-xs font-semibold uppercase tracking-[var(--type-label-caps-tracking)] text-primary">Selection</p>
               <p className="text-sm text-muted-foreground">
                 {selectedPrompts.length > 0
                   ? `${selectedPrompts.length} prompt(s) selected from Library`
                   : "No selected prompts in this bulk edit session"}
               </p>
             </div>
-            <Button asChild variant="outline" size="sm" className="h-8 gap-1 text-xs">
+            <Button asChild variant="outline" size="sm" className="h-11 gap-1 text-sm sm:h-9 sm:text-base">
               <Link to="/library">
                 <ArrowLeft className="h-3.5 w-3.5" />
                 Back to Library
@@ -183,7 +183,7 @@ const LibraryBulkEdit = () => {
                 type="button"
                 variant="default"
                 size="sm"
-                className="h-8 w-full text-xs justify-start gap-1.5"
+                className="h-11 w-full justify-start gap-1.5 text-sm sm:h-9 sm:text-base"
                 disabled={selectedPrompts.length === 0}
                 onClick={handleLoadFirstSelected}
               >
@@ -195,7 +195,7 @@ const LibraryBulkEdit = () => {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-8 w-full text-xs justify-start gap-1.5"
+                className="h-11 w-full justify-start gap-1.5 text-sm sm:h-9 sm:text-base"
                 disabled={selectedPrompts.length === 0 || isUnsharing}
                 onClick={() => void handleSetPrivate()}
               >
@@ -207,7 +207,7 @@ const LibraryBulkEdit = () => {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-8 w-full text-xs justify-start gap-1.5 border-destructive/40 text-destructive hover:text-destructive"
+                className="h-11 w-full justify-start gap-1.5 border-destructive/40 text-sm text-destructive hover:text-destructive sm:h-9 sm:text-base"
                 disabled={selectedPrompts.length === 0 || isDeleting}
                 onClick={() => void handleDeleteSelected()}
               >
@@ -219,7 +219,7 @@ const LibraryBulkEdit = () => {
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-8 w-full text-xs justify-start gap-1.5"
+                className="h-11 w-full justify-start gap-1.5 text-sm sm:h-9 sm:text-base"
                 disabled={selectedPrompts.length === 0}
                 onClick={() => applySelection([])}
               >
@@ -256,11 +256,11 @@ const LibraryBulkEdit = () => {
                           <div className="flex min-w-0 items-center gap-2">
                             <Avatar className="h-7 w-7 border border-border/60">
                               <AvatarImage src={ownerAvatarUrl ?? undefined} alt={ownerName} />
-                              <AvatarFallback className="text-[10px]">{getInitials(ownerName)}</AvatarFallback>
+                              <AvatarFallback className="text-xs">{getInitials(ownerName)}</AvatarFallback>
                             </Avatar>
                             <div className="min-w-0">
                               <p className="truncate text-sm font-medium text-foreground">{prompt.name}</p>
-                              <p className="text-[11px] text-muted-foreground">{ownerName}</p>
+                              <p className="text-xs text-muted-foreground">{ownerName}</p>
                             </div>
                             <Badge variant="outline" className="ml-auto text-xs">
                               r{prompt.revision}

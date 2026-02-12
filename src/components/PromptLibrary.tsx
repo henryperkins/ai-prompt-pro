@@ -360,19 +360,19 @@ function PromptList({
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
             placeholder="Search prompts by name, description, tags, or starter text"
-            className="h-8 pl-8 text-sm bg-background"
+            className="h-11 pl-8 text-sm bg-background sm:h-10"
           />
         </div>
         <div className="flex items-center gap-1.5">
           <ArrowDownUp className="w-3.5 h-3.5 text-muted-foreground" />
           <Select value={sortBy} onValueChange={(value: SavedPromptSort) => onSortByChange(value)}>
-            <SelectTrigger className="h-8 text-sm min-w-[138px]" aria-label="Sort saved prompts">
+            <SelectTrigger className="h-11 min-w-[138px] text-sm sm:h-10 sm:text-base" aria-label="Sort saved prompts">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="recent" className="text-sm">Most Recent</SelectItem>
-              <SelectItem value="name" className="text-sm">Name (A-Z)</SelectItem>
-              <SelectItem value="revision" className="text-sm">Revision (High)</SelectItem>
+              <SelectItem value="recent" className="text-sm sm:text-base">Most Recent</SelectItem>
+              <SelectItem value="name" className="text-sm sm:text-base">Name (A-Z)</SelectItem>
+              <SelectItem value="revision" className="text-sm sm:text-base">Revision (High)</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -393,7 +393,7 @@ function PromptList({
               No saved prompts yet. Create one in the Builder, then save it to your library.
             </p>
             <div className="mt-2">
-              <Button asChild size="sm" className="h-8 text-xs" onClick={onClose}>
+              <Button asChild size="sm" className="h-11 text-sm sm:h-9 sm:text-base" onClick={onClose}>
                 <Link to="/">Go to Builder</Link>
               </Button>
             </div>
@@ -487,7 +487,7 @@ function PromptList({
                     asChild
                     variant="ghost"
                     size="sm"
-                    className="h-7 px-2 text-xs"
+                    className="h-11 px-2 text-sm sm:h-9 sm:text-base"
                   >
                     <Link to={`/community/${prompt.communityPostId}`}>
                       Open
@@ -499,7 +499,7 @@ function PromptList({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 px-2 text-xs"
+                    className="h-11 px-2 text-sm sm:h-9 sm:text-base"
                     onClick={(event) => {
                       event.stopPropagation();
                       void onUnshareSaved(prompt.id);
@@ -511,7 +511,7 @@ function PromptList({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 px-2 text-xs"
+                    className="h-11 px-2 text-sm sm:h-9 sm:text-base"
                     disabled={!canShareSavedPrompts}
                     onClick={(event) => {
                       event.stopPropagation();
@@ -525,7 +525,7 @@ function PromptList({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="w-7 h-7"
+                  className="w-11 h-11 sm:w-9 sm:h-9"
                   onClick={(event) => {
                     event.stopPropagation();
                     setPendingDeletePrompt(prompt);
@@ -552,7 +552,7 @@ function PromptList({
               variant={activeCategory === cat ? "default" : "outline"}
               size="sm"
               onClick={() => setActiveCategory(cat)}
-              className="interactive-chip gap-1.5 text-xs capitalize h-7 sm:h-8"
+              className="interactive-chip h-11 gap-1.5 text-sm capitalize sm:h-9 sm:text-base"
             >
               {cat !== "all" && categoryIcons[cat]}
               {cat === "all" ? "All" : categoryLabels[cat]}
@@ -617,7 +617,7 @@ function PromptList({
                     </div>
                     <span
                       className={cn(
-                        "shrink-0 text-xs opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex items-center rounded-md border px-2.5 h-8",
+                        "shrink-0 text-xs opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex items-center rounded-md border px-2.5 h-9",
                         skin.action,
                       )}
                     >

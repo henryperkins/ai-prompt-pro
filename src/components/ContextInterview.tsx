@@ -40,7 +40,7 @@ export function ContextInterview({ answers, onUpdate }: ContextInterviewProps) {
             Ask me for missing context
           </span>
           {answeredCount > 0 && (
-            <Badge variant="secondary" className="text-[11px]">
+            <Badge variant="secondary" className="text-xs">
               {answeredCount}/{interviewQuestions.length}
             </Badge>
           )}
@@ -61,7 +61,7 @@ export function ContextInterview({ answers, onUpdate }: ContextInterviewProps) {
         <Button
           variant="ghost"
           size="sm"
-          className="interactive-chip h-6 text-xs"
+          className="interactive-chip h-11 text-xs sm:h-9"
           onClick={() => setExpanded(false)}
         >
           Minimize

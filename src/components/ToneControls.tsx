@@ -11,7 +11,7 @@ export function ToneControls({ tone, complexity, onUpdate }: ToneControlsProps) 
   return (
     <div className="space-y-3 sm:space-y-4">
       <div className="space-y-2">
-        <label className="text-xs sm:text-sm font-medium text-foreground">Tone</label>
+        <label className="text-sm font-medium text-foreground sm:text-base">Tone</label>
         <div className="flex flex-wrap gap-1.5 sm:gap-2">
           {toneOptions.map((t) => (
             <Button
@@ -19,7 +19,7 @@ export function ToneControls({ tone, complexity, onUpdate }: ToneControlsProps) 
               variant={tone === t ? "default" : "outline"}
               size="sm"
               onClick={() => onUpdate({ tone: t })}
-              className="text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3"
+              className="h-11 px-2 text-sm sm:h-9 sm:px-3 sm:text-base"
             >
               {t}
             </Button>
@@ -27,7 +27,7 @@ export function ToneControls({ tone, complexity, onUpdate }: ToneControlsProps) 
         </div>
       </div>
       <div className="space-y-2">
-        <label className="text-xs sm:text-sm font-medium text-foreground">Complexity</label>
+        <label className="text-sm font-medium text-foreground sm:text-base">Complexity</label>
         <div className="flex flex-wrap gap-1.5 sm:gap-2">
           {complexityOptions.map((c) => (
             <Button
@@ -35,7 +35,7 @@ export function ToneControls({ tone, complexity, onUpdate }: ToneControlsProps) 
               variant={complexity === c ? "default" : "outline"}
               size="sm"
               onClick={() => onUpdate({ complexity: c })}
-              className="text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3"
+              className="h-11 px-2 text-sm sm:h-9 sm:px-3 sm:text-base"
             >
               {c}
             </Button>

@@ -153,14 +153,14 @@ export function CommunityPostDetail({
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-            <Button asChild variant="ghost" size="sm" className="type-button-label h-11 w-full sm:h-8 sm:w-auto">
+            <Button asChild variant="ghost" size="sm" className="type-button-label h-11 w-full sm:h-9 sm:w-auto">
               <Link to={`/?remix=${post.id}`}>Remix</Link>
             </Button>
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              className="type-button-label h-11 w-full gap-1.5 sm:h-8 sm:w-auto"
+              className="type-button-label h-11 w-full gap-1.5 sm:h-9 sm:w-auto"
               disabled={!canSaveToLibrary}
               onClick={() => onSaveToLibrary(post.id)}
             >
@@ -269,7 +269,7 @@ export function CommunityPostDetail({
             type="button"
             size="sm"
             variant={voteState?.upvote ? "soft" : "outline"}
-            className="type-button-label interactive-chip h-11 gap-1.5 px-3 sm:h-8 sm:gap-1 sm:px-2.5"
+            className="type-button-label interactive-chip h-11 gap-1.5 px-3 sm:h-9 sm:gap-1 sm:px-2.5"
             disabled={!canVote}
             onClick={() => onToggleVote(post.id, "upvote")}
             data-testid="community-vote-upvote"
@@ -281,7 +281,7 @@ export function CommunityPostDetail({
             type="button"
             size="sm"
             variant={voteState?.verified ? "soft" : "outline"}
-            className="type-button-label interactive-chip h-11 gap-1.5 px-3 sm:h-8 sm:gap-1 sm:px-2.5"
+            className="type-button-label interactive-chip h-11 gap-1.5 px-3 sm:h-9 sm:gap-1 sm:px-2.5"
             disabled={!canVote}
             onClick={() => onToggleVote(post.id, "verified")}
             data-testid="community-vote-verified"
@@ -298,7 +298,7 @@ export function CommunityPostDetail({
               type="button"
               size="sm"
               variant="default"
-              className="type-button-label h-11 gap-1.5 px-3 sm:h-8 sm:px-2.5"
+              className="type-button-label h-11 gap-1.5 px-3 sm:h-9 sm:px-2.5"
               onClick={() => {
                 setCommentsOpen(true);
                 onCommentThreadOpen?.(post.id);
@@ -376,7 +376,7 @@ export function CommunityPostDetail({
                     by {remixAuthor} • {created}
                   </p>
                 </div>
-                <Button asChild variant="ghost" size="sm" className="type-button-label h-11 px-3 sm:h-7 sm:px-2">
+                <Button asChild variant="ghost" size="sm" className="type-button-label h-11 px-3 sm:h-9 sm:px-2">
                   <Link to={`/community/${remix.id}`}>
                     Open
                     <ExternalLink className="h-3 w-3" />

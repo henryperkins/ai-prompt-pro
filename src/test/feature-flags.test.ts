@@ -7,6 +7,12 @@ describe("builderRedesignFlags", () => {
   });
 
   it("defaults all phases to false", async () => {
+    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE1", "");
+    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE2", "");
+    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE3", "");
+    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE4", "");
+    vi.stubEnv("VITE_COMMUNITY_MOBILE_ENHANCEMENTS", "");
+
     const { builderRedesignFlags, communityFeatureFlags } = await import("@/lib/feature-flags");
 
     expect(builderRedesignFlags.builderRedesignPhase1).toBe(false);

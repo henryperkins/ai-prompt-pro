@@ -66,7 +66,7 @@ export function NotificationPanel({
               type="button"
               size="sm"
               variant="ghost"
-              className="h-10 px-3 text-xs sm:h-7 sm:px-2 sm:text-[11px]"
+              className="h-11 px-3 text-sm sm:h-9 sm:px-2 sm:text-base"
               onClick={onRefresh}
             >
               Refresh
@@ -76,7 +76,7 @@ export function NotificationPanel({
             type="button"
             size="sm"
             variant="ghost"
-            className="h-10 px-3 text-xs sm:h-7 sm:px-2 sm:text-[11px]"
+            className="h-11 px-3 text-sm sm:h-9 sm:px-2 sm:text-base"
             onClick={() => void onMarkAllAsRead()}
             disabled={unreadCount === 0 || loading}
           >
@@ -112,7 +112,7 @@ export function NotificationPanel({
                         src={notification.actorAvatarUrl ?? undefined}
                         alt={notification.actorDisplayName}
                       />
-                      <AvatarFallback className="text-[10px]">
+                      <AvatarFallback className="text-xs">
                         {getInitials(notification.actorDisplayName)}
                       </AvatarFallback>
                     </Avatar>
@@ -126,7 +126,7 @@ export function NotificationPanel({
                       {getTypeLabel(notification.type)}
                     </p>
                     <p className="truncate text-xs text-muted-foreground">{notification.postTitle}</p>
-                    <p className="mt-1 text-[11px] text-muted-foreground">{createdAgo}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{createdAgo}</p>
                   </div>
                 </div>
               );

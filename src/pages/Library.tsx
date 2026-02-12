@@ -264,12 +264,12 @@ const Library = () => {
         <Card className="border-border/80 bg-card/85 p-3 sm:p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-primary">Separated from templates</p>
+              <p className="text-xs font-semibold uppercase tracking-[var(--type-label-caps-tracking)] text-primary">Separated from templates</p>
               <p className="text-sm text-muted-foreground">
                 Edit and organize your saved prompts here without touching preset/template sources.
               </p>
             </div>
-            <Button asChild variant="outline" size="sm" className="h-8 gap-1 text-xs">
+            <Button asChild variant="outline" size="sm" className="h-11 gap-1 text-sm sm:h-9 sm:text-base">
               <Link to="/">
                 <Sparkles className="h-3.5 w-3.5" />
                 Open Builder Presets
@@ -290,17 +290,17 @@ const Library = () => {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search prompts by name, description, tags, or starter text"
-                className="h-8 bg-background pl-8 text-sm"
+                className="h-11 bg-background pl-8 text-sm sm:h-10"
               />
             </div>
 
             <Select value={activeCategory} onValueChange={setActiveCategory}>
-              <SelectTrigger className="h-8 min-w-[140px] text-xs capitalize" aria-label="Filter category">
+              <SelectTrigger className="h-11 min-w-[140px] text-sm capitalize sm:h-10 sm:text-base" aria-label="Filter category">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {categories.map((category) => (
-                  <SelectItem key={category} value={category} className="text-xs capitalize">
+                  <SelectItem key={category} value={category} className="text-sm capitalize sm:text-base">
                     {category}
                   </SelectItem>
                 ))}
@@ -310,13 +310,13 @@ const Library = () => {
             <div className="flex items-center gap-1.5">
               <ArrowDownUp className="h-3.5 w-3.5 text-muted-foreground" />
               <Select value={sortBy} onValueChange={(value: SavedPromptSort) => setSortBy(value)}>
-                <SelectTrigger className="h-8 min-w-[138px] text-xs" aria-label="Sort saved prompts">
+                <SelectTrigger className="h-11 min-w-[138px] text-sm sm:h-10 sm:text-base" aria-label="Sort saved prompts">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="recent" className="text-xs">Most Recent</SelectItem>
-                  <SelectItem value="name" className="text-xs">Name (A-Z)</SelectItem>
-                  <SelectItem value="revision" className="text-xs">Revision (High)</SelectItem>
+                  <SelectItem value="recent" className="text-sm sm:text-base">Most Recent</SelectItem>
+                  <SelectItem value="name" className="text-sm sm:text-base">Name (A-Z)</SelectItem>
+                  <SelectItem value="revision" className="text-sm sm:text-base">Revision (High)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -340,7 +340,7 @@ const Library = () => {
                   type="button"
                   variant="default"
                   size="sm"
-                  className="h-8 text-xs"
+                  className="h-11 text-sm sm:h-9 sm:text-base"
                   disabled={selectedCount === 0}
                   onClick={openBulkEdit}
                 >
@@ -394,7 +394,7 @@ const Library = () => {
                         <div className="flex min-w-0 items-center gap-2">
                           <Avatar className="h-7 w-7 border border-border/60">
                             <AvatarImage src={ownerAvatarUrl ?? undefined} alt={ownerName} />
-                            <AvatarFallback className="text-[10px]">{getInitials(ownerName)}</AvatarFallback>
+                            <AvatarFallback className="text-xs">{getInitials(ownerName)}</AvatarFallback>
                           </Avatar>
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
@@ -420,7 +420,7 @@ const Library = () => {
                                 </Badge>
                               )}
                             </div>
-                            <p className="text-xs sm:text-[11px] text-muted-foreground">{ownerName}</p>
+                            <p className="text-xs text-muted-foreground">{ownerName}</p>
                           </div>
                         </div>
 
@@ -456,13 +456,13 @@ const Library = () => {
                           type="button"
                           variant="default"
                           size="sm"
-                          className="h-9 sm:h-7 px-2.5 text-xs"
+                          className="h-11 px-2.5 text-sm sm:h-9 sm:text-base"
                           onClick={() => void handleSelectSaved(prompt.id)}
                         >
                           Load
                         </Button>
                         {prompt.isShared && prompt.communityPostId && (
-                          <Button asChild variant="ghost" size="sm" className="h-9 sm:h-7 px-2.5 text-xs">
+                          <Button asChild variant="ghost" size="sm" className="h-11 px-2.5 text-sm sm:h-9 sm:text-base">
                             <Link to={`/community/${prompt.communityPostId}`}>
                               Open
                               <ExternalLink className="h-3 w-3" />
@@ -474,7 +474,7 @@ const Library = () => {
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="h-9 sm:h-7 px-2.5 text-xs"
+                            className="h-11 px-2.5 text-sm sm:h-9 sm:text-base"
                             onClick={() => void handleUnshareSaved(prompt.id)}
                           >
                             Unshare
@@ -484,7 +484,7 @@ const Library = () => {
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="h-9 sm:h-7 px-2.5 text-xs"
+                            className="h-11 px-2.5 text-sm sm:h-9 sm:text-base"
                             disabled={!isSignedIn || !shareUseCase}
                             onClick={() => void handleShareSaved(prompt)}
                             title={
@@ -502,7 +502,7 @@ const Library = () => {
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className="h-9 sm:h-7 px-2.5 text-xs text-destructive hover:text-destructive"
+                          className="h-11 px-2.5 text-sm text-destructive hover:text-destructive sm:h-9 sm:text-base"
                           onClick={() => void handleDeleteSaved(prompt.id)}
                         >
                           Delete

@@ -50,7 +50,7 @@ export function BuilderHeroInput({
                 size="sm"
                 onClick={onClear}
                 aria-label="Clear prompt text"
-                className="interactive-chip h-6 px-2 text-xs gap-1"
+                className="interactive-chip h-11 gap-1 px-3 text-sm sm:h-9 sm:px-2 sm:text-base"
               >
                 <RotateCcw className="w-3 h-3" />
                 Clear
@@ -64,7 +64,7 @@ export function BuilderHeroInput({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="Describe your goal in plain language. For example: Draft a concise project update for execs using these notes..."
-          className="min-h-[120px] resize-y bg-background border-input text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring"
+          className="min-h-28 resize-y border-input bg-background text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring sm:min-h-32"
           aria-describedby={promptInputMetaId}
         />
 
@@ -79,7 +79,7 @@ export function BuilderHeroInput({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-6 px-2 text-xs"
+                className="h-11 px-3 text-sm sm:h-9 sm:px-2 sm:text-base"
                 onClick={onResetInferred}
               >
                 Reset AI details
@@ -110,7 +110,7 @@ export function BuilderHeroInput({
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="h-7 px-2 text-xs"
+                      className="h-11 px-2 text-sm sm:h-9 sm:text-base"
                       onClick={() => onApplySuggestion?.(chip)}
                     >
                       {chip.label}

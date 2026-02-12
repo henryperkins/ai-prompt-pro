@@ -98,13 +98,13 @@ export function BuilderSourcesAdvanced({
             <div className="flex items-center justify-between border-t border-border pt-3">
               <div>
                 <p className="text-xs font-medium text-foreground">Show advanced integrations</p>
-                <p className="text-[11px] text-muted-foreground">Database + RAG and delimiter controls.</p>
+                <p className="text-xs text-muted-foreground">Database + RAG and delimiter controls.</p>
               </div>
               <Button
                 type="button"
                 size="sm"
                 variant={showAdvanced ? "secondary" : "outline"}
-                className="h-7 gap-1.5 text-xs"
+                className="h-11 gap-1.5 text-sm sm:h-9 sm:text-base"
                 onClick={() => setShowAdvanced((previous) => !previous)}
               >
                 <Settings2 className="h-3.5 w-3.5" />
@@ -115,7 +115,7 @@ export function BuilderSourcesAdvanced({
             {showAdvanced && (
               <div className="space-y-4 rounded-lg border border-border/80 bg-background/60 p-3">
                 <div className="flex items-center justify-between">
-                  <Label className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+                  <Label className="flex items-center gap-1.5 text-sm font-medium text-foreground sm:text-base">
                     <Database className="h-3.5 w-3.5 text-muted-foreground" />
                     Integrations
                   </Label>
@@ -130,13 +130,12 @@ export function BuilderSourcesAdvanced({
 
                 <div className="flex items-center justify-between border-t border-border pt-3">
                   <div>
-                    <Label className="text-xs font-medium text-foreground">Use delimiters</Label>
-                    <p className="text-[11px] text-muted-foreground">Wrap context blocks in tags for stricter parsing.</p>
+                    <Label className="text-sm font-medium text-foreground sm:text-base">Use delimiters</Label>
+                    <p className="text-xs text-muted-foreground">Wrap context blocks in tags for stricter parsing.</p>
                   </div>
                   <Switch
                     checked={contextConfig.useDelimiters}
                     onCheckedChange={onToggleDelimiters}
-                    className="scale-90"
                   />
                 </div>
               </div>

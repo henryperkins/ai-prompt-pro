@@ -73,6 +73,7 @@ interface OutputPanelProps {
   webSearchEnabled?: boolean;
   onWebSearchToggle?: (enabled: boolean) => void;
   webSearchSources?: string[];
+  reasoningSummary?: string;
 }
 
 type CodexExportModule = typeof import("@/lib/codex-export");
@@ -124,6 +125,7 @@ export function OutputPanel({
   webSearchEnabled = false,
   onWebSearchToggle,
   webSearchSources = [],
+  reasoningSummary = "",
 }: OutputPanelProps) {
   const [copied, setCopied] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -145,6 +147,7 @@ export function OutputPanel({
 
   const { toast } = useToast();
   const displayPrompt = enhancedPrompt || builtPrompt;
+  const trimmedReasoningSummary = reasoningSummary.trim();
 
   useEffect(() => {
     if (shareEnabled && !canSharePrompt) {
@@ -456,7 +459,7 @@ export function OutputPanel({
             {enhancedPrompt ? "✨ Enhanced Prompt" : "📝 Preview"}
           </h2>
           {statusLabel && (
-            <span className="interactive-chip inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+            <span className="interactive-chip inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
               {statusLabel}
             </span>
           )}
@@ -465,7 +468,7 @@ export function OutputPanel({
               type="button"
               variant="outline"
               size="sm"
-              className="h-7 px-2 text-xs"
+              className="h-11 px-2 text-xs sm:h-9"
               onClick={() => setCompareDialogOpen(true)}
             >
               Show changes
@@ -686,7 +689,7 @@ export function OutputPanel({
                     <Label htmlFor="save-dialog-share-toggle" className="text-xs font-medium text-foreground">
                       Share to community
                     </Label>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       Enable to publish after saving.
                     </p>
                   </div>
@@ -698,7 +701,7 @@ export function OutputPanel({
                   />
                 </div>
                 {!canSharePrompt && (
-                  <p className="mt-2 text-[11px] text-muted-foreground">
+                  <p className="mt-2 text-xs text-muted-foreground">
                     Sign in to enable sharing.
                   </p>
                 )}
@@ -781,6 +784,17 @@ export function OutputPanel({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {trimmedReasoningSummary && (
+        <Card className="border-amber-500/30 bg-amber-500/5 p-3">
+          <p className="text-xs font-semibold uppercase tracking-[var(--type-label-caps-tracking)] text-amber-700">
+            Reasoning summary
+          </p>
+          <pre className="mt-2 whitespace-pre-wrap text-xs font-mono text-foreground/90 leading-relaxed">
+            {trimmedReasoningSummary}
+          </pre>
+        </Card>
+      )}
 
       <Card
         className={cn(

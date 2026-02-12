@@ -146,7 +146,7 @@ export function CommunityFeed({
             size="sm"
             onClick={onLoadMore}
             disabled={isLoadingMore}
-            className="type-button-label h-11 px-4 sm:h-8 sm:px-3"
+            className="type-button-label h-11 px-4 sm:h-9 sm:px-3"
           >
             {isLoadingMore ? "Loading..." : "Load more"}
           </Button>

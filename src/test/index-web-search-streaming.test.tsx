@@ -11,6 +11,16 @@ const mocks = vi.hoisted(() => ({
   setEnhancedPrompt: vi.fn(),
 }));
 
+type EnhanceStreamEvent = {
+  eventType: string | null;
+  responseType: string | null;
+  threadId: string | null;
+  turnId: string | null;
+  itemId: string | null;
+  itemType: string | null;
+  payload: unknown;
+};
+
 vi.mock("@/hooks/use-toast", () => ({
   useToast: () => ({ toast: mocks.toast }),
 }));
@@ -65,10 +75,12 @@ vi.mock("@/components/OutputPanel", () => ({
     onEnhance,
     onWebSearchToggle,
     webSearchSources,
+    reasoningSummary,
   }: {
     onEnhance: () => void;
     onWebSearchToggle?: (enabled: boolean) => void;
     webSearchSources?: string[];
+    reasoningSummary?: string;
   }) => (
     <div>
       <button type="button" onClick={() => onWebSearchToggle?.(true)}>
@@ -78,6 +90,7 @@ vi.mock("@/components/OutputPanel", () => ({
         enhance
       </button>
       <div data-testid="web-sources">{(webSearchSources || []).join("|")}</div>
+      <div data-testid="reasoning-summary">{reasoningSummary || ""}</div>
     </div>
   ),
 }));
@@ -200,5 +213,169 @@ describe("Index web search streaming", () => {
         "[Release notes](https://example.com/release)|[Status page](https://status.example.com/)",
       );
     });
+  });
+
+  it("captures reasoning summary from stream events", async () => {
+    mocks.streamEnhance.mockImplementation(
+      ({
+        onEvent,
+        onDone,
+      }: {
+        onEvent?: (event: EnhanceStreamEvent) => void;
+        onDone?: () => void;
+      }) => {
+        onEvent?.({
+          eventType: "item.updated",
+          responseType: "response.output_item.updated",
+          threadId: "thread_1",
+          turnId: "turn_1",
+          itemId: "item_reasoning_1",
+          itemType: "reasoning",
+          payload: { item: { id: "item_reasoning_1", type: "reasoning", delta: "Draft summary. " } },
+        });
+        onEvent?.({
+          eventType: "item.updated",
+          responseType: "response.output_item.updated",
+          threadId: "thread_1",
+          turnId: "turn_1",
+          itemId: "item_reasoning_1",
+          itemType: "reasoning",
+          payload: { item: { id: "item_reasoning_1", type: "reasoning", delta: "More context." } },
+        });
+        onEvent?.({
+          eventType: "item.completed",
+          responseType: "response.output_item.done",
+          threadId: "thread_1",
+          turnId: "turn_1",
+          itemId: "item_reasoning_1",
+          itemType: "reasoning",
+          payload: { item: { id: "item_reasoning_1", type: "reasoning", text: "Final summary." } },
+        });
+        onDone?.();
+      },
+    );
+
+    await renderIndex();
+
+    fireEvent.click(screen.getByRole("button", { name: "enhance" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("reasoning-summary").textContent).toBe("Final summary.");
+    });
+  });
+
+  it("ignores summary events that are not reasoning events", async () => {
+    mocks.streamEnhance.mockImplementation(
+      ({
+        onEvent,
+        onDone,
+      }: {
+        onEvent?: (event: EnhanceStreamEvent) => void;
+        onDone?: () => void;
+      }) => {
+        onEvent?.({
+          eventType: "summary.completed",
+          responseType: "response.summary.done",
+          threadId: "thread_1",
+          turnId: "turn_1",
+          itemId: "item_summary_1",
+          itemType: "summary",
+          payload: { item: { id: "item_summary_1", type: "summary", text: "Ignore this summary." } },
+        });
+        onDone?.();
+      },
+    );
+
+    await renderIndex();
+
+    fireEvent.click(screen.getByRole("button", { name: "enhance" }));
+
+    await waitFor(() => {
+      expect(mocks.streamEnhance).toHaveBeenCalledTimes(1);
+    });
+    expect(screen.getByTestId("reasoning-summary").textContent).toBe("");
+  });
+
+  it("extracts reasoning summary text from content arrays", async () => {
+    mocks.streamEnhance.mockImplementation(
+      ({
+        onEvent,
+        onDone,
+      }: {
+        onEvent?: (event: EnhanceStreamEvent) => void;
+        onDone?: () => void;
+      }) => {
+        onEvent?.({
+          eventType: "item.completed",
+          responseType: "response.output_item.done",
+          threadId: "thread_1",
+          turnId: "turn_1",
+          itemId: "item_reasoning_2",
+          itemType: "reasoning_summary",
+          payload: {
+            item: {
+              id: "item_reasoning_2",
+              type: "reasoning_summary",
+              content: [{ text: "First sentence. " }, { text: "Second sentence." }],
+            },
+          },
+        });
+        onDone?.();
+      },
+    );
+
+    await renderIndex();
+
+    fireEvent.click(screen.getByRole("button", { name: "enhance" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("reasoning-summary").textContent).toBe("First sentence. Second sentence.");
+    });
+  });
+
+  it("clears stale reasoning summary before a failed retry", async () => {
+    let enhanceRun = 0;
+    mocks.streamEnhance.mockImplementation(
+      ({
+        onEvent,
+        onDone,
+        onError,
+      }: {
+        onEvent?: (event: EnhanceStreamEvent) => void;
+        onDone?: () => void;
+        onError?: (error: string) => void;
+      }) => {
+        enhanceRun += 1;
+        if (enhanceRun === 1) {
+          onEvent?.({
+            eventType: "item.completed",
+            responseType: "response.output_item.done",
+            threadId: "thread_1",
+            turnId: "turn_1",
+            itemId: "item_reasoning_3",
+            itemType: "reasoning",
+            payload: { item: { id: "item_reasoning_3", type: "reasoning", text: "Initial summary." } },
+          });
+          onDone?.();
+          return;
+        }
+
+        onError?.("stream failed");
+      },
+    );
+
+    await renderIndex();
+
+    fireEvent.click(screen.getByRole("button", { name: "enhance" }));
+    await waitFor(() => {
+      expect(screen.getByTestId("reasoning-summary").textContent).toBe("Initial summary.");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "enhance" }));
+
+    await waitFor(() => {
+      expect(mocks.streamEnhance).toHaveBeenCalledTimes(2);
+    });
+    expect(screen.getByTestId("reasoning-summary").textContent).toBe("");
   });
 });

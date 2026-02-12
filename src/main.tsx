@@ -1,6 +1,4 @@
 import { createRoot } from "react-dom/client";
-import "@fontsource-variable/work-sans/wght.css";
-import "@fontsource-variable/inconsolata/wght.css";
 import App from "./App.tsx";
 import "./index.css";
 

@@ -143,7 +143,7 @@ function CommunityPostCardComponent({
         )}
 
         <div>
-          <h3 className={cn("type-post-title text-foreground", isFeatured && "sm:text-[1.25rem] sm:leading-7")}>
+          <h3 className={cn("type-post-title text-foreground", isFeatured && "sm:text-xl sm:leading-7")}>
             {post.title}
           </h3>
           {post.useCase && (
@@ -185,7 +185,7 @@ function CommunityPostCardComponent({
             asChild
             variant={isMobile || isFeatured ? "default" : "outline"}
             size="sm"
-            className="type-button-label h-11 px-4 sm:h-8 sm:px-3"
+            className="type-button-label h-11 px-4 sm:h-9 sm:px-3"
             data-testid="community-remix-cta"
           >
             <Link to={`/?remix=${post.id}`}>Remix</Link>
@@ -202,7 +202,7 @@ function CommunityPostCardComponent({
             type="button"
             size="sm"
             variant={voteState?.upvote ? "soft" : "outline"}
-            className="type-button-label interactive-chip h-11 gap-1.5 px-3 sm:h-8 sm:gap-1 sm:px-2.5"
+            className="type-button-label interactive-chip h-11 gap-1.5 px-3 sm:h-9 sm:gap-1 sm:px-2.5"
             disabled={!canVote}
             onClick={() => onToggleVote(post.id, "upvote")}
             data-testid="community-vote-upvote"
@@ -214,7 +214,7 @@ function CommunityPostCardComponent({
             type="button"
             size="sm"
             variant={voteState?.verified ? "soft" : "outline"}
-            className="type-button-label interactive-chip h-11 gap-1.5 px-3 sm:h-8 sm:gap-1 sm:px-2.5"
+            className="type-button-label interactive-chip h-11 gap-1.5 px-3 sm:h-9 sm:gap-1 sm:px-2.5"
             disabled={!canVote}
             onClick={() => onToggleVote(post.id, "verified")}
             data-testid="community-vote-verified"
@@ -226,7 +226,7 @@ function CommunityPostCardComponent({
             type="button"
             variant="ghost"
             size="sm"
-            className="type-button-label interactive-chip h-11 gap-1.5 px-3 sm:h-8 sm:px-2.5"
+            className="type-button-label interactive-chip h-11 gap-1.5 px-3 sm:h-9 sm:px-2.5"
             onClick={() => {
               if (useMobileCommentsDrawer) {
                 setCommentsOpen(true);

@@ -121,7 +121,7 @@ function PresetCard({ template }: { template: PromptTemplate }) {
       <div className="p-3 sm:p-4 space-y-2">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 flex-wrap min-w-0">
-            <span className={cn("inline-flex h-7 w-7 items-center justify-center rounded-full text-sm", skin.iconWrap)}>
+            <span className={cn("inline-flex h-8 w-8 items-center justify-center rounded-full text-sm", skin.iconWrap)}>
               {categoryIcons[template.category] ?? categoryIcons.general}
             </span>
             <h3 className="font-semibold text-sm text-foreground">{template.name}</h3>
@@ -139,7 +139,7 @@ function PresetCard({ template }: { template: PromptTemplate }) {
 
         <div className="flex flex-wrap gap-1">
           {fields.map((f) => (
-            <Badge key={f} variant="secondary" className="text-[11px]">{f}</Badge>
+            <Badge key={f} variant="secondary" className="text-xs">{f}</Badge>
           ))}
         </div>
 
@@ -148,7 +148,7 @@ function PresetCard({ template }: { template: PromptTemplate }) {
             asChild
             variant="outline"
             size="sm"
-            className={cn("h-8 text-xs gap-1.5", skin.action)}
+            className={cn("h-11 gap-1.5 text-sm sm:h-9 sm:text-base", skin.action)}
           >
             <Link to={`/?preset=${template.id}`}>Use preset</Link>
           </Button>
@@ -199,7 +199,7 @@ const Presets = () => {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search presets..."
-            className="pl-9 h-9"
+            className="h-11 pl-9 sm:h-10"
           />
         </div>
 
@@ -210,7 +210,7 @@ const Presets = () => {
               variant={activeCategory === cat ? "default" : "outline"}
               size="sm"
               onClick={() => setActiveCategory(cat)}
-              className="interactive-chip gap-1.5 text-xs capitalize h-8"
+              className="interactive-chip h-11 gap-1.5 text-sm capitalize sm:h-9 sm:text-base"
             >
               {cat !== "all" && (
                 <span className="text-sm">{categoryIcons[cat as PromptCategory] ?? ""}</span>

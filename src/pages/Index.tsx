@@ -111,6 +111,189 @@ const ENHANCE_THREAD_OPTIONS_BASE: Omit<EnhanceThreadOptions, "webSearchEnabled"
   modelReasoningEffort: "medium",
 };
 
+const DEBUG_ENHANCE_EVENTS_KEY = "promptforge:debug-enhance-events";
+const DEBUG_ENHANCE_EVENTS_MAX = 200;
+const DEBUG_ENHANCE_PAYLOAD_PREVIEW_CHARS = 1200;
+const REASONING_ITEM_TYPES = new Set([
+  "reasoning",
+  "reasoning_summary",
+  "reasoning-summary",
+  "reasoning.summary",
+  "reasoningsummary",
+]);
+const REASONING_SEGMENT_PATTERN = /(^|[./_-])reasoning([./_-]|$)/;
+
+type EnhanceStreamEvent = {
+  eventType: string | null;
+  responseType: string | null;
+  threadId: string | null;
+  turnId: string | null;
+  itemId: string | null;
+  itemType: string | null;
+  payload: unknown;
+};
+
+type EnhanceDebugEventSnapshot = {
+  at: number;
+  eventType: string | null;
+  responseType: string | null;
+  threadId: string | null;
+  turnId: string | null;
+  itemId: string | null;
+  itemType: string | null;
+  payloadPreview: string;
+};
+
+function normalizeEventToken(value: string | null | undefined): string {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+function hasReasoningSegment(value: string | null | undefined): boolean {
+  const normalized = normalizeEventToken(value);
+  if (!normalized) return false;
+  return REASONING_SEGMENT_PATTERN.test(normalized);
+}
+
+function isReasoningItemType(value: string | null | undefined): boolean {
+  const normalized = normalizeEventToken(value);
+  if (!normalized) return false;
+  return REASONING_ITEM_TYPES.has(normalized) || hasReasoningSegment(normalized);
+}
+
+function extractTextValue(value: unknown): string | null {
+  if (typeof value === "string" && value) return value;
+  if (!value || typeof value !== "object") return null;
+  const obj = value as { text?: unknown; content?: unknown; output_text?: unknown; delta?: unknown };
+  if (typeof obj.text === "string" && obj.text) return obj.text;
+  if (typeof obj.content === "string" && obj.content) return obj.content;
+  if (typeof obj.output_text === "string" && obj.output_text) return obj.output_text;
+  if (typeof obj.delta === "string" && obj.delta) return obj.delta;
+  return null;
+}
+
+function extractTextFromContent(value: unknown): string | null {
+  if (typeof value === "string" && value) return value;
+  if (!value) return null;
+  if (Array.isArray(value)) {
+    const parts = value
+      .map((entry) => extractTextFromContent(entry))
+      .filter((entry): entry is string => Boolean(entry));
+    return parts.length > 0 ? parts.join("") : null;
+  }
+  if (typeof value === "object") {
+    const obj = value as { content?: unknown; text?: unknown };
+    return extractTextValue(obj) || extractTextFromContent(obj.content);
+  }
+  return null;
+}
+
+function isReasoningSummaryEvent(meta: EnhanceStreamEvent, payload: unknown): boolean {
+  if (isReasoningItemType(meta.itemType)) return true;
+
+  if (hasReasoningSegment(meta.eventType)) return true;
+
+  if (hasReasoningSegment(meta.responseType)) return true;
+
+  if (payload && typeof payload === "object") {
+    const payloadItemType = (payload as { item?: { type?: unknown } }).item?.type;
+    if (isReasoningItemType(typeof payloadItemType === "string" ? payloadItemType : null)) return true;
+  }
+
+  return false;
+}
+
+function extractReasoningSummaryChunk(
+  meta: EnhanceStreamEvent,
+  payload: unknown,
+): { text: string; isDelta: boolean } | null {
+  if (!isReasoningSummaryEvent(meta, payload)) return null;
+  if (!payload || typeof payload !== "object") return null;
+
+  const data = payload as {
+    delta?: unknown;
+    text?: unknown;
+    output_text?: unknown;
+    content?: unknown;
+    summary?: unknown;
+    reasoning_summary?: unknown;
+    reasoningSummary?: unknown;
+    payload?: unknown;
+    item?: unknown;
+  };
+  const item = (data.item ?? {}) as {
+    delta?: unknown;
+    text?: unknown;
+    output_text?: unknown;
+    content?: unknown;
+    summary?: unknown;
+    reasoning_summary?: unknown;
+    reasoningSummary?: unknown;
+  };
+
+  const deltaText =
+    extractTextValue(data.delta) ||
+    extractTextValue(item.delta) ||
+    extractTextValue((data.payload as { delta?: unknown } | undefined)?.delta);
+  if (deltaText) return { text: deltaText, isDelta: true };
+
+  const directText =
+    extractTextValue(data.reasoning_summary) ||
+    extractTextValue(data.reasoningSummary) ||
+    extractTextValue(data.summary) ||
+    extractTextValue(item.reasoning_summary) ||
+    extractTextValue(item.reasoningSummary) ||
+    extractTextValue(item.summary) ||
+    extractTextValue(data.text) ||
+    extractTextValue(data.output_text) ||
+    extractTextValue(data.content) ||
+    extractTextValue(item.text) ||
+    extractTextValue(item.output_text) ||
+    extractTextValue(item.content) ||
+    extractTextValue((data.payload as { text?: unknown; output_text?: unknown } | undefined)?.text) ||
+    extractTextValue((data.payload as { output_text?: unknown } | undefined)?.output_text) ||
+    extractTextFromContent(item.content);
+
+  if (!directText) return null;
+
+  const eventToken = `${meta.eventType ?? ""} ${meta.responseType ?? ""}`.toLowerCase();
+  const isDelta = eventToken.includes("delta");
+  return { text: directText, isDelta };
+}
+
+function previewEnhancePayload(payload: unknown): string {
+  if (payload === null || payload === undefined) return "";
+  try {
+    const serialized = JSON.stringify(payload);
+    if (!serialized) return "";
+    if (serialized.length <= DEBUG_ENHANCE_PAYLOAD_PREVIEW_CHARS) return serialized;
+    return `${serialized.slice(0, DEBUG_ENHANCE_PAYLOAD_PREVIEW_CHARS)}...`;
+  } catch {
+    return "[unserializable payload]";
+  }
+}
+
+function toEnhanceDebugEventSnapshot(event: EnhanceStreamEvent): EnhanceDebugEventSnapshot {
+  return {
+    at: Date.now(),
+    eventType: event.eventType,
+    responseType: event.responseType,
+    threadId: event.threadId,
+    turnId: event.turnId,
+    itemId: event.itemId,
+    itemType: event.itemType,
+    payloadPreview: previewEnhancePayload(event.payload),
+  };
+}
+
+function isEnhanceDebugEnabled(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(DEBUG_ENHANCE_EVENTS_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 function hasFieldOwnershipValue(
   ownership: BuilderFieldOwnershipMap,
   value: "ai" | "user" | "empty",
@@ -316,6 +499,7 @@ const Index = () => {
   const [hasInferenceError, setHasInferenceError] = useState(false);
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [webSearchSources, setWebSearchSources] = useState<string[]>([]);
+  const [reasoningSummary, setReasoningSummary] = useState("");
   const [fieldOwnership, setFieldOwnership] = useState<BuilderFieldOwnershipMap>(() =>
     createFieldOwnershipFromConfig(defaultConfig),
   );
@@ -375,6 +559,7 @@ const Index = () => {
     const restoredPrompt = consumeRestoredVersionPrompt();
     if (!restoredPrompt) return;
     setEnhancedPrompt(restoredPrompt);
+    setReasoningSummary("");
     toast({ title: "Version restored", description: "Restored from History." });
     if (isMobile) {
       setDrawerOpen(true);
@@ -579,12 +764,20 @@ const Index = () => {
       setIsEnhancing(true);
       enhancePending.current = false;
       setEnhancedPrompt("");
+      setReasoningSummary("");
       setWebSearchSources([]);
 
       if (isMobile) setDrawerOpen(true);
 
       let accumulated = "";
       let hasReceivedDelta = false;
+      let reasoningAccumulated = "";
+      const debugEnhanceEvents = isEnhanceDebugEnabled();
+      const debugEventStore =
+        debugEnhanceEvents && typeof window !== "undefined"
+          ? ((window as typeof window & { __promptforgeEnhanceEvents?: EnhanceDebugEventSnapshot[] })
+              .__promptforgeEnhanceEvents ??= [])
+          : null;
       streamEnhance({
         prompt: promptForEnhance,
         threadOptions: { ...ENHANCE_THREAD_OPTIONS_BASE, webSearchEnabled },
@@ -608,6 +801,26 @@ const Index = () => {
           } else {
             setEnhancedPrompt(accumulated);
           }
+        },
+        onEvent: (event) => {
+          if (debugEventStore) {
+            debugEventStore.push(toEnhanceDebugEventSnapshot(event));
+            if (debugEventStore.length > DEBUG_ENHANCE_EVENTS_MAX) {
+              debugEventStore.splice(0, debugEventStore.length - DEBUG_ENHANCE_EVENTS_MAX);
+            }
+          }
+
+          const chunk = extractReasoningSummaryChunk(event, event.payload);
+          if (!chunk?.text) return;
+
+          if (chunk.isDelta) {
+            reasoningAccumulated += chunk.text;
+            setReasoningSummary(reasoningAccumulated);
+            return;
+          }
+
+          reasoningAccumulated = chunk.text;
+          setReasoningSummary(reasoningAccumulated);
         },
         onDone: () => {
           const startedAt = enhanceStartedAt.current;
@@ -656,6 +869,7 @@ const Index = () => {
     isMobile,
     setEnhancedPrompt,
     setIsEnhancing,
+    setReasoningSummary,
     toast,
     updateConfig,
     webSearchEnabled,
@@ -666,6 +880,12 @@ const Index = () => {
     clearEnhanceTimers();
     setEnhancePhase("idle");
   }, [builtPrompt, clearEnhanceTimers, isEnhancing]);
+
+  useEffect(() => {
+    if (isEnhancing) return;
+    if (enhancedPrompt.trim()) return;
+    setReasoningSummary((prev) => (prev ? "" : prev));
+  }, [enhancedPrompt, isEnhancing]);
 
   const handleSavePrompt = useCallback(
     async (input: { name: string; description?: string; tags?: string[]; category?: string; remixNote?: string }) => {
@@ -1057,7 +1277,7 @@ const Index = () => {
           <Card className="mb-4 border-primary/30 bg-primary/5 p-3 sm:p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="space-y-1">
-                <p className="text-xs uppercase tracking-wide text-primary">Remix mode</p>
+                <p className="text-xs uppercase tracking-[var(--type-label-caps-tracking)] text-primary">Remix mode</p>
                 <p className="text-sm font-medium text-foreground">
                   Remixing {remixContext.parentAuthor}’s “{remixContext.parentTitle}”
                 </p>
@@ -1065,7 +1285,7 @@ const Index = () => {
                   Your changes will be attributed when you save or share.
                 </p>
               </div>
-              <Button variant="ghost" size="sm" onClick={handleClearRemix} className="gap-1 text-xs">
+              <Button variant="ghost" size="sm" onClick={handleClearRemix} className="gap-1 text-sm sm:text-base">
                 <X className="h-3 w-3" />
                 Clear remix
               </Button>
@@ -1113,7 +1333,7 @@ const Index = () => {
                           type="button"
                           size="sm"
                           variant="outline"
-                          className="h-8 text-xs"
+                          className="h-11 text-sm sm:h-9 sm:text-base"
                           onClick={() => openAndFocusSection(suggestion.id)}
                         >
                           {suggestion.title}
@@ -1173,7 +1393,7 @@ const Index = () => {
                           type="button"
                           size="sm"
                           variant="outline"
-                          className="h-8 text-xs"
+                          className="h-11 text-sm sm:h-9 sm:text-base"
                           onClick={() => openAndFocusSection(suggestion.id)}
                         >
                           {suggestion.title}
@@ -1311,6 +1531,7 @@ const Index = () => {
               <OutputPanel
                 builtPrompt={builtPrompt}
                 enhancedPrompt={enhancedPrompt}
+                reasoningSummary={reasoningSummary}
                 isEnhancing={isEnhancing}
                 enhancePhase={enhancePhase}
                 onEnhance={handleEnhance}
@@ -1345,7 +1566,7 @@ const Index = () => {
             className="interactive-chip mb-2 w-full rounded-lg border border-border/80 bg-background/70 px-3 py-2 text-left"
             aria-label="Open output preview"
           >
-            <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-[var(--type-label-caps-tracking)] text-muted-foreground">
               <Eye className="h-3.5 w-3.5" />
               Live preview
             </div>
@@ -1361,14 +1582,13 @@ const Index = () => {
                 onCheckedChange={setWebSearchEnabled}
                 disabled={isEnhancing}
                 aria-label="Enable web search during enhancement"
-                className="scale-75 origin-left"
               />
               <Globe className="w-3 h-3" />
               <span>Web</span>
             </label>
             <Badge
               variant={score.total >= 75 ? "default" : "secondary"}
-              className="h-10 min-w-[64px] justify-center rounded-md px-2 text-xs font-semibold"
+              className="h-11 min-w-[64px] justify-center rounded-md px-2 text-sm font-semibold sm:h-10 sm:text-base"
             >
               {score.total}/100
             </Badge>
@@ -1377,7 +1597,7 @@ const Index = () => {
               size="default"
               onClick={handleEnhance}
               disabled={isEnhancing || !builtPrompt}
-              className="signature-enhance-button h-10 flex-1 gap-2"
+              className="signature-enhance-button h-11 flex-1 gap-2 sm:h-10"
               data-phase={enhancePhase}
             >
               {isEnhancing ? (
@@ -1409,6 +1629,7 @@ const Index = () => {
               <OutputPanel
                 builtPrompt={builtPrompt}
                 enhancedPrompt={enhancedPrompt}
+                reasoningSummary={reasoningSummary}
                 isEnhancing={isEnhancing}
                 enhancePhase={enhancePhase}
                 onEnhance={handleEnhance}

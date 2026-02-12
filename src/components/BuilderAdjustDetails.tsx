@@ -112,7 +112,7 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
                       type="button"
                       size="sm"
                       variant={config.tone === tone ? "default" : "outline"}
-                      className="h-7 px-2 text-xs"
+                      className="h-11 px-2 text-xs sm:h-9"
                       onClick={() => onUpdate({ tone })}
                       aria-pressed={config.tone === tone}
                     >
@@ -132,7 +132,7 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
                     type="button"
                     size="sm"
                     variant={config.format.includes(format) ? "default" : "outline"}
-                    className="h-7 px-2 text-xs"
+                    className="h-11 px-2 text-xs sm:h-9"
                     onClick={() => toggleFormat(format)}
                     aria-pressed={config.format.includes(format)}
                   >

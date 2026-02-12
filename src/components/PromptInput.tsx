@@ -28,7 +28,7 @@ export function PromptInput({ value, onChange, onClear }: PromptInputProps) {
               size="sm"
               onClick={onClear}
               aria-label="Clear prompt text"
-              className="interactive-chip h-6 px-2 text-xs gap-1"
+              className="interactive-chip h-11 px-2 text-xs gap-1 sm:h-9"
             >
               <RotateCcw className="w-3 h-3" />
               Clear Prompt
