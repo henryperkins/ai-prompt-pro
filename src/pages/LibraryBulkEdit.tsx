@@ -144,8 +144,8 @@ const LibraryBulkEdit = () => {
   return (
     <PageShell>
       <PageHero
-        title="Bulk Edit Workspace"
-        subtitle="Apply batched operations to selected library prompts while keeping source templates untouched."
+        title="Bulk edit prompts"
+        subtitle="Run bulk actions on selected prompts. Presets stay unchanged."
       />
 
       <div className="space-y-4">

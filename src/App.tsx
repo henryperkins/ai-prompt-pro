@@ -29,7 +29,7 @@ const App = () => (
             <Suspense
               fallback={
                 <div className="min-h-screen bg-background flex items-center justify-center px-4 text-sm text-muted-foreground">
-                  Loading page...
+                  Loading...
                 </div>
               }
             >

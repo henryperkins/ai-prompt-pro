@@ -302,8 +302,8 @@ const Community = () => {
     <PageShell>
       <div className="community-typography" data-density="comfortable">
         <PageHero
-          title="Community Prompt Feed"
-          subtitle="Browse developer-focused prompt recipes, filter by domain, and open any post to copy or remix."
+          title="Community prompts"
+          subtitle="Browse prompts, filter by category, then copy or remix."
         />
 
         <div className="relative mb-3 rounded-xl border border-border bg-card/85 shadow-sm">
@@ -329,7 +329,7 @@ const Community = () => {
                     (event.target as HTMLInputElement).blur();
                   }
                 }}
-                placeholder="Search prompts by title or use case..."
+                placeholder="Search by title or use case"
                 className="type-input h-11 border-0 bg-transparent pl-9 shadow-none focus-visible:ring-0"
                 aria-expanded={showCategorySuggestions}
                 aria-controls={showCategorySuggestions ? categoryPanelId : undefined}

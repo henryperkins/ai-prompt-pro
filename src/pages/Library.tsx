@@ -257,16 +257,16 @@ const Library = () => {
     <PageShell>
       <PageHero
         title="Library Workspace"
-        subtitle="Saved prompts now live in a dedicated workspace. Presets and starter templates stay in Builder."
+        subtitle="Manage saved prompts here. Presets stay in Builder."
       />
 
       <div className="space-y-4">
         <Card className="border-border/80 bg-card/85 p-3 sm:p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-[var(--type-label-caps-tracking)] text-primary">Separated from templates</p>
+              <p className="text-xs font-semibold uppercase tracking-[var(--type-label-caps-tracking)] text-primary">Saved prompts only</p>
               <p className="text-sm text-muted-foreground">
-                Edit and organize your saved prompts here without touching preset/template sources.
+                Edit saved prompts without changing presets.
               </p>
             </div>
             <Button asChild variant="outline" size="sm" className="h-11 gap-1 text-sm sm:h-9 sm:text-base">
@@ -289,7 +289,7 @@ const Library = () => {
                 id="library-page-search"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search prompts by name, description, tags, or starter text"
+                placeholder="Search by name, tag, or text"
                 className="h-11 bg-background pl-8 text-sm sm:h-10"
               />
             </div>
@@ -361,7 +361,7 @@ const Library = () => {
             {templateSummaries.length > 0 && filteredSaved.length === 0 && (
               <StateCard
                 variant="empty"
-                title="No saved prompts match this filter"
+                title="No saved prompts match."
                 description="Try another search term or reset the category filter."
                 primaryAction={
                   hasActiveFilters

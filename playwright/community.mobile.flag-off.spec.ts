@@ -207,7 +207,7 @@ test("keeps fallback mobile community UX when rollout flag is off", async ({ pag
   await page.setViewportSize({ width: 390, height: 900 });
   await page.goto("/community");
 
-  await expect(page.getByRole("heading", { name: "Community Prompt Feed" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Community prompts" })).toBeVisible();
   await expect(page.getByTestId("community-filter-trigger")).toHaveCount(0);
 
   await page.getByRole("link", { name: "Open Backend migration helper" }).click();

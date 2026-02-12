@@ -60,6 +60,6 @@ describe("NotificationPanel", () => {
     );
 
     expect(screen.getByText("No notifications yet.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Mark all read" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Mark all as read" })).toBeDisabled();
   });
 });

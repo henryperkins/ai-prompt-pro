@@ -80,7 +80,7 @@ export function NotificationPanel({
             onClick={() => void onMarkAllAsRead()}
             disabled={unreadCount === 0 || loading}
           >
-            Mark all read
+            Mark all as read
           </Button>
         </div>
       </div>

@@ -127,8 +127,8 @@ export function CommunityFeed({
     return (
       <StateCard
         variant="empty"
-        title="No posts match this filter"
-        description="Try another category or share your first prompt."
+        title="No posts match."
+        description="Try another filter or share a prompt."
         primaryAction={{ label: "Share your first prompt", to: "/" }}
         secondaryAction={{ label: "Open Library", to: "/library" }}
       />
@@ -148,7 +148,7 @@ export function CommunityFeed({
             disabled={isLoadingMore}
             className="type-button-label h-11 px-4 sm:h-9 sm:px-3"
           >
-            {isLoadingMore ? "Loading..." : "Load more"}
+            {isLoadingMore ? "Loading more..." : "Load more"}
           </Button>
         </div>
       )}

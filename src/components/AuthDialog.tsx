@@ -96,7 +96,7 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
         {confirmationSent ? (
           <div className="text-center py-4 space-y-2">
             <p className="text-sm text-muted-foreground">
-              Check your email for a confirmation link, then sign in.
+              Check your email, confirm your account, then sign in.
             </p>
             <Button variant="outline" onClick={() => { setMode("login"); setConfirmationSent(false); }}>
               Back to sign in

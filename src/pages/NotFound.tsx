@@ -16,7 +16,7 @@ const NotFound = () => {
         <StateCard
           variant="error"
           title="Page not found"
-          description={`The page ${location.pathname} does not exist or was moved.`}
+          description={`This page (${location.pathname}) does not exist or has moved.`}
           primaryAction={{ label: "Back to Builder", to: "/" }}
           secondaryAction={{ label: "Open Community", to: "/community" }}
           className="p-6"

@@ -1264,12 +1264,11 @@ const Index = () => {
         {/* Hero — compact on mobile */}
         <div className="delight-hero-static text-center mb-4 sm:mb-8">
           <h1 className="text-xl sm:text-3xl md:text-4xl font-bold text-foreground mb-1 sm:mb-2 tracking-tight">
-            Transform Basic Prompts into
-            <span className="text-primary"> Pro-Level Instructions</span>
+            Turn basic prompts into
+            <span className="text-primary"> production-ready instructions</span>
           </h1>
           <p className="text-muted-foreground text-xs sm:text-sm md:text-base max-w-xl mx-auto hidden sm:block">
-            Build structured, effective prompts that get better AI results—every time.
-            No prompt engineering expertise required.
+            Build clearer prompts with structured inputs and faster iteration.
           </p>
         </div>
 
@@ -1315,9 +1314,9 @@ const Index = () => {
                 {showEnhanceFirstCard && (
                   <Card className="border-border/70 bg-card/80 p-3">
                     <div>
-                      <p className="text-xs font-medium text-foreground">Enhance first, refine after</p>
+                      <p className="text-xs font-medium text-foreground">Generate a draft, then refine</p>
                       <p className="text-xs text-muted-foreground">
-                        Start with a rough prompt, then use the main Enhance button to generate your first draft.
+                        Start with a rough prompt, then use Enhance to generate a draft.
                       </p>
                     </div>
                   </Card>
@@ -1375,9 +1374,9 @@ const Index = () => {
                 {showEnhanceFirstCard && (
                   <Card className="border-border/70 bg-card/80 p-3">
                     <div>
-                      <p className="text-xs font-medium text-foreground">Enhance first, refine after</p>
+                      <p className="text-xs font-medium text-foreground">Generate a draft, then refine</p>
                       <p className="text-xs text-muted-foreground">
-                        Start with a rough prompt, then use the main Enhance button to generate your first draft.
+                        Start with a rough prompt, then use Enhance to generate a draft.
                       </p>
                     </div>
                   </Card>

@@ -810,9 +810,9 @@ export function OutputPanel({
         ) : (
           <div className="flex items-center justify-center h-full min-h-[120px] sm:min-h-[200px]">
             <p className="text-sm text-muted-foreground text-center">
-              Your enhanced prompt will appear here.
+              Your output appears here.
               <br />
-              Start by entering a prompt or choosing a template.
+              Enter a prompt or choose a template.
             </p>
           </div>
         )}
@@ -856,7 +856,7 @@ export function OutputPanel({
                 aria-label="Enable web search during enhancement"
               />
               <Globe className="w-3.5 h-3.5" />
-              <span>Search the web</span>
+              <span>Use web sources</span>
             </label>
           )}
           <Button

@@ -222,7 +222,7 @@ const Presets = () => {
 
         {filtered.length === 0 ? (
           <Card className="p-6 text-center border-dashed">
-            <p className="text-sm text-muted-foreground">No presets match your search.</p>
+            <p className="text-sm text-muted-foreground">No presets match.</p>
           </Card>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

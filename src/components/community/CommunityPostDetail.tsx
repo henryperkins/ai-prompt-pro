@@ -306,7 +306,7 @@ export function CommunityPostDetail({
               data-testid="community-comments-thread-trigger"
             >
               <MessageCircle className="h-3.5 w-3.5" />
-              Open comments thread
+              Comments
               <Badge variant="secondary" className="type-reply-label type-numeric ml-0.5 h-4 min-w-4 px-1 leading-none">
                 {post.commentCount}
               </Badge>
@@ -358,7 +358,7 @@ export function CommunityPostDetail({
         </div>
 
         {remixes.length === 0 && (
-          <p className="type-help text-muted-foreground">No public remixes yet.</p>
+          <p className="type-help text-muted-foreground">No remixes yet.</p>
         )}
 
         {remixes.map((remix) => {

@@ -37,7 +37,7 @@ export function BuilderHeroInput({
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <label htmlFor={promptInputId} className="text-sm font-medium text-foreground">
-            What do you want the model to do?
+            What should the model do?
           </label>
           <div className="flex items-center gap-2">
             <span id={promptInputMetaId} className="text-xs text-muted-foreground">
@@ -63,7 +63,7 @@ export function BuilderHeroInput({
           id={promptInputId}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="Describe your goal in plain language. For example: Draft a concise project update for execs using these notes..."
+          placeholder="Describe the task in 1-2 sentences. Example: Draft a concise project update for executives using these notes."
           className="min-h-28 resize-y border-input bg-background text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring sm:min-h-32"
           aria-describedby={promptInputMetaId}
         />

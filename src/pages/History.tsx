@@ -33,7 +33,7 @@ const History = () => {
     <PageShell>
         <PageHero
           title="Version History"
-          subtitle="Restore any previously saved prompt version back into the Builder."
+          subtitle="Restore a saved version to Builder."
         />
 
         <Card className="border-border/80 bg-card/85 p-3 sm:max-h-[calc(100vh-220px)] sm:overflow-hidden sm:p-4">
