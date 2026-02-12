@@ -140,7 +140,12 @@ export function CommunityComments({
       )}
 
       {!loading && comments.length > 0 && (
-        <div className="space-y-2">
+        <div
+          className={cn(
+            "space-y-2",
+            !compact && "max-h-[45vh] overflow-y-auto pr-1 sm:max-h-none sm:overflow-visible sm:pr-0",
+          )}
+        >
           {comments.map((comment) => {
             const author = authorById[comment.userId];
             const displayName = author?.displayName || "Community member";
@@ -169,7 +174,7 @@ export function CommunityComments({
       {compact && totalCount > comments.length && (
         <Link
           to={`/community/${postId}`}
-          className="text-xs font-medium text-primary underline-offset-2 hover:underline"
+          className="inline-flex min-h-11 items-center text-sm font-medium text-primary underline-offset-2 hover:underline sm:min-h-0 sm:text-xs"
         >
           View all comments
         </Link>
@@ -190,7 +195,7 @@ export function CommunityComments({
             variant="default"
             onClick={handleSubmit}
             disabled={!canComment || submitting || !draft.trim()}
-            className="gap-1 text-xs"
+            className="h-11 gap-1.5 px-4 text-sm sm:h-9 sm:px-3 sm:text-xs"
           >
             <Send className="h-3.5 w-3.5" />
             Post comment

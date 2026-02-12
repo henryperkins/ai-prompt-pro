@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CommunityPostCard } from "@/components/community/CommunityPostCard";
 import { StateCard } from "@/components/ui/state-card";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface CommunityFeedProps {
   posts: CommunityPost[];
@@ -16,6 +17,7 @@ interface CommunityFeedProps {
   onToggleVote: (postId: string, voteType: VoteType) => void;
   voteStateByPost: Record<string, VoteState>;
   onCommentAdded: (postId: string) => void;
+  onCommentThreadOpen?: (postId: string) => void;
   canVote: boolean;
   hasMore?: boolean;
   isLoadingMore?: boolean;
@@ -53,17 +55,19 @@ export function CommunityFeed({
   onToggleVote,
   voteStateByPost,
   onCommentAdded,
+  onCommentThreadOpen,
   canVote,
   hasMore = false,
   isLoadingMore = false,
   onLoadMore,
 }: CommunityFeedProps) {
+  const isMobile = useIsMobile();
   const renderedPosts = useMemo(
     () =>
       posts.map((post, index) => {
         const author = authorById[post.authorId];
         const authorName = author?.displayName || "Community member";
-        const isFeatured = index === 0;
+        const isFeatured = !isMobile && index === 0;
 
         return (
           <CommunityPostCard
@@ -78,6 +82,7 @@ export function CommunityFeed({
             onToggleVote={onToggleVote}
             voteState={voteStateByPost[post.id]}
             onCommentAdded={onCommentAdded}
+            onCommentThreadOpen={onCommentThreadOpen}
             canVote={canVote}
           />
         );
@@ -90,7 +95,9 @@ export function CommunityFeed({
       onToggleVote,
       voteStateByPost,
       onCommentAdded,
+      onCommentThreadOpen,
       canVote,
+      isMobile,
     ],
   );
 
@@ -139,7 +146,7 @@ export function CommunityFeed({
             size="sm"
             onClick={onLoadMore}
             disabled={isLoadingMore}
-            className="h-8 text-xs"
+            className="h-11 px-4 text-sm sm:h-8 sm:px-3 sm:text-xs"
           >
             {isLoadingMore ? "Loading..." : "Load more"}
           </Button>

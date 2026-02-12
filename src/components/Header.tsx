@@ -1,8 +1,8 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Bell, Loader2, LogIn, LogOut, Menu, Moon, Sun, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,12 +16,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useToast } from "@/hooks/use-toast";
 import { AuthDialog } from "@/components/AuthDialog";
 import { NotificationPanel } from "@/components/NotificationPanel";
+import { communityFeatureFlags } from "@/lib/feature-flags";
 import { APP_ROUTE_NAV_ITEMS, isRouteActive } from "@/lib/navigation";
 import { getGravatarUrl } from "@/lib/gravatar";
 import { DISPLAY_NAME_MAX_LENGTH, validateDisplayName } from "@/lib/profile";
@@ -51,6 +53,7 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
   const [displayNameDraft, setDisplayNameDraft] = useState("");
   const [displayNameError, setDisplayNameError] = useState("");
   const [savingDisplayName, setSavingDisplayName] = useState(false);
+  const mobileNotificationsEnabled = communityFeatureFlags.communityMobileEnhancements;
 
   const unreadCountLabel = unreadCount > 99 ? "99+" : String(unreadCount);
 
@@ -96,6 +99,26 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
     setDisplayNameOpen(true);
   };
 
+  const openMobileNotifications = useCallback(() => {
+    setMobileNotificationsOpen(true);
+    void refreshNotifications();
+  }, [refreshNotifications]);
+
+  // Auto-close drawer if viewport crosses sm breakpoint (e.g. device rotation)
+  useEffect(() => {
+    if (!mobileNotificationsOpen) return;
+    const mq = window.matchMedia("(min-width: 640px)");
+    const handler = (e: MediaQueryListEvent) => {
+      if (e.matches) setMobileNotificationsOpen(false);
+    };
+    if (mq.matches) {
+      setMobileNotificationsOpen(false);
+      return;
+    }
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, [mobileNotificationsOpen]);
+
   const handleDisplayNameSubmit = async (event: FormEvent) => {
     event.preventDefault();
     const normalized = displayNameDraft.trim();
@@ -130,6 +153,23 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
           </div>
 
           <nav className="flex items-center gap-0.5 sm:gap-1">
+            {user && mobileNotificationsEnabled && (
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Open notifications"
+                className="interactive-chip relative w-11 h-11 sm:hidden"
+                data-testid="mobile-notifications-trigger"
+                onClick={openMobileNotifications}
+              >
+                <Bell className="w-4 h-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute -right-0.5 -top-0.5 inline-flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 py-0.5 text-[10px] font-semibold leading-none text-destructive-foreground">
+                    {unreadCountLabel}
+                  </span>
+                )}
+              </Button>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -142,41 +182,6 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="sm:hidden min-w-[220px]">
-                {user && (
-                  <>
-                    <DropdownMenuSub
-                      open={mobileNotificationsOpen}
-                      onOpenChange={(open) => {
-                        setMobileNotificationsOpen(open);
-                        if (open) {
-                          void refreshNotifications();
-                        }
-                      }}
-                    >
-                      <DropdownMenuSubTrigger className="gap-2">
-                        <Bell className="w-4 h-4" />
-                        Notifications
-                        {unreadCount > 0 && (
-                          <span className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold leading-none text-primary-foreground">
-                            {unreadCountLabel}
-                          </span>
-                        )}
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent className="border-none bg-transparent p-0 shadow-none">
-                        <NotificationPanel
-                          notifications={notifications}
-                          unreadCount={unreadCount}
-                          loading={notificationsLoading}
-                          onMarkAsRead={markNotificationAsRead}
-                          onMarkAllAsRead={markAllNotificationsAsRead}
-                          onRefresh={refreshNotifications}
-                          onNavigate={() => setMobileNotificationsOpen(false)}
-                        />
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                    <DropdownMenuSeparator />
-                  </>
-                )}
                 <DropdownMenuItem
                   onSelect={(event) => {
                     event.preventDefault();
@@ -189,6 +194,36 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
                 <DropdownMenuSeparator />
                 {user ? (
                   <>
+                    {!mobileNotificationsEnabled && (
+                      <>
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger
+                            className="gap-2"
+                            data-testid="mobile-notifications-menu-item"
+                          >
+                            <Bell className="w-4 h-4" />
+                            Notifications
+                            {unreadCount > 0 && (
+                              <span className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold leading-none text-primary-foreground">
+                                {unreadCountLabel}
+                              </span>
+                            )}
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent className="border-none bg-transparent p-0 shadow-none">
+                            <NotificationPanel
+                              notifications={notifications}
+                              unreadCount={unreadCount}
+                              loading={notificationsLoading}
+                              onMarkAsRead={markNotificationAsRead}
+                              onMarkAllAsRead={markAllNotificationsAsRead}
+                              onRefresh={refreshNotifications}
+                              onNavigate={() => setMobileNotificationsOpen(false)}
+                            />
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                        <DropdownMenuSeparator />
+                      </>
+                    )}
                     <DropdownMenuItem disabled className="text-xs text-muted-foreground">
                       {user.email}
                     </DropdownMenuItem>
@@ -333,6 +368,40 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
         </div>
       </header>
 
+      {user && mobileNotificationsEnabled && (
+        <Drawer
+          open={mobileNotificationsOpen}
+          onOpenChange={(open) => {
+            setMobileNotificationsOpen(open);
+            if (open) {
+              void refreshNotifications();
+            }
+          }}
+        >
+          <DrawerContent
+            className="max-h-[82vh] pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:hidden"
+            aria-describedby={undefined}
+            data-testid="mobile-notifications-sheet"
+          >
+            <DrawerHeader className="pb-1">
+              <DrawerTitle className="text-base">Notifications</DrawerTitle>
+            </DrawerHeader>
+            <div className="px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              <NotificationPanel
+                notifications={notifications}
+                unreadCount={unreadCount}
+                loading={notificationsLoading}
+                onMarkAsRead={markNotificationAsRead}
+                onMarkAllAsRead={markAllNotificationsAsRead}
+                onRefresh={refreshNotifications}
+                onNavigate={() => setMobileNotificationsOpen(false)}
+                className="w-full border-none bg-transparent shadow-none"
+              />
+            </div>
+          </DrawerContent>
+        </Drawer>
+      )}
+
       <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
       <Dialog
         open={displayNameOpen}
@@ -346,6 +415,9 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Edit display name</DialogTitle>
+            <DialogDescription>
+              Update the public name shown on your profile and community posts.
+            </DialogDescription>
           </DialogHeader>
           <form className="space-y-3" onSubmit={handleDisplayNameSubmit}>
             <div className="space-y-1.5">

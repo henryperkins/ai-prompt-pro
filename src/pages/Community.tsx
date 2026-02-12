@@ -2,7 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { CommunityFeed } from "@/components/community/CommunityFeed";
 import { PageHero, PageShell } from "@/components/PageShell";
+import { Button } from "@/components/ui/button";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useCommunityMobileTelemetry } from "@/hooks/useCommunityMobileTelemetry";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -17,6 +22,7 @@ import {
   loadProfilesByIds,
   toggleVote,
 } from "@/lib/community";
+import { communityFeatureFlags } from "@/lib/feature-flags";
 import { PROMPT_CATEGORY_OPTIONS } from "@/lib/prompt-categories";
 import { cn } from "@/lib/utils";
 
@@ -57,6 +63,7 @@ const Community = () => {
   const [queryInput, setQueryInput] = useState("");
   const [query, setQuery] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [mobileCategorySheetOpen, setMobileCategorySheetOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -66,7 +73,13 @@ const Community = () => {
   const voteInFlightByPost = useRef<Set<string>>(new Set());
   const { toast } = useToast();
   const { user } = useAuth();
-  const showCategorySuggestions = isSearchFocused;
+  const isMobile = useIsMobile();
+  const mobileEnhancementsEnabled = isMobile && communityFeatureFlags.communityMobileEnhancements;
+  const showCategorySuggestions = isSearchFocused && (!isMobile || !mobileEnhancementsEnabled);
+  const { trackFirstMeaningfulAction, trackInteraction } = useCommunityMobileTelemetry({
+    enabled: mobileEnhancementsEnabled,
+    surface: "community_feed",
+  });
   const categoryPanelId = "community-search-categories";
   const selectedCategoryLabel =
     CATEGORY_OPTIONS.find((option) => option.value === category)?.label ?? "All";
@@ -235,6 +248,9 @@ const Community = () => {
         return;
       }
       if (voteInFlightByPost.current.has(postId)) return;
+      trackInteraction("reaction", `vote_${voteType}`, {
+        postId,
+      });
       voteInFlightByPost.current.add(postId);
       try {
         const result = await toggleVote(postId, voteType);
@@ -265,25 +281,32 @@ const Community = () => {
         voteInFlightByPost.current.delete(postId);
       }
     },
-    [toast, user],
+    [toast, trackInteraction, user],
   );
 
   const handleCommentAdded = useCallback((postId: string) => {
+    trackInteraction("comment", "comment_added", { postId });
     setPosts((prev) =>
       prev.map((post) =>
         post.id === postId ? { ...post, commentCount: post.commentCount + 1 } : post,
       ),
     );
-  }, []);
+  }, [trackInteraction]);
+
+  const handleCommentThreadOpen = useCallback((postId: string) => {
+    trackFirstMeaningfulAction("comment_thread_opened", { postId });
+    trackInteraction("comment", "thread_opened", { postId });
+  }, [trackFirstMeaningfulAction, trackInteraction]);
 
   return (
     <PageShell>
-        <PageHero
-          title="Community Prompt Feed"
-          subtitle="Browse developer-focused prompt recipes, filter by domain, and open any post to copy or remix."
-        />
-        {/* Search bar with inline category filters */}
-        <div className="relative mb-3 rounded-xl border border-border bg-card/85 shadow-sm">
+      <PageHero
+        title="Community Prompt Feed"
+        subtitle="Browse developer-focused prompt recipes, filter by domain, and open any post to copy or remix."
+      />
+
+      <div className="relative mb-3 rounded-xl border border-border bg-card/85 shadow-sm">
+        <div className="p-2 sm:p-0">
           <div className="relative">
             <label htmlFor="community-feed-search" className="sr-only">
               Search community posts
@@ -293,8 +316,12 @@ const Community = () => {
               id="community-feed-search"
               value={queryInput}
               onChange={(event) => setQueryInput(event.target.value)}
-              onFocus={() => setIsSearchFocused(true)}
-              onBlur={() => setIsSearchFocused(false)}
+              onFocus={() => {
+                if (!mobileEnhancementsEnabled) setIsSearchFocused(true);
+              }}
+              onBlur={() => {
+                if (!mobileEnhancementsEnabled) setIsSearchFocused(false);
+              }}
               onKeyDown={(event) => {
                 if (event.key === "Escape") {
                   setIsSearchFocused(false);
@@ -302,89 +329,160 @@ const Community = () => {
                 }
               }}
               placeholder="Search prompts by title or use case..."
-              className="h-10 border-0 bg-transparent pl-9 text-sm shadow-none focus-visible:ring-0"
+              className="h-11 border-0 bg-transparent pl-9 text-sm shadow-none focus-visible:ring-0"
               aria-expanded={showCategorySuggestions}
               aria-controls={showCategorySuggestions ? categoryPanelId : undefined}
             />
           </div>
-          {showCategorySuggestions && (
-            <div
-              id={categoryPanelId}
-              className="absolute left-0 right-0 top-full z-20 mt-2 rounded-xl border border-border/70 bg-popover p-2 text-sm shadow-lg"
-              role="listbox"
-              aria-label="Category filters"
+          {mobileEnhancementsEnabled && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-2 h-11 w-full items-center justify-between px-3 text-sm"
+              onClick={() => {
+                trackFirstMeaningfulAction("filter_drawer_opened");
+                setMobileCategorySheetOpen(true);
+              }}
+              data-testid="community-filter-trigger"
             >
-              <div className="flex items-center justify-between px-2 py-1 text-[11px] uppercase tracking-wide text-muted-foreground">
-                <span>Categories</span>
-                <span>Action</span>
-              </div>
-              <div className="mt-1 flex flex-col gap-1">
-                {CATEGORY_OPTIONS.map((option) => {
-                  const isSelected = category === option.value;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      role="option"
-                      aria-selected={isSelected}
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => setCategory(option.value)}
-                      className={cn(
-                        "flex items-center justify-between rounded-md px-2 py-2 text-sm transition-colors",
-                        isSelected
-                          ? "bg-accent text-accent-foreground"
-                          : "text-foreground hover:bg-muted",
-                      )}
-                    >
-                      <span>{option.label}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {isSelected ? "Selected" : "Filter"}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="px-2 pt-2 text-[11px] text-muted-foreground">
-                Current: <span className="font-medium text-foreground">{selectedCategoryLabel}</span>
-              </div>
-            </div>
+              <span>Filter</span>
+              <span className="truncate text-muted-foreground">{selectedCategoryLabel}</span>
+            </Button>
           )}
         </div>
 
-        {/* Sort segmented control */}
-        <div className="mb-4 flex rounded-lg bg-muted p-1">
-          {SORT_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => setSort(option.value)}
-              className={cn(
-                "flex-1 rounded-md py-1.5 text-xs font-medium transition-all",
-                sort === option.value
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
+        {showCategorySuggestions && (
+          <div
+            id={categoryPanelId}
+            className="absolute left-0 right-0 top-full z-20 mt-2 rounded-xl border border-border/70 bg-popover p-2 text-sm shadow-lg"
+            role="listbox"
+            aria-label="Category filters"
+          >
+            <div className="flex items-center justify-between px-2 py-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+              <span>Categories</span>
+              <span>Action</span>
+            </div>
+            <div className="mt-1 flex flex-col gap-1">
+              {CATEGORY_OPTIONS.map((option) => {
+                const isSelected = category === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="option"
+                    aria-selected={isSelected}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => setCategory(option.value)}
+                    className={cn(
+                      "flex min-h-10 items-center justify-between rounded-md px-2 py-2 text-sm transition-colors",
+                      isSelected
+                        ? "bg-accent text-accent-foreground"
+                        : "text-foreground hover:bg-muted",
+                    )}
+                  >
+                    <span>{option.label}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {isSelected ? "Selected" : "Filter"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="px-2 pt-2 text-[11px] text-muted-foreground">
+              Current: <span className="font-medium text-foreground">{selectedCategoryLabel}</span>
+            </div>
+          </div>
+        )}
+      </div>
 
-        <CommunityFeed
-          posts={posts}
-          loading={loading}
-          errorMessage={errorMessage}
-          authorById={authorById}
-          parentTitleById={parentTitleById}
-          onCopyPrompt={handleCopyPrompt}
-          onToggleVote={handleToggleVote}
-          voteStateByPost={voteStateByPost}
-          onCommentAdded={handleCommentAdded}
-          canVote={Boolean(user)}
-          hasMore={hasMore}
-          isLoadingMore={isLoadingMore}
-          onLoadMore={handleLoadMore}
-        />
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:flex sm:rounded-lg sm:bg-muted sm:p-1">
+        {SORT_OPTIONS.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => {
+              setSort(option.value);
+              trackFirstMeaningfulAction("sort_changed", { sort: option.value });
+            }}
+            aria-pressed={sort === option.value}
+            data-testid="community-sort-button"
+            className={cn(
+              "h-11 rounded-md px-3 text-sm font-medium transition-all sm:h-8 sm:flex-1 sm:px-2 sm:text-xs",
+              sort === option.value
+                ? "bg-background text-foreground shadow-sm"
+                : "bg-muted text-muted-foreground hover:text-foreground sm:bg-transparent",
+            )}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
+      {mobileEnhancementsEnabled && (
+        <Drawer open={mobileCategorySheetOpen} onOpenChange={setMobileCategorySheetOpen}>
+          <DrawerContent
+            className="max-h-[80vh] pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+            aria-describedby={undefined}
+            data-testid="community-filter-sheet"
+          >
+            <DrawerHeader className="pb-1">
+              <DrawerTitle className="text-base">Filter Categories</DrawerTitle>
+            </DrawerHeader>
+            <div className="px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              <p className="mb-2 text-xs text-muted-foreground">
+                Current: <span className="font-medium text-foreground">{selectedCategoryLabel}</span>
+              </p>
+              <ScrollArea className="max-h-[52vh] pr-2">
+                <div className="space-y-1.5 pb-1">
+                  {CATEGORY_OPTIONS.map((option) => {
+                    const isSelected = category === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={cn(
+                          "flex h-11 w-full items-center justify-between rounded-md border px-3 text-left text-sm",
+                          isSelected
+                            ? "border-primary/35 bg-primary/10 text-foreground"
+                            : "border-border/70 bg-background text-foreground",
+                        )}
+                        onClick={() => {
+                          trackFirstMeaningfulAction("filter_selected", { category: option.value });
+                          setCategory(option.value);
+                          setMobileCategorySheetOpen(false);
+                        }}
+                      >
+                        <span>{option.label}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {isSelected ? "Selected" : "Filter"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            </div>
+          </DrawerContent>
+        </Drawer>
+      )}
+
+      <CommunityFeed
+        posts={posts}
+        loading={loading}
+        errorMessage={errorMessage}
+        authorById={authorById}
+        parentTitleById={parentTitleById}
+        onCopyPrompt={handleCopyPrompt}
+        onToggleVote={handleToggleVote}
+        voteStateByPost={voteStateByPost}
+        onCommentAdded={handleCommentAdded}
+        onCommentThreadOpen={handleCommentThreadOpen}
+        canVote={Boolean(user)}
+        hasMore={hasMore}
+        isLoadingMore={isLoadingMore}
+        onLoadMore={handleLoadMore}
+      />
     </PageShell>
   );
 };

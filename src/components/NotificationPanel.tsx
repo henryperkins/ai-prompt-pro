@@ -54,7 +54,7 @@ export function NotificationPanel({
   className,
 }: NotificationPanelProps) {
   return (
-    <div className={cn("w-[min(92vw,24rem)] rounded-md border border-border/80 bg-popover", className)}>
+    <div className={cn("w-[min(96vw,24rem)] rounded-md border border-border/80 bg-popover", className)}>
       <div className="flex items-center justify-between gap-2 border-b border-border/70 px-3 py-2">
         <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <Bell className="h-4 w-4" />
@@ -62,7 +62,13 @@ export function NotificationPanel({
         </div>
         <div className="flex items-center gap-1">
           {onRefresh && (
-            <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-[11px]" onClick={onRefresh}>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-10 px-3 text-xs sm:h-7 sm:px-2 sm:text-[11px]"
+              onClick={onRefresh}
+            >
               Refresh
             </Button>
           )}
@@ -70,7 +76,7 @@ export function NotificationPanel({
             type="button"
             size="sm"
             variant="ghost"
-            className="h-7 px-2 text-[11px]"
+            className="h-10 px-3 text-xs sm:h-7 sm:px-2 sm:text-[11px]"
             onClick={() => void onMarkAllAsRead()}
             disabled={unreadCount === 0 || loading}
           >
@@ -94,7 +100,7 @@ export function NotificationPanel({
       )}
 
       {!loading && notifications.length > 0 && (
-        <ScrollArea className="max-h-[22rem]">
+        <ScrollArea className="max-h-[65vh] sm:max-h-[22rem]">
           <div className="space-y-1 p-1.5">
             {notifications.map((notification) => {
               const createdAgo = formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true });
@@ -129,7 +135,7 @@ export function NotificationPanel({
                 <div
                   key={notification.id}
                   className={cn(
-                    "rounded-md border px-2.5 py-2 text-left transition-colors",
+                    "rounded-md border px-2.5 py-2.5 text-left transition-colors",
                     notification.readAt
                       ? "border-transparent bg-transparent hover:bg-accent/40"
                       : "border-primary/20 bg-primary/10",
@@ -138,7 +144,7 @@ export function NotificationPanel({
                   {notification.postId ? (
                     <Link
                       to={`/community/${notification.postId}`}
-                      className="block outline-none"
+                      className="block min-h-11 outline-none"
                       onClick={() => {
                         void onMarkAsRead(notification.id);
                         onNavigate?.();
@@ -149,7 +155,7 @@ export function NotificationPanel({
                   ) : (
                     <button
                       type="button"
-                      className="block w-full text-left"
+                      className="block min-h-11 w-full text-left"
                       onClick={() => {
                         void onMarkAsRead(notification.id);
                       }}

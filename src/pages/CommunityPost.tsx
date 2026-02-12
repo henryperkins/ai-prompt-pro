@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StateCard } from "@/components/ui/state-card";
+import { useCommunityMobileTelemetry } from "@/hooks/useCommunityMobileTelemetry";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -21,6 +23,7 @@ import {
   type VoteState,
   type VoteType,
 } from "@/lib/community";
+import { communityFeatureFlags } from "@/lib/feature-flags";
 
 function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
@@ -39,6 +42,12 @@ const CommunityPost = () => {
   const voteInFlightByPost = useRef<Set<string>>(new Set());
   const { toast } = useToast();
   const { user } = useAuth();
+  const isMobile = useIsMobile();
+  const mobileEnhancementsEnabled = isMobile && communityFeatureFlags.communityMobileEnhancements;
+  const { trackInteraction } = useCommunityMobileTelemetry({
+    enabled: mobileEnhancementsEnabled,
+    surface: "community_post",
+  });
   const [post, setPost] = useState<CommunityPostType | null>(null);
   const [parentPost, setParentPost] = useState<CommunityPostType | null>(null);
   const [remixes, setRemixes] = useState<CommunityPostType[]>([]);
@@ -145,6 +154,9 @@ const CommunityPost = () => {
         return;
       }
       if (voteInFlightByPost.current.has(targetId)) return;
+      trackInteraction("reaction", `vote_${voteType}`, {
+        postId: targetId,
+      });
       voteInFlightByPost.current.add(targetId);
       try {
         const result = await toggleVote(targetId, voteType);
@@ -170,15 +182,20 @@ const CommunityPost = () => {
         voteInFlightByPost.current.delete(targetId);
       }
     },
-    [toast, user],
+    [toast, trackInteraction, user],
   );
 
   const handleCommentAdded = useCallback((targetId: string) => {
+    trackInteraction("comment", "comment_added", { postId: targetId });
     setPost((prev) => {
       if (!prev || prev.id !== targetId) return prev;
       return { ...prev, commentCount: prev.commentCount + 1 };
     });
-  }, []);
+  }, [trackInteraction]);
+
+  const handleCommentThreadOpen = useCallback((targetId: string) => {
+    trackInteraction("comment", "thread_opened", { postId: targetId });
+  }, [trackInteraction]);
 
   const handleSaveToLibrary = useCallback(
     async (targetId: string) => {
@@ -210,7 +227,7 @@ const CommunityPost = () => {
   return (
     <PageShell>
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          <Button asChild variant="outline" size="sm" className="h-8 text-xs">
+          <Button asChild variant="outline" size="sm" className="h-11 px-4 text-sm sm:h-8 sm:px-3 sm:text-xs">
             <Link to="/community">
               <ArrowLeft className="h-3.5 w-3.5" />
               Back to feed
@@ -255,6 +272,7 @@ const CommunityPost = () => {
             onToggleVote={handleToggleVote}
             voteState={voteState ?? undefined}
             onCommentAdded={handleCommentAdded}
+            onCommentThreadOpen={handleCommentThreadOpen}
             canVote={Boolean(user)}
             canSaveToLibrary={Boolean(user && !user.is_anonymous)}
             onSaveToLibrary={handleSaveToLibrary}

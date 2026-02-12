@@ -13,7 +13,7 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-border bg-background/95 backdrop-blur sm:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 flex items-end justify-around border-t border-border bg-background/95 px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1 backdrop-blur sm:hidden"
       aria-label="Mobile navigation"
     >
       {BOTTOM_NAV_ITEMS.map(({ to, label, icon: Icon }) => {
@@ -28,7 +28,7 @@ export function BottomNav() {
                 <button
                   type="button"
                   className={cn(
-                    "mobile-route-link flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-xs transition-colors",
+                    "mobile-route-link flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-md px-1 py-2 text-[11px] font-medium transition-colors",
                     isActive || isPresetsActive
                       ? "text-primary font-medium"
                       : "text-muted-foreground hover:text-foreground",
@@ -55,7 +55,7 @@ export function BottomNav() {
                 <Link
                   to="/"
                   className={cn(
-                    "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
+                    "flex min-h-11 items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
                     isActive
                       ? "bg-accent text-accent-foreground font-medium"
                       : "hover:bg-accent hover:text-accent-foreground",
@@ -68,7 +68,7 @@ export function BottomNav() {
                 <Link
                   to="/presets"
                   className={cn(
-                    "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
+                    "flex min-h-11 items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
                     isPresetsActive
                       ? "bg-accent text-accent-foreground font-medium"
                       : "hover:bg-accent hover:text-accent-foreground",
@@ -88,7 +88,7 @@ export function BottomNav() {
             key={to}
             to={to}
             className={cn(
-              "mobile-route-link flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-xs transition-colors",
+              "mobile-route-link flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-md px-1 py-2 text-[11px] font-medium transition-colors",
               isActive
                 ? "text-primary font-medium"
                 : "text-muted-foreground hover:text-foreground",

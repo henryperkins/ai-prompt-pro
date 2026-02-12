@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import {
   ArrowUp,
@@ -15,6 +16,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PromptPreviewPanel } from "@/components/community/PromptPreviewPanel";
 import { CommunityComments } from "@/components/community/CommunityComments";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { communityFeatureFlags } from "@/lib/feature-flags";
 
 interface CommunityPostDetailProps {
   post: CommunityPost;
@@ -27,6 +31,7 @@ interface CommunityPostDetailProps {
   onToggleVote: (postId: string, voteType: VoteType) => void;
   voteState?: VoteState;
   onCommentAdded: (postId: string) => void;
+  onCommentThreadOpen?: (postId: string) => void;
   canVote: boolean;
   canSaveToLibrary: boolean;
   onSaveToLibrary: (postId: string) => void;
@@ -121,10 +126,14 @@ export function CommunityPostDetail({
   onToggleVote,
   voteState,
   onCommentAdded,
+  onCommentThreadOpen,
   canVote,
   canSaveToLibrary,
   onSaveToLibrary,
 }: CommunityPostDetailProps) {
+  const isMobile = useIsMobile();
+  const useMobileCommentsDrawer = isMobile && communityFeatureFlags.communityMobileEnhancements;
+  const [commentsOpen, setCommentsOpen] = useState(false);
   const createdAgo = formatDistanceToNow(new Date(post.createdAt), { addSuffix: true });
   const remixDiff = parseRemixDiff(post.remixDiff);
   const promptBody = (post.enhancedPrompt || post.starterPrompt || "").trim();
@@ -144,14 +153,14 @@ export function CommunityPostDetail({
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-            <Button asChild variant="ghost" size="sm" className="h-8 w-full text-xs sm:w-auto">
+            <Button asChild variant="ghost" size="sm" className="h-11 w-full text-sm sm:h-8 sm:w-auto sm:text-xs">
               <Link to={`/?remix=${post.id}`}>Remix</Link>
             </Button>
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              className="h-8 w-full text-xs sm:w-auto"
+              className="h-11 w-full gap-1.5 text-sm sm:h-8 sm:w-auto sm:text-xs"
               disabled={!canSaveToLibrary}
               onClick={() => onSaveToLibrary(post.id)}
             >
@@ -258,9 +267,10 @@ export function CommunityPostDetail({
             type="button"
             size="sm"
             variant={voteState?.upvote ? "soft" : "outline"}
-            className="interactive-chip h-7 px-2 text-[11px] gap-1"
+            className="interactive-chip h-11 gap-1.5 px-3 text-sm sm:h-8 sm:gap-1 sm:px-2.5 sm:text-[11px]"
             disabled={!canVote}
             onClick={() => onToggleVote(post.id, "upvote")}
+            data-testid="community-vote-upvote"
           >
             <ArrowUp className="h-3.5 w-3.5" />
             {post.upvoteCount}
@@ -269,9 +279,10 @@ export function CommunityPostDetail({
             type="button"
             size="sm"
             variant={voteState?.verified ? "soft" : "outline"}
-            className="interactive-chip h-7 px-2 text-[11px] gap-1"
+            className="interactive-chip h-11 gap-1.5 px-3 text-sm sm:h-8 sm:gap-1 sm:px-2.5 sm:text-[11px]"
             disabled={!canVote}
             onClick={() => onToggleVote(post.id, "verified")}
+            data-testid="community-vote-verified"
           >
             <CheckCircle2 className="h-3.5 w-3.5" />
             {post.verifiedCount}
@@ -280,19 +291,63 @@ export function CommunityPostDetail({
             <GitBranch className="h-3.5 w-3.5" />
             {post.remixCount}
           </span>
-          <span className="inline-flex items-center gap-1">
-            <MessageCircle className="h-3.5 w-3.5" />
-            {post.commentCount}
-          </span>
+          {useMobileCommentsDrawer ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="default"
+              className="h-11 gap-1.5 px-3 text-sm sm:h-8 sm:px-2.5 sm:text-xs"
+              onClick={() => {
+                setCommentsOpen(true);
+                onCommentThreadOpen?.(post.id);
+              }}
+              data-testid="community-comments-thread-trigger"
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
+              Open comments thread
+              <Badge variant="secondary" className="ml-0.5 h-4 min-w-4 px-1 text-[10px] leading-none">
+                {post.commentCount}
+              </Badge>
+            </Button>
+          ) : (
+            <span className="inline-flex items-center gap-1">
+              <MessageCircle className="h-3.5 w-3.5" />
+              {post.commentCount}
+            </span>
+          )}
         </div>
       </Card>
 
-      <CommunityComments
-        postId={post.id}
-        totalCount={post.commentCount}
-        onCommentAdded={onCommentAdded}
-        className="border-border/80 bg-card/85 p-4 sm:p-5"
-      />
+      {!useMobileCommentsDrawer && (
+        <CommunityComments
+          postId={post.id}
+          totalCount={post.commentCount}
+          onCommentAdded={onCommentAdded}
+          className="border-border/80 bg-card/85 p-4 sm:p-5"
+        />
+      )}
+
+      {useMobileCommentsDrawer && (
+        <Drawer open={commentsOpen} onOpenChange={setCommentsOpen}>
+          <DrawerContent
+            className="max-h-[85vh] pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+            aria-describedby={undefined}
+            data-testid="community-comments-sheet"
+          >
+            <DrawerHeader className="pb-1">
+              <DrawerTitle className="text-base">Comments</DrawerTitle>
+            </DrawerHeader>
+            <div className="px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              <CommunityComments
+                postId={post.id}
+                totalCount={post.commentCount}
+                onCommentAdded={onCommentAdded}
+                className="border-border/70 bg-transparent p-0"
+              />
+            </div>
+          </DrawerContent>
+        </Drawer>
+      )}
 
       <Card className="space-y-3 border-border/80 bg-card/85 p-4 sm:p-5">
         <div className="flex items-center justify-between gap-2">
@@ -319,7 +374,7 @@ export function CommunityPostDetail({
                     by {remixAuthor} • {created}
                   </p>
                 </div>
-                <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-[11px]">
+                <Button asChild variant="ghost" size="sm" className="h-11 px-3 text-sm sm:h-7 sm:px-2 sm:text-[11px]">
                   <Link to={`/community/${remix.id}`}>
                     Open
                     <ExternalLink className="h-3 w-3" />

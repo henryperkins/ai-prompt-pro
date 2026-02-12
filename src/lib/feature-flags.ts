@@ -17,3 +17,11 @@ export const builderRedesignFlags: BuilderRedesignFlags = {
   builderRedesignPhase3: parseBooleanFlag(import.meta.env.VITE_BUILDER_REDESIGN_PHASE3),
   builderRedesignPhase4: parseBooleanFlag(import.meta.env.VITE_BUILDER_REDESIGN_PHASE4),
 };
+
+export interface CommunityFeatureFlags {
+  communityMobileEnhancements: boolean;
+}
+
+export const communityFeatureFlags: CommunityFeatureFlags = {
+  communityMobileEnhancements: parseBooleanFlag(import.meta.env.VITE_COMMUNITY_MOBILE_ENHANCEMENTS),
+};

@@ -9,6 +9,7 @@ interface ImportMetaEnv {
   readonly VITE_BUILDER_REDESIGN_PHASE2?: string;
   readonly VITE_BUILDER_REDESIGN_PHASE3?: string;
   readonly VITE_BUILDER_REDESIGN_PHASE4?: string;
+  readonly VITE_COMMUNITY_MOBILE_ENHANCEMENTS?: string;
 }
 
 interface ImportMeta {

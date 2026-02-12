@@ -13,9 +13,15 @@ export function PageShell({ children, mainClassName }: PageShellProps) {
   const { isDark, toggleTheme } = useTheme();
 
   return (
-    <div className="min-h-screen bg-background flex flex-col pb-12 sm:pb-0">
+    <div
+      className="min-h-screen bg-background flex flex-col pb-[calc(4.25rem+env(safe-area-inset-bottom))] sm:pb-0"
+      data-testid="page-shell"
+    >
       <Header isDark={isDark} onToggleTheme={toggleTheme} />
-      <main className={cn("flex-1 container mx-auto px-4 py-4 sm:py-6", mainClassName)}>
+      <main
+        className={cn("flex-1 container mx-auto px-4 py-4 sm:py-6", mainClassName)}
+        data-testid="page-shell-main"
+      >
         {children}
       </main>
       <BottomNav />

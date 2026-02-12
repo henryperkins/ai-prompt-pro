@@ -31,7 +31,7 @@ export function PromptPreviewPanel({ text, mode = "compact", className, onCopy }
             type="button"
             variant="outline"
             size="sm"
-            className="absolute right-2 top-2 z-10 h-7 px-2 text-[11px] bg-background/85 backdrop-blur"
+            className="absolute right-2 top-2 z-10 h-11 px-3 text-xs bg-background/85 backdrop-blur sm:h-7 sm:px-2 sm:text-[11px]"
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -45,8 +45,8 @@ export function PromptPreviewPanel({ text, mode = "compact", className, onCopy }
         <pre
           className={cn(
             "font-mono text-[11px] sm:text-xs leading-5 text-foreground/95 whitespace-pre-wrap break-words",
-            onCopy && "pr-14",
-            isCollapsed && "line-clamp-6",
+            onCopy && "pr-20 sm:pr-14",
+            isCollapsed && "line-clamp-4 sm:line-clamp-6",
           )}
         >
           {normalized || "No prompt content available yet."}
@@ -58,7 +58,7 @@ export function PromptPreviewPanel({ text, mode = "compact", className, onCopy }
             type="button"
             variant="ghost"
             size="sm"
-            className="h-7 px-2 text-[11px]"
+            className="h-11 px-3 text-xs sm:h-7 sm:px-2 sm:text-[11px]"
             onClick={() => setExpanded((prev) => !prev)}
           >
             {expanded ? "Collapse preview" : "Expand preview"}

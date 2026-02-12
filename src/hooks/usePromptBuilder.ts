@@ -181,7 +181,7 @@ export function usePromptBuilder() {
       setIsCloudHydrated(true);
       clearDirtyIfClean();
     });
-  }, [userId, showPersistenceError, toast, resetDraftState, clearDirtyIfClean]);
+  }, [userId, showPersistenceError, toast, resetDraftState, clearDirtyIfClean, editsSinceAuthChange]);
 
   const refreshTemplateSummaries = useCallback(async () => {
     if (userId) {
