@@ -212,6 +212,24 @@ describe("community hydration resilience", () => {
     expect(screen.getByTestId("feed-vote-state")).toHaveTextContent("{}");
   });
 
+  it("renders feed content when profile hydration fails", async () => {
+    mocks.loadProfilesByIds.mockRejectedValueOnce(new Error("community_profiles_by_ids unavailable"));
+    const { default: Community } = await import("@/pages/Community");
+
+    render(
+      <MemoryRouter>
+        <Community />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("feed-post-count")).toHaveTextContent("1");
+    });
+
+    expect(screen.getByText("Resilient Post Title")).toBeInTheDocument();
+    expect(screen.getByTestId("feed-error")).toHaveTextContent("ok");
+  });
+
   it("renders post detail when vote-state loading fails for signed-out users", async () => {
     mocks.loadMyVotes.mockRejectedValueOnce(new Error("Auth session missing"));
     const { default: CommunityPost } = await import("@/pages/CommunityPost");
@@ -233,6 +251,46 @@ describe("community hydration resilience", () => {
     expect(screen.getByTestId("detail-vote-state")).toHaveTextContent(
       '{"upvote":false,"verified":false}',
     );
+    expect(screen.queryByText("Failed to load this post right now. Please try again.")).toBeNull();
+  });
+
+  it("renders post detail when profile hydration fails", async () => {
+    mocks.loadProfilesByIds.mockRejectedValueOnce(new Error("community_profiles_by_ids unavailable"));
+    const { default: CommunityPost } = await import("@/pages/CommunityPost");
+
+    render(
+      <MemoryRouter initialEntries={[`/community/${POST_ID}`]}>
+        <Routes>
+          <Route path="/community/:postId" element={<CommunityPost />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("post-detail")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Resilient Post Title")).toBeInTheDocument();
+    expect(screen.queryByText("Failed to load this post right now. Please try again.")).toBeNull();
+  });
+
+  it("renders post detail when remix context loading fails", async () => {
+    mocks.loadRemixes.mockRejectedValueOnce(new Error("community remixes unavailable"));
+    const { default: CommunityPost } = await import("@/pages/CommunityPost");
+
+    render(
+      <MemoryRouter initialEntries={[`/community/${POST_ID}`]}>
+        <Routes>
+          <Route path="/community/:postId" element={<CommunityPost />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("post-detail")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Resilient Post Title")).toBeInTheDocument();
     expect(screen.queryByText("Failed to load this post right now. Please try again.")).toBeNull();
   });
 

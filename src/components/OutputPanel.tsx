@@ -787,7 +787,7 @@ export function OutputPanel({
 
       {trimmedReasoningSummary && (
         <Card className="border-amber-500/30 bg-amber-500/5 p-3">
-          <p className="text-xs font-semibold uppercase tracking-[var(--type-label-caps-tracking)] text-amber-700">
+          <p className="type-label-caps text-xs font-semibold text-amber-700">
             Reasoning summary
           </p>
           <pre className="mt-2 whitespace-pre-wrap text-xs font-mono text-foreground/90 leading-relaxed">

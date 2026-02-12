@@ -108,12 +108,10 @@ const Community = () => {
         loadMyVotes(targetPosts.map((post) => post.id)),
       ]);
 
-      if (authorProfilesResult.status === "rejected") throw authorProfilesResult.reason;
-      if (parentPostsResult.status === "rejected") throw parentPostsResult.reason;
       if (token !== requestToken.current) return;
 
-      const authorProfiles = authorProfilesResult.value;
-      const parentPosts = parentPostsResult.value;
+      const authorProfiles = authorProfilesResult.status === "fulfilled" ? authorProfilesResult.value : [];
+      const parentPosts = parentPostsResult.status === "fulfilled" ? parentPostsResult.value : [];
       const voteStates = voteStatesResult.status === "fulfilled" ? voteStatesResult.value : {};
       const nextAuthors = toProfileMap(authorProfiles);
       const nextParentTitles = toParentTitleMap(parentPosts);

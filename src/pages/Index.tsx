@@ -1276,7 +1276,7 @@ const Index = () => {
           <Card className="mb-4 border-primary/30 bg-primary/5 p-3 sm:p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="space-y-1">
-                <p className="text-xs uppercase tracking-[var(--type-label-caps-tracking)] text-primary">Remix mode</p>
+                <p className="type-label-caps text-xs text-primary">Remix mode</p>
                 <p className="text-sm font-medium text-foreground">
                   Remixing {remixContext.parentAuthor}’s “{remixContext.parentTitle}”
                 </p>
@@ -1565,7 +1565,7 @@ const Index = () => {
             className="interactive-chip mb-2 w-full rounded-lg border border-border/80 bg-background/70 px-3 py-2 text-left"
             aria-label="Open output preview"
           >
-            <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-[var(--type-label-caps-tracking)] text-muted-foreground">
+            <div className="type-label-caps flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
               <Eye className="h-3.5 w-3.5" />
               Live preview
             </div>

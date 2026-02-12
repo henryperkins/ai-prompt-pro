@@ -164,6 +164,71 @@ describe("ai-client auth recovery", () => {
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
+  it("falls back to publishable key when getSession fails with a retryable fetch error", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: { session: null },
+      error: {
+        message: "Failed to fetch",
+        name: "AuthRetryableFetchError",
+        status: 0,
+      },
+    });
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(streamingResponse("network-fallback"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { streamEnhance } = await import("@/lib/ai-client");
+
+    const onDelta = vi.fn();
+    const onDone = vi.fn();
+    const onError = vi.fn();
+
+    await streamEnhance({
+      prompt: "Improve this",
+      onDelta,
+      onDone,
+      onError,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const headers = (fetchMock.mock.calls[0]?.[1] as RequestInit).headers as Record<string, string>;
+    expect(headers.Authorization).toBe("Bearer sb_publishable_test");
+    expect(mocks.signInAnonymously).not.toHaveBeenCalled();
+    expect(mocks.signOut).toHaveBeenCalledTimes(1);
+    expect(onError).not.toHaveBeenCalled();
+    expect(onDelta).toHaveBeenCalledWith("network-fallback");
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it("surfaces non-retryable getSession errors", async () => {
+    mocks.getSession.mockResolvedValue({
+      data: { session: null },
+      error: {
+        message: "Invalid refresh token",
+        name: "AuthApiError",
+        status: 400,
+      },
+    });
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { streamEnhance } = await import("@/lib/ai-client");
+    const onDone = vi.fn();
+    const onError = vi.fn();
+
+    await streamEnhance({
+      prompt: "Improve this",
+      onDelta: vi.fn(),
+      onDone,
+      onError,
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(onDone).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledWith("Could not read auth session: Invalid refresh token");
+  });
+
   it("ignores non-output completed items while streaming agent text", async () => {
     const nowSeconds = Math.floor(Date.now() / 1000);
 

@@ -92,13 +92,11 @@ const CommunityPost = () => {
           loadRemixes(loadedPost.id),
           loadMyVotes([loadedPost.id]),
         ]);
-        if (loadedParentResult.status === "rejected") throw loadedParentResult.reason;
-        if (loadedRemixesResult.status === "rejected") throw loadedRemixesResult.reason;
 
         if (token !== requestToken.current) return;
 
-        const loadedParent = loadedParentResult.value;
-        const loadedRemixes = loadedRemixesResult.value;
+        const loadedParent = loadedParentResult.status === "fulfilled" ? loadedParentResult.value : null;
+        const loadedRemixes = loadedRemixesResult.status === "fulfilled" ? loadedRemixesResult.value : [];
         const voteStates = voteStatesResult.status === "fulfilled" ? voteStatesResult.value : {};
         const authorIds = Array.from(
           new Set([
@@ -107,8 +105,12 @@ const CommunityPost = () => {
             ...loadedRemixes.map((remix) => remix.authorId),
           ]),
         );
-        const profiles = await loadProfilesByIds(authorIds);
+        const profilesResult = await Promise.allSettled([loadProfilesByIds(authorIds)]);
         if (token !== requestToken.current) return;
+        const profiles =
+          profilesResult[0].status === "fulfilled"
+            ? profilesResult[0].value
+            : [];
 
         setPost(loadedPost);
         setParentPost(loadedParent);

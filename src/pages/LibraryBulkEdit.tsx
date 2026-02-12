@@ -152,7 +152,7 @@ const LibraryBulkEdit = () => {
         <Card className="border-border/80 bg-card/85 p-3 sm:p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-[var(--type-label-caps-tracking)] text-primary">Selection</p>
+              <p className="type-label-caps text-xs font-semibold text-primary">Selection</p>
               <p className="text-sm text-muted-foreground">
                 {selectedPrompts.length > 0
                   ? `${selectedPrompts.length} prompt(s) selected from Library`

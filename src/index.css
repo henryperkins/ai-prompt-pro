@@ -185,7 +185,9 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background font-sans text-base text-foreground antialiased;
+    @apply bg-background font-sans text-foreground antialiased;
+    font-size: var(--type-sm-size);
+    line-height: var(--type-sm-line);
     background-image:
       radial-gradient(1100px 520px at -6% -12%, hsl(var(--delight-warm) / 0.17), transparent 58%),
       radial-gradient(900px 500px at 102% -8%, hsl(var(--delight-cool) / 0.12), transparent 56%),
@@ -265,6 +267,11 @@ All colors MUST be HSL.
   }
 
   @media (min-width: 640px) {
+    body {
+      font-size: var(--type-base-size);
+      line-height: var(--type-base-line);
+    }
+
     h1 {
       font-size: var(--type-4xl-size);
       line-height: var(--type-4xl-line);
@@ -448,6 +455,16 @@ All colors MUST be HSL.
 
   .interactive-card:active {
     transform: translateY(0) scale(0.995);
+  }
+
+  .type-label-caps {
+    text-transform: uppercase;
+    letter-spacing: var(--type-label-caps-tracking);
+  }
+
+  .type-label-shortcut {
+    letter-spacing: var(--type-label-shortcut-tracking);
+    font-variant-numeric: tabular-nums;
   }
 
   .community-feed-card {

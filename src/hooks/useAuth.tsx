@@ -35,22 +35,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      // Ignore anonymous sessions — treat them as unauthenticated
-      if (s?.user?.is_anonymous) {
+    supabase.auth.getSession()
+      .then(({ data: { session: s } }) => {
+        if (!isMounted) return;
+        // Ignore anonymous sessions — treat them as unauthenticated
+        if (s?.user?.is_anonymous) {
+          setSession(null);
+          setUser(null);
+        } else {
+          setSession(s);
+          setUser(s?.user ?? null);
+        }
+        setLoading(false);
+      })
+      .catch((error: unknown) => {
+        if (!isMounted) return;
+        console.error("Failed to initialize auth session:", error);
         setSession(null);
         setUser(null);
-      } else {
-        setSession(s);
-        setUser(s?.user ?? null);
-      }
-      setLoading(false);
-    });
+        setLoading(false);
+      });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, s) => {
+      if (!isMounted) return;
       if (s?.user?.is_anonymous) {
         setSession(null);
         setUser(null);
@@ -60,7 +72,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signUp = useCallback(async (email: string, password: string) => {

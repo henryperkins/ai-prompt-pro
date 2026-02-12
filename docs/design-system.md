@@ -96,6 +96,17 @@ Tracking tokens:
 - At `sm` breakpoint (`min-width: 640px`), body/control copy scales up to `--type-base`.
 - Code-like elements (`code`, `pre`, `kbd`, `samp`) use `--font-mono` with tabular numerics.
 
+## 4.4 Global Typography Utility Classes
+
+Shared utility roles are available globally (not only in community-scoped typography):
+
+- `.type-label-caps`
+  - Uppercase semantic labels with `--type-label-caps-tracking`.
+- `.type-label-shortcut`
+  - Keyboard/shortcut metadata text with `--type-label-shortcut-tracking` and tabular numerics.
+
+Use these utilities instead of repeating ad-hoc `tracking-[...]` declarations.
+
 ---
 
 ## 5) Component Sizing Standards
@@ -114,6 +125,7 @@ This system standardizes control heights and text density across UI primitives.
 - Buttons, toggles, tab triggers use normalized line-height and weight.
 - Inputs/selects/textarea use shared text and focus treatment.
 - Labels use responsive text sizing (`text-sm` -> `sm:text-base`) with consistent line-height.
+- Primitive text sizing should rely on the tokenized Tailwind scale (`text-sm`, `sm:text-base`, etc.) rather than explicit one-off line-height utilities.
 
 This reduces “one-off” typography and improves consistency in dense forms.
 

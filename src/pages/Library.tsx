@@ -264,7 +264,7 @@ const Library = () => {
         <Card className="border-border/80 bg-card/85 p-3 sm:p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-[var(--type-label-caps-tracking)] text-primary">Saved prompts only</p>
+              <p className="type-label-caps text-xs font-semibold text-primary">Saved prompts only</p>
               <p className="text-sm text-muted-foreground">
                 Edit saved prompts without changing presets.
               </p>

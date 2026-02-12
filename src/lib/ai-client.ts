@@ -57,6 +57,27 @@ function sessionExpiresSoon(expiresAt: number | null | undefined): boolean {
   return expiresAt <= nowSeconds + ACCESS_TOKEN_REFRESH_GRACE_SECONDS;
 }
 
+function isRetryableAuthSessionError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as { message?: unknown; status?: unknown; code?: unknown; name?: unknown };
+  const message = typeof candidate.message === "string" ? candidate.message.toLowerCase() : "";
+  const code = typeof candidate.code === "string" ? candidate.code.toLowerCase() : "";
+  const name = typeof candidate.name === "string" ? candidate.name.toLowerCase() : "";
+  const status = typeof candidate.status === "number" ? candidate.status : null;
+
+  if (status === 0) return true;
+  if (name.includes("retryable") || name.includes("fetch")) return true;
+  if (code.includes("retryable") || code.includes("fetch")) return true;
+
+  return (
+    message.includes("failed to fetch") ||
+    message.includes("fetch failed") ||
+    message.includes("network request failed") ||
+    message.includes("networkerror") ||
+    message.includes("load failed")
+  );
+}
+
 async function refreshSessionAccessToken(): Promise<string | null> {
   const {
     data: { session },
@@ -126,6 +147,11 @@ async function getAccessToken({
     error: sessionError,
   } = await supabase.auth.getSession();
   if (sessionError) {
+    if (isRetryableAuthSessionError(sessionError)) {
+      // Auth gateway/network outage: continue with anon-key fallback instead of failing hard.
+      await clearLocalSupabaseSession();
+      return SUPABASE_PUBLISHABLE_KEY as string;
+    }
     throw new Error(`Could not read auth session: ${sessionError.message}`);
   }
   if (session?.access_token) {
