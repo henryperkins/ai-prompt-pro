@@ -43,3 +43,7 @@ __pycache__/
 copilot-session-*.md
 clip*.md
 product-spec.md
+
+# Playwright artifacts
+playwright-report/
+test-results/

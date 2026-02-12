@@ -14,6 +14,8 @@ import {
   escapePostgrestLikePattern,
   isPostgrestError,
   normalizePromptTagsOptional,
+  sanitizePostgresJson,
+  sanitizePostgresText,
   type SavedPromptListRow,
   type SavedPromptRow,
 } from "@/lib/saved-prompt-shared";
@@ -98,12 +100,21 @@ export function getPersistenceErrorMessage(error: unknown, fallback: string): st
 
 function mapPostgrestError(error: PostgrestError, fallback: string): PersistenceError {
   const message = (error.message || fallback).trim() || fallback;
+  const details = [error.details, error.hint].filter(Boolean).join(" ");
   const isUnauthorized =
     error.code === "42501" ||
     /row-level security|permission denied|insufficient privilege|not authenticated|jwt/i.test(message);
 
   if (isUnauthorized) {
     return new PersistenceError("unauthorized", message, { cause: error });
+  }
+
+  if (/unsupported unicode escape sequence|\\u0000 cannot be converted to text/i.test(`${message} ${details}`)) {
+    return new PersistenceError(
+      "unknown",
+      "Prompt text contains unsupported characters. Please remove hidden control characters and try again.",
+      { cause: error },
+    );
   }
 
   if (error.code === "23505") {
@@ -127,26 +138,37 @@ function toPersistenceError(error: unknown, fallback: string): PersistenceError 
 
 function normalizeDescription(description?: string): string | undefined {
   if (description === undefined) return undefined;
-  return description.trim().slice(0, 500);
+  return sanitizePostgresText(description).trim().slice(0, 500);
 }
 
 function normalizeUseCase(useCase?: string): string | undefined {
   if (useCase === undefined) return undefined;
-  return useCase.trim().slice(0, 1000);
+  return sanitizePostgresText(useCase).trim().slice(0, 1000);
 }
 
 function normalizeTargetModel(targetModel?: string): string | undefined {
   if (targetModel === undefined) return undefined;
-  return targetModel.trim().slice(0, 80);
+  return sanitizePostgresText(targetModel).trim().slice(0, 80);
 }
 
 function normalizeRemixNote(remixNote?: string): string | undefined {
   if (remixNote === undefined) return undefined;
-  return remixNote.trim().slice(0, 500);
+  return sanitizePostgresText(remixNote).trim().slice(0, 500);
+}
+
+function normalizePromptBody(prompt?: string): string | undefined {
+  if (prompt === undefined) return undefined;
+  return sanitizePostgresText(prompt);
+}
+
+function normalizeRemixDiff(remixDiff?: RemixDiff | null): Json | null | undefined {
+  if (remixDiff === undefined) return undefined;
+  if (remixDiff === null) return null;
+  return sanitizePostgresJson(remixDiff as unknown as Json);
 }
 
 function toPresetName(value: string): string {
-  const normalized = value.trim().slice(0, 200);
+  const normalized = sanitizePostgresText(value).trim().slice(0, 200);
   return normalized || "Untitled Prompt";
 }
 
@@ -180,7 +202,8 @@ export async function loadDraft(userId: string | null): Promise<PromptConfig | n
 }
 
 export async function saveDraft(userId: string | null, config: PromptConfig): Promise<void> {
-  const normalizedConfig = serializeWorkingStateToV1(config, {
+  const safeConfig = sanitizePostgresJson(config as unknown as Json) as unknown as PromptConfig;
+  const normalizedConfig = serializeWorkingStateToV1(safeConfig, {
     includeV2Compat: builderRedesignFlags.builderRedesignPhase4,
     preserveSourceRawContent: true,
   });
@@ -197,7 +220,7 @@ export async function saveDraft(userId: string | null, config: PromptConfig): Pr
     const { error } = await supabase.from("drafts").upsert(
       {
         user_id: userId,
-        config: normalizedConfig as unknown as Json,
+        config: sanitizePostgresJson(normalizedConfig as unknown as Json),
       },
       { onConflict: "user_id" },
     );
@@ -348,6 +371,9 @@ function hasMetadataChanges(existing: SavedPromptRow, input: PromptSaveInput): b
   const normalizedUseCase = normalizeUseCase(input.useCase);
   const normalizedTargetModel = normalizeTargetModel(input.targetModel);
   const normalizedRemixNote = normalizeRemixNote(input.remixNote);
+  const normalizedBuiltPrompt = normalizePromptBody(input.builtPrompt);
+  const normalizedEnhancedPrompt = normalizePromptBody(input.enhancedPrompt);
+  const normalizedRemixDiff = normalizeRemixDiff(input.remixDiff);
 
   if (normalizedDescription !== undefined && normalizedDescription !== existing.description) return true;
   if (normalizedCategory !== undefined && normalizedCategory !== existing.category) return true;
@@ -365,11 +391,11 @@ function hasMetadataChanges(existing: SavedPromptRow, input: PromptSaveInput): b
     }
   }
 
-  if (input.builtPrompt !== undefined && input.builtPrompt !== existing.built_prompt) return true;
-  if (input.enhancedPrompt !== undefined && input.enhancedPrompt !== existing.enhanced_prompt) return true;
+  if (normalizedBuiltPrompt !== undefined && normalizedBuiltPrompt !== existing.built_prompt) return true;
+  if (normalizedEnhancedPrompt !== undefined && normalizedEnhancedPrompt !== existing.enhanced_prompt) return true;
   if (input.isShared !== undefined && input.isShared !== existing.is_shared) return true;
   if (input.remixedFrom !== undefined && input.remixedFrom !== existing.remixed_from) return true;
-  if (input.remixDiff !== undefined && JSON.stringify(input.remixDiff) !== JSON.stringify(existing.remix_diff)) {
+  if (normalizedRemixDiff !== undefined && JSON.stringify(normalizedRemixDiff) !== JSON.stringify(existing.remix_diff)) {
     return true;
   }
 
@@ -389,7 +415,8 @@ export async function savePrompt(userId: string | null, input: PromptSaveInput):
   const name = toPresetName(input.name || "");
   if (!name) throw new PersistenceError("unknown", "Prompt title is required.");
 
-  const normalizedConfig = serializeWorkingStateToV1(input.config, {
+  const safeConfig = sanitizePostgresJson(input.config as unknown as Json) as unknown as PromptConfig;
+  const normalizedConfig = serializeWorkingStateToV1(safeConfig, {
     includeV2Compat: false,
   });
   const persistedConfig = serializeWorkingStateToV1(normalizedConfig, {
@@ -400,9 +427,13 @@ export async function savePrompt(userId: string | null, input: PromptSaveInput):
   const normalizedTargetModel = normalizeTargetModel(input.targetModel);
   const normalizedUseCase = normalizeUseCase(input.useCase);
   const normalizedRemixNote = normalizeRemixNote(input.remixNote);
+  const normalizedBuiltPrompt = normalizePromptBody(input.builtPrompt);
+  const normalizedEnhancedPrompt = normalizePromptBody(input.enhancedPrompt);
+  const normalizedRemixDiff = normalizeRemixDiff(input.remixDiff);
   const fingerprint = computeTemplateFingerprint(normalizedConfig);
   const warnings = collectTemplateWarnings(normalizedConfig);
   const tags = normalizePromptTagsOptional(input.tags);
+  const safePersistedConfig = sanitizePostgresJson(persistedConfig as unknown as Json);
 
   try {
     const { data: existingRows, error: lookupError } = await supabase
@@ -428,7 +459,7 @@ export async function savePrompt(userId: string | null, input: PromptSaveInput):
       const updatePayload: Record<string, unknown> = {
         title: name,
         tags: tags ?? existing.tags ?? [],
-        config: persistedConfig as unknown as Json,
+        config: safePersistedConfig,
         fingerprint,
         revision: existing.revision + 1,
       };
@@ -438,11 +469,11 @@ export async function savePrompt(userId: string | null, input: PromptSaveInput):
       if (input.category !== undefined) {
         updatePayload.category = normalizedCategory;
       }
-      if (input.builtPrompt !== undefined) {
-        updatePayload.built_prompt = input.builtPrompt;
+      if (normalizedBuiltPrompt !== undefined) {
+        updatePayload.built_prompt = normalizedBuiltPrompt;
       }
-      if (input.enhancedPrompt !== undefined) {
-        updatePayload.enhanced_prompt = input.enhancedPrompt;
+      if (normalizedEnhancedPrompt !== undefined) {
+        updatePayload.enhanced_prompt = normalizedEnhancedPrompt;
       }
       if (normalizedTargetModel !== undefined) {
         updatePayload.target_model = normalizedTargetModel;
@@ -459,8 +490,8 @@ export async function savePrompt(userId: string | null, input: PromptSaveInput):
       if (normalizedRemixNote !== undefined) {
         updatePayload.remix_note = normalizedRemixNote;
       }
-      if (input.remixDiff !== undefined) {
-        updatePayload.remix_diff = input.remixDiff as unknown as Json;
+      if (normalizedRemixDiff !== undefined) {
+        updatePayload.remix_diff = normalizedRemixDiff;
       }
 
       const { data: updated, error } = await supabase
@@ -491,16 +522,16 @@ export async function savePrompt(userId: string | null, input: PromptSaveInput):
         description: normalizedDescription ?? "",
         category: normalizedCategory,
         tags: tags ?? [],
-        config: persistedConfig as unknown as Json,
-        built_prompt: input.builtPrompt ?? "",
-        enhanced_prompt: input.enhancedPrompt ?? "",
+        config: safePersistedConfig,
+        built_prompt: normalizedBuiltPrompt ?? "",
+        enhanced_prompt: normalizedEnhancedPrompt ?? "",
         fingerprint,
         is_shared: input.isShared ?? false,
         target_model: normalizedTargetModel ?? "",
         use_case: normalizedUseCase ?? "",
         remixed_from: input.remixedFrom ?? null,
         remix_note: normalizedRemixNote ?? "",
-        remix_diff: (input.remixDiff as unknown as Json) ?? null,
+        remix_diff: normalizedRemixDiff ?? null,
       })
       .select(SAVED_PROMPT_FULL_SELECT_COLUMNS)
       .single();
@@ -667,9 +698,11 @@ export async function saveVersion(
   if (!userId) return null;
 
   try {
+    const safeName = sanitizePostgresText(name).trim().slice(0, 200) || "Version";
+    const safePrompt = sanitizePostgresText(prompt);
     const { data, error } = await supabase
       .from("prompt_versions")
-      .insert({ user_id: userId, name, prompt })
+      .insert({ user_id: userId, name: safeName, prompt: safePrompt })
       .select("id, name, prompt, created_at")
       .single();
 

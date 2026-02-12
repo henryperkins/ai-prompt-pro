@@ -12,6 +12,8 @@
     "check:prod": "npm run lint && npm test && npm run build",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:mobile": "playwright test",
+    "test:mobile:headed": "playwright test --headed",
     "test:rls": "dotenv -- vitest run src/test/rls-community-*.test.ts",
     "test:watch": "vitest"
   },

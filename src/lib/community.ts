@@ -12,6 +12,8 @@ import {
   escapePostgrestLikePattern,
   isPostgrestError,
   normalizePromptTags,
+  sanitizePostgresJson,
+  sanitizePostgresText,
   type SavedPromptRow,
 } from "@/lib/saved-prompt-shared";
 import {
@@ -213,11 +215,11 @@ interface CommunityProfileRow {
 }
 
 function clampText(value: string | undefined, max: number): string {
-  return (value || "").trim().slice(0, max);
+  return sanitizePostgresText(value || "").trim().slice(0, max);
 }
 
 function clampTitle(value: string): string {
-  const normalized = value.trim().slice(0, 200);
+  const normalized = sanitizePostgresText(value).trim().slice(0, 200);
   return normalized || "Untitled Prompt";
 }
 
@@ -317,7 +319,13 @@ function mapCommunityProfile(row: CommunityProfileRow): CommunityProfile {
 
 function toError(error: unknown, fallback: string): Error {
   if (error instanceof Error) return error;
-  if (isPostgrestError(error)) return new Error(error.message || fallback);
+  if (isPostgrestError(error)) {
+    const detail = [error.message, error.details, error.hint].filter(Boolean).join(" ");
+    if (/unsupported unicode escape sequence|\\u0000 cannot be converted to text/i.test(detail)) {
+      return new Error("Prompt text contains unsupported characters. Please remove hidden control characters.");
+    }
+    return new Error(error.message || fallback);
+  }
   return new Error(fallback);
 }
 
@@ -401,17 +409,20 @@ export async function loadMyPromptById(id: string): Promise<SavedPromptRecord | 
 export async function savePrompt(input: SavePromptInput): Promise<SavePromptResult> {
   const userId = await requireUserId();
   const title = clampTitle(input.title);
-  const normalizedConfig = normalizeTemplateConfig(input.config);
+  const safeConfig = sanitizePostgresJson(input.config as unknown as Json) as unknown as PromptConfig;
+  const normalizedConfig = normalizeTemplateConfig(safeConfig);
   const normalizedDescription = clampText(input.description, 500);
   const normalizedCategory = normalizePromptCategory(input.category) ?? "general";
   const normalizedTags = normalizePromptTags(input.tags);
   const normalizedTargetModel = clampText(input.targetModel, 80);
   const normalizedUseCase = clampText(input.useCase, 1000);
-  const normalizedBuiltPrompt = input.builtPrompt || "";
-  const normalizedEnhancedPrompt = input.enhancedPrompt || "";
+  const normalizedBuiltPrompt = sanitizePostgresText(input.builtPrompt || "");
+  const normalizedEnhancedPrompt = sanitizePostgresText(input.enhancedPrompt || "");
   const normalizedRemixNote = clampText(input.remixNote, 500);
+  const normalizedRemixDiff = sanitizePostgresJson((input.remixDiff ?? null) as Json);
   const fingerprint = computeTemplateFingerprint(normalizedConfig);
   const warnings = collectTemplateWarnings(normalizedConfig);
+  const persistedConfig = sanitizePostgresJson(normalizedConfig as unknown as Json);
 
   try {
     let existing: SavedPromptRow | null = null;
@@ -472,7 +483,7 @@ export async function savePrompt(input: SavePromptInput): Promise<SavePromptResu
         description: normalizedDescription,
         category: normalizedCategory,
         tags: normalizedTags,
-        config: normalizedConfig as unknown as Json,
+        config: persistedConfig,
         built_prompt: normalizedBuiltPrompt,
         enhanced_prompt: normalizedEnhancedPrompt,
         fingerprint,
@@ -482,7 +493,7 @@ export async function savePrompt(input: SavePromptInput): Promise<SavePromptResu
         use_case: normalizedUseCase,
         remixed_from: input.remixedFrom ?? existing.remixed_from,
         remix_note: normalizedRemixNote,
-        remix_diff: input.remixDiff ?? null,
+        remix_diff: normalizedRemixDiff,
       };
 
       const { data: updated, error } = await supabase
@@ -514,7 +525,7 @@ export async function savePrompt(input: SavePromptInput): Promise<SavePromptResu
         description: normalizedDescription,
         category: normalizedCategory,
         tags: normalizedTags,
-        config: normalizedConfig as unknown as Json,
+        config: persistedConfig,
         built_prompt: normalizedBuiltPrompt,
         enhanced_prompt: normalizedEnhancedPrompt,
         fingerprint,
@@ -523,7 +534,7 @@ export async function savePrompt(input: SavePromptInput): Promise<SavePromptResu
         use_case: normalizedUseCase,
         remixed_from: input.remixedFrom ?? null,
         remix_note: normalizedRemixNote,
-        remix_diff: input.remixDiff ?? null,
+        remix_diff: normalizedRemixDiff,
       })
       .select(SAVED_PROMPT_SELECT_COLUMNS)
       .single();
@@ -799,7 +810,7 @@ export async function toggleVote(
 
 export async function addComment(postId: string, body: string): Promise<CommunityComment> {
   const userId = await requireUserId();
-  const content = body.trim();
+  const content = sanitizePostgresText(body).trim();
   if (!content) throw new Error("Comment is required.");
 
   try {
@@ -871,7 +882,9 @@ export async function remixToLibrary(
     if (postError) throw postError;
     const post = mapCommunityPost(postRow as CommunityPostRow);
     const title = clampTitle(options?.title || `Remix of ${post.title}`);
-    const config = normalizeTemplateConfig(post.publicConfig);
+    const config = normalizeTemplateConfig(
+      sanitizePostgresJson(post.publicConfig as unknown as Json) as unknown as PromptConfig,
+    );
 
     const { data: created, error: insertError } = await supabase
       .from("saved_prompts")
@@ -881,9 +894,9 @@ export async function remixToLibrary(
         description: clampText(post.description, 500),
         category: post.category,
         tags: normalizePromptTags(post.tags),
-        config: config as unknown as Json,
-        built_prompt: post.starterPrompt,
-        enhanced_prompt: post.enhancedPrompt,
+        config: sanitizePostgresJson(config as unknown as Json),
+        built_prompt: sanitizePostgresText(post.starterPrompt),
+        enhanced_prompt: sanitizePostgresText(post.enhancedPrompt),
         fingerprint: computeTemplateFingerprint(config),
         is_shared: false,
         target_model: clampText(post.targetModel, 80),

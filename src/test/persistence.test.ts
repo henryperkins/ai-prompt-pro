@@ -174,6 +174,95 @@ describe("persistence", () => {
     expect(result.warnings.length).toBeGreaterThan(0);
   });
 
+  it("sanitizes unsupported Unicode sequences before prompt save", async () => {
+    const { savePrompt } = await import("@/lib/persistence");
+    let insertedPayload: Record<string, unknown> | null = null;
+    const malformed = "alpha\u0000beta\ud83dgamma\udc00";
+    const sanitized = "alphabeta\ufffdgamma\ufffd";
+
+    fromMock.mockReturnValueOnce({
+      select: () => ({
+        eq: () => ({
+          ilike: () => ({
+            order: () => ({
+              limit: async () => ({ data: [], error: null }),
+            }),
+          }),
+        }),
+      }),
+    });
+
+    fromMock.mockReturnValueOnce({
+      insert: (payload: Record<string, unknown>) => {
+        insertedPayload = payload;
+        return {
+          select: () => ({
+            single: async () => ({
+              data: {
+                id: "tpl_2",
+                user_id: payload.user_id,
+                title: payload.title,
+                description: payload.description,
+                category: payload.category,
+                tags: payload.tags,
+                built_prompt: payload.built_prompt,
+                enhanced_prompt: payload.enhanced_prompt,
+                config: payload.config,
+                fingerprint: payload.fingerprint,
+                revision: 1,
+                is_shared: payload.is_shared,
+                target_model: payload.target_model,
+                use_case: payload.use_case,
+                remixed_from: payload.remixed_from,
+                remix_note: payload.remix_note,
+                remix_diff: payload.remix_diff,
+                created_at: "2026-02-09T00:00:00.000Z",
+                updated_at: "2026-02-09T00:00:00.000Z",
+              },
+              error: null,
+            }),
+          }),
+        };
+      },
+    });
+
+    const result = await savePrompt("user_1", {
+      name: `Prompt ${malformed}`,
+      description: malformed,
+      tags: [`Tag ${malformed}`],
+      config: buildConfig({
+        task: malformed,
+      }),
+      builtPrompt: malformed,
+      enhancedPrompt: malformed,
+      remixDiff: {
+        changes: [{ field: malformed, from: malformed, to: malformed }],
+        added_tags: [malformed],
+        removed_tags: [malformed],
+        category_changed: false,
+      },
+    });
+
+    const insertedConfig = insertedPayload?.config as PromptConfig;
+    const insertedRemixDiff = insertedPayload?.remix_diff as {
+      changes: Array<{ field: string; from: string; to: string }>;
+      added_tags: string[];
+      removed_tags: string[];
+    };
+
+    expect(insertedPayload?.description).toBe(sanitized);
+    expect(insertedPayload?.built_prompt).toBe(sanitized);
+    expect(insertedPayload?.enhanced_prompt).toBe(sanitized);
+    expect(insertedPayload?.tags).toEqual([`tag ${sanitized}`]);
+    expect(insertedConfig.task).toBe(sanitized);
+    expect(insertedRemixDiff.changes[0]?.field).toBe(sanitized);
+    expect(insertedRemixDiff.changes[0]?.from).toBe(sanitized);
+    expect(insertedRemixDiff.changes[0]?.to).toBe(sanitized);
+    expect(insertedRemixDiff.added_tags[0]).toBe(sanitized);
+    expect(insertedRemixDiff.removed_tags[0]).toBe(sanitized);
+    expect(result.outcome).toBe("created");
+  });
+
   it("preserves draft source raw content during local draft save/load", async () => {
     const { saveDraft, loadDraft } = await import("@/lib/persistence");
     const config = buildConfig({
