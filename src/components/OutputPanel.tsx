@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Copy, Check, Sparkles, Save, Loader2, MoreHorizontal, Globe } from "lucide-react";
@@ -790,9 +792,11 @@ export function OutputPanel({
           <p className="type-label-caps text-xs font-semibold text-amber-700">
             Reasoning summary
           </p>
-          <pre className="mt-2 whitespace-pre-wrap text-xs font-mono text-foreground/90 leading-relaxed">
-            {trimmedReasoningSummary}
-          </pre>
+          <div className="prose prose-sm mt-2 max-w-none whitespace-normal text-foreground/90 dark:prose-invert prose-headings:my-1 prose-p:my-1 prose-pre:my-1 prose-code:break-words prose-ul:my-1 prose-ol:my-1">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {trimmedReasoningSummary}
+            </ReactMarkdown>
+          </div>
         </Card>
       )}
 

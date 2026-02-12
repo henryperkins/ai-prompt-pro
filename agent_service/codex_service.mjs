@@ -384,6 +384,36 @@ function typeFromItem(item) {
   return typeof item.type === "string" ? item.type : undefined;
 }
 
+function isStreamedTextItemType(itemType) {
+  return itemType === "agent_message" || itemType === "reasoning";
+}
+
+function toItemDeltaEventType(itemType) {
+  if (itemType === "reasoning") {
+    return {
+      event: "item/reasoning/delta",
+      type: "response.reasoning_summary_text.delta",
+    };
+  }
+  return {
+    event: "item/agent_message/delta",
+    type: "response.output_text.delta",
+  };
+}
+
+function toItemDoneEventType(itemType) {
+  if (itemType === "reasoning") {
+    return {
+      event: "item/completed",
+      type: "response.reasoning_summary_text.done",
+    };
+  }
+  return {
+    event: "item/completed",
+    type: "response.output_text.done",
+  };
+}
+
 function toErrorMessage(error) {
   if (error instanceof Error && typeof error.message === "string") return error.message;
   return String(error);
@@ -576,8 +606,8 @@ async function streamWithCodex(req, res, body) {
         const itemId = idFromItem(event.item);
         const itemType = typeFromItem(event.item);
 
-        if (itemType === "agent_message" && itemId) {
-          const previousText = stateByItemId.get(itemId) || "";
+        if (isStreamedTextItemType(itemType)) {
+          const previousText = itemId ? stateByItemId.get(itemId) || "" : "";
           const currentText = textFromItem(event.item);
           let delta = "";
 
@@ -587,18 +617,21 @@ async function streamWithCodex(req, res, body) {
             delta = currentText;
           }
 
-          stateByItemId.set(itemId, currentText);
+          if (itemId) {
+            stateByItemId.set(itemId, currentText);
+          }
 
           if (delta) {
+            const eventShape = toItemDeltaEventType(itemType);
             writeSse(res, {
-              event: "item/agent_message/delta",
-              type: "response.output_text.delta",
+              event: eventShape.event,
+              type: eventShape.type,
               turn_id: turnId,
               thread_id: activeThreadId,
               item_id: itemId,
-              item_type: "agent_message",
+              item_type: itemType,
               delta,
-              choices: [{ delta: { content: delta } }],
+              ...(itemType === "agent_message" ? { choices: [{ delta: { content: delta } }] } : {}),
               item: event.item,
             });
           }
@@ -621,18 +654,19 @@ async function streamWithCodex(req, res, body) {
         const itemId = idFromItem(event.item);
         const itemType = typeFromItem(event.item);
 
-        if (itemType === "agent_message") {
+        if (isStreamedTextItemType(itemType)) {
           const text = textFromItem(event.item);
           if (itemId) {
             stateByItemId.set(itemId, text);
           }
+          const eventShape = toItemDoneEventType(itemType);
           writeSse(res, {
-            event: "item/completed",
-            type: "response.output_text.done",
+            event: eventShape.event,
+            type: eventShape.type,
             turn_id: turnId,
             thread_id: activeThreadId,
             item_id: itemId,
-            item_type: "agent_message",
+            item_type: itemType,
             payload: { text },
             text,
             output_text: text,

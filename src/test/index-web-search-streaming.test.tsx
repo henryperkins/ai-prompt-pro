@@ -264,6 +264,92 @@ describe("Index web search streaming", () => {
     });
   });
 
+  it("streams reasoning summary from reasoning delta event envelopes", async () => {
+    mocks.streamEnhance.mockImplementation(
+      ({
+        onEvent,
+        onDone,
+      }: {
+        onEvent?: (event: EnhanceStreamEvent) => void;
+        onDone?: () => void;
+      }) => {
+        onEvent?.({
+          eventType: "item/reasoning/delta",
+          responseType: "response.reasoning_summary_text.delta",
+          threadId: "thread_1",
+          turnId: "turn_1",
+          itemId: "item_reasoning_stream_1",
+          itemType: "reasoning",
+          payload: {
+            delta: "Draft ",
+            item: { id: "item_reasoning_stream_1", type: "reasoning" },
+          },
+        });
+        onEvent?.({
+          eventType: "item/reasoning/delta",
+          responseType: "response.reasoning_summary_text.delta",
+          threadId: "thread_1",
+          turnId: "turn_1",
+          itemId: "item_reasoning_stream_1",
+          itemType: "reasoning",
+          payload: {
+            delta: "summary.",
+            item: { id: "item_reasoning_stream_1", type: "reasoning" },
+          },
+        });
+        onDone?.();
+      },
+    );
+
+    await renderIndex();
+
+    fireEvent.click(screen.getByRole("button", { name: "enhance" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("reasoning-summary").textContent).toBe("Draft summary.");
+    });
+  });
+
+  it("replaces reasoning summary when updated snapshots are rewritten", async () => {
+    mocks.streamEnhance.mockImplementation(
+      ({
+        onEvent,
+        onDone,
+      }: {
+        onEvent?: (event: EnhanceStreamEvent) => void;
+        onDone?: () => void;
+      }) => {
+        onEvent?.({
+          eventType: "item.updated",
+          responseType: "response.output_item.updated",
+          threadId: "thread_1",
+          turnId: "turn_1",
+          itemId: "item_reasoning_replace_1",
+          itemType: "reasoning",
+          payload: { item: { id: "item_reasoning_replace_1", type: "reasoning", text: "Draft summary." } },
+        });
+        onEvent?.({
+          eventType: "item.updated",
+          responseType: "response.output_item.updated",
+          threadId: "thread_1",
+          turnId: "turn_1",
+          itemId: "item_reasoning_replace_1",
+          itemType: "reasoning",
+          payload: { item: { id: "item_reasoning_replace_1", type: "reasoning", text: "Rewritten summary." } },
+        });
+        onDone?.();
+      },
+    );
+
+    await renderIndex();
+
+    fireEvent.click(screen.getByRole("button", { name: "enhance" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("reasoning-summary").textContent).toBe("Rewritten summary.");
+    });
+  });
+
   it("ignores summary events that are not reasoning events", async () => {
     mocks.streamEnhance.mockImplementation(
       ({

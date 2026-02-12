@@ -156,12 +156,14 @@ describe("OutputPanel phase 2 save flow", () => {
     expect(screen.getByText("[Unsafe](javascript:alert(1))")).toBeInTheDocument();
   });
 
-  it("renders reasoning summary once when provided", () => {
+  it("renders reasoning summary markdown once when provided", () => {
     renderPanel({
-      reasoningSummary: "Summarized reasoning content.",
+      reasoningSummary: "## Plan\n\n- Summarized reasoning content.",
     });
 
+    expect(screen.getByRole("heading", { name: "Plan" })).toBeInTheDocument();
     expect(screen.getByText("Summarized reasoning content.")).toBeInTheDocument();
+    expect(screen.queryByText("## Plan")).not.toBeInTheDocument();
     expect(screen.getAllByText("Reasoning summary")).toHaveLength(1);
   });
 });

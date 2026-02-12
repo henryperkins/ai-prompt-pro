@@ -181,8 +181,22 @@ function extractTextFromContent(value: unknown): string | null {
     return parts.length > 0 ? parts.join("") : null;
   }
   if (typeof value === "object") {
-    const obj = value as { content?: unknown; text?: unknown };
-    return extractTextValue(obj) || extractTextFromContent(obj.content);
+    const obj = value as {
+      content?: unknown;
+      text?: unknown;
+      summary?: unknown;
+      reasoning_summary?: unknown;
+      reasoningSummary?: unknown;
+      parts?: unknown;
+    };
+    return (
+      extractTextValue(obj) ||
+      extractTextFromContent(obj.content) ||
+      extractTextFromContent(obj.summary) ||
+      extractTextFromContent(obj.reasoning_summary) ||
+      extractTextFromContent(obj.reasoningSummary) ||
+      extractTextFromContent(obj.parts)
+    );
   }
   return null;
 }
@@ -205,7 +219,7 @@ function isReasoningSummaryEvent(meta: EnhanceStreamEvent, payload: unknown): bo
 function extractReasoningSummaryChunk(
   meta: EnhanceStreamEvent,
   payload: unknown,
-): { text: string; isDelta: boolean } | null {
+): { text: string; isDelta: boolean; itemId: string | null } | null {
   if (!isReasoningSummaryEvent(meta, payload)) return null;
   if (!payload || typeof payload !== "object") return null;
 
@@ -232,32 +246,48 @@ function extractReasoningSummaryChunk(
 
   const deltaText =
     extractTextValue(data.delta) ||
+    extractTextFromContent(data.delta) ||
     extractTextValue(item.delta) ||
+    extractTextFromContent(item.delta) ||
     extractTextValue((data.payload as { delta?: unknown } | undefined)?.delta);
-  if (deltaText) return { text: deltaText, isDelta: true };
+  if (deltaText) return { text: deltaText, isDelta: true, itemId: meta.itemId };
 
   const directText =
     extractTextValue(data.reasoning_summary) ||
+    extractTextFromContent(data.reasoning_summary) ||
     extractTextValue(data.reasoningSummary) ||
+    extractTextFromContent(data.reasoningSummary) ||
     extractTextValue(data.summary) ||
+    extractTextFromContent(data.summary) ||
     extractTextValue(item.reasoning_summary) ||
+    extractTextFromContent(item.reasoning_summary) ||
     extractTextValue(item.reasoningSummary) ||
+    extractTextFromContent(item.reasoningSummary) ||
     extractTextValue(item.summary) ||
+    extractTextFromContent(item.summary) ||
     extractTextValue(data.text) ||
+    extractTextFromContent(data.text) ||
     extractTextValue(data.output_text) ||
+    extractTextFromContent(data.output_text) ||
     extractTextValue(data.content) ||
+    extractTextFromContent(data.content) ||
     extractTextValue(item.text) ||
+    extractTextFromContent(item.text) ||
     extractTextValue(item.output_text) ||
+    extractTextFromContent(item.output_text) ||
     extractTextValue(item.content) ||
+    extractTextFromContent(item.content) ||
     extractTextValue((data.payload as { text?: unknown; output_text?: unknown } | undefined)?.text) ||
+    extractTextFromContent((data.payload as { text?: unknown; output_text?: unknown } | undefined)?.text) ||
     extractTextValue((data.payload as { output_text?: unknown } | undefined)?.output_text) ||
+    extractTextFromContent((data.payload as { output_text?: unknown } | undefined)?.output_text) ||
     extractTextFromContent(item.content);
 
   if (!directText) return null;
 
   const eventToken = `${meta.eventType ?? ""} ${meta.responseType ?? ""}`.toLowerCase();
   const isDelta = eventToken.includes("delta");
-  return { text: directText, isDelta };
+  return { text: directText, isDelta, itemId: meta.itemId };
 }
 
 function previewEnhancePayload(payload: unknown): string {
@@ -771,7 +801,9 @@ const Index = () => {
 
       let accumulated = "";
       let hasReceivedDelta = false;
-      let reasoningAccumulated = "";
+      const reasoningByItemId = new Map<string, string>();
+      const reasoningItemOrder: string[] = [];
+      const REASONING_FALLBACK_ITEM_ID = "__reasoning_summary__";
       const debugEnhanceEvents = isEnhanceDebugEnabled();
       const debugEventStore =
         debugEnhanceEvents && typeof window !== "undefined"
@@ -813,14 +845,21 @@ const Index = () => {
           const chunk = extractReasoningSummaryChunk(event, event.payload);
           if (!chunk?.text) return;
 
-          if (chunk.isDelta) {
-            reasoningAccumulated += chunk.text;
-            setReasoningSummary(reasoningAccumulated);
-            return;
+          const reasoningItemId = chunk.itemId || REASONING_FALLBACK_ITEM_ID;
+          if (!reasoningByItemId.has(reasoningItemId)) {
+            reasoningItemOrder.push(reasoningItemId);
           }
 
-          reasoningAccumulated = chunk.text;
-          setReasoningSummary(reasoningAccumulated);
+          const previous = reasoningByItemId.get(reasoningItemId) || "";
+          const next = chunk.isDelta ? `${previous}${chunk.text}` : chunk.text;
+
+          reasoningByItemId.set(reasoningItemId, next);
+          const merged = reasoningItemOrder
+            .map((itemId) => reasoningByItemId.get(itemId) || "")
+            .filter((text) => text.length > 0)
+            .join("\n\n")
+            .trim();
+          setReasoningSummary(merged);
         },
         onDone: () => {
           const startedAt = enhanceStartedAt.current;

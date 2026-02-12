@@ -17,6 +17,16 @@ describe("ai-client SSE helpers", () => {
         item: { delta: { text: "world" } },
       }),
     ).toBe("world");
+
+    expect(
+      extractSseText({
+        event: "item/reasoning/delta",
+        type: "response.reasoning_summary_text.delta",
+        item_id: "item_reasoning_1",
+        item_type: "reasoning",
+        delta: "step one",
+      }),
+    ).toBe("step one");
   });
 
   it("extracts completed text from payload objects", () => {
@@ -100,6 +110,24 @@ describe("ai-client SSE helpers", () => {
       turnId: "turn_2",
       itemId: "item_meta_2",
       itemType: "agent_message",
+    });
+
+    expect(
+      readSseEventMeta({
+        event: "item/reasoning/delta",
+        type: "response.reasoning_summary_text.delta",
+        thread_id: "thread_3",
+        turn_id: "turn_3",
+        item_id: "item_meta_3",
+        item_type: "reasoning",
+      }),
+    ).toEqual({
+      eventType: "item/reasoning/delta",
+      responseType: "response.reasoning_summary_text.delta",
+      threadId: "thread_3",
+      turnId: "turn_3",
+      itemId: "item_meta_3",
+      itemType: "reasoning",
     });
   });
 });

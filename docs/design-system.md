@@ -31,7 +31,7 @@ Primary source files:
 
 ---
 
-## 3) Color System (HSL Tokens)
+## 3)  Color System (HSL Tokens)
 
 All semantic colors are tokenized in HSL.
 
