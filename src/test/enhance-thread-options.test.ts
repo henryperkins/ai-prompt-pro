@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sanitizeEnhanceThreadOptions } from "../../supabase/functions/enhance-prompt/thread-options";
+import { sanitizeEnhanceThreadOptions } from "../../agent_service/thread-options.mjs";
 
 describe("sanitizeEnhanceThreadOptions", () => {
   it("returns undefined for missing thread options", () => {

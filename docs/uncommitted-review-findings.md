@@ -51,7 +51,7 @@ Reviewed staged changes in this workspace on 2026-02-11.
 - Why this matters: any future divergence causes inconsistent suggestions depending on fallback path.
 - Evidence:
   - `src/lib/builder-inference.ts:212`
-  - `supabase/functions/infer-builder-fields/index.ts:37`
+  - `archive/supabase/functions/infer-builder-fields/index.ts:37`
 
 ## Test Gaps
 

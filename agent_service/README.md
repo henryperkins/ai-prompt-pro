@@ -2,7 +2,7 @@
 
 Prompt enhancement backend powered by `@openai/codex-sdk`.
 
-The frontend calls `supabase/functions/enhance-prompt` which proxies to this service's `POST /enhance` endpoint.
+The frontend calls this service directly for AI endpoints.
 
 ## Quick start
 
@@ -19,6 +19,8 @@ npm run agent:codex
 | `GET` | `/` | Service info |
 | `GET` | `/health` | Health check (returns model and sandbox mode) |
 | `POST` | `/enhance` | Stream-enhanced prompt via SSE |
+| `POST` | `/extract-url` | Fetch URL content and return extracted bullet points |
+| `POST` | `/infer-builder-fields` | Heuristic builder-field suggestions |
 
 ### `POST /enhance` body
 
@@ -32,6 +34,33 @@ npm run agent:codex
 }
 ```
 
+### `POST /extract-url` body
+
+```jsonc
+{
+  "url": "https://example.com/article" // required
+}
+```
+
+### `POST /infer-builder-fields` body
+
+```jsonc
+{
+  "prompt": "Draft prompt text",          // required
+  "current_fields": {                     // optional
+    "role": "",
+    "tone": "",
+    "lengthPreference": "",
+    "format": [],
+    "constraints": []
+  },
+  "lock_metadata": {                      // optional
+    "role": "user",
+    "tone": "empty"
+  }
+}
+```
+
 ## Environment variables
 
 ### Required
@@ -39,6 +68,7 @@ npm run agent:codex
 | Variable | Description |
 |----------|-------------|
 | `OPENAI_API_KEY` or `CODEX_API_KEY` | OpenAI API key |
+| `NEON_AUTH_URL` or `NEON_JWKS_URL` | Neon Auth URL (or direct JWKS URL) for JWT validation |
 
 ### Service configuration
 
@@ -46,8 +76,15 @@ npm run agent:codex
 |----------|---------|-------------|
 | `HOST` | `0.0.0.0` | Bind address |
 | `PORT` | `8001` | Listen port |
-| `AGENT_SERVICE_TOKEN` | _(none)_ | Shared secret for `x-agent-token` header auth |
+| `AGENT_SERVICE_TOKEN` | _(none)_ | Optional service-to-service token (`x-agent-token`) |
+| `ALLOWED_ORIGINS` | `*` | Comma-separated list of allowed browser origins |
+| `FUNCTION_PUBLIC_API_KEY` | _(none)_ | Optional publishable key accepted for unauthenticated calls |
 | `MAX_PROMPT_CHARS` | `16000` | Maximum prompt character length |
+| `MAX_INFERENCE_PROMPT_CHARS` | `12000` | Maximum inference prompt length |
+| `MAX_URL_CHARS` | `2048` | Maximum extract-url input URL length |
+| `EXTRACT_FETCH_TIMEOUT_MS` | `15000` | Timeout for page/OpenAI extraction calls |
+| `EXTRACT_MAX_RESPONSE_BYTES` | `1048576` | Max downloaded page size (bytes) |
+| `EXTRACT_MODEL` | `gpt-4.1-mini` | OpenAI model for URL extraction summarization |
 
 ### Codex client options
 
@@ -83,6 +120,17 @@ npm run agent:codex
 | `CODEX_429_BACKOFF_BASE_SECONDS` | `1.0` | Base delay for exponential backoff |
 | `CODEX_429_BACKOFF_MAX_SECONDS` | `20.0` | Maximum backoff delay |
 
+### Endpoint rate limits
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ENHANCE_PER_MINUTE` | `12` | `/enhance` requests per minute |
+| `ENHANCE_PER_DAY` | `300` | `/enhance` requests per day |
+| `EXTRACT_PER_MINUTE` | `6` | `/extract-url` requests per minute |
+| `EXTRACT_PER_DAY` | `120` | `/extract-url` requests per day |
+| `INFER_PER_MINUTE` | `15` | `/infer-builder-fields` requests per minute |
+| `INFER_PER_DAY` | `400` | `/infer-builder-fields` requests per day |
+
 ## Features
 
 - **Prompt structure analysis**: Pre-flight inspection checks for Role/Task/Context/Format/Constraints sections and includes findings in the prompt input so the enhancer can address gaps.
@@ -90,3 +138,5 @@ npm run agent:codex
 - **Thread resumption**: Pass `thread_id` to continue a previous conversation.
 - **SSE streaming**: Compatible with the frontend's `streamEnhance()` parser (supports both `/` and `.` event separators).
 - **Client disconnect detection**: Aborts the Codex process when the client disconnects.
+- **Neon auth validation**: Verifies JWT bearer tokens via Neon JWKS.
+- **CORS + per-endpoint rate limiting**: Browser-safe headers with request throttling for enhance/extract/infer routes.

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { requireAuthenticatedUser } from "../../supabase/functions/_shared/security";
+import { requireAuthenticatedUser } from "../../archive/supabase/functions/_shared/security";
 
 type DenoEnvMap = Record<string, string | undefined>;
 
@@ -35,10 +35,10 @@ describe("requireAuthenticatedUser", () => {
     vi.restoreAllMocks();
   });
 
-  it("accepts authenticated bearer tokens via Supabase Auth", async () => {
+  it("accepts authenticated bearer tokens via Neon Auth", async () => {
     stubDenoEnv({
-      SUPABASE_URL: "https://project.supabase.co",
-      SUPABASE_ANON_KEY: "anon-key",
+      NEON_AUTH_URL: "https://project.neon.tech/neondb/auth",
+      NEON_PUBLISHABLE_KEY: "anon-key",
     });
 
     const fetchMock = vi.fn().mockResolvedValue({
@@ -53,7 +53,7 @@ describe("requireAuthenticatedUser", () => {
 
     const result = await requireAuthenticatedUser(req);
     expect(result).toEqual({ ok: true, userId: "user-1", isAnonymous: false });
-    expect(fetchMock).toHaveBeenCalledWith("https://project.supabase.co/auth/v1/user", {
+    expect(fetchMock).toHaveBeenCalledWith("https://project.neon.tech/neondb/auth/v1/user", {
       headers: {
         Authorization: "Bearer token123",
         apikey: "anon-key",
@@ -63,8 +63,8 @@ describe("requireAuthenticatedUser", () => {
 
   it("rejects invalid bearer tokens", async () => {
     stubDenoEnv({
-      SUPABASE_URL: "https://project.supabase.co",
-      SUPABASE_ANON_KEY: "anon-key",
+      NEON_AUTH_URL: "https://project.neon.tech/neondb/auth",
+      NEON_PUBLISHABLE_KEY: "anon-key",
     });
 
     const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 401 });
@@ -78,16 +78,14 @@ describe("requireAuthenticatedUser", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.status).toBe(401);
-      expect(result.error).toBe("Invalid or expired Supabase session.");
+      expect(result.error).toBe("Invalid or expired auth session.");
     }
   });
 
-  it("returns 503 when bearer auth is enabled but Supabase env vars are missing", async () => {
+  it("returns 503 when bearer auth is enabled but Neon env vars are missing", async () => {
     stubDenoEnv({
-      SUPABASE_URL: undefined,
-      SUPABASE_ANON_KEY: undefined,
-      SUPABASE_PUBLISHABLE_KEY: undefined,
-      SUPABASE_KEY: undefined,
+      NEON_AUTH_URL: undefined,
+      NEON_PUBLISHABLE_KEY: undefined,
       ALLOW_UNVERIFIED_JWT_FALLBACK: undefined,
     });
 
@@ -102,17 +100,15 @@ describe("requireAuthenticatedUser", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.status).toBe(503);
-      expect(result.error).toBe("Authentication service is unavailable because Supabase auth is not configured.");
+      expect(result.error).toBe("Authentication service is unavailable because Neon auth is not configured.");
     }
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("supports optional decoded-JWT fallback when Supabase auth config is missing", async () => {
+  it("supports optional decoded-JWT fallback when Neon auth config is missing", async () => {
     stubDenoEnv({
-      SUPABASE_URL: undefined,
-      SUPABASE_ANON_KEY: undefined,
-      SUPABASE_PUBLISHABLE_KEY: undefined,
-      SUPABASE_KEY: undefined,
+      NEON_AUTH_URL: undefined,
+      NEON_PUBLISHABLE_KEY: undefined,
       ALLOW_UNVERIFIED_JWT_FALLBACK: "true",
     });
 
@@ -135,10 +131,8 @@ describe("requireAuthenticatedUser", () => {
 
   it("blocks decoded-JWT fallback in production unless explicitly overridden", async () => {
     stubDenoEnv({
-      SUPABASE_URL: undefined,
-      SUPABASE_ANON_KEY: undefined,
-      SUPABASE_PUBLISHABLE_KEY: undefined,
-      SUPABASE_KEY: undefined,
+      NEON_AUTH_URL: undefined,
+      NEON_PUBLISHABLE_KEY: undefined,
       ALLOW_UNVERIFIED_JWT_FALLBACK: "true",
       ALLOW_UNVERIFIED_JWT_FALLBACK_IN_PRODUCTION: undefined,
       NODE_ENV: "production",
@@ -157,16 +151,14 @@ describe("requireAuthenticatedUser", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.status).toBe(503);
-      expect(result.error).toBe("Authentication service is unavailable because Supabase auth is not configured.");
+      expect(result.error).toBe("Authentication service is unavailable because Neon auth is not configured.");
     }
   });
 
   it("allows decoded-JWT fallback in production only with explicit override", async () => {
     stubDenoEnv({
-      SUPABASE_URL: undefined,
-      SUPABASE_ANON_KEY: undefined,
-      SUPABASE_PUBLISHABLE_KEY: undefined,
-      SUPABASE_KEY: undefined,
+      NEON_AUTH_URL: undefined,
+      NEON_PUBLISHABLE_KEY: undefined,
       ALLOW_UNVERIFIED_JWT_FALLBACK: "true",
       ALLOW_UNVERIFIED_JWT_FALLBACK_IN_PRODUCTION: "true",
       NODE_ENV: "production",
@@ -185,10 +177,10 @@ describe("requireAuthenticatedUser", () => {
     expect(result).toEqual({ ok: true, userId: "user-prod-override", isAnonymous: false });
   });
 
-  it("returns 503 when Supabase auth is unavailable and fallback is disabled", async () => {
+  it("returns 503 when Neon auth is unavailable and fallback is disabled", async () => {
     stubDenoEnv({
-      SUPABASE_URL: "https://project.supabase.co",
-      SUPABASE_ANON_KEY: "anon-key",
+      NEON_AUTH_URL: "https://project.neon.tech/neondb/auth",
+      NEON_PUBLISHABLE_KEY: "anon-key",
       ALLOW_UNVERIFIED_JWT_FALLBACK: undefined,
     });
 
@@ -207,10 +199,10 @@ describe("requireAuthenticatedUser", () => {
     }
   });
 
-  it("supports optional decoded-JWT fallback when Supabase auth is unavailable", async () => {
+  it("supports optional decoded-JWT fallback when Neon auth is unavailable", async () => {
     stubDenoEnv({
-      SUPABASE_URL: "https://project.supabase.co",
-      SUPABASE_ANON_KEY: "anon-key",
+      NEON_AUTH_URL: "https://project.neon.tech/neondb/auth",
+      NEON_PUBLISHABLE_KEY: "anon-key",
       ALLOW_UNVERIFIED_JWT_FALLBACK: "true",
     });
 
@@ -233,8 +225,8 @@ describe("requireAuthenticatedUser", () => {
 
   it("accepts anonymous access via apikey when no bearer token", async () => {
     stubDenoEnv({
-      SUPABASE_URL: "https://project.supabase.co",
-      SUPABASE_ANON_KEY: "\"anon-key\"",
+      NEON_AUTH_URL: "https://project.neon.tech/neondb/auth",
+      NEON_PUBLISHABLE_KEY: "\"anon-key\"",
     });
 
     const fetchMock = vi.fn();
@@ -251,10 +243,8 @@ describe("requireAuthenticatedUser", () => {
 
   it("accepts publishable-format keys if no anon key is configured", async () => {
     stubDenoEnv({
-      SUPABASE_URL: "https://project.supabase.co",
-      SUPABASE_ANON_KEY: undefined,
-      SUPABASE_PUBLISHABLE_KEY: undefined,
-      SUPABASE_KEY: undefined,
+      NEON_AUTH_URL: "https://project.neon.tech/neondb/auth",
+      NEON_PUBLISHABLE_KEY: undefined,
     });
 
     const fetchMock = vi.fn();

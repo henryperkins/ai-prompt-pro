@@ -443,7 +443,7 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
             {displayNameError && (
               <p className="text-sm text-destructive">{displayNameError}</p>
             )}
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
               <Button
                 type="button"
                 variant="outline"

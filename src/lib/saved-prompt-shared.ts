@@ -1,5 +1,11 @@
-import type { PostgrestError } from "@supabase/supabase-js";
-import type { Json } from "@/integrations/supabase/types";
+import type { Json } from "@/integrations/neon/types";
+
+export interface PostgrestError {
+  code: string;
+  details: string;
+  hint: string;
+  message: string;
+}
 
 export interface SavedPromptRow {
   id: string;

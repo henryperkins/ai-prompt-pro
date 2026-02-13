@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   loadProfilesByIds: vi.fn(),
 }));
 
-vi.mock("@/integrations/supabase/client", () => ({
+vi.mock("@/integrations/neon/client", () => ({
   supabase: {
     auth: {
       getUser: (...args: unknown[]) => mocks.getUser(...args),

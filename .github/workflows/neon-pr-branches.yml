@@ -1,0 +1,53 @@
+name: Neon PR Branches
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - closed
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+
+jobs:
+  setup:
+    name: Prepare Branch Name
+    runs-on: ubuntu-latest
+    outputs:
+      safe_branch: ${{ steps.compute.outputs.safe_branch }}
+    steps:
+      - name: Compute Safe Branch Suffix
+        id: compute
+        shell: bash
+        run: |
+          raw="${{ github.event.pull_request.head.ref }}"
+          safe="$(echo "$raw" | tr '/:@ ' '-' | tr -cd '[:alnum:]._-')"
+          echo "safe_branch=$safe" >> "$GITHUB_OUTPUT"
+
+  create_neon_branch:
+    name: Create Neon Branch
+    needs: setup
+    if: github.event_name == 'pull_request' && github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Neon Branch
+        uses: neondatabase/create-branch-action@v5
+        with:
+          project_id: ${{ vars.NEON_PROJECT_ID }}
+          branch_name: preview/pr-${{ github.event.number }}-${{ needs.setup.outputs.safe_branch }}
+          api_key: ${{ secrets.NEON_API_KEY }}
+
+  delete_neon_branch:
+    name: Delete Neon Branch
+    needs: setup
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete Neon Branch
+        uses: neondatabase/delete-branch-action@v3
+        with:
+          project_id: ${{ vars.NEON_PROJECT_ID }}
+          branch: preview/pr-${{ github.event.number }}-${{ needs.setup.outputs.safe_branch }}
+          api_key: ${{ secrets.NEON_API_KEY }}

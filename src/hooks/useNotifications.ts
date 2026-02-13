@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
 import {
   type Notification,
   getUnreadCount,
@@ -20,6 +19,7 @@ export interface UseNotificationsResult {
 }
 
 const DEFAULT_LIMIT = 30;
+const POLL_INTERVAL_MS = 30_000;
 
 export function useNotifications(limit = DEFAULT_LIMIT): UseNotificationsResult {
   const { user } = useAuth();
@@ -110,36 +110,44 @@ export function useNotifications(limit = DEFAULT_LIMIT): UseNotificationsResult 
   useEffect(() => {
     if (!user?.id) return;
 
-    const channel = supabase
-      .channel(`notifications:${user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          void refresh();
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          void refresh();
-        },
-      )
-      .subscribe();
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    const canUseVisibilityApi = typeof document !== "undefined";
+
+    const stopPolling = () => {
+      if (!intervalId) return;
+      clearInterval(intervalId);
+      intervalId = null;
+    };
+
+    const startPolling = () => {
+      if (intervalId) return;
+      intervalId = setInterval(() => {
+        if (canUseVisibilityApi && document.visibilityState === "hidden") return;
+        void refresh();
+      }, POLL_INTERVAL_MS);
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        stopPolling();
+        return;
+      }
+      startPolling();
+      void refresh();
+    };
+
+    if (!canUseVisibilityApi || document.visibilityState !== "hidden") {
+      startPolling();
+    }
+    if (canUseVisibilityApi) {
+      document.addEventListener("visibilitychange", onVisibilityChange);
+    }
 
     return () => {
-      void supabase.removeChannel(channel);
+      stopPolling();
+      if (canUseVisibilityApi) {
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+      }
     };
   }, [refresh, user?.id]);
 

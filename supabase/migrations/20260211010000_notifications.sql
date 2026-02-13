@@ -4,8 +4,8 @@
 
 create table public.notifications (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  actor_id uuid references auth.users(id) on delete set null,
+  user_id uuid not null references neon_auth."user"(id) on delete cascade,
+  actor_id uuid references neon_auth."user"(id) on delete set null,
   type text not null,
   post_id uuid references public.community_posts(id) on delete cascade,
   comment_id uuid references public.community_comments(id) on delete cascade,
@@ -145,5 +145,4 @@ create trigger community_posts_after_insert_notification
 after insert on public.community_posts
 for each row execute function public.create_notification_for_remix();
 
--- Enable Realtime so useNotifications receives postgres_changes events
-alter publication supabase_realtime add table public.notifications;
+-- Supabase Realtime publication is intentionally omitted for Neon compatibility.

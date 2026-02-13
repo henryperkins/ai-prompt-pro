@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/neon/client";
 import { type CommunityProfile, loadProfilesByIds } from "@/lib/community";
 import { isPostgrestError } from "@/lib/saved-prompt-shared";
 
@@ -69,7 +69,7 @@ async function requireUserId(): Promise<string> {
   const { data, error } = await supabase.auth.getUser();
   if (error) throw toError(error, "Authentication failed.");
   const user = data.user;
-  if (!user?.id || user.is_anonymous) {
+  if (!user?.id) {
     throw new Error("Sign in required.");
   }
   return user.id;

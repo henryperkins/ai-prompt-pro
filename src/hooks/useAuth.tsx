@@ -6,32 +6,38 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
-import type { User, Session, Provider } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/neon/client";
 import { validateDisplayName } from "@/lib/profile";
 
+type SessionResult = Awaited<ReturnType<typeof supabase.auth.getSession>>;
+export type AuthSession = SessionResult["data"]["session"];
+export type AuthUser = NonNullable<NonNullable<AuthSession>["user"]>;
+export type AuthOAuthProvider = Parameters<typeof supabase.auth.signInWithOAuth>[0]["provider"];
+
 interface AuthContextValue {
-  user: User | null;
-  session: Session | null;
+  user: AuthUser | null;
+  session: AuthSession;
   loading: boolean;
   signUp: (
     email: string,
     password: string,
-  ) => Promise<{ error: string | null; session: Session | null; user: User | null }>;
+  ) => Promise<{ error: string | null; session: AuthSession; user: AuthUser | null }>;
   signIn: (
     email: string,
     password: string,
-  ) => Promise<{ error: string | null; session: Session | null; user: User | null }>;
-  signInWithOAuth: (provider: Provider) => Promise<{ error: string | null; session: Session | null }>;
+  ) => Promise<{ error: string | null; session: AuthSession; user: AuthUser | null }>;
+  signInWithOAuth: (
+    provider: AuthOAuthProvider,
+  ) => Promise<{ error: string | null; session: AuthSession }>;
   signOut: () => Promise<void>;
-  updateDisplayName: (displayName: string) => Promise<{ error: string | null; user: User | null }>;
+  updateDisplayName: (displayName: string) => Promise<{ error: string | null; user: AuthUser | null }>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [session, setSession] = useState<AuthSession>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -41,14 +47,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession()
       .then(({ data: { session: s } }) => {
         if (!isMounted) return;
-        // Ignore anonymous sessions — treat them as unauthenticated
-        if (s?.user?.is_anonymous) {
-          setSession(null);
-          setUser(null);
-        } else {
-          setSession(s);
-          setUser(s?.user ?? null);
-        }
+        setSession(s);
+        setUser((s?.user ?? null) as AuthUser | null);
         setLoading(false);
       })
       .catch((error: unknown) => {
@@ -63,13 +63,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, s) => {
       if (!isMounted) return;
-      if (s?.user?.is_anonymous) {
-        setSession(null);
-        setUser(null);
-      } else {
-        setSession(s);
-        setUser(s?.user ?? null);
-      }
+      setSession(s);
+      setUser((s?.user ?? null) as AuthUser | null);
     });
 
     return () => {
@@ -83,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return {
       error: error?.message ?? null,
       session: data.session,
-      user: data.user,
+      user: (data.user ?? null) as AuthUser | null,
     };
   }, []);
 
@@ -92,11 +87,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return {
       error: error?.message ?? null,
       session: data.session,
-      user: data.user,
+      user: (data.user ?? null) as AuthUser | null,
     };
   }, []);
 
-  const signInWithOAuth = useCallback(async (provider: Provider) => {
+  const signInWithOAuth = useCallback(async (provider: AuthOAuthProvider) => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: { redirectTo: window.location.origin },
@@ -115,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: validationError, user: null };
     }
 
-    if (!user || user.is_anonymous) {
+    if (!user) {
       return { error: "Sign in required.", user: null };
     }
 
@@ -134,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: error.message || "Failed to update display name.", user: null };
     }
 
-    const nextUser = data.user ?? user;
+    const nextUser = (data.user ?? user) as AuthUser;
     setUser(nextUser);
     setSession((previous) => {
       if (!previous) return previous;

@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.1"
-  }
   public: {
     Tables: {
       community_comments: {
@@ -45,13 +40,6 @@ export type Database = {
             columns: ["post_id"]
             isOneToOne: false
             referencedRelation: "community_posts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "community_comments_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -131,13 +119,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "community_posts_author_id_fkey"
-            columns: ["author_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "community_posts_remixed_from_fkey"
             columns: ["remixed_from"]
             isOneToOne: false
@@ -183,13 +164,6 @@ export type Database = {
             referencedRelation: "community_posts"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "community_votes_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
         ]
       }
       drafts: {
@@ -211,15 +185,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "drafts_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       notifications: {
         Row: {
@@ -254,13 +220,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "notifications_actor_id_fkey"
-            columns: ["actor_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "notifications_comment_id_fkey"
             columns: ["comment_id"]
             isOneToOne: false
@@ -272,13 +231,6 @@ export type Database = {
             columns: ["post_id"]
             isOneToOne: false
             referencedRelation: "community_posts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "notifications_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -305,15 +257,7 @@ export type Database = {
           id?: string
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "profiles_id_fkey"
-            columns: ["id"]
-            isOneToOne: true
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       prompt_versions: {
         Row: {
@@ -337,15 +281,7 @@ export type Database = {
           prompt?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "prompt_versions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       saved_prompts: {
         Row: {
@@ -419,13 +355,6 @@ export type Database = {
             referencedRelation: "community_posts"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "saved_prompts_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
         ]
       }
       templates: {
@@ -465,45 +394,49 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "templates_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      community_profiles_by_ids: {
+      community_posts_search_tsv: {
         Args: {
-          input_ids: string[]
+          p_description: string
+          p_tags: string[]
+          p_title: string
+          p_use_case: string
         }
+        Returns: unknown
+      }
+      community_profiles_by_ids: {
+        Args: { input_ids: string[] }
         Returns: {
-          avatar_url: string | null
-          display_name: string | null
+          avatar_url: string
+          display_name: string
           id: string
         }[]
       }
-      is_non_anonymous_account: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
+      dearmor: { Args: { "": string }; Returns: string }
+      gen_random_uuid: { Args: never; Returns: string }
+      gen_salt: { Args: { "": string }; Returns: string }
+      pgp_armor_headers: {
+        Args: { "": string }
+        Returns: Record<string, unknown>[]
       }
       refresh_community_post_metrics: {
-        Args: {
-          target_post_id: string
-        }
+        Args: { target_post_id: string }
         Returns: undefined
       }
+      show_db_tree: {
+        Args: never
+        Returns: {
+          tree_structure: string
+        }[]
+      }
       strip_sensitive_prompt_config: {
-        Args: {
-          input_config: Json
-        }
+        Args: { input_config: Json }
         Returns: Json
       }
     }

@@ -1,10 +1,11 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  readonly VITE_SUPABASE_PROJECT_ID?: string;
-  readonly VITE_SUPABASE_URL?: string;
-  readonly VITE_SUPABASE_PUBLISHABLE_KEY?: string;
-  readonly VITE_SUPABASE_ANON_KEY?: string;
+  readonly VITE_NEON_PROJECT_ID?: string;
+  readonly VITE_NEON_DATA_API_URL?: string;
+  readonly VITE_NEON_AUTH_URL?: string;
+  readonly VITE_NEON_PUBLISHABLE_KEY?: string;
+  readonly VITE_AGENT_SERVICE_URL?: string;
   readonly VITE_BUILDER_REDESIGN_PHASE1?: string;
   readonly VITE_BUILDER_REDESIGN_PHASE2?: string;
   readonly VITE_BUILDER_REDESIGN_PHASE3?: string;

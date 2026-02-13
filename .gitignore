@@ -39,6 +39,9 @@ __pycache__/
 .venv/
 *.egg-info/
 
+# Neon CLI config
+.neon
+
 # Local scratch/session notes
 copilot-session-*.md
 clip*.md

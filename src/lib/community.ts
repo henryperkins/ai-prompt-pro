@@ -1,5 +1,5 @@
-import { supabase } from "@/integrations/supabase/client";
-import type { Json } from "@/integrations/supabase/types";
+import { supabase } from "@/integrations/neon/client";
+import type { Json } from "@/integrations/neon/types";
 import { normalizePromptCategory } from "@/lib/prompt-categories";
 import type { PromptConfig } from "@/lib/prompt-builder";
 import { defaultConfig } from "@/lib/prompt-builder";
@@ -339,7 +339,7 @@ async function requireUserId(): Promise<string> {
   const { data, error } = await supabase.auth.getUser();
   if (error) throw toError(error, "Authentication failed.");
   const user = data.user;
-  if (!user?.id || user.is_anonymous) {
+  if (!user?.id) {
     throw new Error("Sign in required.");
   }
   return user.id;
@@ -723,7 +723,7 @@ export async function loadMyVotes(postIds: string[]): Promise<Record<string, Vot
   if (userError) {
     return {};
   }
-  if (!userData.user || userData.user.is_anonymous) {
+  if (!userData.user) {
     return {};
   }
 

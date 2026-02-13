@@ -62,7 +62,42 @@ This project is built with:
 
 ## How can I deploy this project?
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+### Deploy to Azure Static Web Apps (production)
+
+This repo is configured for Azure Static Web Apps using:
+
+- Workflow: `.github/workflows/azure-static-web-apps-gentle-dune-075b4710f.yml`
+- SWA CLI config: `swa-cli.config.json`
+- Runtime routing/security config: `public/staticwebapp.config.json`
+
+Required GitHub repository secrets:
+
+- `AZURE_STATIC_WEB_APPS_API_TOKEN_GENTLE_DUNE_075B4710F`
+- `VITE_NEON_PROJECT_ID`
+- `VITE_NEON_DATA_API_URL`
+- `VITE_NEON_AUTH_URL`
+- `VITE_NEON_PUBLISHABLE_KEY`
+- `VITE_AGENT_SERVICE_URL`
+
+Deployment flow:
+
+```sh
+# Validate production build locally
+npm run build
+
+# Optional: preview SWA packaging locally
+npm run swa:build
+npm run swa:start
+
+# Manual production deploy (if needed outside CI)
+npm run swa:deploy:dry-run
+npm run swa:deploy
+```
+
+CI/CD flow:
+
+- Push to `main` triggers production deployment to the linked Azure Static Web App.
+- Pull requests create/update preview environments and close them when PRs are closed.
 
 ## Can I connect a custom domain to my Lovable project?
 
@@ -94,21 +129,22 @@ export OPENAI_API_KEY="<your-openai-api-key>"
 npm run agent:codex
 ```
 
-2. Configure the `enhance-prompt` Supabase function secrets:
+2. Configure frontend + runtime env:
 ```sh
-supabase secrets set AGENT_SERVICE_URL="http://host.docker.internal:8001"
-supabase secrets set SUPABASE_URL="https://<project-ref>.supabase.co"
-supabase secrets set SUPABASE_ANON_KEY="<project-anon-or-publishable-key>"
+export VITE_AGENT_SERVICE_URL="http://localhost:8001"
+export VITE_NEON_DATA_API_URL="https://<your-endpoint>.apirest.c-<region>.aws.neon.tech/neondb/rest/v1"
+export VITE_NEON_AUTH_URL="https://<your-endpoint>.neonauth.c-<region>.aws.neon.tech/neondb/auth"
+# Optional fallback key for signed-out function calls
+export VITE_NEON_PUBLISHABLE_KEY="<neon-publishable-key>"
 ```
 
 Optional hardening:
 ```sh
-supabase secrets set AGENT_SERVICE_TOKEN="<shared-secret>"
 export AGENT_SERVICE_TOKEN="<shared-secret>"
 ```
 
 Local dev note:
-- `ALLOW_UNVERIFIED_JWT_FALLBACK=true` enables decoded-JWT fallback only when Supabase Auth config/service is unavailable.
+- `ALLOW_UNVERIFIED_JWT_FALLBACK=true` enables decoded-JWT fallback only when Neon Auth config/service is unavailable.
 - Use this for local development only and keep it disabled in production.
 
 3. Run the frontend as usual:

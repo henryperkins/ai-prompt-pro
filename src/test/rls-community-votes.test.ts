@@ -1,74 +1,42 @@
+/* @vitest-environment node */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createClient } from "@supabase/supabase-js";
+import { createRlsClient, hasRlsEnv, registerAndSignIn, rlsEnvErrorMessage } from "./rls-client";
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const describeIfEnv = hasRlsEnv ? describe : describe.skip;
 
-const hasSupabaseEnv = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_SERVICE_ROLE_KEY);
-const describeIfEnv = hasSupabaseEnv ? describe : describe.skip;
-
-if (!hasSupabaseEnv && process.env.CI) {
+if (!hasRlsEnv && process.env.CI) {
   describe("community_votes RLS (env)", () => {
-    it("requires SUPABASE_URL, SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY", () => {
-      throw new Error("Missing SUPABASE_URL, SUPABASE_ANON_KEY, or SUPABASE_SERVICE_ROLE_KEY for RLS tests.");
+    it("requires RLS env vars", () => {
+      throw new Error(rlsEnvErrorMessage);
     });
   });
 }
 
-function createAdminClient() {
-  return createClient(SUPABASE_URL as string, SUPABASE_SERVICE_ROLE_KEY as string, {
-    auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
-  });
-}
-
-function createAnonClient() {
-  return createClient(SUPABASE_URL as string, SUPABASE_ANON_KEY as string, {
-    auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
-  });
-}
-
 describeIfEnv("community_votes RLS", () => {
-  let admin: ReturnType<typeof createAdminClient>;
-  let anon: ReturnType<typeof createAnonClient>;
+  let anonClient: ReturnType<typeof createRlsClient>;
+  let user1Client: ReturnType<typeof createRlsClient>;
+  let user2Client: ReturnType<typeof createRlsClient>;
 
   const suffix = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
-  const user1Email = `rls-user1-${suffix}@example.com`;
-  const user2Email = `rls-user2-${suffix}@example.com`;
+  const user1Email = `rls-user1-${suffix}@gmail.com`;
+  const user2Email = `rls-user2-${suffix}@gmail.com`;
   const user1Password = `Passw0rd!${suffix}`;
   const user2Password = `Passw0rd!${suffix}`;
 
   let user1Id = "";
-  let user2Id = "";
   let savedPromptId = "";
   let postId = "";
   let voteId = "";
 
   beforeAll(async () => {
-    admin = createAdminClient();
-    anon = createAnonClient();
+    anonClient = createRlsClient("rls-votes-anon");
+    user1Client = createRlsClient("rls-votes-user1");
+    user2Client = createRlsClient("rls-votes-user2");
 
-    const { data: user1, error: user1Error } = await admin.auth.admin.createUser({
-      email: user1Email,
-      password: user1Password,
-      email_confirm: true,
-    });
-    if (user1Error || !user1.user?.id) {
-      throw new Error(`Failed to create user1: ${user1Error?.message || "missing id"}`);
-    }
-    user1Id = user1.user.id;
+    user1Id = await registerAndSignIn(user1Client, user1Email, user1Password);
+    await registerAndSignIn(user2Client, user2Email, user2Password);
 
-    const { data: user2, error: user2Error } = await admin.auth.admin.createUser({
-      email: user2Email,
-      password: user2Password,
-      email_confirm: true,
-    });
-    if (user2Error || !user2.user?.id) {
-      throw new Error(`Failed to create user2: ${user2Error?.message || "missing id"}`);
-    }
-    user2Id = user2.user.id;
-
-    const { data: savedPrompt, error: savedPromptError } = await admin
+    const { data: savedPrompt, error: savedPromptError } = await user1Client
       .from("saved_prompts")
       .insert({
         user_id: user1Id,
@@ -89,7 +57,7 @@ describeIfEnv("community_votes RLS", () => {
     }
     savedPromptId = savedPrompt.id;
 
-    const { data: post, error: postError } = await admin
+    const { data: post, error: postError } = await user1Client
       .from("community_posts")
       .insert({
         saved_prompt_id: savedPromptId,
@@ -114,7 +82,7 @@ describeIfEnv("community_votes RLS", () => {
     }
     postId = post.id;
 
-    const { data: vote, error: voteError } = await admin
+    const { data: vote, error: voteError } = await user1Client
       .from("community_votes")
       .insert({
         post_id: postId,
@@ -131,39 +99,26 @@ describeIfEnv("community_votes RLS", () => {
 
   afterAll(async () => {
     if (voteId) {
-      await admin.from("community_votes").delete().eq("id", voteId);
+      await user1Client.from("community_votes").delete().eq("id", voteId);
     }
     if (postId) {
-      await admin.from("community_posts").delete().eq("id", postId);
+      await user1Client.from("community_posts").delete().eq("id", postId);
     }
     if (savedPromptId) {
-      await admin.from("saved_prompts").delete().eq("id", savedPromptId);
+      await user1Client.from("saved_prompts").delete().eq("id", savedPromptId);
     }
-    if (user1Id) {
-      await admin.auth.admin.deleteUser(user1Id);
-    }
-    if (user2Id) {
-      await admin.auth.admin.deleteUser(user2Id);
-    }
+    await user1Client.auth.signOut();
+    await user2Client.auth.signOut();
   });
 
   it("does not expose votes to anon or other users", async () => {
-    const { data: anonData, error: anonError } = await anon
+    const { data: anonData, error: anonError } = await anonClient
       .from("community_votes")
       .select("id")
       .eq("id", voteId);
 
     expect(anonError).toBeNull();
     expect(anonData).toEqual([]);
-
-    const user2Client = createAnonClient();
-    const { error: signInError } = await user2Client.auth.signInWithPassword({
-      email: user2Email,
-      password: user2Password,
-    });
-    if (signInError) {
-      throw new Error(`Failed to sign in user2: ${signInError.message}`);
-    }
 
     const { data: otherData, error: otherError } = await user2Client
       .from("community_votes")
@@ -175,15 +130,6 @@ describeIfEnv("community_votes RLS", () => {
   });
 
   it("allows the vote owner to read their vote", async () => {
-    const user1Client = createAnonClient();
-    const { error: signInError } = await user1Client.auth.signInWithPassword({
-      email: user1Email,
-      password: user1Password,
-    });
-    if (signInError) {
-      throw new Error(`Failed to sign in user1: ${signInError.message}`);
-    }
-
     const { data, error } = await user1Client
       .from("community_votes")
       .select("id")

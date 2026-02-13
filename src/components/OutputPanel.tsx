@@ -852,16 +852,18 @@ export function OutputPanel({
       {!hideEnhanceButton && (
         <div className="flex flex-col gap-2">
           {onWebSearchToggle && (
-            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
-              <Switch
-                checked={webSearchEnabled}
-                onCheckedChange={onWebSearchToggle}
-                disabled={isEnhancing}
-                aria-label="Enable web search during enhancement"
-              />
-              <Globe className="w-3.5 h-3.5" />
-              <span>Use web sources</span>
-            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+                <Switch
+                  checked={webSearchEnabled}
+                  onCheckedChange={onWebSearchToggle}
+                  disabled={isEnhancing}
+                  aria-label="Enable web search during enhancement"
+                />
+                <Globe className="w-3.5 h-3.5" />
+                <span>Use web sources</span>
+              </label>
+            </div>
           )}
           <Button
             variant="glow"

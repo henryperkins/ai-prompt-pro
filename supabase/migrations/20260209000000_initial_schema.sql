@@ -6,7 +6,7 @@ create extension if not exists pgcrypto;
 
 -- 1. profiles — auto-created on signup via trigger
 create table public.profiles (
-  id          uuid primary key references auth.users on delete cascade,
+  id          uuid primary key references neon_auth."user"(id) on delete cascade,
   display_name text,
   avatar_url   text,
   created_at   timestamptz not null default now(),
@@ -34,21 +34,21 @@ begin
   insert into public.profiles (id, display_name, avatar_url)
   values (
     new.id,
-    coalesce(new.raw_user_meta_data ->> 'full_name', new.raw_user_meta_data ->> 'name', ''),
-    coalesce(new.raw_user_meta_data ->> 'avatar_url', '')
+    coalesce(new.name, ''),
+    coalesce(new.image, '')
   );
   return new;
 end;
 $$;
 
 create trigger on_auth_user_created
-  after insert on auth.users
+  after insert on neon_auth."user"
   for each row execute function public.handle_new_user();
 
 -- 2. drafts — one active draft per user (upsert-friendly)
 create table public.drafts (
   id         uuid primary key default gen_random_uuid(),
-  user_id    uuid not null references auth.users on delete cascade,
+  user_id    uuid not null references neon_auth."user"(id) on delete cascade,
   config     jsonb not null default '{}',
   updated_at timestamptz not null default now(),
   constraint drafts_user_id_unique unique (user_id)
@@ -76,7 +76,7 @@ create policy "Users can delete own draft"
 -- 3. templates — saved presets per user
 create table public.templates (
   id          uuid primary key default gen_random_uuid(),
-  user_id     uuid not null references auth.users on delete cascade,
+  user_id     uuid not null references neon_auth."user"(id) on delete cascade,
   name        text not null,
   description text not null default '',
   tags        text[] not null default '{}',
@@ -113,7 +113,7 @@ create index templates_updated_at_idx on public.templates (updated_at desc);
 -- 4. prompt_versions — saved prompt snapshots
 create table public.prompt_versions (
   id         uuid primary key default gen_random_uuid(),
-  user_id    uuid not null references auth.users on delete cascade,
+  user_id    uuid not null references neon_auth."user"(id) on delete cascade,
   name       text not null,
   prompt     text not null,
   created_at timestamptz not null default now()

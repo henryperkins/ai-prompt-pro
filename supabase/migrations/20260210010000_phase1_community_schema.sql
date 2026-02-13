@@ -2,20 +2,6 @@
 -- Phase 1: saved prompts + community feed schema
 -- ============================================================
 
--- Helper used by RLS policies to block writes from anonymous auth accounts.
-create or replace function public.is_non_anonymous_account()
-returns boolean
-language sql
-stable
-set search_path = public
-as $$
-  select not (
-    lower(coalesce(auth.jwt() ->> 'is_anonymous', 'false')) = any (array['true', 't', '1', 'yes', 'on'])
-    or lower(coalesce(auth.jwt() -> 'app_metadata' ->> 'is_anonymous', 'false')) = any (array['true', 't', '1', 'yes', 'on'])
-    or lower(coalesce(auth.jwt() -> 'user_metadata' ->> 'is_anonymous', 'false')) = any (array['true', 't', '1', 'yes', 'on'])
-  );
-$$;
-
 -- Public config sanitizer to prevent private context leakage in community posts.
 create or replace function public.strip_sensitive_prompt_config(input_config jsonb)
 returns jsonb
@@ -90,7 +76,7 @@ $$;
 -- ---------------------------------------------------------------------------
 create table public.saved_prompts (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users on delete cascade,
+  user_id uuid not null references neon_auth."user"(id) on delete cascade,
   title text not null,
   description text not null default '',
   category text not null default 'general',
@@ -231,7 +217,7 @@ create index saved_prompts_user_updated_at_idx
 create table public.community_posts (
   id uuid primary key default gen_random_uuid(),
   saved_prompt_id uuid not null unique references public.saved_prompts(id) on delete cascade,
-  author_id uuid not null references auth.users on delete cascade,
+  author_id uuid not null references neon_auth."user"(id) on delete cascade,
   title text not null,
   enhanced_prompt text not null,
   description text not null default '',
@@ -299,7 +285,6 @@ create policy "Community post authors can insert"
   to authenticated
   with check (
     author_id = auth.uid()
-    and public.is_non_anonymous_account()
     and exists (
       select 1
       from public.saved_prompts as saved_prompts
@@ -311,13 +296,13 @@ create policy "Community post authors can insert"
 create policy "Community post authors can update"
   on public.community_posts for update
   to authenticated
-  using (author_id = auth.uid() and public.is_non_anonymous_account())
-  with check (author_id = auth.uid() and public.is_non_anonymous_account());
+  using (author_id = auth.uid())
+  with check (author_id = auth.uid());
 
 create policy "Community post authors can delete"
   on public.community_posts for delete
   to authenticated
-  using (author_id = auth.uid() and public.is_non_anonymous_account());
+  using (author_id = auth.uid());
 
 -- ---------------------------------------------------------------------------
 -- community_votes
@@ -325,7 +310,7 @@ create policy "Community post authors can delete"
 create table public.community_votes (
   id uuid primary key default gen_random_uuid(),
   post_id uuid not null references public.community_posts(id) on delete cascade,
-  user_id uuid not null references auth.users on delete cascade,
+  user_id uuid not null references neon_auth."user"(id) on delete cascade,
   vote_type text not null,
   created_at timestamptz not null default now(),
   constraint community_votes_vote_type_check check (vote_type in ('upvote', 'verified')),
@@ -344,7 +329,6 @@ create policy "Users can insert own community votes"
   to authenticated
   with check (
     user_id = auth.uid()
-    and public.is_non_anonymous_account()
     and exists (
       select 1
       from public.community_posts as community_posts
@@ -356,13 +340,13 @@ create policy "Users can insert own community votes"
 create policy "Users can update own community votes"
   on public.community_votes for update
   to authenticated
-  using (user_id = auth.uid() and public.is_non_anonymous_account())
-  with check (user_id = auth.uid() and public.is_non_anonymous_account());
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
 
 create policy "Users can delete own community votes"
   on public.community_votes for delete
   to authenticated
-  using (user_id = auth.uid() and public.is_non_anonymous_account());
+  using (user_id = auth.uid());
 
 -- ---------------------------------------------------------------------------
 -- community_comments (flat)
@@ -370,7 +354,7 @@ create policy "Users can delete own community votes"
 create table public.community_comments (
   id uuid primary key default gen_random_uuid(),
   post_id uuid not null references public.community_posts(id) on delete cascade,
-  user_id uuid not null references auth.users on delete cascade,
+  user_id uuid not null references neon_auth."user"(id) on delete cascade,
   body text not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -389,7 +373,6 @@ create policy "Users can insert own community comments"
   to authenticated
   with check (
     user_id = auth.uid()
-    and public.is_non_anonymous_account()
     and exists (
       select 1
       from public.community_posts as community_posts

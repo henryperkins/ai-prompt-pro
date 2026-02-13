@@ -190,7 +190,7 @@ export function CommunityComments({
           disabled={!canComment || submitting}
           className="type-input type-wrap-safe min-h-[88px] bg-background"
         />
-        <div className="flex justify-end">
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
           <Button
             type="button"
             size="sm"

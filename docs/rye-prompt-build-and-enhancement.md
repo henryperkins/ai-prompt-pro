@@ -12,7 +12,7 @@ The flow described here reflects the current implementation in:
 - `src/lib/context-types.ts`
 - `src/pages/Index.tsx`
 - `src/lib/ai-client.ts`
-- `supabase/functions/enhance-prompt/index.ts`
+- `archive/supabase/functions/enhance-prompt/index.ts` (legacy reference)
 - `agent_service/codex_service.mjs`
 
 ## 1) User Input State Model
@@ -96,7 +96,7 @@ The UI streams incremental text (`onDelta`) and:
 1. builds payload:
    - required: `prompt`
    - optional: `thread_id`, `thread_options`
-2. sends POST to Supabase Edge Function `enhance-prompt`
+2. sends POST to the agent service `/enhance` endpoint
 3. uses auth recovery strategy:
    - session token attempt
    - forced refresh attempt
@@ -107,9 +107,9 @@ The UI streams incremental text (`onDelta`) and:
    - Responses-style `response.output_text.*` events
 6. invokes `onDone` when `[DONE]` is received and no terminal error was emitted
 
-## 5) Supabase Edge Function (`enhance-prompt`)
+## 5) Legacy Supabase Edge Function (`enhance-prompt`, archived)
 
-`supabase/functions/enhance-prompt/index.ts` performs:
+`archive/supabase/functions/enhance-prompt/index.ts` performed:
 
 1. CORS and method checks
 2. authenticated user requirement
@@ -177,8 +177,8 @@ User edits builder fields
   -> buildPrompt(config) derives builtPrompt
 User clicks Enhance
   -> Index.handleEnhance calls streamEnhance({ prompt, threadOptions })
-  -> ai-client POST /functions/v1/enhance-prompt
-  -> Supabase function validates + rate-limits + proxies to /enhance
+  -> ai-client POST /enhance
+  -> agent service validates + rate-limits + streams response
   -> Codex service wraps prompt with enhancer instructions and runs thread
   -> Codex stream -> SSE delta events -> browser
   -> ai-client extracts text -> onDelta accumulates
@@ -190,7 +190,7 @@ User clicks Enhance
 If enhancement fails, check in this order:
 
 1. Frontend request payload creation (`src/lib/ai-client.ts`)
-2. Edge Function validation/rate-limit rejection (`supabase/functions/enhance-prompt/index.ts`)
+2. Legacy edge-function behavior reference (`archive/supabase/functions/enhance-prompt/index.ts`)
 3. Agent service reachability and token (`AGENT_SERVICE_URL`, `AGENT_SERVICE_TOKEN`)
 4. Codex service env config and model/thread option values (`agent_service/codex_service.mjs`)
 

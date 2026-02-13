@@ -148,12 +148,12 @@ function isProjectApiKeyLike(value: string): boolean {
   return isPublishableKeyLike(trimmed) || isLegacyAnonJwt(trimmed);
 }
 
-type SupabaseAuthConfig = {
-  supabaseUrl: string | null;
-  anonKey: string | null;
+type AuthServiceConfig = {
+  authBaseUrl: string | null;
+  publicApiKey: string | null;
 };
 
-type SupabaseUserFetchResult =
+type AuthUserFetchResult =
   | { ok: true; id: string; isAnonymous: boolean }
   | { ok: false; reason: "invalid_token" | "unavailable" };
 
@@ -161,24 +161,39 @@ let hasLoggedAuthConfigWarning = false;
 let hasLoggedJwtFallbackWarning = false;
 let hasLoggedJwtFallbackProductionWarning = false;
 
-function getSupabaseUrl(): string | null {
-  const raw = getEnvValue("SUPABASE_URL") || getEnvValue("SUPABASE_PROJECT_URL");
-  if (!raw) return null;
-  return raw.endsWith("/") ? raw.slice(0, -1) : raw;
+function normalizeAuthBaseUrl(value: string): string {
+  const normalized = value.endsWith("/") ? value.slice(0, -1) : value;
+  if (normalized.endsWith("/auth/v1")) {
+    return normalized.slice(0, -"/auth/v1".length);
+  }
+  if (normalized.endsWith("/auth")) {
+    return normalized.slice(0, -"/auth".length);
+  }
+  return normalized;
 }
 
-function getSupabaseAnonKey(): string | null {
+function getAuthBaseUrl(): string | null {
+  const raw =
+    getEnvValue("NEON_AUTH_URL") ||
+    getEnvValue("SUPABASE_URL") ||
+    getEnvValue("SUPABASE_PROJECT_URL");
+  if (!raw) return null;
+  return normalizeAuthBaseUrl(raw);
+}
+
+function getPublicApiKey(): string | null {
   return (
+    getEnvValue("NEON_PUBLISHABLE_KEY") ||
     getEnvValue("SUPABASE_ANON_KEY") ||
     getEnvValue("SUPABASE_PUBLISHABLE_KEY") ||
     getEnvValue("SUPABASE_KEY")
   );
 }
 
-function getSupabaseAuthConfig(): SupabaseAuthConfig {
+function getAuthServiceConfig(): AuthServiceConfig {
   return {
-    supabaseUrl: getSupabaseUrl(),
-    anonKey: getSupabaseAnonKey(),
+    authBaseUrl: getAuthBaseUrl(),
+    publicApiKey: getPublicApiKey(),
   };
 }
 
@@ -279,15 +294,15 @@ function tryDecodeUserFromJwtFallback(
   return decodedUser;
 }
 
-async function fetchSupabaseUser(
+async function fetchAuthenticatedUser(
   bearerToken: string,
-  config: { supabaseUrl: string; anonKey: string },
-): Promise<SupabaseUserFetchResult> {
+  config: { authBaseUrl: string; publicApiKey: string },
+): Promise<AuthUserFetchResult> {
   try {
-    const response = await fetch(`${config.supabaseUrl}/auth/v1/user`, {
+    const response = await fetch(`${config.authBaseUrl}/auth/v1/user`, {
       headers: {
         Authorization: `Bearer ${bearerToken}`,
-        apikey: config.anonKey,
+        apikey: config.publicApiKey,
       },
     });
 
@@ -323,15 +338,15 @@ async function fetchSupabaseUser(
 export async function requireAuthenticatedUser(
   req: Request,
 ): Promise<{ ok: true; userId: string; isAnonymous: boolean } | { ok: false; status: number; error: string }> {
-  const authConfig = getSupabaseAuthConfig();
-  const anonKey = authConfig.anonKey;
-  const isAnonKey = (value: string) =>
-    (anonKey ? value.trim() === anonKey.trim() : false) || isProjectApiKeyLike(value);
+  const authConfig = getAuthServiceConfig();
+  const publicApiKey = authConfig.publicApiKey;
+  const isPublicKey = (value: string) =>
+    (publicApiKey ? value.trim() === publicApiKey.trim() : false) || isProjectApiKeyLike(value);
   const authHeader = req.headers.get("authorization") || "";
   const match = authHeader.match(/^Bearer\s+(.+)$/i);
   if (!match) {
     const apiKey = req.headers.get("apikey")?.trim() || "";
-    if (isAnonKey(apiKey)) {
+    if (isPublicKey(apiKey)) {
       return {
         ok: true,
         userId: "anon",
@@ -348,8 +363,8 @@ export async function requireAuthenticatedUser(
   const bearerToken = match[1].trim();
   const apiKey = req.headers.get("apikey")?.trim() || "";
   if (
-    isAnonKey(bearerToken) ||
-    (apiKey && apiKey === bearerToken && isAnonKey(apiKey))
+    isPublicKey(bearerToken) ||
+    (apiKey && apiKey === bearerToken && isPublicKey(apiKey))
   ) {
     return {
       ok: true,
@@ -358,7 +373,7 @@ export async function requireAuthenticatedUser(
     };
   }
 
-  if (!authConfig.supabaseUrl || !authConfig.anonKey) {
+  if (!authConfig.authBaseUrl || !authConfig.publicApiKey) {
     const fallbackUser = tryDecodeUserFromJwtFallback(bearerToken, "missing_config");
     if (fallbackUser) {
       return {
@@ -371,7 +386,7 @@ export async function requireAuthenticatedUser(
     if (!hasLoggedAuthConfigWarning) {
       hasLoggedAuthConfigWarning = true;
       console.error(
-        "SUPABASE_URL and SUPABASE_ANON_KEY are required to validate bearer tokens. "
+        "NEON_AUTH_URL and NEON_PUBLISHABLE_KEY are required to validate bearer tokens. "
           + "Set those env vars or enable ALLOW_UNVERIFIED_JWT_FALLBACK for local development only.",
       );
     }
@@ -379,23 +394,23 @@ export async function requireAuthenticatedUser(
     return {
       ok: false,
       status: 503,
-      error: "Authentication service is unavailable because Supabase auth is not configured.",
+      error: "Authentication service is unavailable because Neon auth is not configured.",
     };
   }
 
-  const supabaseUser = await fetchSupabaseUser(bearerToken, {
-    supabaseUrl: authConfig.supabaseUrl,
-    anonKey: authConfig.anonKey,
+  const authUser = await fetchAuthenticatedUser(bearerToken, {
+    authBaseUrl: authConfig.authBaseUrl,
+    publicApiKey: authConfig.publicApiKey,
   });
-  if (supabaseUser.ok) {
+  if (authUser.ok) {
     return {
       ok: true,
-      userId: supabaseUser.id,
-      isAnonymous: supabaseUser.isAnonymous,
+      userId: authUser.id,
+      isAnonymous: authUser.isAnonymous,
     };
   }
 
-  if (supabaseUser.reason === "unavailable") {
+  if (authUser.reason === "unavailable") {
     const fallbackUser = tryDecodeUserFromJwtFallback(bearerToken, "auth_unavailable");
     if (fallbackUser) {
       return {
@@ -415,7 +430,7 @@ export async function requireAuthenticatedUser(
   return {
     ok: false,
     status: 401,
-    error: "Invalid or expired Supabase session.",
+    error: "Invalid or expired auth session.",
   };
 }
 

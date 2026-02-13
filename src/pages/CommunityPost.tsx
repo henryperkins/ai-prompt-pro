@@ -201,7 +201,7 @@ const CommunityPost = () => {
 
   const handleSaveToLibrary = useCallback(
     async (targetId: string) => {
-      if (!user || user.is_anonymous) {
+      if (!user) {
         toast({ title: "Sign in required", description: "Create an account to save remixes." });
         return;
       }
@@ -277,7 +277,7 @@ const CommunityPost = () => {
             onCommentAdded={handleCommentAdded}
             onCommentThreadOpen={handleCommentThreadOpen}
             canVote={Boolean(user)}
-            canSaveToLibrary={Boolean(user && !user.is_anonymous)}
+            canSaveToLibrary={Boolean(user)}
             onSaveToLibrary={handleSaveToLibrary}
           />
         )}

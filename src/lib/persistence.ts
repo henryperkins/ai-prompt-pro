@@ -1,6 +1,5 @@
-import type { PostgrestError } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
-import type { Json } from "@/integrations/supabase/types";
+import { supabase } from "@/integrations/neon/client";
+import type { Json } from "@/integrations/neon/types";
 import type { RemixDiff } from "@/lib/community";
 import {
   hydrateConfigV1ToWorkingState,
@@ -14,6 +13,7 @@ import {
   escapePostgrestLikePattern,
   isPostgrestError,
   normalizePromptTagsOptional,
+  type PostgrestError,
   sanitizePostgresJson,
   sanitizePostgresText,
   type SavedPromptListRow,

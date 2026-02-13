@@ -1,4 +1,4 @@
-import type { User } from "@supabase/supabase-js";
+import type { AuthUser } from "@/hooks/useAuth";
 
 function normalizeIds(ids: string[]): string[] {
   return Array.from(
@@ -20,7 +20,7 @@ export function encodeSelectionIds(ids: string[]): URLSearchParams {
   return next;
 }
 
-export function getUserDisplayName(user: User | null): string {
+export function getUserDisplayName(user: AuthUser | null): string {
   if (!user) return "Guest";
   const metadata = user.user_metadata as Record<string, unknown> | null | undefined;
   const displayName = typeof metadata?.display_name === "string" ? metadata.display_name : "";
@@ -31,7 +31,7 @@ export function getUserDisplayName(user: User | null): string {
   return "You";
 }
 
-export function getUserAvatarUrl(user: User | null): string | null {
+export function getUserAvatarUrl(user: AuthUser | null): string | null {
   if (!user) return null;
   const metadata = user.user_metadata as Record<string, unknown> | null | undefined;
   const avatarUrl = typeof metadata?.avatar_url === "string" ? metadata.avatar_url.trim() : "";

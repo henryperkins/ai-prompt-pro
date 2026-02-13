@@ -3,16 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   refreshSession: vi.fn(),
-  signInAnonymously: vi.fn(),
   signOut: vi.fn(),
 }));
 
-vi.mock("@/integrations/supabase/client", () => ({
+vi.mock("@/integrations/neon/client", () => ({
   supabase: {
     auth: {
       getSession: (...args: unknown[]) => mocks.getSession(...args),
       refreshSession: (...args: unknown[]) => mocks.refreshSession(...args),
-      signInAnonymously: (...args: unknown[]) => mocks.signInAnonymously(...args),
       signOut: (...args: unknown[]) => mocks.signOut(...args),
     },
   },
@@ -41,13 +39,9 @@ describe("ai-client auth recovery", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
-    vi.stubEnv("VITE_SUPABASE_URL", "https://project.supabase.co");
-    vi.stubEnv("VITE_SUPABASE_PUBLISHABLE_KEY", "\"sb_publishable_test\"");
+    vi.stubEnv("VITE_AGENT_SERVICE_URL", "https://agent.test");
+    vi.stubEnv("VITE_NEON_PUBLISHABLE_KEY", "\"sb_publishable_test\"");
 
-    mocks.signInAnonymously.mockResolvedValue({
-      data: { session: null },
-      error: { message: "anonymous disabled" },
-    });
     mocks.signOut.mockResolvedValue({ error: null });
   });
 
@@ -193,7 +187,6 @@ describe("ai-client auth recovery", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const headers = (fetchMock.mock.calls[0]?.[1] as RequestInit).headers as Record<string, string>;
     expect(headers.Authorization).toBe("Bearer sb_publishable_test");
-    expect(mocks.signInAnonymously).not.toHaveBeenCalled();
     expect(mocks.signOut).toHaveBeenCalledTimes(1);
     expect(onError).not.toHaveBeenCalled();
     expect(onDelta).toHaveBeenCalledWith("network-fallback");

@@ -8,7 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, type AuthOAuthProvider } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
 
 interface AuthDialogProps {
@@ -57,7 +57,7 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
     resetForm();
   };
 
-  const handleOAuth = async (provider: "github" | "google") => {
+  const handleOAuth = async (provider: AuthOAuthProvider) => {
     setError("");
     const result = await signInWithOAuth(provider);
     if (result.error) {

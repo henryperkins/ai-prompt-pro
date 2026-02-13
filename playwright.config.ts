@@ -2,6 +2,9 @@ import { defineConfig } from "@playwright/test";
 
 const MOBILE_FLAG_ON_SERVER_URL = "http://127.0.0.1:4173";
 const MOBILE_FLAG_OFF_SERVER_URL = "http://127.0.0.1:4174";
+const PLAYWRIGHT_NEON_DATA_API_URL = "https://neon.test/neondb/rest/v1";
+const PLAYWRIGHT_NEON_AUTH_URL = "https://neon.test/neondb/auth";
+const PLAYWRIGHT_AGENT_SERVICE_URL = "https://agent.test";
 
 export default defineConfig({
   testDir: "./playwright",
@@ -37,13 +40,23 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: "VITE_COMMUNITY_MOBILE_ENHANCEMENTS=true npm run dev -- --host 127.0.0.1 --port 4173",
+      command:
+        `VITE_COMMUNITY_MOBILE_ENHANCEMENTS=true `
+        + `VITE_NEON_DATA_API_URL=${PLAYWRIGHT_NEON_DATA_API_URL} `
+        + `VITE_NEON_AUTH_URL=${PLAYWRIGHT_NEON_AUTH_URL} `
+        + `VITE_AGENT_SERVICE_URL=${PLAYWRIGHT_AGENT_SERVICE_URL} `
+        + "npm run dev -- --host 127.0.0.1 --port 4173",
       url: MOBILE_FLAG_ON_SERVER_URL,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
     },
     {
-      command: "VITE_COMMUNITY_MOBILE_ENHANCEMENTS=false npm run dev -- --host 127.0.0.1 --port 4174",
+      command:
+        `VITE_COMMUNITY_MOBILE_ENHANCEMENTS=false `
+        + `VITE_NEON_DATA_API_URL=${PLAYWRIGHT_NEON_DATA_API_URL} `
+        + `VITE_NEON_AUTH_URL=${PLAYWRIGHT_NEON_AUTH_URL} `
+        + `VITE_AGENT_SERVICE_URL=${PLAYWRIGHT_AGENT_SERVICE_URL} `
+        + "npm run dev -- --host 127.0.0.1 --port 4174",
       url: MOBILE_FLAG_OFF_SERVER_URL,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,

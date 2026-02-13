@@ -255,7 +255,22 @@ function applyPostFilters(url: URL, rows: CommunityPostRow[]): CommunityPostRow[
 }
 
 async function installCommunityMocks(page: Page): Promise<void> {
+  await page.route("**/auth/get-session", async (route) => {
+    await fulfillJson(route, { session: null, user: null });
+  });
+
+  await page.route("**/auth/token/anonymous", async (route) => {
+    await fulfillJson(route, {
+      token: "header.payload.signature",
+      expires_at: Math.floor(Date.now() / 1000) + 3600,
+    });
+  });
+
   await page.route("**/auth/v1/user", async (route) => {
+    await fulfillJson(route, { code: 401, msg: "JWT missing" }, 401);
+  });
+
+  await page.route("**/auth/get-user", async (route) => {
     await fulfillJson(route, { code: 401, msg: "JWT missing" }, 401);
   });
 

@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/neon/client";
 
 function normalizeEnvValue(value?: string): string | undefined {
   if (typeof value !== "string") return undefined;
@@ -15,41 +15,12 @@ function normalizeEnvValue(value?: string): string | undefined {
   return trimmed;
 }
 
-const SUPABASE_PROJECT_ID = normalizeEnvValue(import.meta.env.VITE_SUPABASE_PROJECT_ID);
-const SUPABASE_URL =
-  normalizeEnvValue(import.meta.env.VITE_SUPABASE_URL) ||
-  (SUPABASE_PROJECT_ID ? `https://${SUPABASE_PROJECT_ID}.supabase.co` : undefined);
-const SUPABASE_PUBLISHABLE_KEY =
-  normalizeEnvValue(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY)
-  || normalizeEnvValue(import.meta.env.VITE_SUPABASE_ANON_KEY);
+const AGENT_SERVICE_URL = normalizeEnvValue(import.meta.env.VITE_AGENT_SERVICE_URL);
+const PUBLIC_FUNCTION_API_KEY =
+  normalizeEnvValue(import.meta.env.VITE_NEON_PUBLISHABLE_KEY);
 
 let bootstrapTokenPromise: Promise<string> | null = null;
-const ANON_AUTH_DISABLED_KEY = "ai-prompt-pro:anon-auth-disabled";
 const ACCESS_TOKEN_REFRESH_GRACE_SECONDS = 30;
-
-function readAnonAuthDisabled(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    return window.localStorage.getItem(ANON_AUTH_DISABLED_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-function persistAnonAuthDisabled(value: boolean): void {
-  if (typeof window === "undefined") return;
-  try {
-    if (value) {
-      window.localStorage.setItem(ANON_AUTH_DISABLED_KEY, "1");
-    } else {
-      window.localStorage.removeItem(ANON_AUTH_DISABLED_KEY);
-    }
-  } catch {
-    // Ignore storage errors (private mode, disabled storage, etc.).
-  }
-}
-
-let anonAuthDisabled = readAnonAuthDisabled();
 
 function sessionExpiresSoon(expiresAt: number | null | undefined): boolean {
   if (typeof expiresAt !== "number" || !Number.isFinite(expiresAt)) return false;
@@ -103,13 +74,13 @@ async function refreshSessionAccessToken(): Promise<string | null> {
     return session?.access_token ?? null;
   } catch (error) {
     if (isRetryableAuthSessionError(error)) {
-      await clearLocalSupabaseSession();
+      await clearLocalSession();
     }
     return null;
   }
 }
 
-async function clearLocalSupabaseSession(): Promise<void> {
+async function clearLocalSession(): Promise<void> {
   try {
     await supabase.auth.signOut({ scope: "local" });
   } catch {
@@ -117,37 +88,22 @@ async function clearLocalSupabaseSession(): Promise<void> {
   }
 }
 
-function shouldPersistAnonAuthDisabled(error: unknown): boolean {
-  if (!error || typeof error !== "object") return false;
-  const candidate = error as { message?: unknown; status?: unknown; code?: unknown };
-  const message = typeof candidate.message === "string" ? candidate.message.toLowerCase() : "";
-  const code = typeof candidate.code === "string" ? candidate.code.toLowerCase() : "";
-  const status = typeof candidate.status === "number" ? candidate.status : null;
-
-  if (code.includes("anonymous") || code.includes("provider_disabled")) {
-    return true;
-  }
-
-  if (!message) return false;
-  const suggestsAnonymousIsDisabled =
-    message.includes("anonymous") &&
-    (message.includes("disabled") || message.includes("not enabled") || message.includes("unsupported"));
-
-  if (!suggestsAnonymousIsDisabled) return false;
-  return status === null || status >= 400;
-}
-
-function assertSupabaseEnv(): void {
-  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+function assertFunctionRuntimeEnv(): void {
+  if (!AGENT_SERVICE_URL) {
     throw new Error(
-      "Missing Supabase env. Set VITE_SUPABASE_URL (or VITE_SUPABASE_PROJECT_ID) and VITE_SUPABASE_PUBLISHABLE_KEY (or VITE_SUPABASE_ANON_KEY).",
+      "Missing function runtime env. Set VITE_AGENT_SERVICE_URL.",
     );
   }
 }
 
 function functionUrl(name: "enhance-prompt" | "extract-url" | "infer-builder-fields"): string {
-  assertSupabaseEnv();
-  return `${SUPABASE_URL}/functions/v1/${name}`;
+  assertFunctionRuntimeEnv();
+  const base = (AGENT_SERVICE_URL as string).replace(/\/+$/, "");
+  const route =
+    name === "enhance-prompt"
+      ? "enhance"
+      : name;
+  return `${base}/${route}`;
 }
 
 async function getAccessToken({
@@ -157,7 +113,7 @@ async function getAccessToken({
   forceRefresh?: boolean;
   allowSessionToken?: boolean;
 } = {}): Promise<string> {
-  assertSupabaseEnv();
+  assertFunctionRuntimeEnv();
 
   if (forceRefresh) {
     const forcedToken = await refreshSessionAccessToken();
@@ -175,9 +131,9 @@ async function getAccessToken({
     sessionResult = await supabase.auth.getSession();
   } catch (sessionError) {
     if (isRetryableAuthSessionError(sessionError)) {
-      // Auth gateway/network outage: continue with anon-key fallback instead of failing hard.
-      await clearLocalSupabaseSession();
-      return SUPABASE_PUBLISHABLE_KEY as string;
+      await clearLocalSession();
+      if (PUBLIC_FUNCTION_API_KEY) return PUBLIC_FUNCTION_API_KEY;
+      throw new Error(`Could not read auth session: ${errorMessage(sessionError)}`);
     }
     throw new Error(`Could not read auth session: ${errorMessage(sessionError)}`);
   }
@@ -188,15 +144,15 @@ async function getAccessToken({
   } = sessionResult;
   if (sessionError) {
     if (isRetryableAuthSessionError(sessionError)) {
-      // Auth gateway/network outage: continue with anon-key fallback instead of failing hard.
-      await clearLocalSupabaseSession();
-      return SUPABASE_PUBLISHABLE_KEY as string;
+      await clearLocalSession();
+      if (PUBLIC_FUNCTION_API_KEY) return PUBLIC_FUNCTION_API_KEY;
+      throw new Error(`Could not read auth session: ${errorMessage(sessionError)}`);
     }
     throw new Error(`Could not read auth session: ${errorMessage(sessionError)}`);
   }
   if (session?.access_token) {
     if (!allowSessionToken) {
-      await clearLocalSupabaseSession();
+      await clearLocalSession();
     } else {
       if (sessionExpiresSoon(session.expires_at)) {
         const refreshedToken = await refreshSessionAccessToken();
@@ -206,27 +162,8 @@ async function getAccessToken({
     }
   }
 
-  if (!anonAuthDisabled) {
-    try {
-      const { data, error } = await supabase.auth.signInAnonymously();
-      if (!error && data.session?.access_token) {
-        anonAuthDisabled = false;
-        persistAnonAuthDisabled(false);
-        return data.session.access_token;
-      }
-      if (error && shouldPersistAnonAuthDisabled(error)) {
-        // Anonymous sign-ins are disabled in this project — stop retrying across refreshes.
-        anonAuthDisabled = true;
-        persistAnonAuthDisabled(true);
-      }
-    } catch {
-      // Ignore anon sign-in transport failures and continue with publishable-key fallback.
-    }
-  }
-
-  // Fallback for projects where anonymous auth is disabled:
-  // use the project publishable key for Edge Function calls.
-  return SUPABASE_PUBLISHABLE_KEY as string;
+  if (PUBLIC_FUNCTION_API_KEY) return PUBLIC_FUNCTION_API_KEY;
+  throw new Error("Sign in required.");
 }
 
 async function getAccessTokenWithBootstrap({
@@ -256,22 +193,28 @@ async function functionHeaders({
   forceRefresh?: boolean;
   allowSessionToken?: boolean;
 } = {}): Promise<Record<string, string>> {
-  assertSupabaseEnv();
+  assertFunctionRuntimeEnv();
   const accessToken = await getAccessTokenWithBootstrap({ forceRefresh, allowSessionToken });
   return functionHeadersWithAccessToken(accessToken);
 }
 
 function functionHeadersWithAccessToken(accessToken: string): Record<string, string> {
-  assertSupabaseEnv();
-  return {
+  assertFunctionRuntimeEnv();
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    apikey: SUPABASE_PUBLISHABLE_KEY as string,
     Authorization: `Bearer ${accessToken}`,
   };
+  if (PUBLIC_FUNCTION_API_KEY) {
+    headers.apikey = PUBLIC_FUNCTION_API_KEY;
+  }
+  return headers;
 }
 
 function functionHeadersWithPublishableKey(): Record<string, string> {
-  return functionHeadersWithAccessToken(SUPABASE_PUBLISHABLE_KEY as string);
+  if (!PUBLIC_FUNCTION_API_KEY) {
+    throw new Error("Sign in required.");
+  }
+  return functionHeadersWithAccessToken(PUBLIC_FUNCTION_API_KEY);
 }
 
 async function readFunctionError(resp: Response): Promise<string> {
@@ -335,8 +278,8 @@ async function postFunctionWithAuthRecovery(
     throw new Error(errorMessage);
   }
 
-  // If refresh returned another unusable session token, force a deterministic anon-key retry.
-  await clearLocalSupabaseSession();
+  // If refresh returned another unusable session token, force a deterministic API-key retry.
+  await clearLocalSession();
   response = await request(functionHeadersWithPublishableKey());
   if (response.ok) return response;
 

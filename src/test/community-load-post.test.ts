@@ -4,7 +4,7 @@ const { fromMock } = vi.hoisted(() => ({
   fromMock: vi.fn(),
 }));
 
-vi.mock("@/integrations/supabase/client", () => ({
+vi.mock("@/integrations/neon/client", () => ({
   supabase: {
     from: fromMock,
     auth: {
