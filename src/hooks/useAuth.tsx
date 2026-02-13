@@ -6,13 +6,13 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
-import { supabase } from "@/integrations/neon/client";
+import { neon } from "@/integrations/neon/client";
 import { validateDisplayName } from "@/lib/profile";
 
-type SessionResult = Awaited<ReturnType<typeof supabase.auth.getSession>>;
+type SessionResult = Awaited<ReturnType<typeof neon.auth.getSession>>;
 export type AuthSession = SessionResult["data"]["session"];
 export type AuthUser = NonNullable<NonNullable<AuthSession>["user"]>;
-export type AuthOAuthProvider = Parameters<typeof supabase.auth.signInWithOAuth>[0]["provider"];
+export type AuthOAuthProvider = Parameters<typeof neon.auth.signInWithOAuth>[0]["provider"];
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let isMounted = true;
 
     // Get initial session
-    supabase.auth.getSession()
+    neon.auth.getSession()
       .then(({ data: { session: s } }) => {
         if (!isMounted) return;
         setSession(s);
@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, s) => {
+    } = neon.auth.onAuthStateChange((_event, s) => {
       if (!isMounted) return;
       setSession(s);
       setUser((s?.user ?? null) as AuthUser | null);
@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signUp = useCallback(async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await neon.auth.signUp({ email, password });
     return {
       error: error?.message ?? null,
       session: data.session,
@@ -83,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await neon.auth.signInWithPassword({ email, password });
     return {
       error: error?.message ?? null,
       session: data.session,
@@ -92,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signInWithOAuth = useCallback(async (provider: AuthOAuthProvider) => {
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { error } = await neon.auth.signInWithOAuth({
       provider,
       options: { redirectTo: window.location.origin },
     });
@@ -100,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
+    await neon.auth.signOut();
   }, []);
 
   const updateDisplayName = useCallback(async (displayName: string) => {
@@ -114,7 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: "Sign in required.", user: null };
     }
 
-    const { error: profileError } = await supabase
+    const { error: profileError } = await neon
       .from("profiles")
       .update({ display_name: normalized })
       .eq("id", user.id);
@@ -122,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: profileError.message || "Failed to update display name.", user: null };
     }
 
-    const { data, error } = await supabase.auth.updateUser({
+    const { data, error } = await neon.auth.updateUser({
       data: { display_name: normalized },
     });
     if (error) {

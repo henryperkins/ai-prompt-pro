@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/neon/client";
+import { neon } from "@/integrations/neon/client";
 import type { Json } from "@/integrations/neon/types";
 import type { RemixDiff } from "@/lib/community";
 import {
@@ -187,7 +187,7 @@ export async function loadDraft(userId: string | null): Promise<PromptConfig | n
   }
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await neon
       .from("drafts")
       .select("config")
       .eq("user_id", userId)
@@ -217,7 +217,7 @@ export async function saveDraft(userId: string | null, config: PromptConfig): Pr
   }
 
   try {
-    const { error } = await supabase.from("drafts").upsert(
+    const { error } = await neon.from("drafts").upsert(
       {
         user_id: userId,
         config: sanitizePostgresJson(normalizedConfig as unknown as Json),
@@ -262,7 +262,7 @@ export async function loadPrompts(userId: string | null): Promise<PromptSummary[
   }
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await neon
       .from("saved_prompts")
       .select(SAVED_PROMPT_LIST_SELECT_COLUMNS)
       .eq("user_id", userId)
@@ -285,7 +285,7 @@ export async function loadPrompts(userId: string | null): Promise<PromptSummary[
     >();
 
     if (promptIds.length > 0) {
-      const { data: postMetrics, error: postMetricsError } = await supabase
+      const { data: postMetrics, error: postMetricsError } = await neon
         .from("community_posts")
         .select("id, saved_prompt_id, upvote_count, verified_count, remix_count, comment_count")
         .in("saved_prompt_id", promptIds)
@@ -343,7 +343,7 @@ export async function loadPromptById(userId: string | null, id: string): Promise
   if (!userId) return loadLocalTemplate(id);
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await neon
       .from("saved_prompts")
       .select(SAVED_PROMPT_FULL_SELECT_COLUMNS)
       .eq("id", id)
@@ -436,7 +436,7 @@ export async function savePrompt(userId: string | null, input: PromptSaveInput):
   const safePersistedConfig = sanitizePostgresJson(persistedConfig as unknown as Json);
 
   try {
-    const { data: existingRows, error: lookupError } = await supabase
+    const { data: existingRows, error: lookupError } = await neon
       .from("saved_prompts")
       .select(SAVED_PROMPT_FULL_SELECT_COLUMNS)
       .eq("user_id", userId)
@@ -494,7 +494,7 @@ export async function savePrompt(userId: string | null, input: PromptSaveInput):
         updatePayload.remix_diff = normalizedRemixDiff;
       }
 
-      const { data: updated, error } = await supabase
+      const { data: updated, error } = await neon
         .from("saved_prompts")
         .update(updatePayload)
         .eq("id", existing.id)
@@ -514,7 +514,7 @@ export async function savePrompt(userId: string | null, input: PromptSaveInput):
       };
     }
 
-    const { data: created, error: insertError } = await supabase
+    const { data: created, error: insertError } = await neon
       .from("saved_prompts")
       .insert({
         user_id: userId,
@@ -561,7 +561,7 @@ export async function sharePrompt(
   }
 
   try {
-    const { data: existing, error: existingError } = await supabase
+    const { data: existing, error: existingError } = await neon
       .from("saved_prompts")
       .select("id, use_case")
       .eq("id", id)
@@ -590,7 +590,7 @@ export async function sharePrompt(
     if (input.tags !== undefined) updatePayload.tags = normalizePromptTagsOptional(input.tags) ?? [];
     if (input.targetModel !== undefined) updatePayload.target_model = normalizeTargetModel(input.targetModel) ?? "";
 
-    const { data, error } = await supabase
+    const { data, error } = await neon
       .from("saved_prompts")
       .update(updatePayload)
       .eq("id", id)
@@ -602,7 +602,7 @@ export async function sharePrompt(
     if (!data) return { shared: false };
 
     // Look up the community post created by the DB trigger
-    const { data: post } = await supabase
+    const { data: post } = await neon
       .from("community_posts")
       .select("id")
       .eq("saved_prompt_id", id)
@@ -620,7 +620,7 @@ export async function unsharePrompt(userId: string | null, id: string): Promise<
   }
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await neon
       .from("saved_prompts")
       .update({ is_shared: false })
       .eq("id", id)
@@ -639,7 +639,7 @@ export async function deletePrompt(userId: string | null, id: string): Promise<b
   if (!userId) return deleteLocalTemplate(id);
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await neon
       .from("saved_prompts")
       .delete()
       .eq("id", id)
@@ -669,7 +669,7 @@ export async function loadVersions(userId: string | null): Promise<PromptVersion
   if (!userId) return [];
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await neon
       .from("prompt_versions")
       .select("id, name, prompt, created_at")
       .eq("user_id", userId)
@@ -700,7 +700,7 @@ export async function saveVersion(
   try {
     const safeName = sanitizePostgresText(name).trim().slice(0, 200) || "Version";
     const safePrompt = sanitizePostgresText(prompt);
-    const { data, error } = await supabase
+    const { data, error } = await neon
       .from("prompt_versions")
       .insert({ user_id: userId, name: safeName, prompt: safePrompt })
       .select("id, name, prompt, created_at")

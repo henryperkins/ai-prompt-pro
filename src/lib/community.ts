@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/neon/client";
+import { neon } from "@/integrations/neon/client";
 import type { Json } from "@/integrations/neon/types";
 import { normalizePromptCategory } from "@/lib/prompt-categories";
 import type { PromptConfig } from "@/lib/prompt-builder";
@@ -336,7 +336,7 @@ function isInvalidUuidInputError(error: unknown): boolean {
 }
 
 async function requireUserId(): Promise<string> {
-  const { data, error } = await supabase.auth.getUser();
+  const { data, error } = await neon.auth.getUser();
   if (error) throw toError(error, "Authentication failed.");
   const user = data.user;
   if (!user?.id) {
@@ -350,7 +350,7 @@ export async function listMyPrompts(input: ListMyPromptsInput = {}): Promise<Sav
   const userId = await requireUserId();
 
   try {
-    let builder = supabase
+    let builder = neon
       .from("saved_prompts")
       .select(SAVED_PROMPT_SELECT_COLUMNS)
       .eq("user_id", userId)
@@ -391,7 +391,7 @@ export async function loadMyPromptById(id: string): Promise<SavedPromptRecord | 
   const userId = await requireUserId();
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await neon
       .from("saved_prompts")
       .select(SAVED_PROMPT_SELECT_COLUMNS)
       .eq("id", id)
@@ -428,7 +428,7 @@ export async function savePrompt(input: SavePromptInput): Promise<SavePromptResu
     let existing: SavedPromptRow | null = null;
 
     if (input.id) {
-      const { data: byId, error: byIdError } = await supabase
+      const { data: byId, error: byIdError } = await neon
         .from("saved_prompts")
         .select(SAVED_PROMPT_SELECT_COLUMNS)
         .eq("id", input.id)
@@ -437,7 +437,7 @@ export async function savePrompt(input: SavePromptInput): Promise<SavePromptResu
       if (byIdError) throw byIdError;
       existing = (byId as SavedPromptRow | null) || null;
     } else {
-      const { data: byTitle, error: lookupError } = await supabase
+      const { data: byTitle, error: lookupError } = await neon
         .from("saved_prompts")
         .select(SAVED_PROMPT_SELECT_COLUMNS)
         .eq("user_id", userId)
@@ -451,7 +451,7 @@ export async function savePrompt(input: SavePromptInput): Promise<SavePromptResu
 
     if (existing?.fingerprint === fingerprint) {
       if (existing.is_shared !== !!input.isShared) {
-        const { data: sharedRow, error: shareError } = await supabase
+        const { data: sharedRow, error: shareError } = await neon
           .from("saved_prompts")
           .update({ is_shared: !!input.isShared })
           .eq("id", existing.id)
@@ -496,7 +496,7 @@ export async function savePrompt(input: SavePromptInput): Promise<SavePromptResu
         remix_diff: normalizedRemixDiff,
       };
 
-      const { data: updated, error } = await supabase
+      const { data: updated, error } = await neon
         .from("saved_prompts")
         .update(updatePayload)
         .eq("id", existing.id)
@@ -517,7 +517,7 @@ export async function savePrompt(input: SavePromptInput): Promise<SavePromptResu
       };
     }
 
-    const { data: created, error: insertError } = await supabase
+    const { data: created, error: insertError } = await neon
       .from("saved_prompts")
       .insert({
         user_id: userId,
@@ -605,7 +605,7 @@ export async function loadFeed(input: LoadFeedInput = {}): Promise<CommunityPost
   const normalizedPage = Math.max(page, 0);
 
   try {
-    let builder = supabase
+    let builder = neon
       .from("community_posts")
       .select(COMMUNITY_POST_SELECT_COLUMNS)
       .eq("is_public", true)
@@ -647,7 +647,7 @@ export async function loadFeed(input: LoadFeedInput = {}): Promise<CommunityPost
 
 export async function loadPost(postId: string): Promise<CommunityPost | null> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await neon
       .from("community_posts")
       .select(COMMUNITY_POST_SELECT_COLUMNS)
       .eq("id", postId)
@@ -670,7 +670,7 @@ export async function loadPostsByIds(postIds: string[]): Promise<CommunityPost[]
   if (uniqueIds.length === 0) return [];
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await neon
       .from("community_posts")
       .select(COMMUNITY_POST_SELECT_COLUMNS)
       .in("id", uniqueIds)
@@ -688,7 +688,7 @@ export async function loadProfilesByIds(userIds: string[]): Promise<CommunityPro
   if (uniqueIds.length === 0) return [];
 
   try {
-    const { data, error } = await supabase.rpc("community_profiles_by_ids", {
+    const { data, error } = await neon.rpc("community_profiles_by_ids", {
       input_ids: uniqueIds,
     });
 
@@ -701,7 +701,7 @@ export async function loadProfilesByIds(userIds: string[]): Promise<CommunityPro
 
 export async function loadRemixes(postId: string): Promise<CommunityPost[]> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await neon
       .from("community_posts")
       .select(COMMUNITY_POST_SELECT_COLUMNS)
       .eq("remixed_from", postId)
@@ -719,7 +719,7 @@ export async function loadMyVotes(postIds: string[]): Promise<Record<string, Vot
   const uniqueIds = Array.from(new Set(postIds.filter(Boolean)));
   if (uniqueIds.length === 0) return {};
 
-  const { data: userData, error: userError } = await supabase.auth.getUser();
+  const { data: userData, error: userError } = await neon.auth.getUser();
   if (userError) {
     return {};
   }
@@ -728,7 +728,7 @@ export async function loadMyVotes(postIds: string[]): Promise<Record<string, Vot
   }
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await neon
       .from("community_votes")
       .select("post_id, vote_type")
       .eq("user_id", userData.user.id)
@@ -758,7 +758,7 @@ export async function toggleVote(
   const userId = await requireUserId();
 
   try {
-    const { data: removed, error: deleteError } = await supabase
+    const { data: removed, error: deleteError } = await neon
       .from("community_votes")
       .delete()
       .eq("post_id", postId)
@@ -772,7 +772,7 @@ export async function toggleVote(
       return { active: false, rowId: null };
     }
 
-    const { data: upserted, error: upsertError } = await supabase
+    const { data: upserted, error: upsertError } = await neon
       .from("community_votes")
       .upsert(
         {
@@ -793,7 +793,7 @@ export async function toggleVote(
       return { active: true, rowId: upserted.id };
     }
 
-    const { data: existing, error: lookupError } = await supabase
+    const { data: existing, error: lookupError } = await neon
       .from("community_votes")
       .select("id")
       .eq("post_id", postId)
@@ -814,7 +814,7 @@ export async function addComment(postId: string, body: string): Promise<Communit
   if (!content) throw new Error("Comment is required.");
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await neon
       .from("community_comments")
       .insert({
         post_id: postId,
@@ -836,7 +836,7 @@ export async function loadComments(postId: string, options: LoadCommentsInput = 
   const { limit = 25, cursor } = options;
 
   try {
-    const { data: visiblePost, error: postError } = await supabase
+    const { data: visiblePost, error: postError } = await neon
       .from("community_posts")
       .select("id")
       .eq("id", postId)
@@ -846,7 +846,7 @@ export async function loadComments(postId: string, options: LoadCommentsInput = 
     if (postError) throw postError;
     if (!visiblePost) return [];
 
-    let builder = supabase
+    let builder = neon
       .from("community_comments")
       .select("id, post_id, user_id, body, created_at, updated_at")
       .eq("post_id", postId)
@@ -872,7 +872,7 @@ export async function remixToLibrary(
   const userId = await requireUserId();
 
   try {
-    const { data: postRow, error: postError } = await supabase
+    const { data: postRow, error: postError } = await neon
       .from("community_posts")
       .select(COMMUNITY_POST_SELECT_COLUMNS)
       .eq("id", postId)
@@ -886,7 +886,7 @@ export async function remixToLibrary(
       sanitizePostgresJson(post.publicConfig as unknown as Json) as unknown as PromptConfig,
     );
 
-    const { data: created, error: insertError } = await supabase
+    const { data: created, error: insertError } = await neon
       .from("saved_prompts")
       .insert({
         user_id: userId,

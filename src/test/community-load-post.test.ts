@@ -5,7 +5,7 @@ const { fromMock } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/integrations/neon/client", () => ({
-  supabase: {
+  neon: {
     from: fromMock,
     auth: {
       getUser: vi.fn(),

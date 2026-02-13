@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/neon/client";
+import { neon } from "@/integrations/neon/client";
 import { type CommunityProfile, loadProfilesByIds } from "@/lib/community";
 import { isPostgrestError } from "@/lib/saved-prompt-shared";
 
@@ -66,7 +66,7 @@ function uniqueNonEmpty(values: Array<string | null | undefined>): string[] {
 }
 
 async function requireUserId(): Promise<string> {
-  const { data, error } = await supabase.auth.getUser();
+  const { data, error } = await neon.auth.getUser();
   if (error) throw toError(error, "Authentication failed.");
   const user = data.user;
   if (!user?.id) {
@@ -81,7 +81,7 @@ export async function loadNotifications(limit = 25, offset = 0): Promise<Notific
   const normalizedOffset = Math.max(offset, 0);
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await neon
       .from("notifications")
       .select("id, user_id, actor_id, type, post_id, comment_id, read_at, created_at")
       .eq("user_id", userId)
@@ -98,7 +98,7 @@ export async function loadNotifications(limit = 25, offset = 0): Promise<Notific
     const [profilesResult, postsResult] = await Promise.allSettled([
       loadProfilesByIds(actorIds),
       postIds.length > 0
-        ? supabase.from("community_posts").select("id, title").in("id", postIds)
+        ? neon.from("community_posts").select("id, title").in("id", postIds)
         : Promise.resolve({ data: [] as PostTitleRow[], error: null }),
     ]);
 
@@ -140,7 +140,7 @@ export async function getUnreadCount(): Promise<number> {
   const userId = await requireUserId();
 
   try {
-    const { count, error } = await supabase
+    const { count, error } = await neon
       .from("notifications")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
@@ -157,7 +157,7 @@ export async function markAsRead(notificationId: string): Promise<boolean> {
   const userId = await requireUserId();
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await neon
       .from("notifications")
       .update({ read_at: new Date().toISOString() })
       .eq("id", notificationId)
@@ -177,7 +177,7 @@ export async function markAllAsRead(): Promise<number> {
   const userId = await requireUserId();
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await neon
       .from("notifications")
       .update({ read_at: new Date().toISOString() })
       .eq("user_id", userId)

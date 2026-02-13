@@ -42,6 +42,3 @@ export const neon = createClient<Database>({
     url: DATA_API_URL,
   },
 });
-
-// Transitional alias to minimize migration churn in call sites/tests.
-export const supabase = neon;

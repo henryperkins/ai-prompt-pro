@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/neon/client";
+import { neon } from "@/integrations/neon/client";
 
 function normalizeEnvValue(value?: string): string | undefined {
   if (typeof value !== "string") return undefined;
@@ -69,7 +69,7 @@ async function refreshSessionAccessToken(): Promise<string | null> {
     const {
       data: { session },
       error,
-    } = await supabase.auth.refreshSession();
+    } = await neon.auth.refreshSession();
     if (error) return null;
     return session?.access_token ?? null;
   } catch (error) {
@@ -82,7 +82,7 @@ async function refreshSessionAccessToken(): Promise<string | null> {
 
 async function clearLocalSession(): Promise<void> {
   try {
-    await supabase.auth.signOut({ scope: "local" });
+    await neon.auth.signOut({ scope: "local" });
   } catch {
     // Ignore local sign-out failures and continue with fallback auth.
   }
@@ -128,7 +128,7 @@ async function getAccessToken({
     | null = null;
 
   try {
-    sessionResult = await supabase.auth.getSession();
+    sessionResult = await neon.auth.getSession();
   } catch (sessionError) {
     if (isRetryableAuthSessionError(sessionError)) {
       await clearLocalSession();
@@ -237,11 +237,11 @@ async function readFunctionError(resp: Response): Promise<string> {
   return fallbackMessage;
 }
 
-function isInvalidSupabaseSessionError(status: number, errorMessage: string): boolean {
+function isInvalidAuthSessionError(status: number, errorMessage: string): boolean {
   if (status !== 401) return false;
   const normalized = errorMessage.toLowerCase();
   return (
-    normalized.includes("invalid or expired supabase session") ||
+    normalized.includes("invalid or expired auth session") ||
     (normalized.includes("invalid") && normalized.includes("session")) ||
     (normalized.includes("expired") && normalized.includes("session"))
   );
@@ -263,7 +263,7 @@ async function postFunctionWithAuthRecovery(
 
   let errorMessage = await readFunctionError(response);
   const firstFailureWasAuth =
-    response.status === 401 || isInvalidSupabaseSessionError(response.status, errorMessage);
+    response.status === 401 || isInvalidAuthSessionError(response.status, errorMessage);
   if (!firstFailureWasAuth) {
     throw new Error(errorMessage);
   }
@@ -273,7 +273,7 @@ async function postFunctionWithAuthRecovery(
 
   errorMessage = await readFunctionError(response);
   const secondFailureWasAuth =
-    response.status === 401 || isInvalidSupabaseSessionError(response.status, errorMessage);
+    response.status === 401 || isInvalidAuthSessionError(response.status, errorMessage);
   if (!secondFailureWasAuth) {
     throw new Error(errorMessage);
   }

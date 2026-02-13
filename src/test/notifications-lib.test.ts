@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/integrations/neon/client", () => ({
-  supabase: {
+  neon: {
     auth: {
       getUser: (...args: unknown[]) => mocks.getUser(...args),
     },

@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/integrations/neon/client", () => ({
-  supabase: {
+  neon: {
     auth: {
       getSession: (...args: unknown[]) => mocks.getSession(...args),
       refreshSession: (...args: unknown[]) => mocks.refreshSession(...args),
@@ -76,7 +76,7 @@ describe("ai-client auth recovery", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ error: "Invalid or expired Supabase session." }), {
+        new Response(JSON.stringify({ error: "Invalid or expired auth session." }), {
           status: 401,
           headers: { "Content-Type": "application/json" },
         }),
@@ -339,7 +339,7 @@ describe("ai-client auth recovery", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ error: "Invalid or expired Supabase session." }), {
+        new Response(JSON.stringify({ error: "Invalid or expired auth session." }), {
           status: 401,
           headers: { "Content-Type": "application/json" },
         }),
@@ -400,13 +400,13 @@ describe("ai-client auth recovery", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ error: "Invalid or expired Supabase session." }), {
+        new Response(JSON.stringify({ error: "Invalid or expired auth session." }), {
           status: 401,
           headers: { "Content-Type": "application/json" },
         }),
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ error: "Invalid or expired Supabase session." }), {
+        new Response(JSON.stringify({ error: "Invalid or expired auth session." }), {
           status: 401,
           headers: { "Content-Type": "application/json" },
         }),
@@ -465,7 +465,7 @@ describe("ai-client auth recovery", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ error: "Invalid or expired Supabase session." }), {
+        new Response(JSON.stringify({ error: "Invalid or expired auth session." }), {
           status: 401,
           headers: { "Content-Type": "application/json" },
         }),
