@@ -40,12 +40,4 @@ Community mobile telemetry events are emitted via `src/lib/community-telemetry.t
 Recent history mixes terse messages and scoped prefixes (for example, `ci: ...`). Prefer clear imperative commits with optional scope: `ui: improve community post card spacing`. Avoid vague messages like `up` or `Changes`.  
 PRs should include: what changed, why, test commands run, screenshots for UI updates, and any env/secret impacts.
 
-## Agent-Specific Instructions
-For any code-touching request, run `query_project` immediately after receiving the prompt before opening files. Start with semantic queries, then use symbol/dependency queries for identifiers/relationships.
 
-Suggested queries:
-- `query_project(query: "Summarize modules involved in prompt persistence flow")`
-- `query_project(query: "Where is usePromptBuilder defined and consumed?", type: "symbol")`
-- `query_project(query: "Map dependencies between ai-client and Supabase functions", type: "dependency")`
-
-Skip this only when the user provides exact file paths or the request is purely non-code.

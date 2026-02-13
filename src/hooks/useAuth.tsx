@@ -21,6 +21,7 @@ interface AuthContextValue {
   signUp: (
     email: string,
     password: string,
+    displayName?: string,
   ) => Promise<{ error: string | null; session: AuthSession; user: AuthUser | null }>;
   signIn: (
     email: string,
@@ -34,6 +35,20 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+function resolveSignUpName(email: string, displayName?: string): string {
+  const trimmedDisplayName = displayName?.trim();
+  if (trimmedDisplayName) {
+    return trimmedDisplayName;
+  }
+
+  const emailLocalPart = email.split("@")[0]?.trim();
+  if (emailLocalPart) {
+    return emailLocalPart;
+  }
+
+  return "Member";
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -73,8 +88,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string) => {
-    const { data, error } = await neon.auth.signUp({ email, password });
+  const signUp = useCallback(async (email: string, password: string, displayName?: string) => {
+    const safeName = resolveSignUpName(email, displayName);
+    const { data, error } = await neon.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          displayName: safeName,
+          name: safeName,
+        },
+      },
+    });
     return {
       error: error?.message ?? null,
       session: data.session,
