@@ -59,7 +59,7 @@ describe("community prompt preview fallback", () => {
     expect(screen.queryByText("No prompt content available yet.")).toBeNull();
   });
 
-  it("opens the post detail when clicking a non-interactive part of the card", () => {
+  it("opens the post detail from the explicit title link", () => {
     const post = buildPost();
 
     render(
@@ -83,7 +83,7 @@ describe("community prompt preview fallback", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole("heading", { name: "Starter-only post" }));
+    fireEvent.click(screen.getByRole("link", { name: "Open Starter-only post" }));
 
     expect(screen.getByText("Post detail route")).toBeInTheDocument();
   });

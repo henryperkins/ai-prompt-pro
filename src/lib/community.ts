@@ -1,5 +1,6 @@
 import { neon } from "@/integrations/neon/client";
 import type { Json } from "@/integrations/neon/types";
+import { assertBackendConfigured } from "@/lib/backend-config";
 import { normalizePromptCategory } from "@/lib/prompt-categories";
 import type { PromptConfig } from "@/lib/prompt-builder";
 import { defaultConfig } from "@/lib/prompt-builder";
@@ -335,7 +336,12 @@ function isInvalidUuidInputError(error: unknown): boolean {
   return error.message.toLowerCase().includes("invalid input syntax for type uuid");
 }
 
+function ensureCommunityBackend(featureLabel = "Community features"): void {
+  assertBackendConfigured(featureLabel);
+}
+
 async function requireUserId(): Promise<string> {
+  ensureCommunityBackend("Community account actions");
   const { data, error } = await neon.auth.getUser();
   if (error) throw toError(error, "Authentication failed.");
   const user = data.user;
@@ -346,6 +352,7 @@ async function requireUserId(): Promise<string> {
 }
 
 export async function listMyPrompts(input: ListMyPromptsInput = {}): Promise<SavedPromptSummary[]> {
+  ensureCommunityBackend("Community prompts");
   const { query, category, tag, sort = "recent", limit = 100 } = input;
   const userId = await requireUserId();
 
@@ -388,6 +395,7 @@ export async function listMyPrompts(input: ListMyPromptsInput = {}): Promise<Sav
 }
 
 export async function loadMyPromptById(id: string): Promise<SavedPromptRecord | null> {
+  ensureCommunityBackend("Community prompts");
   const userId = await requireUserId();
 
   try {
@@ -407,6 +415,7 @@ export async function loadMyPromptById(id: string): Promise<SavedPromptRecord | 
 }
 
 export async function savePrompt(input: SavePromptInput): Promise<SavePromptResult> {
+  ensureCommunityBackend("Community prompts");
   const userId = await requireUserId();
   const title = clampTitle(input.title);
   const safeConfig = sanitizePostgresJson(input.config as unknown as Json) as unknown as PromptConfig;
@@ -553,6 +562,7 @@ export async function savePrompt(input: SavePromptInput): Promise<SavePromptResu
 }
 
 export async function deletePrompt(id: string): Promise<boolean> {
+  ensureCommunityBackend("Community prompts");
   const userId = await requireUserId();
 
   try {
@@ -573,6 +583,7 @@ export async function sharePrompt(
     description?: string;
   },
 ): Promise<boolean> {
+  ensureCommunityBackend("Community sharing");
   const userId = await requireUserId();
 
   try {
@@ -590,6 +601,7 @@ export async function sharePrompt(
 }
 
 export async function unsharePrompt(savedPromptId: string): Promise<boolean> {
+  ensureCommunityBackend("Community sharing");
   const userId = await requireUserId();
 
   try {
@@ -600,6 +612,7 @@ export async function unsharePrompt(savedPromptId: string): Promise<boolean> {
 }
 
 export async function loadFeed(input: LoadFeedInput = {}): Promise<CommunityPost[]> {
+  ensureCommunityBackend("Community feed");
   const { sort = "new", category, search, cursor, page = 0, limit = 25 } = input;
   const normalizedLimit = Math.min(Math.max(limit, 1), 100);
   const normalizedPage = Math.max(page, 0);
@@ -646,6 +659,7 @@ export async function loadFeed(input: LoadFeedInput = {}): Promise<CommunityPost
 }
 
 export async function loadPost(postId: string): Promise<CommunityPost | null> {
+  ensureCommunityBackend("Community posts");
   try {
     const { data, error } = await neon
       .from("community_posts")
@@ -666,6 +680,7 @@ export async function loadPost(postId: string): Promise<CommunityPost | null> {
 }
 
 export async function loadPostsByIds(postIds: string[]): Promise<CommunityPost[]> {
+  ensureCommunityBackend("Community posts");
   const uniqueIds = Array.from(new Set(postIds.filter(Boolean)));
   if (uniqueIds.length === 0) return [];
 
@@ -684,6 +699,7 @@ export async function loadPostsByIds(postIds: string[]): Promise<CommunityPost[]
 }
 
 export async function loadProfilesByIds(userIds: string[]): Promise<CommunityProfile[]> {
+  ensureCommunityBackend("Community profiles");
   const uniqueIds = Array.from(new Set(userIds.filter(Boolean)));
   if (uniqueIds.length === 0) return [];
 
@@ -700,6 +716,7 @@ export async function loadProfilesByIds(userIds: string[]): Promise<CommunityPro
 }
 
 export async function loadRemixes(postId: string): Promise<CommunityPost[]> {
+  ensureCommunityBackend("Community remixes");
   try {
     const { data, error } = await neon
       .from("community_posts")
@@ -716,6 +733,7 @@ export async function loadRemixes(postId: string): Promise<CommunityPost[]> {
 }
 
 export async function loadMyVotes(postIds: string[]): Promise<Record<string, VoteState>> {
+  ensureCommunityBackend("Community reactions");
   const uniqueIds = Array.from(new Set(postIds.filter(Boolean)));
   if (uniqueIds.length === 0) return {};
 
@@ -755,6 +773,7 @@ export async function toggleVote(
   postId: string,
   voteType: VoteType,
 ): Promise<{ active: boolean; rowId: string | null }> {
+  ensureCommunityBackend("Community reactions");
   const userId = await requireUserId();
 
   try {
@@ -809,6 +828,7 @@ export async function toggleVote(
 }
 
 export async function addComment(postId: string, body: string): Promise<CommunityComment> {
+  ensureCommunityBackend("Community comments");
   const userId = await requireUserId();
   const content = sanitizePostgresText(body).trim();
   if (!content) throw new Error("Comment is required.");
@@ -833,6 +853,7 @@ export async function addComment(postId: string, body: string): Promise<Communit
 }
 
 export async function loadComments(postId: string, options: LoadCommentsInput = {}): Promise<CommunityComment[]> {
+  ensureCommunityBackend("Community comments");
   const { limit = 25, cursor } = options;
 
   try {
@@ -869,6 +890,7 @@ export async function remixToLibrary(
   postId: string,
   options?: { title?: string; remixNote?: string },
 ): Promise<SavedPromptRecord> {
+  ensureCommunityBackend("Community remixes");
   const userId = await requireUserId();
 
   try {

@@ -1,7 +1,7 @@
 import { memo, useMemo, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { ArrowUp, CheckCircle2, Database, GitBranch, MessageCircle } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import type { CommunityPost, VoteState, VoteType } from "@/lib/community";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,15 +49,6 @@ function estimateTokens(text: string): string {
   return String(tokens);
 }
 
-function shouldIgnoreCardOpen(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return Boolean(
-    target.closest(
-      "a,button,input,textarea,select,summary,[role='button'],[data-prevent-card-open]",
-    ),
-  );
-}
-
 function CommunityPostCardComponent({
   post,
   isFeatured = false,
@@ -72,7 +63,6 @@ function CommunityPostCardComponent({
   onCommentThreadOpen,
   canVote,
 }: CommunityPostCardProps) {
-  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const useMobileCommentsDrawer = isMobile && communityFeatureFlags.communityMobileEnhancements;
   const createdAgo = useMemo(
@@ -93,24 +83,10 @@ function CommunityPostCardComponent({
   return (
     <Card
       className={cn(
-        "community-feed-card interactive-card cursor-pointer overflow-hidden border-border/80 bg-card/85 p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:p-4",
+        "community-feed-card interactive-card overflow-hidden border-border/80 bg-card/85 p-3 sm:p-4",
         isFeatured && "lg:col-span-2 border-primary/35 bg-gradient-to-br from-primary/10 via-card/90 to-card/85",
       )}
       style={{ animationDelay: `${animationDelayMs}ms` }}
-      role="link"
-      tabIndex={0}
-      aria-label={`Open ${post.title}`}
-      onClick={(event) => {
-        if (shouldIgnoreCardOpen(event.target)) return;
-        navigate(postPath);
-      }}
-      onKeyDown={(event) => {
-        if (shouldIgnoreCardOpen(event.target)) return;
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          navigate(postPath);
-        }
-      }}
     >
       <div className={cn("space-y-3", isMobile && "space-y-2.5")}>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
@@ -142,7 +118,11 @@ function CommunityPostCardComponent({
           </div>
         )}
 
-        <div>
+        <Link
+          to={postPath}
+          aria-label={`Open ${post.title}`}
+          className="block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
           <h3 className={cn("type-post-title text-foreground", isFeatured && "sm:text-xl sm:leading-7")}>
             {post.title}
           </h3>
@@ -151,7 +131,7 @@ function CommunityPostCardComponent({
               {post.useCase}
             </p>
           )}
-        </div>
+        </Link>
 
         <PromptPreviewPanel
           text={promptBody}

@@ -23,6 +23,7 @@ import {
   toggleVote,
 } from "@/lib/community";
 import { communityFeatureFlags } from "@/lib/feature-flags";
+import { toCommunityErrorState, type CommunityErrorState } from "@/lib/community-errors";
 import { PROMPT_CATEGORY_OPTIONS } from "@/lib/prompt-categories";
 import { cn } from "@/lib/utils";
 
@@ -68,7 +69,8 @@ const Community = () => {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [page, setPage] = useState(0);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorState, setErrorState] = useState<CommunityErrorState | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
   const requestToken = useRef(0);
   const voteInFlightByPost = useRef<Set<string>>(new Set());
   const { toast } = useToast();
@@ -133,7 +135,7 @@ const Community = () => {
     const token = ++requestToken.current;
     setLoading(true);
     setIsLoadingMore(false);
-    setErrorMessage(null);
+    setErrorState(null);
 
     void (async () => {
       try {
@@ -158,14 +160,14 @@ const Community = () => {
         setAuthorById({});
         setParentTitleById({});
         setVoteStateByPost({});
-        setErrorMessage(error instanceof Error ? error.message : "Failed to load community feed.");
+        setErrorState(toCommunityErrorState(error, "Failed to load community feed."));
       } finally {
         if (token === requestToken.current) {
           setLoading(false);
         }
       }
     })();
-  }, [sort, category, query, user?.id, hydrateFeedContext]);
+  }, [sort, category, query, user?.id, hydrateFeedContext, retryNonce]);
 
   const handleLoadMore = useCallback(() => {
     if (loading || isLoadingMore || !hasMore) return;
@@ -296,6 +298,10 @@ const Community = () => {
     trackInteraction("comment", "thread_opened", { postId });
   }, [trackFirstMeaningfulAction, trackInteraction]);
 
+  const handleRetry = useCallback(() => {
+    setRetryNonce((prev) => prev + 1);
+  }, []);
+
   return (
     <PageShell>
       <div className="community-typography" data-density="comfortable">
@@ -304,7 +310,10 @@ const Community = () => {
           subtitle="Browse prompts, filter by category, then copy or remix."
         />
 
-        <div className="relative mb-3 rounded-xl border border-border bg-card/85 shadow-sm">
+        <div
+          className="relative mb-3 rounded-xl border border-border bg-card/85 shadow-sm focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
+          data-testid="community-search-shell"
+        >
           <div className="p-2 sm:p-0">
             <div className="relative">
               <label htmlFor="community-feed-search" className="sr-only">
@@ -328,7 +337,7 @@ const Community = () => {
                   }
                 }}
                 placeholder="Search by title or use case"
-                className="type-input h-11 border-0 bg-transparent pl-9 shadow-none focus-visible:ring-0"
+                className="type-input h-11 border-0 bg-transparent pl-9 shadow-none"
                 aria-expanded={showCategorySuggestions}
                 aria-controls={showCategorySuggestions ? categoryPanelId : undefined}
               />
@@ -469,7 +478,8 @@ const Community = () => {
         <CommunityFeed
           posts={posts}
           loading={loading}
-          errorMessage={errorMessage}
+          errorMessage={errorState?.message}
+          errorType={errorState?.kind}
           authorById={authorById}
           parentTitleById={parentTitleById}
           onCopyPrompt={handleCopyPrompt}
@@ -481,6 +491,7 @@ const Community = () => {
           hasMore={hasMore}
           isLoadingMore={isLoadingMore}
           onLoadMore={handleLoadMore}
+          onRetry={handleRetry}
         />
       </div>
     </PageShell>

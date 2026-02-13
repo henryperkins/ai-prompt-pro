@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import { neon } from "@/integrations/neon/client";
+import { getBackendConfigErrorMessage, isBackendConfigured } from "@/lib/backend-config";
 import { validateDisplayName } from "@/lib/profile";
 
 type SessionResult = Awaited<ReturnType<typeof neon.auth.getSession>>;
@@ -35,6 +36,7 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+const AUTH_UNAVAILABLE_MESSAGE = getBackendConfigErrorMessage("Authentication");
 
 function resolveSignUpName(email: string, displayName?: string): string {
   const trimmedDisplayName = displayName?.trim();
@@ -56,6 +58,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!isBackendConfigured) {
+      setSession(null);
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+
     let isMounted = true;
 
     // Get initial session
@@ -89,6 +98,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signUp = useCallback(async (email: string, password: string, displayName?: string) => {
+    if (!isBackendConfigured) {
+      return { error: AUTH_UNAVAILABLE_MESSAGE, session: null, user: null };
+    }
+
     const safeName = resolveSignUpName(email, displayName);
     const { data, error } = await neon.auth.signUp({
       email,
@@ -108,6 +121,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
+    if (!isBackendConfigured) {
+      return { error: AUTH_UNAVAILABLE_MESSAGE, session: null, user: null };
+    }
+
     const { data, error } = await neon.auth.signInWithPassword({ email, password });
     return {
       error: error?.message ?? null,
@@ -117,6 +134,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signInWithOAuth = useCallback(async (provider: AuthOAuthProvider) => {
+    if (!isBackendConfigured) {
+      return { error: AUTH_UNAVAILABLE_MESSAGE, session: null };
+    }
+
     const { error } = await neon.auth.signInWithOAuth({
       provider,
       options: { redirectTo: window.location.origin },
@@ -125,10 +146,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    if (!isBackendConfigured) {
+      setSession(null);
+      setUser(null);
+      return;
+    }
+
     await neon.auth.signOut();
   }, []);
 
   const updateDisplayName = useCallback(async (displayName: string) => {
+    if (!isBackendConfigured) {
+      return { error: AUTH_UNAVAILABLE_MESSAGE, user: null };
+    }
+
     const normalized = displayName.trim();
     const validationError = validateDisplayName(normalized);
     if (validationError) {

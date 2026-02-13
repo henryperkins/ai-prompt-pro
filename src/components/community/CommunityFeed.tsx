@@ -6,11 +6,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CommunityPostCard } from "@/components/community/CommunityPostCard";
 import { StateCard } from "@/components/ui/state-card";
 import { useIsMobile } from "@/hooks/use-mobile";
+import type { CommunityErrorKind } from "@/lib/community-errors";
 
 interface CommunityFeedProps {
   posts: CommunityPost[];
   loading: boolean;
   errorMessage?: string | null;
+  errorType?: CommunityErrorKind;
   authorById: Record<string, CommunityProfile>;
   parentTitleById: Record<string, string>;
   onCopyPrompt: (post: CommunityPost) => void;
@@ -22,6 +24,7 @@ interface CommunityFeedProps {
   hasMore?: boolean;
   isLoadingMore?: boolean;
   onLoadMore?: () => void;
+  onRetry?: () => void;
 }
 
 function LoadingCard() {
@@ -49,6 +52,7 @@ export function CommunityFeed({
   posts,
   loading,
   errorMessage,
+  errorType = "unknown",
   authorById,
   parentTitleById,
   onCopyPrompt,
@@ -60,6 +64,7 @@ export function CommunityFeed({
   hasMore = false,
   isLoadingMore = false,
   onLoadMore,
+  onRetry,
 }: CommunityFeedProps) {
   const isMobile = useIsMobile();
   const renderedPosts = useMemo(
@@ -112,13 +117,30 @@ export function CommunityFeed({
   }
 
   if (errorMessage) {
+    const title =
+      errorType === "auth"
+        ? "Sign in to access this community view"
+        : errorType === "not_found"
+          ? "Community content could not be found"
+        : errorType === "network"
+          ? "Couldn’t reach community feed"
+          : errorType === "backend_unconfigured"
+            ? "Community backend is not configured"
+            : "Couldn’t load community feed";
+    const secondaryAction =
+      errorType === "auth"
+        ? { label: "Go to Builder and sign in", to: "/" }
+        : errorType === "not_found"
+          ? { label: "Return to community", to: "/community" }
+          : { label: "Open Library", to: "/library" };
+
     return (
       <StateCard
         variant="error"
-        title="Couldn’t load community feed"
+        title={title}
         description={errorMessage}
-        primaryAction={{ label: "Go to Builder", to: "/" }}
-        secondaryAction={{ label: "Open Library", to: "/library" }}
+        primaryAction={onRetry ? { label: "Retry", onClick: onRetry } : { label: "Go to Builder", to: "/" }}
+        secondaryAction={secondaryAction}
       />
     );
   }

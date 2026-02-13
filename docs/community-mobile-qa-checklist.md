@@ -14,6 +14,7 @@ Feature flag: `VITE_COMMUNITY_MOBILE_ENHANCEMENTS=true`
 8. Tap notifications bell once; verify notifications drawer opens and list is interactive.
 9. Scroll to page bottom on `/community` and `/community/:id`; verify content is not clipped behind the bottom nav.
 10. Rotate device portrait/landscape and repeat steps 4, 6, and 9.
+11. On low-end devices (or throttled CPU), scroll `/community` continuously for 10-15 seconds and confirm background scrolling stays smooth without fixed-attachment jank.
 
 ## Rollout Safety
 

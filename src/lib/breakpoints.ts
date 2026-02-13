@@ -1,0 +1,2 @@
+export const MOBILE_BREAKPOINT_PX = 640;
+export const MOBILE_MAX_WIDTH_PX = MOBILE_BREAKPOINT_PX - 1;

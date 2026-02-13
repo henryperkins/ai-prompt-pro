@@ -85,4 +85,27 @@ describe("Library share use case fallback", () => {
       });
     });
   });
+
+  it("shows visible helper text when share is disabled", async () => {
+    const prompt = buildPrompt({ useCase: "", starterPrompt: "" });
+    mocks.usePromptBuilder.mockReturnValue({
+      templateSummaries: [prompt],
+      isSignedIn: false,
+      deleteSavedTemplate: vi.fn(),
+      shareSavedPrompt: vi.fn(),
+      unshareSavedPrompt: vi.fn(),
+    });
+
+    const { default: Library } = await import("@/pages/Library");
+    render(
+      <ThemeProvider>
+        <MemoryRouter>
+          <Library />
+        </MemoryRouter>
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByRole("button", { name: "Share" })).toBeDisabled();
+    expect(screen.getByText("Sign in to share.")).toBeInTheDocument();
+  });
 });

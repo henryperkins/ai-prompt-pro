@@ -1,12 +1,24 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowDownUp, Database, ExternalLink, GitBranch, Lock, Search, Share2, Sparkles } from "lucide-react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import {
+  ArrowDownUp,
+  Database,
+  ExternalLink,
+  GitBranch,
+  Lock,
+  MoreHorizontal,
+  Search,
+  Share2,
+  Sparkles,
+} from "lucide-react";
 import { PageHero, PageShell } from "@/components/PageShell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { StateCard } from "@/components/ui/state-card";
 import {
@@ -18,6 +30,7 @@ import {
 } from "@/components/ui/select";
 import { ToastAction } from "@/components/ui/toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { usePromptBuilder } from "@/hooks/usePromptBuilder";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -29,6 +42,7 @@ import {
 import * as persistence from "@/lib/persistence";
 
 type SavedPromptSort = "recent" | "name" | "revision";
+const LIBRARY_VIRTUALIZATION_THRESHOLD = 50;
 
 function formatUpdatedAt(timestamp: number): string {
   const date = new Date(timestamp);
@@ -55,6 +69,7 @@ const Library = () => {
   const userId = user?.id ?? null;
   const ownerName = getUserDisplayName(user);
   const ownerAvatarUrl = getUserAvatarUrl(user);
+  const isMobile = useIsMobile();
   const {
     templateSummaries,
     isSignedIn,
@@ -109,6 +124,16 @@ const Library = () => {
   const selectedCount = selectedIds.length;
   const allFilteredSelected = filteredSaved.length > 0 && filteredSaved.every((prompt) => selectedSet.has(prompt.id));
   const hasActiveFilters = Boolean(normalizedQuery) || activeCategory !== "all";
+  const shouldVirtualize = filteredSaved.length >= LIBRARY_VIRTUALIZATION_THRESHOLD;
+  const listScrollRef = useRef<HTMLDivElement | null>(null);
+  const rowVirtualizer = useVirtualizer({
+    count: shouldVirtualize ? filteredSaved.length : 0,
+    getScrollElement: () => listScrollRef.current,
+    estimateSize: () => 248,
+    overscan: 6,
+    measureElement: (element) => element.getBoundingClientRect().height,
+    enabled: shouldVirtualize,
+  });
 
   const applySelection = useCallback((ids: string[]) => {
     setSelectedIds(Array.from(new Set(ids)));
@@ -253,6 +278,225 @@ const Library = () => {
     setActiveCategory("all");
   }, []);
 
+  const renderPromptCard = useCallback(
+    (prompt: persistence.PromptSummary) => {
+      const isSelected = selectedSet.has(prompt.id);
+      const shareUseCase = resolveShareUseCase(prompt);
+      const shareDisabledReason = !isSignedIn
+        ? "Sign in to share."
+        : !shareUseCase
+          ? "Add a use case in Builder before sharing."
+          : null;
+
+      return (
+        <Card
+          key={prompt.id}
+          className={`interactive-card p-3 transition-colors ${
+            isSelected ? "border-primary/45 bg-primary/5" : "hover:border-primary/40"
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={(checked) => togglePromptSelection(prompt.id, checked === true)}
+              aria-label={`Select ${prompt.name}`}
+              className="mt-1"
+            />
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <div className="flex min-w-0 items-center gap-2">
+                <Avatar className="h-7 w-7 border border-border/60">
+                  <AvatarImage src={ownerAvatarUrl ?? undefined} alt={ownerName} />
+                  <AvatarFallback className="text-xs">{getInitials(ownerName)}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="truncate text-sm font-medium text-foreground">{prompt.name}</h3>
+                    <Badge variant="outline" className="text-xs">
+                      r{prompt.revision}
+                    </Badge>
+                    {prompt.isShared ? (
+                      <Badge variant="secondary" className="text-xs gap-1">
+                        <Share2 className="h-3 w-3" />
+                        Shared
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-xs gap-1">
+                        <Lock className="h-3 w-3" />
+                        Private
+                      </Badge>
+                    )}
+                    {prompt.remixedFrom && (
+                      <Badge variant="secondary" className="text-xs gap-1">
+                        <GitBranch className="h-3 w-3" />
+                        Remixed
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">{ownerName}</p>
+                </div>
+              </div>
+
+              {prompt.description && (
+                <p className="line-clamp-2 text-xs text-muted-foreground">{prompt.description}</p>
+              )}
+              <p className="line-clamp-2 text-xs text-muted-foreground/90">
+                <span className="font-medium text-foreground/80">Start:</span> {prompt.starterPrompt}
+              </p>
+              <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="capitalize">{prompt.category || "general"}</span>
+                <span>•</span>
+                <span>{formatUpdatedAt(prompt.updatedAt)}</span>
+                <span>•</span>
+                <span className="inline-flex items-center gap-1">
+                  <Database className="h-3.5 w-3.5" />
+                  {prompt.sourceCount} src / {prompt.databaseCount} db
+                </span>
+              </div>
+              {prompt.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {prompt.tags.slice(0, 5).map((tag) => (
+                    <Badge key={`${prompt.id}-${tag}`} variant="outline" className="text-xs">
+                      #{tag}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {!isMobile && (
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                <Button
+                  type="button"
+                  variant="default"
+                  size="sm"
+                  className="h-11 px-2.5 text-sm sm:h-9 sm:text-base"
+                  onClick={() => void handleSelectSaved(prompt.id)}
+                >
+                  Load
+                </Button>
+                {prompt.isShared && prompt.communityPostId && (
+                  <Button asChild variant="ghost" size="sm" className="h-11 px-2.5 text-sm sm:h-9 sm:text-base">
+                    <Link to={`/community/${prompt.communityPostId}`}>
+                      Open
+                      <ExternalLink className="h-3 w-3" />
+                    </Link>
+                  </Button>
+                )}
+                {prompt.isShared ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-11 px-2.5 text-sm sm:h-9 sm:text-base"
+                    onClick={() => void handleUnshareSaved(prompt.id)}
+                  >
+                    Unshare
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-11 px-2.5 text-sm sm:h-9 sm:text-base"
+                    disabled={Boolean(shareDisabledReason)}
+                    onClick={() => void handleShareSaved(prompt)}
+                  >
+                    Share
+                  </Button>
+                )}
+                {shareDisabledReason && !prompt.isShared && (
+                  <p className="max-w-[160px] text-right text-xs text-muted-foreground">
+                    {shareDisabledReason}
+                  </p>
+                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-11 px-2.5 text-sm text-destructive hover:text-destructive sm:h-9 sm:text-base"
+                  onClick={() => void handleDeleteSaved(prompt.id)}
+                >
+                  Delete
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {isMobile && (
+            <div className="mt-2 flex items-center justify-end gap-2 border-t border-border/60 pt-2">
+              {shareDisabledReason && !prompt.isShared && (
+                <p className="mr-auto text-xs text-muted-foreground">{shareDisabledReason}</p>
+              )}
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                className="h-11 px-3 text-sm"
+                onClick={() => void handleSelectSaved(prompt.id)}
+              >
+                Load
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-11 px-3 text-sm"
+                    aria-label={`More actions for ${prompt.name}`}
+                  >
+                    <MoreHorizontal className="h-3.5 w-3.5" />
+                    More
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {prompt.isShared && prompt.communityPostId && (
+                    <DropdownMenuItem
+                      onSelect={() => navigate(`/community/${prompt.communityPostId}`)}
+                    >
+                      Open
+                    </DropdownMenuItem>
+                  )}
+                  {prompt.isShared ? (
+                    <DropdownMenuItem onSelect={() => void handleUnshareSaved(prompt.id)}>
+                      Unshare
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem
+                      disabled={Boolean(shareDisabledReason)}
+                      onSelect={() => void handleShareSaved(prompt)}
+                    >
+                      Share
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onSelect={() => void handleDeleteSaved(prompt.id)}
+                  >
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
+        </Card>
+      );
+    },
+    [
+      handleDeleteSaved,
+      handleSelectSaved,
+      handleShareSaved,
+      handleUnshareSaved,
+      isMobile,
+      isSignedIn,
+      navigate,
+      ownerAvatarUrl,
+      ownerName,
+      selectedSet,
+      togglePromptSelection,
+    ],
+  );
+
   return (
     <PageShell>
       <PageHero
@@ -260,11 +504,11 @@ const Library = () => {
         subtitle="Manage saved prompts here. Presets stay in Builder."
       />
 
-      <div className="space-y-4">
+      <div className="ui-density space-y-4" data-density="comfortable">
         <Card className="border-border/80 bg-card/85 p-3 sm:p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
-              <p className="type-label-caps text-xs font-semibold text-primary">Saved prompts only</p>
+              <p className="ui-section-label text-primary">Saved prompts only</p>
               <p className="text-sm text-muted-foreground">
                 Edit saved prompts without changing presets.
               </p>
@@ -372,147 +616,39 @@ const Library = () => {
               />
             )}
 
-            <div className="space-y-2">
-              {filteredSaved.map((prompt) => {
-                const isSelected = selectedSet.has(prompt.id);
-                const shareUseCase = resolveShareUseCase(prompt);
-                return (
-                  <Card
-                    key={prompt.id}
-                    className={`interactive-card p-3 transition-colors ${
-                      isSelected ? "border-primary/45 bg-primary/5" : "hover:border-primary/40"
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={(checked) => togglePromptSelection(prompt.id, checked === true)}
-                        aria-label={`Select ${prompt.name}`}
-                        className="mt-1"
-                      />
-                      <div className="min-w-0 flex-1 space-y-1.5">
-                        <div className="flex min-w-0 items-center gap-2">
-                          <Avatar className="h-7 w-7 border border-border/60">
-                            <AvatarImage src={ownerAvatarUrl ?? undefined} alt={ownerName} />
-                            <AvatarFallback className="text-xs">{getInitials(ownerName)}</AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <h3 className="truncate text-sm font-medium text-foreground">{prompt.name}</h3>
-                              <Badge variant="outline" className="text-xs">
-                                r{prompt.revision}
-                              </Badge>
-                              {prompt.isShared ? (
-                                <Badge variant="secondary" className="text-xs gap-1">
-                                  <Share2 className="h-3 w-3" />
-                                  Shared
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="text-xs gap-1">
-                                  <Lock className="h-3 w-3" />
-                                  Private
-                                </Badge>
-                              )}
-                              {prompt.remixedFrom && (
-                                <Badge variant="secondary" className="text-xs gap-1">
-                                  <GitBranch className="h-3 w-3" />
-                                  Remixed
-                                </Badge>
-                              )}
-                            </div>
-                            <p className="text-xs text-muted-foreground">{ownerName}</p>
-                          </div>
-                        </div>
+            {shouldVirtualize ? (
+              <div
+                ref={listScrollRef}
+                className="max-h-[72vh] overflow-y-auto pr-1"
+                data-testid="library-virtualized-list"
+              >
+                <div
+                  className="relative w-full"
+                  style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
+                >
+                  {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+                    const prompt = filteredSaved[virtualItem.index];
+                    if (!prompt) return null;
 
-                        {prompt.description && (
-                          <p className="line-clamp-2 text-xs text-muted-foreground">{prompt.description}</p>
-                        )}
-                        <p className="line-clamp-2 text-xs text-muted-foreground/90">
-                          <span className="font-medium text-foreground/80">Start:</span> {prompt.starterPrompt}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                          <span className="capitalize">{prompt.category || "general"}</span>
-                          <span>•</span>
-                          <span>{formatUpdatedAt(prompt.updatedAt)}</span>
-                          <span>•</span>
-                          <span className="inline-flex items-center gap-1">
-                            <Database className="h-3.5 w-3.5" />
-                            {prompt.sourceCount} src / {prompt.databaseCount} db
-                          </span>
-                        </div>
-                        {prompt.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {prompt.tags.slice(0, 5).map((tag) => (
-                              <Badge key={`${prompt.id}-${tag}`} variant="outline" className="text-xs">
-                                #{tag}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
+                    return (
+                      <div
+                        key={prompt.id}
+                        data-index={virtualItem.index}
+                        ref={rowVirtualizer.measureElement}
+                        className="absolute left-0 top-0 w-full pb-2"
+                        style={{ transform: `translateY(${virtualItem.start}px)` }}
+                      >
+                        {renderPromptCard(prompt)}
                       </div>
-
-                      <div className="flex shrink-0 flex-col gap-1">
-                        <Button
-                          type="button"
-                          variant="default"
-                          size="sm"
-                          className="h-11 px-2.5 text-sm sm:h-9 sm:text-base"
-                          onClick={() => void handleSelectSaved(prompt.id)}
-                        >
-                          Load
-                        </Button>
-                        {prompt.isShared && prompt.communityPostId && (
-                          <Button asChild variant="ghost" size="sm" className="h-11 px-2.5 text-sm sm:h-9 sm:text-base">
-                            <Link to={`/community/${prompt.communityPostId}`}>
-                              Open
-                              <ExternalLink className="h-3 w-3" />
-                            </Link>
-                          </Button>
-                        )}
-                        {prompt.isShared ? (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-11 px-2.5 text-sm sm:h-9 sm:text-base"
-                            onClick={() => void handleUnshareSaved(prompt.id)}
-                          >
-                            Unshare
-                          </Button>
-                        ) : (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-11 px-2.5 text-sm sm:h-9 sm:text-base"
-                            disabled={!isSignedIn || !shareUseCase}
-                            onClick={() => void handleShareSaved(prompt)}
-                            title={
-                              !isSignedIn
-                                ? "Sign in to share prompts."
-                                : !shareUseCase
-                                  ? "Add prompt context before sharing."
-                                  : undefined
-                            }
-                          >
-                            Share
-                          </Button>
-                        )}
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-11 px-2.5 text-sm text-destructive hover:text-destructive sm:h-9 sm:text-base"
-                          onClick={() => void handleDeleteSaved(prompt.id)}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filteredSaved.map((prompt) => renderPromptCard(prompt))}
+              </div>
+            )}
           </div>
         </Card>
       </div>

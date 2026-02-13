@@ -334,9 +334,9 @@ export function OutputPanel({
   );
 
   const diff = useMemo(() => {
-    if (!hasCompare) return null;
+    if (!compareDialogOpen || !hasCompare) return null;
     return buildLineDiff(builtPrompt, enhancedPrompt);
-  }, [hasCompare, builtPrompt, enhancedPrompt]);
+  }, [compareDialogOpen, hasCompare, builtPrompt, enhancedPrompt]);
 
   useEffect(() => {
     if (remixContext) {
@@ -451,7 +451,7 @@ export function OutputPanel({
   };
 
   return (
-    <div className="space-y-4 h-full flex flex-col">
+    <div className="ui-density space-y-4 h-full flex flex-col" data-density="comfortable">
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {enhanceAssistiveStatus}
       </p>
@@ -470,7 +470,7 @@ export function OutputPanel({
               type="button"
               variant="outline"
               size="sm"
-              className="h-11 px-2 text-xs sm:h-9"
+              className="ui-toolbar-button px-2"
               onClick={() => setCompareDialogOpen(true)}
             >
               Show changes
@@ -483,7 +483,7 @@ export function OutputPanel({
             size="sm"
             onClick={handleCopy}
             disabled={!displayPrompt}
-            className="gap-1.5 text-xs font-semibold min-w-[96px] shadow-md"
+            className="ui-toolbar-button gap-1.5 font-semibold min-w-[96px] shadow-md"
           >
             {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
             {copied ? "Copied!" : "Copy"}
@@ -491,7 +491,7 @@ export function OutputPanel({
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" disabled={!canUseSaveMenu} className="gap-1.5 text-xs">
+              <Button variant="outline" size="sm" disabled={!canUseSaveMenu} className="ui-toolbar-button gap-1.5">
                 <Save className="w-3 h-3" />
                 Save
               </Button>
@@ -528,7 +528,7 @@ export function OutputPanel({
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-1.5 text-xs">
+              <Button variant="ghost" size="sm" className="ui-toolbar-button gap-1.5">
                 <MoreHorizontal className="w-3 h-3" />
                 More
               </Button>
@@ -789,7 +789,7 @@ export function OutputPanel({
 
       {trimmedReasoningSummary && (
         <Card className="border-amber-500/30 bg-amber-500/5 p-3">
-          <p className="type-label-caps text-xs font-semibold text-amber-700">
+          <p className="ui-section-label text-amber-700">
             Reasoning summary
           </p>
           <div className="prose prose-sm mt-2 max-w-none whitespace-normal text-foreground/90 dark:prose-invert prose-headings:my-1 prose-p:my-1 prose-pre:my-1 prose-code:break-words prose-ul:my-1 prose-ol:my-1">
@@ -824,7 +824,7 @@ export function OutputPanel({
 
       {webSearchSources.length > 0 && (
         <div className="px-1 pt-1 pb-0">
-          <p className="text-xs font-medium text-muted-foreground mb-1">Sources</p>
+          <p className="ui-section-label mb-1 text-muted-foreground">Sources</p>
           <ul className="space-y-0.5">
             {webSearchSources.map((source, i) => {
               const safeLink = parseWebSourceLink(source);

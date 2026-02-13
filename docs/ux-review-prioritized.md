@@ -123,4 +123,177 @@ Recommendation: define semantic density variants (`comfortable`, `compact`) for 
 Implementation hint: add variant props to shared components (state cards, toolbar buttons, section labels) tied to design tokens.
 Before/After: before = per-screen sizing drift; after = consistent and maintainable design language.
 
-If you want, I can turn this into an implementation checklist with specific tickets (owner, effort, and acceptance criteria) for your next sprint.
+**Implementation Checklist (Sprint Ready)**
+
+Assumption: owners below are role-based and can be mapped to specific people during sprint planning.
+
+**Sizing Legend**
+- `S`: <= 1 day
+- `M`: 2-4 days
+- `L`: 5+ days or multi-PR
+
+**Suggested Sequence**
+1. Sprint 1: complete all `P0` tickets.
+2. Sprint 2: complete `P1` tickets focused on first-run and accessibility.
+3. Sprint 3: complete remaining `P1` and selected `P2` performance/consistency work.
+
+**P0 Tickets**
+
+- [x] `UX-P0-01` Fail-open startup when backend is not configured
+Owner: Frontend
+Effort: `M`
+Dependencies: none
+Acceptance Criteria:
+1. App does not crash on startup when Neon env vars are missing.
+2. Builder route remains usable in degraded mode.
+3. Backend-dependent surfaces show actionable setup/error state instead of throwing.
+4. Automated test covers missing-config startup path.
+
+- [x] `UX-P0-02` Add retry-first recovery for Community errors
+Owner: Frontend
+Effort: `M`
+Dependencies: `UX-P0-01`
+Acceptance Criteria:
+1. Community feed and post error states expose `Retry` as the primary action.
+2. Retry re-runs the same loader/request without requiring navigation away.
+3. Copy/actions differ for at least `network`, `auth`, and `not found` conditions.
+4. Regression test validates retry callback wiring.
+
+- [x] `UX-P0-03` Unify responsive breakpoints across hooks and layout
+Owner: Frontend
+Effort: `M`
+Dependencies: none
+Acceptance Criteria:
+1. A single shared breakpoint source exists (for example `src/lib/breakpoints.ts`).
+2. `useIsMobile` and route/layout mobile behavior read from the same threshold.
+3. No conflicting mobile/desktop behavior at `640-767px`.
+4. Mobile viewport checks pass at `320`, `375`, `390`, and `428`.
+
+- [x] `UX-P0-04` Restore visible keyboard focus in Community search
+Owner: Frontend
+Effort: `S`
+Dependencies: none
+Acceptance Criteria:
+1. Search input has clear visible focus styling for keyboard users.
+2. Focus styling passes quick keyboard-only traversal test in Community page.
+3. No regression to surrounding input styles in light/dark theme variants (if enabled).
+
+**P1 Tickets**
+
+- [x] `UX-P1-01` Make Presets first-class on mobile
+Owner: Frontend
+Effort: `M`
+Dependencies: `UX-P0-03`
+Acceptance Criteria:
+1. Mobile users can reach Presets in one tap from primary navigation or equivalent prominent CTA.
+2. Presets entry is visible at first load on mobile widths.
+3. Existing Builder navigation behavior remains functional.
+
+- [x] `UX-P1-02` Reduce first-screen Builder cognitive load
+Owner: Frontend + Design
+Effort: `L`
+Dependencies: `UX-P1-01`
+Acceptance Criteria:
+1. First screen emphasizes a single core flow: input -> enhance -> refine.
+2. Advanced controls are collapsed or deferred by default.
+3. At least one concise step hint is visible for first-run users.
+4. Existing power-user controls remain available after first interaction.
+
+- [x] `UX-P1-03` Increase state-card readability and action hierarchy
+Owner: Frontend + Design
+Effort: `M`
+Dependencies: none
+Acceptance Criteria:
+1. State-card body copy uses readable default size (no `text-xs` as primary body text).
+2. Primary action is visually dominant over secondary actions.
+3. Updated state-card style is applied consistently across empty/error/loading states.
+
+- [x] `UX-P1-04` Replace tooltip-only disabled reasons with inline helper text
+Owner: Frontend
+Effort: `S`
+Dependencies: none
+Acceptance Criteria:
+1. Disabled actions in Library show visible unblock guidance inline.
+2. Guidance works on touch devices without hover/tooltips.
+3. Disabled reason text updates correctly with auth/content state.
+
+- [x] `UX-P1-05` Fix Community card interaction semantics
+Owner: Frontend
+Effort: `M`
+Dependencies: none
+Acceptance Criteria:
+1. Card container is no longer a synthetic link role wrapping nested controls.
+2. Navigation is handled by explicit link targets (title/preview).
+3. Action buttons remain independently focusable and operable.
+4. Keyboard tab order is predictable and linear.
+
+- [x] `UX-P1-06` Increase touch target comfort in mobile sticky action bar
+Owner: Frontend
+Effort: `S`
+Dependencies: `UX-P0-03`
+Acceptance Criteria:
+1. Sticky controls meet minimum comfortable touch target (44x44px target area).
+2. Toggle and label spacing prevents accidental taps on 360-430px widths.
+3. Mobile Playwright checks confirm no overlap/clipping.
+
+- [x] `UX-P1-07` Simplify Library row actions on mobile
+Owner: Frontend + Design
+Effort: `M`
+Dependencies: `UX-P1-04`
+Acceptance Criteria:
+1. Each row has one clear primary action (`Load`).
+2. Secondary actions are grouped into overflow menu.
+3. Mobile list remains scannable without right-rail action stacking.
+
+- [x] `UX-P1-08` Defer non-critical Builder rendering work
+Owner: Frontend
+Effort: `L`
+Dependencies: `UX-P1-02`
+Acceptance Criteria:
+1. Non-critical sections are lazy-mounted or rendered on demand.
+2. Initial render work is reduced for Builder route (measured via React profiler or performance traces).
+3. No functional regressions in advanced panels when opened later.
+
+**P2 Tickets**
+
+- [x] `UX-P2-01` Virtualize long lists (Library and large Community views)
+Owner: Frontend
+Effort: `L`
+Dependencies: `UX-P1-07`
+Acceptance Criteria:
+1. List virtualization is applied where list size exceeds agreed threshold.
+2. Scroll remains smooth for large datasets (manual QA with seeded data).
+3. Keyboard navigation and screen reader semantics remain intact.
+
+- [x] `UX-P2-02` Add route-specific Suspense/skeleton fallbacks
+Owner: Frontend + Design
+Effort: `M`
+Dependencies: none
+Acceptance Criteria:
+1. Builder, Community, and Library have route-shaped loading states.
+2. Generic global `Loading...` fallback is no longer primary user experience.
+3. Loading skeletons match each page layout closely enough to preserve context.
+
+- [x] `UX-P2-03` Reduce mobile repaint cost from background attachment
+Owner: Frontend
+Effort: `S`
+Dependencies: none
+Acceptance Criteria:
+1. Small-screen CSS disables fixed background attachment.
+2. Mobile scroll smoothness improves subjectively on low-end devices.
+3. Desktop background appearance remains unchanged.
+
+- [x] `UX-P2-04` Normalize density tokens across key UI primitives
+Owner: Frontend + Design
+Effort: `M`
+Dependencies: `UX-P1-03`
+Acceptance Criteria:
+1. Shared density variants are defined and documented.
+2. State cards, toolbar buttons, and section labels consume shared density variants.
+3. Ad-hoc sizing classes are reduced in touched files.
+
+**Release Gate for UX Batch**
+1. `npm run lint` passes.
+2. `npm test` passes.
+3. `npm run test:mobile` passes for Community and Builder flows.
+4. Manual QA checklist updated in `docs/community-mobile-qa-checklist.md` for changed mobile behaviors.

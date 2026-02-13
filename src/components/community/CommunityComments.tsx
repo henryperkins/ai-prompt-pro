@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "react-router-dom";
 import { MessageCircle, Send } from "lucide-react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import type { CommunityComment, CommunityProfile } from "@/lib/community";
 import { addComment, loadComments, loadProfilesByIds } from "@/lib/community";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,6 +14,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+
+const COMMENTS_VIRTUALIZATION_THRESHOLD = 30;
 
 interface CommunityCommentsProps {
   postId: string;
@@ -54,7 +57,17 @@ export function CommunityComments({
   const [submitting, setSubmitting] = useState(false);
   const [draft, setDraft] = useState("");
 
-  const limit = compact ? 2 : 40;
+  const limit = compact ? 2 : 120;
+  const shouldVirtualize = !compact && comments.length >= COMMENTS_VIRTUALIZATION_THRESHOLD;
+  const commentsScrollRef = useRef<HTMLDivElement | null>(null);
+  const commentVirtualizer = useVirtualizer({
+    count: shouldVirtualize ? comments.length : 0,
+    getScrollElement: () => commentsScrollRef.current,
+    estimateSize: () => 108,
+    overscan: 8,
+    measureElement: (element) => element.getBoundingClientRect().height,
+    enabled: shouldVirtualize,
+  });
 
   const loadThread = useCallback(async () => {
     setLoading(true);
@@ -114,6 +127,22 @@ export function CommunityComments({
     }
   }, [authorById, draft, limit, onCommentAdded, postId, toast, user]);
 
+  const commentItems = useMemo(
+    () =>
+      comments.map((comment) => {
+        const author = authorById[comment.userId];
+        const displayName = author?.displayName || "Community member";
+        const createdAt = formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true });
+        return {
+          comment,
+          author,
+          displayName,
+          createdAt,
+        };
+      }),
+    [authorById, comments],
+  );
+
   const canComment = Boolean(user);
 
   return (
@@ -140,37 +169,76 @@ export function CommunityComments({
       )}
 
       {!loading && comments.length > 0 && (
-        <div
-          className={cn(
-            "space-y-2",
-            !compact && "max-h-[45vh] overflow-y-auto pr-1 sm:max-h-none sm:overflow-visible sm:pr-0",
-          )}
-        >
-          {comments.map((comment) => {
-            const author = authorById[comment.userId];
-            const displayName = author?.displayName || "Community member";
-            const createdAt = formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true });
-            return (
-              <div key={comment.id} className="rounded-md border border-border/70 bg-background/60 p-2">
-                <div className="flex items-start gap-2">
-                  <Avatar className="h-7 w-7 border border-border/60">
-                    <AvatarImage src={author?.avatarUrl ?? undefined} alt={displayName} />
-                    <AvatarFallback className="type-reply-label">{getInitials(displayName)}</AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0 flex-1">
-                    <div className="type-meta flex flex-wrap items-center gap-2 text-muted-foreground">
-                      <span className="type-author text-foreground">{displayName}</span>
-                      <span className="type-timestamp">{createdAt}</span>
+        <>
+          {shouldVirtualize ? (
+            <div
+              ref={commentsScrollRef}
+              className="max-h-[52vh] overflow-y-auto pr-1"
+              data-testid="community-comments-virtualized-list"
+            >
+              <div className="relative w-full" style={{ height: `${commentVirtualizer.getTotalSize()}px` }}>
+                {commentVirtualizer.getVirtualItems().map((virtualItem) => {
+                  const item = commentItems[virtualItem.index];
+                  if (!item) return null;
+
+                  return (
+                    <div
+                      key={item.comment.id}
+                      ref={commentVirtualizer.measureElement}
+                      className="absolute left-0 top-0 w-full pb-2"
+                      style={{ transform: `translateY(${virtualItem.start}px)` }}
+                    >
+                      <div className="rounded-md border border-border/70 bg-background/60 p-2">
+                        <div className="flex items-start gap-2">
+                          <Avatar className="h-7 w-7 border border-border/60">
+                            <AvatarImage src={item.author?.avatarUrl ?? undefined} alt={item.displayName} />
+                            <AvatarFallback className="type-reply-label">{getInitials(item.displayName)}</AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0 flex-1">
+                            <div className="type-meta flex flex-wrap items-center gap-2 text-muted-foreground">
+                              <span className="type-author text-foreground">{item.displayName}</span>
+                              <span className="type-timestamp">{item.createdAt}</span>
+                            </div>
+                            <p className="type-comment-body type-prose-measure type-wrap-safe mt-1 whitespace-pre-wrap text-foreground">
+                              {item.comment.body}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <p className="type-comment-body type-prose-measure type-wrap-safe mt-1 whitespace-pre-wrap text-foreground">
-                      {comment.body}
-                    </p>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div
+              className={cn(
+                "space-y-2",
+                !compact && "max-h-[45vh] overflow-y-auto pr-1 sm:max-h-none sm:overflow-visible sm:pr-0",
+              )}
+            >
+              {commentItems.map((item) => (
+                <div key={item.comment.id} className="rounded-md border border-border/70 bg-background/60 p-2">
+                  <div className="flex items-start gap-2">
+                    <Avatar className="h-7 w-7 border border-border/60">
+                      <AvatarImage src={item.author?.avatarUrl ?? undefined} alt={item.displayName} />
+                      <AvatarFallback className="type-reply-label">{getInitials(item.displayName)}</AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <div className="type-meta flex flex-wrap items-center gap-2 text-muted-foreground">
+                        <span className="type-author text-foreground">{item.displayName}</span>
+                        <span className="type-timestamp">{item.createdAt}</span>
+                      </div>
+                      <p className="type-comment-body type-prose-measure type-wrap-safe mt-1 whitespace-pre-wrap text-foreground">
+                        {item.comment.body}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {compact && totalCount > comments.length && (

@@ -195,6 +195,12 @@ All colors MUST be HSL.
     background-attachment: fixed;
   }
 
+  @media (max-width: 767px) {
+    body {
+      background-attachment: scroll;
+    }
+  }
+
   h1,
   h2,
   h3,
@@ -460,6 +466,63 @@ All colors MUST be HSL.
   .type-label-caps {
     text-transform: uppercase;
     letter-spacing: var(--type-label-caps-tracking);
+  }
+
+  .ui-density {
+    --ui-density-section-label-size: var(--type-xs-size);
+    --ui-density-section-label-line: var(--type-xs-line);
+    --ui-density-toolbar-size: var(--type-xs-size);
+    --ui-density-toolbar-line: var(--type-xs-line);
+    --ui-density-toolbar-height-mobile: 2.75rem;
+    --ui-density-toolbar-height-desktop: 2.25rem;
+    --ui-density-state-title-size: var(--type-base-size);
+    --ui-density-state-title-line: var(--type-base-line);
+    --ui-density-state-body-size: var(--type-sm-size);
+    --ui-density-state-body-line: var(--type-sm-line);
+  }
+
+  .ui-density[data-density="compact"] {
+    --ui-density-section-label-size: var(--type-2xs-size);
+    --ui-density-section-label-line: var(--type-2xs-line);
+    --ui-density-toolbar-size: var(--type-2xs-size);
+    --ui-density-toolbar-line: var(--type-2xs-line);
+    --ui-density-toolbar-height-mobile: 2.5rem;
+    --ui-density-toolbar-height-desktop: 2rem;
+    --ui-density-state-title-size: var(--type-sm-size);
+    --ui-density-state-title-line: var(--type-sm-line);
+    --ui-density-state-body-size: var(--type-xs-size);
+    --ui-density-state-body-line: var(--type-xs-line);
+  }
+
+  .ui-section-label {
+    font-size: var(--ui-density-section-label-size);
+    line-height: var(--ui-density-section-label-line);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: var(--type-label-caps-tracking);
+  }
+
+  .ui-toolbar-button {
+    min-height: var(--ui-density-toolbar-height-mobile);
+    font-size: var(--ui-density-toolbar-size);
+    line-height: var(--ui-density-toolbar-line);
+  }
+
+  @media (min-width: 640px) {
+    .ui-toolbar-button {
+      min-height: var(--ui-density-toolbar-height-desktop);
+    }
+  }
+
+  .ui-state-card-title {
+    font-size: var(--ui-density-state-title-size);
+    line-height: var(--ui-density-state-title-line);
+    font-weight: 600;
+  }
+
+  .ui-state-card-body {
+    font-size: var(--ui-density-state-body-size);
+    line-height: var(--ui-density-state-body-line);
   }
 
   .type-label-shortcut {

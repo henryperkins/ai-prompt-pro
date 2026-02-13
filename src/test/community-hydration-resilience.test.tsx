@@ -45,6 +45,8 @@ vi.mock("@/components/community/CommunityFeed", () => ({
   CommunityFeed: ({
     posts,
     errorMessage,
+    errorType,
+    onRetry,
     canVote,
     voteStateByPost,
     onToggleVote,
@@ -58,6 +60,8 @@ vi.mock("@/components/community/CommunityFeed", () => ({
       starterPrompt: string;
     }>;
     errorMessage?: string | null;
+    errorType?: string;
+    onRetry?: () => void;
     canVote: boolean;
     voteStateByPost: Record<string, unknown>;
     onToggleVote: (postId: string, voteType: "upvote" | "verified") => void;
@@ -65,9 +69,15 @@ vi.mock("@/components/community/CommunityFeed", () => ({
   }) => (
     <div data-testid="community-feed">
       <div data-testid="feed-error">{errorMessage ?? "ok"}</div>
+      <div data-testid="feed-error-type">{errorType ?? "none"}</div>
       <div data-testid="feed-can-vote">{String(canVote)}</div>
       <div data-testid="feed-post-count">{String(posts.length)}</div>
       <div data-testid="feed-vote-state">{JSON.stringify(voteStateByPost)}</div>
+      {errorMessage && onRetry && (
+        <button type="button" onClick={onRetry}>
+          feed retry
+        </button>
+      )}
       {posts[0] && <div data-testid="feed-first-upvotes">{String(posts[0].upvoteCount)}</div>}
       {posts[0] && (
         <button
@@ -230,6 +240,34 @@ describe("community hydration resilience", () => {
     expect(screen.getByTestId("feed-error")).toHaveTextContent("ok");
   });
 
+  it("retries community feed loading from the error state", async () => {
+    const post = createPost({ title: "Retryable feed post" });
+    mocks.loadFeed
+      .mockRejectedValueOnce(new Error("Failed to fetch"))
+      .mockResolvedValueOnce([post]);
+
+    const { default: Community } = await import("@/pages/Community");
+
+    render(
+      <MemoryRouter>
+        <Community />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("feed-error")).toHaveTextContent("Failed to fetch");
+    });
+    expect(screen.getByTestId("feed-error-type")).toHaveTextContent("network");
+
+    fireEvent.click(screen.getByRole("button", { name: "feed retry" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Retryable feed post")).toBeInTheDocument();
+    });
+    expect(mocks.loadFeed).toHaveBeenCalledTimes(2);
+    expect(screen.getByTestId("feed-error")).toHaveTextContent("ok");
+  });
+
   it("renders post detail when vote-state loading fails for signed-out users", async () => {
     mocks.loadMyVotes.mockRejectedValueOnce(new Error("Auth session missing"));
     const { default: CommunityPost } = await import("@/pages/CommunityPost");
@@ -292,6 +330,33 @@ describe("community hydration resilience", () => {
 
     expect(screen.getByText("Resilient Post Title")).toBeInTheDocument();
     expect(screen.queryByText("Failed to load this post right now. Please try again.")).toBeNull();
+  });
+
+  it("retries community post loading from the error state", async () => {
+    mocks.loadPost
+      .mockRejectedValueOnce(new Error("Failed to fetch"))
+      .mockResolvedValueOnce(createPost({ title: "Retryable post detail" }));
+    const { default: CommunityPost } = await import("@/pages/CommunityPost");
+
+    render(
+      <MemoryRouter initialEntries={[`/community/${POST_ID}`]}>
+        <Routes>
+          <Route path="/community/:postId" element={<CommunityPost />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("post-detail")).toBeInTheDocument();
+    });
+    expect(mocks.loadPost).toHaveBeenCalledTimes(2);
+    expect(screen.getByText("Retryable post detail")).toBeInTheDocument();
   });
 
   it("guards feed vote toggles while a request is in flight", async () => {

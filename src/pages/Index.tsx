@@ -515,6 +515,7 @@ const Index = () => {
   const [openSections, setOpenSections] = useState<BuilderSection[]>(["builder"]);
   const [isAdjustDetailsOpen, setIsAdjustDetailsOpen] = useState(false);
   const [isSourcesAdvancedOpen, setIsSourcesAdvancedOpen] = useState(false);
+  const [showAdvancedControls, setShowAdvancedControls] = useState(false);
   const [enhancePhase, setEnhancePhase] = useState<EnhancePhase>("idle");
   const enhancePhaseTimers = useRef<number[]>([]);
   const hasTrackedBuilderLoaded = useRef(false);
@@ -1035,6 +1036,22 @@ const Index = () => {
     sectionHealth.context === "complete" &&
     sectionHealth.tone === "complete";
   const showEnhanceFirstCard = !hasEnhancedOnce && (isBuilderRedesignPhase1 || !allSectionsComplete);
+  const hasDetailSelections = Boolean(
+    selectedRole ||
+    config.format.length ||
+    config.customFormat.trim() ||
+    config.constraints.length ||
+    config.customConstraint.trim() ||
+    config.examples.trim(),
+  );
+  const hasSourceOrAdvancedSelections = Boolean(
+    config.contextConfig.sources.length ||
+    config.contextConfig.projectNotes.trim() ||
+    config.contextConfig.databaseConnections.length ||
+    config.contextConfig.rag.enabled,
+  );
+  const shouldShowAdvancedControls =
+    showAdvancedControls || hasEnhancedOnce || hasDetailSelections || hasSourceOrAdvancedSelections;
   const canSavePrompt = hasPromptInput(config);
   const canSharePrompt = canSavePrompt && isSignedIn;
   const mobileEnhanceLabel = isEnhancing
@@ -1138,38 +1155,21 @@ const Index = () => {
 
   useEffect(() => {
     if (!isBuilderRedesignPhase1) return;
-    const hasDetailSelections = Boolean(
-      selectedRole ||
-      config.format.length ||
-      config.customFormat.trim() ||
-      config.constraints.length ||
-      config.customConstraint.trim() ||
-      config.examples.trim(),
-    );
-    const hasSourceOrAdvancedSelections = Boolean(
-      config.contextConfig.sources.length ||
-      config.contextConfig.projectNotes.trim() ||
-      config.contextConfig.databaseConnections.length ||
-      config.contextConfig.rag.enabled,
-    );
-    if (hasDetailSelections) {
+
+    if (hasEnhancedOnce || hasDetailSelections || hasSourceOrAdvancedSelections) {
+      setShowAdvancedControls(true);
+    }
+    if (hasDetailSelections || hasEnhancedOnce) {
       setIsAdjustDetailsOpen(true);
     }
-    if (hasSourceOrAdvancedSelections) {
+    if (hasSourceOrAdvancedSelections || hasEnhancedOnce) {
       setIsSourcesAdvancedOpen(true);
     }
   }, [
     isBuilderRedesignPhase1,
-    selectedRole,
-    config.format,
-    config.customFormat,
-    config.constraints,
-    config.customConstraint,
-    config.examples,
-    config.contextConfig.sources.length,
-    config.contextConfig.projectNotes,
-    config.contextConfig.databaseConnections.length,
-    config.contextConfig.rag.enabled,
+    hasEnhancedOnce,
+    hasDetailSelections,
+    hasSourceOrAdvancedSelections,
   ]);
 
   useEffect(() => {
@@ -1271,15 +1271,18 @@ const Index = () => {
   const openAndFocusSection = useCallback((section: BuilderSection) => {
     if (isBuilderRedesignPhase1) {
       const targetId = section === "context" ? "builder-zone-3" : "builder-zone-2";
+      setShowAdvancedControls(true);
       if (section === "context") {
         setIsSourcesAdvancedOpen(true);
       } else {
         setIsAdjustDetailsOpen(true);
       }
       window.requestAnimationFrame(() => {
-        document.getElementById(targetId)?.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
+        window.requestAnimationFrame(() => {
+          document.getElementById(targetId)?.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
         });
       });
       return;
@@ -1352,10 +1355,15 @@ const Index = () => {
 
                 {showEnhanceFirstCard && (
                   <Card className="border-border/70 bg-card/80 p-3">
-                    <div>
-                      <p className="text-xs font-medium text-foreground">Generate a draft, then refine</p>
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-foreground">Start in 3 steps</p>
+                      <ol className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-3">
+                        <li>1. Add your rough prompt</li>
+                        <li>2. Tap Enhance</li>
+                        <li>3. Refine details</li>
+                      </ol>
                       <p className="text-xs text-muted-foreground">
-                        Start with a rough prompt, then use Enhance to generate a draft.
+                        Keep the first pass simple. You can tune role, sources, and constraints next.
                       </p>
                     </div>
                   </Card>
@@ -1384,23 +1392,49 @@ const Index = () => {
                   </Card>
                 )}
 
-                <BuilderAdjustDetails
-                  config={config}
-                  isOpen={isAdjustDetailsOpen}
-                  onOpenChange={setIsAdjustDetailsOpen}
-                  onUpdate={handleAdjustDetailsUpdate}
-                />
+                {!shouldShowAdvancedControls && (
+                  <Card className="border-border/70 bg-card/80 p-3">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Need more control?</p>
+                        <p className="text-xs text-muted-foreground">
+                          Reveal advanced settings when you are ready to refine.
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-11 text-sm sm:h-9 sm:text-base"
+                        onClick={() => setShowAdvancedControls(true)}
+                      >
+                        Show advanced controls
+                      </Button>
+                    </div>
+                  </Card>
+                )}
 
-                <BuilderSourcesAdvanced
-                  contextConfig={config.contextConfig}
-                  isOpen={isSourcesAdvancedOpen}
-                  onOpenChange={setIsSourcesAdvancedOpen}
-                  onUpdateSources={updateContextSources}
-                  onUpdateDatabaseConnections={updateDatabaseConnections}
-                  onUpdateRag={updateRagParameters}
-                  onUpdateProjectNotes={updateProjectNotes}
-                  onToggleDelimiters={toggleDelimiters}
-                />
+                {shouldShowAdvancedControls && (
+                  <>
+                    <BuilderAdjustDetails
+                      config={config}
+                      isOpen={isAdjustDetailsOpen}
+                      onOpenChange={setIsAdjustDetailsOpen}
+                      onUpdate={handleAdjustDetailsUpdate}
+                    />
+
+                    <BuilderSourcesAdvanced
+                      contextConfig={config.contextConfig}
+                      isOpen={isSourcesAdvancedOpen}
+                      onOpenChange={setIsSourcesAdvancedOpen}
+                      onUpdateSources={updateContextSources}
+                      onUpdateDatabaseConnections={updateDatabaseConnections}
+                      onUpdateRag={updateRagParameters}
+                      onUpdateProjectNotes={updateProjectNotes}
+                      onToggleDelimiters={toggleDelimiters}
+                    />
+                  </>
+                )}
               </>
             ) : (
               <>
@@ -1412,10 +1446,15 @@ const Index = () => {
 
                 {showEnhanceFirstCard && (
                   <Card className="border-border/70 bg-card/80 p-3">
-                    <div>
-                      <p className="text-xs font-medium text-foreground">Generate a draft, then refine</p>
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-foreground">Start in 3 steps</p>
+                      <ol className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-3">
+                        <li>1. Add your rough prompt</li>
+                        <li>2. Tap Enhance</li>
+                        <li>3. Refine details</li>
+                      </ol>
                       <p className="text-xs text-muted-foreground">
-                        Start with a rough prompt, then use Enhance to generate a draft.
+                        Keep the first pass simple. You can tune role, sources, and constraints next.
                       </p>
                     </div>
                   </Card>
@@ -1597,12 +1636,16 @@ const Index = () => {
 
       {/* Mobile: sticky bottom bar */}
       {isMobile && (
-        <div className="fixed inset-x-0 bottom-[3.5rem] sm:bottom-0 z-30 border-t border-border bg-card/95 px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm">
+        <div
+          className="fixed inset-x-0 bottom-[calc(4.375rem+env(safe-area-inset-bottom)+1px)] sm:bottom-0 z-30 border-t border-border bg-card/95 px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm"
+          data-testid="builder-mobile-sticky-bar"
+        >
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
             className="interactive-chip mb-2 w-full rounded-lg border border-border/80 bg-background/70 px-3 py-2 text-left"
             aria-label="Open output preview"
+            data-testid="builder-mobile-preview-trigger"
           >
             <div className="type-label-caps flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
               <Eye className="h-3.5 w-3.5" />
@@ -1614,14 +1657,17 @@ const Index = () => {
           </button>
 
           <div className="flex items-center gap-2">
-            <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
+            <label
+              className="flex min-h-11 min-w-[92px] items-center justify-center gap-2 rounded-md border border-border/70 bg-background/70 px-2 text-sm text-muted-foreground cursor-pointer select-none"
+              data-testid="builder-mobile-web-toggle"
+            >
               <Switch
                 checked={webSearchEnabled}
                 onCheckedChange={setWebSearchEnabled}
                 disabled={isEnhancing}
                 aria-label="Enable web search during enhancement"
               />
-              <Globe className="w-3 h-3" />
+              <Globe className="h-3.5 w-3.5" />
               <span>Web</span>
             </label>
             <Badge
@@ -1637,6 +1683,7 @@ const Index = () => {
               disabled={isEnhancing || !builtPrompt}
               className="signature-enhance-button h-11 flex-1 gap-2 sm:h-10"
               data-phase={enhancePhase}
+              data-testid="builder-mobile-enhance-button"
             >
               {isEnhancing ? (
                 <>

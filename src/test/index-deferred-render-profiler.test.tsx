@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { Profiler, type ReactNode } from "react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { defaultConfig } from "@/lib/prompt-builder";
@@ -7,6 +7,8 @@ import { defaultConfig } from "@/lib/prompt-builder";
 const mocks = vi.hoisted(() => ({
   toast: vi.fn(),
   usePromptBuilder: vi.fn(),
+  adjustRenders: 0,
+  sourcesRenders: 0,
 }));
 
 vi.mock("@/hooks/use-toast", () => ({
@@ -34,11 +36,31 @@ vi.mock("@/components/BuilderHeroInput", () => ({
 }));
 
 vi.mock("@/components/BuilderAdjustDetails", () => ({
-  BuilderAdjustDetails: () => <div>Redesign Adjust Details</div>,
+  BuilderAdjustDetails: () => {
+    let accumulator = 0;
+    for (let i = 0; i < 900_000; i += 1) {
+      accumulator += i % 7;
+    }
+    if (accumulator < 0) {
+      return <div>Impossible path</div>;
+    }
+    mocks.adjustRenders += 1;
+    return <div>Redesign Adjust Details</div>;
+  },
 }));
 
 vi.mock("@/components/BuilderSourcesAdvanced", () => ({
-  BuilderSourcesAdvanced: () => <div>Redesign Sources Advanced</div>,
+  BuilderSourcesAdvanced: () => {
+    let accumulator = 0;
+    for (let i = 0; i < 900_000; i += 1) {
+      accumulator += i % 11;
+    }
+    if (accumulator < 0) {
+      return <div>Impossible path</div>;
+    }
+    mocks.sourcesRenders += 1;
+    return <div>Redesign Sources Advanced</div>;
+  },
 }));
 
 vi.mock("@/components/BuilderTabs", () => ({
@@ -95,14 +117,14 @@ vi.mock("@/hooks/usePromptBuilder", () => ({
   usePromptBuilder: () => mocks.usePromptBuilder(),
 }));
 
-function buildPromptBuilderState() {
+function buildPromptBuilderState(enhancedPrompt = "") {
   return {
     config: defaultConfig,
     updateConfig: vi.fn(),
     clearOriginalPrompt: vi.fn(),
     builtPrompt: "Built prompt",
     score: { total: 70, tips: ["tip"] },
-    enhancedPrompt: "",
+    enhancedPrompt,
     setEnhancedPrompt: vi.fn(),
     isEnhancing: false,
     setIsEnhancing: vi.fn(),
@@ -124,35 +146,62 @@ function buildPromptBuilderState() {
   };
 }
 
-async function renderIndex() {
+async function measureBuilderMount(enhancedPrompt = "") {
+  mocks.adjustRenders = 0;
+  mocks.sourcesRenders = 0;
+  mocks.usePromptBuilder.mockReturnValue(buildPromptBuilderState(enhancedPrompt));
+
+  const profilerSamples: Array<{ phase: string; duration: number }> = [];
   const { default: Index } = await import("@/pages/Index");
-  render(
-    <MemoryRouter>
-      <Index />
-    </MemoryRouter>,
+  const rendered = render(
+    <Profiler
+      id="Index"
+      onRender={(_id, phase, actualDuration) => {
+        profilerSamples.push({ phase, duration: actualDuration });
+      }}
+    >
+      <MemoryRouter>
+        <Index />
+      </MemoryRouter>
+    </Profiler>,
   );
+
+  await screen.findByText("Redesign Hero Input");
+  await waitFor(() => {
+    expect(profilerSamples.some((sample) => sample.phase === "mount")).toBe(true);
+  });
+
+  const mountDuration = profilerSamples.find((sample) => sample.phase === "mount")?.duration ?? 0;
+  return {
+    mountDuration,
+    adjustRenders: mocks.adjustRenders,
+    sourcesRenders: mocks.sourcesRenders,
+    unmount: rendered.unmount,
+  };
 }
 
-describe("Index redesign phase 1 gating", () => {
+describe("Index deferred rendering profiler coverage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
     vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE1", "true");
-    mocks.usePromptBuilder.mockReturnValue(buildPromptBuilderState());
   });
 
-  it("renders redesign zones and omits legacy tabs path", async () => {
-    await renderIndex();
+  it("defers heavy advanced sections from initial mount and measures the difference", async () => {
+    const deferredMount = await measureBuilderMount("");
+    deferredMount.unmount();
 
-    expect(screen.getByText("Redesign Hero Input")).toBeInTheDocument();
-    expect(screen.queryByText("Redesign Adjust Details")).not.toBeInTheDocument();
-    expect(screen.queryByText("Redesign Sources Advanced")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Show advanced controls" }));
-    expect(screen.getByText("Redesign Adjust Details")).toBeInTheDocument();
-    expect(screen.getByText("Redesign Sources Advanced")).toBeInTheDocument();
+    const eagerMount = await measureBuilderMount("Already enhanced");
+    eagerMount.unmount();
 
-    expect(screen.queryByText("Legacy PromptInput")).not.toBeInTheDocument();
-    expect(screen.queryByText("Legacy BuilderTabs")).not.toBeInTheDocument();
-    expect(screen.queryByText("Legacy ContextPanel")).not.toBeInTheDocument();
+    expect(deferredMount.adjustRenders).toBe(0);
+    expect(deferredMount.sourcesRenders).toBe(0);
+    expect(eagerMount.adjustRenders).toBeGreaterThan(0);
+    expect(eagerMount.sourcesRenders).toBeGreaterThan(0);
+    expect(deferredMount.mountDuration).toBeGreaterThan(0);
+    expect(eagerMount.mountDuration).toBeGreaterThan(0);
+    expect(eagerMount.adjustRenders + eagerMount.sourcesRenders).toBeGreaterThan(
+      deferredMount.adjustRenders + deferredMount.sourcesRenders,
+    );
   });
 });

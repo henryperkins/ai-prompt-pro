@@ -3,6 +3,7 @@ import { AlertTriangle, Lock, SearchX, type LucideIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { DEFAULT_UI_DENSITY, type UIDensity } from "@/lib/ui-density";
 import { cn } from "@/lib/utils";
 
 type StateCardVariant = "empty" | "error" | "auth";
@@ -20,6 +21,7 @@ interface StateCardProps {
   description: string;
   primaryAction?: StateCardAction;
   secondaryAction?: StateCardAction;
+  density?: UIDensity;
   className?: string;
   icon?: ReactNode;
 }
@@ -47,16 +49,20 @@ const variantMeta: Record<
 
 function renderAction(action: StateCardAction, fallbackVariant: StateCardAction["variant"]) {
   const variant = action.variant ?? fallbackVariant;
+  const isPrimary = variant === "default";
+  const actionClassName = isPrimary
+    ? "ui-toolbar-button font-semibold shadow-sm"
+    : "ui-toolbar-button font-medium";
   if (action.to) {
     return (
-      <Button asChild size="sm" variant={variant} className="h-11 text-xs sm:h-9">
+      <Button asChild size="sm" variant={variant} className={actionClassName}>
         <Link to={action.to}>{action.label}</Link>
       </Button>
     );
   }
 
   return (
-    <Button type="button" size="sm" variant={variant} className="h-11 text-xs sm:h-9" onClick={action.onClick}>
+    <Button type="button" size="sm" variant={variant} className={actionClassName} onClick={action.onClick}>
       {action.label}
     </Button>
   );
@@ -68,6 +74,7 @@ export function StateCard({
   description,
   primaryAction,
   secondaryAction,
+  density = DEFAULT_UI_DENSITY,
   className,
   icon,
 }: StateCardProps) {
@@ -75,19 +82,19 @@ export function StateCard({
   const Icon = meta.icon;
 
   return (
-    <Card className={cn("space-y-3 p-4", meta.cardClassName, className)}>
+    <Card className={cn("ui-density space-y-4 p-4 sm:p-5", meta.cardClassName, className)} data-density={density}>
       <div className="flex items-start gap-3">
         <span
           className={cn(
-            "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-background/80",
+            "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-background/80",
             meta.iconClassName,
           )}
         >
           {icon ?? <Icon className="h-4 w-4" />}
         </span>
         <div className="space-y-1">
-          <p className="text-sm font-medium text-foreground">{title}</p>
-          <p className="text-xs text-muted-foreground">{description}</p>
+          <p className="ui-state-card-title text-foreground">{title}</p>
+          <p className="ui-state-card-body text-muted-foreground">{description}</p>
         </div>
       </div>
       {(primaryAction || secondaryAction) && (

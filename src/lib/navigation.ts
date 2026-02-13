@@ -15,14 +15,7 @@ export const APP_ROUTE_NAV_ITEMS: ReadonlyArray<AppRouteNavItem> = [
   { to: "/history", label: "History", icon: History, ariaLabel: "Open version history" },
 ];
 
-/** Mobile bottom nav: 4 items (Presets accessible via Builder popover). */
-export const BOTTOM_NAV_ITEMS: ReadonlyArray<AppRouteNavItem> = APP_ROUTE_NAV_ITEMS.filter(
-  (item) => item.to !== "/presets",
-);
-
-export const PRESETS_NAV_ITEM: AppRouteNavItem = APP_ROUTE_NAV_ITEMS.find(
-  (item) => item.to === "/presets",
-)!;
+export const BOTTOM_NAV_ITEMS: ReadonlyArray<AppRouteNavItem> = APP_ROUTE_NAV_ITEMS;
 
 export function isRouteActive(pathname: string, route: string): boolean {
   if (route === "/") return pathname === "/";

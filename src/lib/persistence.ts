@@ -1,5 +1,6 @@
 import { neon } from "@/integrations/neon/client";
 import type { Json } from "@/integrations/neon/types";
+import { assertBackendConfigured } from "@/lib/backend-config";
 import type { RemixDiff } from "@/lib/community";
 import {
   hydrateConfigV1ToWorkingState,
@@ -136,6 +137,10 @@ function toPersistenceError(error: unknown, fallback: string): PersistenceError 
   return new PersistenceError("unknown", fallback, { cause: error });
 }
 
+function ensureCloudPersistence(featureLabel = "Cloud persistence"): void {
+  assertBackendConfigured(featureLabel);
+}
+
 function normalizeDescription(description?: string): string | undefined {
   if (description === undefined) return undefined;
   return sanitizePostgresText(description).trim().slice(0, 500);
@@ -186,6 +191,8 @@ export async function loadDraft(userId: string | null): Promise<PromptConfig | n
     }
   }
 
+  ensureCloudPersistence("Cloud drafts");
+
   try {
     const { data, error } = await neon
       .from("drafts")
@@ -215,6 +222,8 @@ export async function saveDraft(userId: string | null, config: PromptConfig): Pr
     }
     return;
   }
+
+  ensureCloudPersistence("Cloud drafts");
 
   try {
     const { error } = await neon.from("drafts").upsert(
@@ -260,6 +269,8 @@ export async function loadPrompts(userId: string | null): Promise<PromptSummary[
       commentCount: 0,
     }));
   }
+
+  ensureCloudPersistence("Cloud prompts");
 
   try {
     const { data, error } = await neon
@@ -342,6 +353,8 @@ export async function loadPrompts(userId: string | null): Promise<PromptSummary[
 export async function loadPromptById(userId: string | null, id: string): Promise<TemplateLoadResult | null> {
   if (!userId) return loadLocalTemplate(id);
 
+  ensureCloudPersistence("Cloud prompts");
+
   try {
     const { data, error } = await neon
       .from("saved_prompts")
@@ -411,6 +424,8 @@ export async function savePrompt(userId: string | null, input: PromptSaveInput):
       config: input.config,
     });
   }
+
+  ensureCloudPersistence("Cloud prompts");
 
   const name = toPresetName(input.name || "");
   if (!name) throw new PersistenceError("unknown", "Prompt title is required.");
@@ -560,6 +575,8 @@ export async function sharePrompt(
     throw new PersistenceError("unauthorized", "Sign in to share prompts.");
   }
 
+  ensureCloudPersistence("Community sharing");
+
   try {
     const { data: existing, error: existingError } = await neon
       .from("saved_prompts")
@@ -619,6 +636,8 @@ export async function unsharePrompt(userId: string | null, id: string): Promise<
     throw new PersistenceError("unauthorized", "Sign in to unshare prompts.");
   }
 
+  ensureCloudPersistence("Community sharing");
+
   try {
     const { data, error } = await neon
       .from("saved_prompts")
@@ -637,6 +656,8 @@ export async function unsharePrompt(userId: string | null, id: string): Promise<
 
 export async function deletePrompt(userId: string | null, id: string): Promise<boolean> {
   if (!userId) return deleteLocalTemplate(id);
+
+  ensureCloudPersistence("Cloud prompts");
 
   try {
     const { data, error } = await neon
@@ -668,6 +689,8 @@ export interface PromptVersion {
 export async function loadVersions(userId: string | null): Promise<PromptVersion[]> {
   if (!userId) return [];
 
+  ensureCloudPersistence("Version history");
+
   try {
     const { data, error } = await neon
       .from("prompt_versions")
@@ -696,6 +719,8 @@ export async function saveVersion(
   prompt: string,
 ): Promise<PromptVersion | null> {
   if (!userId) return null;
+
+  ensureCloudPersistence("Version history");
 
   try {
     const safeName = sanitizePostgresText(name).trim().slice(0, 200) || "Version";

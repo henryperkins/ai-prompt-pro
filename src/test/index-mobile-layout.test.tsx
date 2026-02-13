@@ -132,7 +132,7 @@ describe("Index mobile layout spacing", () => {
     const previewButton = screen.getByRole("button", { name: "Open output preview" });
     const stickyBar = previewButton.closest("div");
 
-    expect(stickyBar?.className).toContain("bottom-[3.5rem]");
+    expect(stickyBar?.className).toContain("bottom-[calc(4.375rem+env(safe-area-inset-bottom)+1px)]");
     expect(stickyBar?.className).toContain("sm:bottom-0");
 
     const spacer = Array.from(document.querySelectorAll("div")).find(

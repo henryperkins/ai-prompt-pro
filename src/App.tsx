@@ -1,4 +1,4 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,6 +6,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/hooks/useTheme";
+import {
+  BuilderRouteFallback,
+  CommunityRouteFallback,
+  GenericRouteFallback,
+  LibraryRouteFallback,
+} from "@/components/route-fallbacks";
 
 const Index = lazy(() => import("./pages/Index"));
 const Community = lazy(() => import("./pages/Community"));
@@ -18,6 +24,10 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
 
+function withRouteFallback(element: ReactNode, fallback: ReactNode) {
+  return <Suspense fallback={fallback}>{element}</Suspense>;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -26,25 +36,23 @@ const App = () => (
           <ThemeProvider>
             <Toaster />
             <Sonner />
-            <Suspense
-              fallback={
-                <div className="min-h-screen bg-background flex items-center justify-center px-4 text-sm text-muted-foreground">
-                  Loading...
-                </div>
-              }
-            >
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/community" element={<Community />} />
-                <Route path="/community/:postId" element={<CommunityPost />} />
-                <Route path="/library" element={<Library />} />
-                <Route path="/library/bulk-edit" element={<LibraryBulkEdit />} />
-                <Route path="/presets" element={<Presets />} />
-                <Route path="/history" element={<History />} />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
+            <Routes>
+              <Route path="/" element={withRouteFallback(<Index />, <BuilderRouteFallback />)} />
+              <Route path="/community" element={withRouteFallback(<Community />, <CommunityRouteFallback />)} />
+              <Route
+                path="/community/:postId"
+                element={withRouteFallback(<CommunityPost />, <CommunityRouteFallback />)}
+              />
+              <Route path="/library" element={withRouteFallback(<Library />, <LibraryRouteFallback />)} />
+              <Route
+                path="/library/bulk-edit"
+                element={withRouteFallback(<LibraryBulkEdit />, <LibraryRouteFallback />)}
+              />
+              <Route path="/presets" element={withRouteFallback(<Presets />, <BuilderRouteFallback />)} />
+              <Route path="/history" element={withRouteFallback(<History />, <GenericRouteFallback />)} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={withRouteFallback(<NotFound />, <GenericRouteFallback />)} />
+            </Routes>
           </ThemeProvider>
         </BrowserRouter>
       </TooltipProvider>

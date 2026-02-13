@@ -23,6 +23,7 @@ import {
   type VoteState,
   type VoteType,
 } from "@/lib/community";
+import { toCommunityErrorState, type CommunityErrorState } from "@/lib/community-errors";
 import { communityFeatureFlags } from "@/lib/feature-flags";
 
 function isUuid(value: string): boolean {
@@ -54,7 +55,8 @@ const CommunityPost = () => {
   const [authorById, setAuthorById] = useState<Record<string, CommunityProfile>>({});
   const [voteState, setVoteState] = useState<VoteState | null>(null);
   const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorState, setErrorState] = useState<CommunityErrorState | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     const resetPostState = () => {
@@ -68,13 +70,16 @@ const CommunityPost = () => {
     if (!postId || !isUuid(postId)) {
       resetPostState();
       setLoading(false);
-      setErrorMessage("This link is invalid or expired.");
+      setErrorState({
+        kind: "not_found",
+        message: "This link is invalid or expired.",
+      });
       return;
     }
 
     const token = ++requestToken.current;
     setLoading(true);
-    setErrorMessage(null);
+    setErrorState(null);
 
     void (async () => {
       try {
@@ -83,7 +88,10 @@ const CommunityPost = () => {
 
         if (!loadedPost) {
           resetPostState();
-          setErrorMessage("This community post is unavailable.");
+          setErrorState({
+            kind: "not_found",
+            message: "This community post is unavailable.",
+          });
           return;
         }
 
@@ -120,18 +128,14 @@ const CommunityPost = () => {
       } catch (error) {
         if (token !== requestToken.current) return;
         resetPostState();
-        setErrorMessage(
-          error instanceof Error && error.message === "This link is invalid or expired."
-            ? error.message
-            : "Failed to load this post right now. Please try again.",
-        );
+        setErrorState(toCommunityErrorState(error, "Failed to load this post right now. Please try again."));
       } finally {
         if (token === requestToken.current) {
           setLoading(false);
         }
       }
     })();
-  }, [postId, user?.id]);
+  }, [postId, user?.id, retryNonce]);
 
   const handleCopyPrompt = useCallback(
     async (target: CommunityPostType) => {
@@ -225,6 +229,21 @@ const CommunityPost = () => {
 
   const postAuthor = post ? authorById[post.authorId] : null;
   const postAuthorName = postAuthor?.displayName || "Community member";
+  const handleRetry = useCallback(() => {
+    setRetryNonce((prev) => prev + 1);
+  }, []);
+  const errorTitle =
+    errorState?.kind === "auth"
+      ? "Sign in to access this community post"
+      : errorState?.kind === "network"
+        ? "Couldn’t reach this community post"
+        : errorState?.kind === "backend_unconfigured"
+          ? "Community backend is not configured"
+          : "This post is unavailable";
+  const errorSecondaryAction =
+    errorState?.kind === "auth"
+      ? { label: "Go to Builder and sign in", to: "/" }
+      : { label: "Return to community feed", to: "/community" };
 
   return (
     <PageShell>
@@ -253,17 +272,17 @@ const CommunityPost = () => {
           </div>
         )}
 
-        {!loading && errorMessage && (
+        {!loading && errorState && (
           <StateCard
             variant="error"
-            title="This post is unavailable"
-            description={errorMessage}
-            primaryAction={{ label: "Return to community feed", to: "/community" }}
-            secondaryAction={{ label: "Go to Builder", to: "/" }}
+            title={errorTitle}
+            description={errorState.message}
+            primaryAction={{ label: "Retry", onClick: handleRetry }}
+            secondaryAction={errorSecondaryAction}
           />
         )}
 
-        {!loading && !errorMessage && post && (
+        {!loading && !errorState && post && (
           <CommunityPostDetail
             post={post}
             authorName={postAuthorName}
