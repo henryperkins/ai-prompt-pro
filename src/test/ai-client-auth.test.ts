@@ -297,7 +297,7 @@ describe("ai-client auth recovery", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(onDone).not.toHaveBeenCalled();
     expect(onError).toHaveBeenCalledWith(
-      "Could not reach the enhancement service. Check your connection and try again.",
+      "Could not reach the enhancement service at https://agent.test. Check your connection and try again.",
     );
   });
 

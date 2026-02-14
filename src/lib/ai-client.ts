@@ -81,14 +81,65 @@ function isRetryableFunctionRequestError(error: unknown): boolean {
   return isNetworkLikeErrorMessage(message);
 }
 
+function isLikelyLocalhostTarget(value: string): boolean {
+  const normalized = value.toLowerCase();
+  return (
+    normalized.includes("://localhost") ||
+    normalized.includes("://127.0.0.1") ||
+    normalized.includes("://[::1]")
+  );
+}
+
+function getConfiguredServiceOrigin(): string | null {
+  if (!AGENT_SERVICE_URL) return null;
+  try {
+    return new URL(AGENT_SERVICE_URL).origin;
+  } catch {
+    return AGENT_SERVICE_URL;
+  }
+}
+
+function buildNetworkHint(name: "enhance-prompt" | "extract-url" | "infer-builder-fields"): string | null {
+  if (typeof window === "undefined" || !AGENT_SERVICE_URL) return null;
+  const appProtocol = window.location.protocol.toLowerCase();
+  const appHost = window.location.hostname.toLowerCase();
+  const serviceValue = AGENT_SERVICE_URL.toLowerCase();
+
+  if (appProtocol === "https:" && serviceValue.startsWith("http://")) {
+    if (name === "enhance-prompt") {
+      return "The app is loaded over HTTPS but the enhancement service URL is HTTP. Configure VITE_AGENT_SERVICE_URL with an HTTPS endpoint.";
+    }
+    if (name === "extract-url") {
+      return "The app is loaded over HTTPS but the URL extraction service URL is HTTP. Configure VITE_AGENT_SERVICE_URL with an HTTPS endpoint.";
+    }
+    return "The app is loaded over HTTPS but the inference service URL is HTTP. Configure VITE_AGENT_SERVICE_URL with an HTTPS endpoint.";
+  }
+
+  if (!["localhost", "127.0.0.1", "::1"].includes(appHost) && isLikelyLocalhostTarget(serviceValue)) {
+    if (name === "enhance-prompt") {
+      return "The configured enhancement service points to localhost, which is not reachable from this deployed app.";
+    }
+    if (name === "extract-url") {
+      return "The configured URL extraction service points to localhost, which is not reachable from this deployed app.";
+    }
+    return "The configured inference service points to localhost, which is not reachable from this deployed app.";
+  }
+
+  return null;
+}
+
 function serviceUnavailableMessage(name: "enhance-prompt" | "extract-url" | "infer-builder-fields"): string {
+  const serviceOrigin = getConfiguredServiceOrigin();
+  const destinationText = serviceOrigin ? ` at ${serviceOrigin}` : "";
+  const hint = buildNetworkHint(name);
+
   if (name === "enhance-prompt") {
-    return "Could not reach the enhancement service. Check your connection and try again.";
+    return `Could not reach the enhancement service${destinationText}. ${hint || "Check your connection and try again."}`;
   }
   if (name === "extract-url") {
-    return "Could not reach the URL extraction service. Check your connection and try again.";
+    return `Could not reach the URL extraction service${destinationText}. ${hint || "Check your connection and try again."}`;
   }
-  return "Could not reach the inference service. Check your connection and try again.";
+  return `Could not reach the inference service${destinationText}. ${hint || "Check your connection and try again."}`;
 }
 
 function normalizeClientErrorMessage(
