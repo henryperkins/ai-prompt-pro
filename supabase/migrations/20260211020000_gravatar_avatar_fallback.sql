@@ -19,7 +19,7 @@ begin
 
   if oauth_avatar is null and new.email is not null then
     gravatar_url := 'https://0.gravatar.com/avatar/'
-      || encode(digest(lower(trim(new.email)), 'sha256'), 'hex')
+      || pg_catalog.encode(public.digest(lower(trim(new.email)), 'sha256'), 'hex')
       || '?s=80&d=mp';
   end if;
 

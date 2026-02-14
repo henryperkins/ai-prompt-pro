@@ -21,6 +21,7 @@ const PUBLIC_FUNCTION_API_KEY =
 
 let bootstrapTokenPromise: Promise<string> | null = null;
 const ACCESS_TOKEN_REFRESH_GRACE_SECONDS = 30;
+const FUNCTION_NETWORK_RETRY_DELAY_MS = 250;
 
 function sessionExpiresSoon(expiresAt: number | null | undefined): boolean {
   if (typeof expiresAt !== "number" || !Number.isFinite(expiresAt)) return false;
@@ -47,6 +48,58 @@ function isRetryableAuthSessionError(error: unknown): boolean {
     message.includes("networkerror") ||
     message.includes("load failed")
   );
+}
+
+function waitFor(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    globalThis.setTimeout(resolve, ms);
+  });
+}
+
+function isNetworkLikeErrorMessage(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("failed to fetch") ||
+    normalized.includes("fetch failed") ||
+    normalized.includes("network request failed") ||
+    normalized.includes("networkerror") ||
+    normalized.includes("load failed") ||
+    normalized.includes("connection") ||
+    normalized.includes("offline") ||
+    normalized.includes("timeout") ||
+    normalized.includes("timed out")
+  );
+}
+
+function isRetryableFunctionRequestError(error: unknown): boolean {
+  if (isRetryableAuthSessionError(error)) return true;
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as { message?: unknown; name?: unknown };
+  const message = typeof candidate.message === "string" ? candidate.message : "";
+  const name = typeof candidate.name === "string" ? candidate.name.toLowerCase() : "";
+  if (name.includes("abort")) return false;
+  return isNetworkLikeErrorMessage(message);
+}
+
+function serviceUnavailableMessage(name: "enhance-prompt" | "extract-url" | "infer-builder-fields"): string {
+  if (name === "enhance-prompt") {
+    return "Could not reach the enhancement service. Check your connection and try again.";
+  }
+  if (name === "extract-url") {
+    return "Could not reach the URL extraction service. Check your connection and try again.";
+  }
+  return "Could not reach the inference service. Check your connection and try again.";
+}
+
+function normalizeClientErrorMessage(
+  name: "enhance-prompt" | "extract-url" | "infer-builder-fields",
+  error: unknown,
+): string {
+  const message = errorMessage(error);
+  if (isNetworkLikeErrorMessage(message)) {
+    return serviceUnavailableMessage(name);
+  }
+  return message;
 }
 
 function errorMessage(error: unknown): string {
@@ -257,34 +310,50 @@ async function postFunctionWithAuthRecovery(
       headers,
       body: JSON.stringify(payload),
     });
+  const requestWithRetry = async (headers: Record<string, string>): Promise<Response> => {
+    try {
+      return await request(headers);
+    } catch (firstError) {
+      if (!isRetryableFunctionRequestError(firstError)) {
+        throw firstError;
+      }
 
-  let response = await request(await functionHeaders());
-  if (response.ok) return response;
+      await waitFor(FUNCTION_NETWORK_RETRY_DELAY_MS);
+      return request(headers);
+    }
+  };
 
-  let errorMessage = await readFunctionError(response);
-  const firstFailureWasAuth =
-    response.status === 401 || isInvalidAuthSessionError(response.status, errorMessage);
-  if (!firstFailureWasAuth) {
+  try {
+    let response = await requestWithRetry(await functionHeaders());
+    if (response.ok) return response;
+
+    let errorMessage = await readFunctionError(response);
+    const firstFailureWasAuth =
+      response.status === 401 || isInvalidAuthSessionError(response.status, errorMessage);
+    if (!firstFailureWasAuth) {
+      throw new Error(errorMessage);
+    }
+
+    response = await requestWithRetry(await functionHeaders({ forceRefresh: true, allowSessionToken: false }));
+    if (response.ok) return response;
+
+    errorMessage = await readFunctionError(response);
+    const secondFailureWasAuth =
+      response.status === 401 || isInvalidAuthSessionError(response.status, errorMessage);
+    if (!secondFailureWasAuth) {
+      throw new Error(errorMessage);
+    }
+
+    // If refresh returned another unusable session token, force a deterministic API-key retry.
+    await clearLocalSession();
+    response = await requestWithRetry(functionHeadersWithPublishableKey());
+    if (response.ok) return response;
+
+    errorMessage = await readFunctionError(response);
     throw new Error(errorMessage);
+  } catch (error) {
+    throw new Error(normalizeClientErrorMessage(name, error));
   }
-
-  response = await request(await functionHeaders({ forceRefresh: true, allowSessionToken: false }));
-  if (response.ok) return response;
-
-  errorMessage = await readFunctionError(response);
-  const secondFailureWasAuth =
-    response.status === 401 || isInvalidAuthSessionError(response.status, errorMessage);
-  if (!secondFailureWasAuth) {
-    throw new Error(errorMessage);
-  }
-
-  // If refresh returned another unusable session token, force a deterministic API-key retry.
-  await clearLocalSession();
-  response = await request(functionHeadersWithPublishableKey());
-  if (response.ok) return response;
-
-  errorMessage = await readFunctionError(response);
-  throw new Error(errorMessage);
 }
 
 function extractSseError(payload: unknown): string | null {
@@ -600,7 +669,7 @@ export async function streamEnhance({
     }
 
     if (terminalError) {
-      onError(terminalError);
+      onError(normalizeClientErrorMessage("enhance-prompt", terminalError));
       return;
     }
 
@@ -648,14 +717,14 @@ export async function streamEnhance({
     }
 
     if (terminalError) {
-      onError(terminalError);
+      onError(normalizeClientErrorMessage("enhance-prompt", terminalError));
       return;
     }
 
     onDone();
   } catch (e) {
     console.error("Stream error:", e);
-    onError(e instanceof Error ? e.message : "Unknown error");
+    onError(normalizeClientErrorMessage("enhance-prompt", e));
   }
 }
 
