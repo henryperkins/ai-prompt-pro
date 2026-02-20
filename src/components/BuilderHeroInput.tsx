@@ -64,7 +64,7 @@ export function BuilderHeroInput({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="Describe the task in 1-2 sentences. Example: Draft a concise project update for executives using these notes."
-          className="min-h-28 resize-y border-input bg-background text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring sm:min-h-32"
+          className="min-h-28 resize-y text-foreground placeholder:text-muted-foreground sm:min-h-32"
           aria-describedby={promptInputMetaId}
         />
 

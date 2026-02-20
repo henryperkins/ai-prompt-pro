@@ -142,6 +142,99 @@ This reduces “one-off” typography and improves consistency in dense forms.
   - `--shadow-2xs`, `--shadow-xs`, `--shadow-sm`, `--shadow-md`, `--shadow-lg`, `--shadow-xl`, `--shadow-2xl`
 - Base spacing token available as `--spacing`.
 
+## 6.1 Logo System
+
+Canonical logo assets live in `public/brand/`:
+
+- `pf-logo-symbol-primary-v2.png` (primary mark)
+- `pf-logo-wordmark-horizontal-v2.png` (horizontal wordmark)
+- `pf-logo-monogram-badge-v2.png` (badge/compact identity)
+
+Legacy aliases remain available for compatibility:
+
+- `pf-logo-symbol-primary.png`
+- `pf-logo-wordmark-horizontal.png`
+- `pf-logo-monogram-badge.png`
+
+Usage contract:
+
+- Product chrome and compact surfaces: symbol mark.
+- Header, hero, and marketing mastheads: horizontal wordmark.
+- Social/avatar and tight square surfaces: monogram badge.
+- Minimum rendered size:
+  - Symbol: `20px` width
+  - Wordmark: `96px` width
+  - Badge: `24px` width
+- Clear space: preserve at least `0.5x` logo height on all sides.
+- Do not stretch logos, recolor outside semantic brand tokens, or apply heavy effects that reduce legibility.
+
+## 6.2 Customized Gradient Recipes
+
+Primary gradient drivers:
+
+- `--delight-warm`
+- `--delight-cool`
+- `--delight-glow`
+- `--delight-surface`
+
+Branded overlays:
+
+- `public/brand/pf-gradient-hero-light.png`
+- `public/brand/pf-gradient-hero-dark.png`
+
+Recommended recipes (token-first, with optional asset overlay):
+
+```css
+.brand-gradient-hero {
+  background-image:
+    radial-gradient(520px 220px at 8% -12%, hsl(var(--delight-warm) / 0.2), transparent 58%),
+    radial-gradient(460px 220px at 92% -14%, hsl(var(--delight-cool) / 0.16), transparent 56%),
+    linear-gradient(180deg, hsl(var(--delight-surface) / 0.55), hsl(var(--card) / 0.9));
+}
+
+.brand-gradient-surface {
+  background-image: linear-gradient(
+    140deg,
+    hsl(var(--card)),
+    hsl(var(--delight-surface) / 0.72)
+  );
+}
+```
+
+## 6.3 Customized Borders and Frames
+
+Border assets in `public/brand/`:
+
+- `pf-border-frame-light.png`
+- `pf-border-frame-thin-v2.png`
+- `pf-border-frame-bold-v2.png`
+- `pf-border-frame-dashed-v2.png`
+- `pf-border-corners-minimal-v2.png`
+- `pf-border-strip-seamless.png`
+
+Recommended border treatments:
+
+- Default UI chrome: semantic token border (`border-border` / `--border`).
+- Emphasis panels: gradient border using transparent border + layered backgrounds.
+- Marketing/hero framing: image-based frame assets on non-critical decorative layers only.
+
+Gradient border recipe:
+
+```css
+.brand-border-gradient {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(hsl(var(--card)), hsl(var(--card))) padding-box,
+    linear-gradient(120deg, hsl(var(--delight-cool) / 0.6), hsl(var(--delight-warm) / 0.7)) border-box;
+}
+```
+
+Border usage rules:
+
+- Keep interactive hit areas independent from decorative frame assets.
+- Avoid decorative borders on dense form regions and long text blocks.
+- Verify border contrast in both light and dark themes before release.
+
 ---
 
 ## 7) Motion and Interaction
@@ -198,9 +291,10 @@ Compact mode is supported via:
 When evolving the design system, use this order:
 
 1. **Token values**: `src/index.css`
-2. **Tailwind mapping**: `tailwind.config.ts`
-3. **Primitive contracts**: `src/components/ui/*`
-4. **Feature-specific semantic classes**: e.g., community type roles in `src/index.css`
+2. **Brand assets**: `public/brand/*`
+3. **Tailwind mapping**: `tailwind.config.ts`
+4. **Primitive contracts**: `src/components/ui/*`
+5. **Feature-specific semantic classes**: e.g., community type roles in `src/index.css`
 
 Avoid direct hardcoded `px` typography values and avoid bypassing primitives unless strictly necessary.
 
