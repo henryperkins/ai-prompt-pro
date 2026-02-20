@@ -202,7 +202,7 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
                 value={config.examples}
                 onChange={(e) => onUpdate({ examples: e.target.value })}
                 placeholder="Include sample inputs/outputs for better fidelity"
-                className="min-h-[100px] bg-background font-mono text-sm"
+                className="min-h-[100px] bg-background font-mono"
               />
             </div>
           </div>

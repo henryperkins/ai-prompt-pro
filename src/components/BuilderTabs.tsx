@@ -150,7 +150,7 @@ export function BuilderTabs({ config, onUpdate }: BuilderTabsProps) {
           placeholder="Add example inputs and outputs to guide the AI..."
           value={config.examples}
           onChange={(e) => onUpdate({ examples: e.target.value })}
-          className="min-h-[120px] bg-background font-mono text-sm"
+          className="min-h-[120px] bg-background font-mono"
           aria-label="Examples input"
         />
       </TabsContent>

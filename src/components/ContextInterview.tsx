@@ -96,7 +96,7 @@ export function ContextInterview({ answers, onUpdate }: ContextInterviewProps) {
           placeholder="Type your answer..."
           value={getAnswer(currentQ.id)}
           onChange={(e) => setAnswer(currentQ.id, currentQ.question, e.target.value)}
-          className="bg-background h-9 text-sm"
+          className="bg-background"
         />
       )}
 

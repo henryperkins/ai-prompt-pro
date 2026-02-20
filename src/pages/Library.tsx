@@ -534,17 +534,17 @@ const Library = () => {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search by name, tag, or text"
-                className="h-11 bg-background pl-8 text-sm sm:h-10"
+                className="h-11 bg-background pl-8 sm:h-10"
               />
             </div>
 
             <Select value={activeCategory} onValueChange={setActiveCategory}>
-              <SelectTrigger className="h-11 min-w-[140px] text-sm capitalize sm:h-10 sm:text-base" aria-label="Filter category">
+              <SelectTrigger className="h-11 min-w-[140px] capitalize sm:h-10" aria-label="Filter category">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {categories.map((category) => (
-                  <SelectItem key={category} value={category} className="text-sm capitalize sm:text-base">
+                  <SelectItem key={category} value={category} className="capitalize">
                     {category}
                   </SelectItem>
                 ))}
@@ -554,13 +554,13 @@ const Library = () => {
             <div className="flex items-center gap-1.5">
               <ArrowDownUp className="h-3.5 w-3.5 text-muted-foreground" />
               <Select value={sortBy} onValueChange={(value: SavedPromptSort) => setSortBy(value)}>
-                <SelectTrigger className="h-11 min-w-[138px] text-sm sm:h-10 sm:text-base" aria-label="Sort saved prompts">
+                <SelectTrigger className="h-11 min-w-[138px] sm:h-10" aria-label="Sort saved prompts">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="recent" className="text-sm sm:text-base">Most Recent</SelectItem>
-                  <SelectItem value="name" className="text-sm sm:text-base">Name (A-Z)</SelectItem>
-                  <SelectItem value="revision" className="text-sm sm:text-base">Revision (High)</SelectItem>
+                  <SelectItem value="recent">Most Recent</SelectItem>
+                  <SelectItem value="name">Name (A-Z)</SelectItem>
+                  <SelectItem value="revision">Revision (High)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

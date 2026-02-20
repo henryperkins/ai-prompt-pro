@@ -20,7 +20,7 @@ export function ProjectNotes({ value, onChange }: ProjectNotesProps) {
         placeholder="Persistent notes, brand voice guidelines, key facts, or any context you reuse across prompts..."
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="min-h-[80px] bg-background text-sm"
+        className="min-h-[80px] bg-background"
       />
     </div>
   );

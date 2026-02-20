@@ -360,19 +360,19 @@ function PromptList({
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
             placeholder="Search prompts by name, description, tags, or starter text"
-            className="h-11 pl-8 text-sm bg-background sm:h-10"
+            className="h-11 bg-background pl-8 sm:h-10"
           />
         </div>
         <div className="flex items-center gap-1.5">
           <ArrowDownUp className="w-3.5 h-3.5 text-muted-foreground" />
           <Select value={sortBy} onValueChange={(value: SavedPromptSort) => onSortByChange(value)}>
-            <SelectTrigger className="h-11 min-w-[138px] text-sm sm:h-10 sm:text-base" aria-label="Sort saved prompts">
+            <SelectTrigger className="h-11 min-w-[138px] sm:h-10" aria-label="Sort saved prompts">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="recent" className="text-sm sm:text-base">Most Recent</SelectItem>
-              <SelectItem value="name" className="text-sm sm:text-base">Name (A-Z)</SelectItem>
-              <SelectItem value="revision" className="text-sm sm:text-base">Revision (High)</SelectItem>
+              <SelectItem value="recent">Most Recent</SelectItem>
+              <SelectItem value="name">Name (A-Z)</SelectItem>
+              <SelectItem value="revision">Revision (High)</SelectItem>
             </SelectContent>
           </Select>
         </div>

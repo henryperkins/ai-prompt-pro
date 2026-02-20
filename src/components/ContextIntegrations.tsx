@@ -94,7 +94,7 @@ export function ContextIntegrations({
             value={draft.label}
             onChange={(e) => setDraft((prev) => ({ ...prev, label: e.target.value }))}
             placeholder="Label (optional)"
-            className="h-11 text-sm sm:h-10 sm:text-base"
+            className="h-11 sm:h-10"
           />
           <Select
             value={draft.provider}
@@ -102,12 +102,12 @@ export function ContextIntegrations({
               setDraft((prev) => ({ ...prev, provider }))
             }
           >
-            <SelectTrigger className="h-11 text-sm bg-background sm:h-10 sm:text-base">
+            <SelectTrigger className="h-11 bg-background sm:h-10">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {PROVIDER_OPTIONS.map((provider) => (
-                <SelectItem key={provider} value={provider} className="text-sm capitalize sm:text-base">
+                <SelectItem key={provider} value={provider} className="capitalize">
                   {provider}
                 </SelectItem>
               ))}
@@ -117,25 +117,25 @@ export function ContextIntegrations({
             value={draft.connectionRef}
             onChange={(e) => setDraft((prev) => ({ ...prev, connectionRef: e.target.value }))}
             placeholder="Connection ID (secret)"
-            className="h-11 text-sm sm:h-10 sm:text-base"
+            className="h-11 sm:h-10"
           />
           <Input
             value={draft.database}
             onChange={(e) => setDraft((prev) => ({ ...prev, database: e.target.value }))}
             placeholder="Database name"
-            className="h-11 text-sm sm:h-10 sm:text-base"
+            className="h-11 sm:h-10"
           />
           <Input
             value={draft.schema}
             onChange={(e) => setDraft((prev) => ({ ...prev, schema: e.target.value }))}
             placeholder="Schema (optional)"
-            className="h-11 text-sm sm:h-10 sm:text-base"
+            className="h-11 sm:h-10"
           />
           <Input
             value={draft.tables}
             onChange={(e) => setDraft((prev) => ({ ...prev, tables: e.target.value }))}
             placeholder="Tables (comma-separated, optional)"
-            className="h-11 text-sm sm:h-10 sm:text-base"
+            className="h-11 sm:h-10"
           />
         </div>
 
@@ -186,14 +186,14 @@ export function ContextIntegrations({
             value={rag.vectorStoreRef}
             onChange={(e) => onUpdateRag({ vectorStoreRef: e.target.value })}
             placeholder="Vector store ID"
-            className="h-11 text-sm sm:h-10 sm:text-base"
+            className="h-11 sm:h-10"
             disabled={!rag.enabled}
           />
           <Input
             value={rag.namespace}
             onChange={(e) => onUpdateRag({ namespace: e.target.value })}
             placeholder="Namespace"
-            className="h-11 text-sm sm:h-10 sm:text-base"
+            className="h-11 sm:h-10"
             disabled={!rag.enabled}
           />
           <Select
@@ -203,17 +203,17 @@ export function ContextIntegrations({
             }
             disabled={!rag.enabled}
           >
-            <SelectTrigger className="h-11 text-sm bg-background sm:h-10 sm:text-base">
+            <SelectTrigger className="h-11 bg-background sm:h-10">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="hybrid" className="text-sm sm:text-base">
+              <SelectItem value="hybrid">
                 Hybrid
               </SelectItem>
-              <SelectItem value="semantic" className="text-sm sm:text-base">
+              <SelectItem value="semantic">
                 Semantic
               </SelectItem>
-              <SelectItem value="keyword" className="text-sm sm:text-base">
+              <SelectItem value="keyword">
                 Keyword
               </SelectItem>
             </SelectContent>
@@ -222,21 +222,21 @@ export function ContextIntegrations({
             value={String(rag.topK)}
             onChange={(e) => onUpdateRag({ topK: Number(e.target.value) || 0 })}
             placeholder="Top results (topK)"
-            className="h-11 text-sm sm:h-10 sm:text-base"
+            className="h-11 sm:h-10"
             disabled={!rag.enabled}
           />
           <Input
             value={String(rag.minScore)}
             onChange={(e) => onUpdateRag({ minScore: Number(e.target.value) || 0 })}
             placeholder="Minimum score (0-1)"
-            className="h-11 text-sm sm:h-10 sm:text-base"
+            className="h-11 sm:h-10"
             disabled={!rag.enabled}
           />
           <Input
             value={String(rag.chunkWindow)}
             onChange={(e) => onUpdateRag({ chunkWindow: Number(e.target.value) || 0 })}
             placeholder="Context window (chunks)"
-            className="h-11 text-sm sm:h-10 sm:text-base"
+            className="h-11 sm:h-10"
             disabled={!rag.enabled}
           />
         </div>
@@ -251,7 +251,7 @@ export function ContextIntegrations({
             })
           }
           placeholder="Document IDs (comma-separated)"
-          className="h-11 text-sm sm:h-10 sm:text-base"
+          className="h-11 sm:h-10"
           disabled={!rag.enabled}
         />
       </div>
