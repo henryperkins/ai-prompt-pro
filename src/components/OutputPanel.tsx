@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { PROMPT_CATEGORY_OPTIONS } from "@/lib/prompt-categories";
+import { copyTextToClipboard } from "@/lib/clipboard";
 import {
   validateSaveDialogInput,
 } from "@/lib/output-panel-validation";
@@ -182,7 +183,7 @@ export function OutputPanel({
           : variant === "tui"
             ? codexExport.generateCodexTuiCommandBash(displayPrompt)
             : codexExport.generateCodexAppServerSendMessageV2CommandBash(displayPrompt);
-      await navigator.clipboard.writeText(command);
+      await copyTextToClipboard(command);
       toast({
         title: "Copied for Codex",
         description:
@@ -241,7 +242,7 @@ export function OutputPanel({
       const command = codexExport.generateCodexSkillScaffoldCommandBash(displayPrompt, {
         skillName: codexExport.CODEX_DEFAULT_SKILL_NAME,
       });
-      await navigator.clipboard.writeText(command);
+      await copyTextToClipboard(command);
       toast({
         title: "Copied for Codex",
         description: `Copied command to scaffold .agents/skills/${codexExport.CODEX_DEFAULT_SKILL_NAME}/SKILL.md.`,
@@ -351,7 +352,7 @@ export function OutputPanel({
   const handleCopy = async () => {
     if (!displayPrompt) return;
     try {
-      await navigator.clipboard.writeText(displayPrompt);
+      await copyTextToClipboard(displayPrompt);
       setCopied(true);
       toast({ title: "Copied to clipboard!", description: "Paste it into your favorite AI tool." });
       setTimeout(() => setCopied(false), 2000);

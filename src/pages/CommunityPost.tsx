@@ -25,6 +25,7 @@ import {
 } from "@/lib/community";
 import { toCommunityErrorState, type CommunityErrorState } from "@/lib/community-errors";
 import { communityFeatureFlags } from "@/lib/feature-flags";
+import { copyTextToClipboard } from "@/lib/clipboard";
 
 function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
@@ -140,7 +141,7 @@ const CommunityPost = () => {
   const handleCopyPrompt = useCallback(
     async (target: CommunityPostType) => {
       try {
-        await navigator.clipboard.writeText(target.enhancedPrompt || target.starterPrompt);
+        await copyTextToClipboard(target.enhancedPrompt || target.starterPrompt);
         toast({ title: "Prompt copied", description: "Prompt text copied to your clipboard." });
       } catch {
         toast({

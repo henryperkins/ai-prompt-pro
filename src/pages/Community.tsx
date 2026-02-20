@@ -25,6 +25,7 @@ import {
 import { communityFeatureFlags } from "@/lib/feature-flags";
 import { toCommunityErrorState, type CommunityErrorState } from "@/lib/community-errors";
 import { PROMPT_CATEGORY_OPTIONS } from "@/lib/prompt-categories";
+import { copyTextToClipboard } from "@/lib/clipboard";
 import { cn } from "@/lib/utils";
 
 const SORT_OPTIONS: Array<{ label: string; value: CommunitySort }> = [
@@ -228,7 +229,7 @@ const Community = () => {
   const handleCopyPrompt = useCallback(
     async (post: CommunityPost) => {
       try {
-        await navigator.clipboard.writeText(post.enhancedPrompt || post.starterPrompt);
+        await copyTextToClipboard(post.enhancedPrompt || post.starterPrompt);
         toast({ title: "Prompt copied", description: "Prompt text copied to your clipboard." });
       } catch {
         toast({
