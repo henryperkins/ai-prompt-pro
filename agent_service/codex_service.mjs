@@ -3,6 +3,14 @@ import { createServer } from "node:http";
 import process from "node:process";
 import { Codex } from "@openai/codex-sdk";
 import { createRemoteJWKSet, jwtVerify } from "jose";
+import {
+  buildEnhancementMetaPrompt,
+  detectEnhancementContext,
+  parseEnhancementRequestBuilderFields,
+  parseEnhancementRequestMode,
+  pickPrimaryAgentMessageText,
+  postProcessEnhancementResponse,
+} from "./enhancement-pipeline.mjs";
 import { extractThreadOptions } from "./thread-options.mjs";
 
 const MAX_PROMPT_CHARS = Number.parseInt(process.env.MAX_PROMPT_CHARS || "16000", 10);
@@ -81,39 +89,6 @@ const REASONING_EFFORTS = new Set(["minimal", "low", "medium", "high", "xhigh"])
 const REASONING_SUMMARIES = new Set(["auto", "concise", "detailed"]);
 const WEB_SEARCH_MODES = new Set(["disabled", "cached", "live"]);
 const APPROVAL_POLICIES = new Set(["never", "on-request", "on-failure", "untrusted"]);
-const PROMPT_ENHANCER_INSTRUCTIONS = [
-  "You are an expert prompt engineer. Rewrite the user's draft prompt so it is clearer, more specific, and easier for GPT-5 class models to execute.",
-  "",
-  "<core_behavior>",
-  "- Preserve the user's intent, requirements, and constraints.",
-  "- Improve clarity, specificity, structure, and completeness without changing scope.",
-  "- Remove redundancy, resolve contradictions, and keep essential details.",
-  "- Do not add features, requirements, or assumptions unless needed for coherence.",
-  "</core_behavior>",
-  "",
-  "<output_contract>",
-  "- Return the enhanced prompt as plain text, ready to use.",
-  "- Do not wrap the result in markdown code fences.",
-  "- Keep the format concise and easy to scan.",
-  "- Use explicit sections or bullets only when they improve clarity.",
-  "</output_contract>",
-  "",
-  "<ambiguity_handling>",
-  "- If key details are missing, include an \"Assumptions\" section with up to 3 concise assumptions.",
-  "- Never fabricate facts, references, IDs, or exact figures.",
-  "</ambiguity_handling>",
-  "",
-  "<web_search_citations>",
-  "- Only if web search was used, append a sources block AFTER the enhanced prompt.",
-  "- Format: a blank line, then '---', then 'Sources:', then each source as '- [Title](URL)' on its own line.",
-  "- Do NOT embed URLs or citations inside the enhanced prompt body.",
-  "</web_search_citations>",
-  "",
-  "<structure_preferences>",
-  "- When appropriate, organize with labels such as: Role, Task, Context, Format, Constraints.",
-  "- If a rigid template hurts clarity, keep the structure natural and concise.",
-  "</structure_preferences>",
-].join("\n");
 
 function normalizeEnvValue(name) {
   const value = process.env[name];
@@ -248,13 +223,18 @@ const AUTH_CONFIG = (() => {
   };
 })();
 
-const ALLOWED_CONTENT_TYPES = [
-  "text/html",
+const TEXTUAL_CONTENT_TYPES = new Set([
   "application/xhtml+xml",
-  "text/plain",
   "application/xml",
   "text/xml",
-];
+  "application/json",
+  "application/ld+json",
+  "application/rss+xml",
+  "application/atom+xml",
+  "application/javascript",
+  "application/x-javascript",
+  "application/ecmascript",
+]);
 
 const INFERENCE_FIELD_LABELS = {
   role: "Set AI persona",
@@ -805,42 +785,6 @@ function asNonEmptyString(value) {
   return trimmed ? trimmed : undefined;
 }
 
-// ---------------------------------------------------------------------------
-// Prompt structure inspection (ported from Python inspect_prompt_structure)
-// ---------------------------------------------------------------------------
-const CORE_SECTIONS = ["Role", "Task", "Context", "Format", "Constraints"];
-
-function inspectPromptStructure(prompt) {
-  const normalized = prompt.toLowerCase();
-  function hasSection(name) {
-    const token = name.toLowerCase();
-    return [
-      `${token}:`,
-      `${token} -`,
-      `## ${token}`,
-      `### ${token}`,
-      `[${token}]`,
-    ].some((pattern) => normalized.includes(pattern));
-  }
-  const present = CORE_SECTIONS.filter(hasSection);
-  const missing = CORE_SECTIONS.filter((s) => !present.includes(s));
-  return { present_sections: present, missing_sections: missing, char_count: prompt.length };
-}
-
-function buildEnhancerInput(prompt) {
-  const analysis = inspectPromptStructure(prompt);
-  let structureHint = "";
-  if (analysis.missing_sections.length > 0) {
-    structureHint =
-      `\n\n<prompt_structure_analysis>\n` +
-      `Present sections: ${analysis.present_sections.join(", ") || "none"}\n` +
-      `Missing sections: ${analysis.missing_sections.join(", ")}\n` +
-      `Character count: ${analysis.char_count}\n` +
-      `</prompt_structure_analysis>`;
-  }
-  return `${PROMPT_ENHANCER_INSTRUCTIONS}${structureHint}\n\n<source_prompt>\n${prompt}\n</source_prompt>`;
-}
-
 function textFromItem(item) {
   if (!item || typeof item !== "object") return "";
   if (typeof item.text === "string") return item.text;
@@ -1083,10 +1027,41 @@ function isPrivateHost(hostname) {
   return false;
 }
 
-function hasAllowedContentType(resp) {
+function responseMimeType(resp) {
   const ct = resp.headers.get("content-type") || "";
-  const mime = ct.split(";")[0].trim().toLowerCase();
-  return ALLOWED_CONTENT_TYPES.some((allowed) => mime === allowed);
+  return ct.split(";")[0].trim().toLowerCase();
+}
+
+function isTextLikeContentType(mimeType) {
+  if (!mimeType) return true;
+  if (mimeType.startsWith("text/")) return true;
+  return TEXTUAL_CONTENT_TYPES.has(mimeType);
+}
+
+function isHtmlLikeMimeType(mimeType) {
+  return (
+    !mimeType
+    || mimeType === "text/html"
+    || mimeType === "application/xhtml+xml"
+    || mimeType === "application/xml"
+    || mimeType === "text/xml"
+  );
+}
+
+function looksLikeBinaryPayload(payload) {
+  if (!payload) return true;
+  const sample = payload.slice(0, 4096);
+  if (sample.includes("\u0000")) return true;
+
+  let suspicious = 0;
+  for (let i = 0; i < sample.length; i += 1) {
+    const code = sample.charCodeAt(i);
+    const isAllowedControl = code === 9 || code === 10 || code === 13;
+    if (code < 32 && !isAllowedControl) suspicious += 1;
+  }
+
+  if (sample.length === 0) return false;
+  return suspicious / sample.length > 0.12;
 }
 
 async function readBodyWithLimit(resp, maxBytes) {
@@ -1131,16 +1106,110 @@ function stripHtml(html) {
   return text;
 }
 
+function extractMetaContent(html, matcher) {
+  const metaTags = html.match(/<meta\b[^>]*>/gi) || [];
+  for (const tag of metaTags) {
+    if (!matcher.test(tag)) continue;
+    const contentMatch = tag.match(/\bcontent=(["'])([\s\S]*?)\1/i);
+    if (contentMatch?.[2]) {
+      const value = contentMatch[2].replace(/\s+/g, " ").trim();
+      if (value) return value;
+    }
+  }
+  return "";
+}
+
 function extractTitle(html, url) {
   const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
   if (titleMatch?.[1]) {
     return titleMatch[1].replace(/\s+/g, " ").trim().slice(0, 120);
   }
+  const ogTitle = extractMetaContent(html, /\bproperty=["']og:title["']/i);
+  if (ogTitle) return ogTitle.slice(0, 120);
+  const twitterTitle = extractMetaContent(html, /\bname=["']twitter:title["']/i);
+  if (twitterTitle) return twitterTitle.slice(0, 120);
   try {
     return new URL(url).hostname;
   } catch {
     return "Extracted content";
   }
+}
+
+function extractMetadataText(html) {
+  const values = [
+    extractMetaContent(html, /\bname=["']description["']/i),
+    extractMetaContent(html, /\bproperty=["']og:description["']/i),
+    extractMetaContent(html, /\bname=["']twitter:description["']/i),
+  ].filter(Boolean);
+  return values.join(" ").trim();
+}
+
+function normalizeExtractableText(rawBody, mimeType) {
+  if (!rawBody) return "";
+  if (isHtmlLikeMimeType(mimeType)) {
+    const htmlText = stripHtml(rawBody);
+    const metadataText = extractMetadataText(rawBody);
+    return [htmlText, metadataText].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
+  }
+  return rawBody.replace(/\s+/g, " ").trim();
+}
+
+function clampExtractText(text, maxChars = 8000) {
+  if (text.length <= maxChars) return text;
+  return `${text.slice(0, maxChars)}…`;
+}
+
+function buildPrimaryFetchHeaders() {
+  return {
+    "User-Agent": "Mozilla/5.0 (compatible; PromptForge/1.0; +https://promptforge.app)",
+    Accept: "text/html,application/xhtml+xml,application/xml,text/plain,application/json;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Cache-Control": "no-cache",
+    Pragma: "no-cache",
+  };
+}
+
+function buildRetryFetchHeaders() {
+  return {
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    Accept:
+      "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Upgrade-Insecure-Requests": "1",
+    "Cache-Control": "max-age=0",
+  };
+}
+
+async function fetchPageWithHeaderFallback(url, timeoutMs) {
+  const attempts = [buildPrimaryFetchHeaders(), buildRetryFetchHeaders()];
+  let lastResponse = null;
+  let lastError = null;
+
+  for (const headers of attempts) {
+    try {
+      const response = await fetchWithTimeout(
+        url,
+        {
+          headers,
+          redirect: "follow",
+        },
+        timeoutMs,
+      );
+      if (response.ok) {
+        return response;
+      }
+      lastResponse = response;
+    } catch (error) {
+      lastError = error;
+      if (isTimeoutError(error)) {
+        throw error;
+      }
+    }
+  }
+
+  if (lastResponse) return lastResponse;
+  throw lastError || new Error("Failed to fetch URL.");
 }
 
 function parseInputUrl(input) {
@@ -1327,9 +1396,18 @@ async function streamWithCodex(req, res, body, corsHeaders) {
   }
   const requestThreadOptions = extractThreadOptions(body.thread_options || body.threadOptions);
   const threadOptions = { ...DEFAULT_THREAD_OPTIONS, ...requestThreadOptions };
+  const builderMode = parseEnhancementRequestMode(body);
+  const builderFields = parseEnhancementRequestBuilderFields(body);
+  const enhancementContext = detectEnhancementContext(prompt, {
+    builderMode,
+    builderFields,
+  });
+  const enhancementInput = buildEnhancementMetaPrompt(prompt, enhancementContext);
 
   const turnId = `turn_${randomUUID().replaceAll("-", "")}`;
   const stateByItemId = new Map();
+  const agentMessageByItemId = new Map();
+  const agentMessageItemOrder = [];
   const controller = new AbortController();
   req.on("aborted", () => controller.abort("Client disconnected"));
   res.on("close", () => {
@@ -1345,11 +1423,13 @@ async function streamWithCodex(req, res, body, corsHeaders) {
     const thread = requestedThreadId
       ? codex.resumeThread(requestedThreadId, threadOptions)
       : codex.startThread(threadOptions);
-    const { events } = await runStreamedWithRetry(thread, buildEnhancerInput(prompt), {
+    const { events } = await runStreamedWithRetry(thread, enhancementInput, {
       signal: controller.signal,
     });
 
     let activeThreadId = requestedThreadId || null;
+    let turnFailed = false;
+    let turnError = false;
 
     for await (const event of events) {
       if (controller.signal.aborted || res.writableEnded) break;
@@ -1391,6 +1471,7 @@ async function streamWithCodex(req, res, body, corsHeaders) {
       }
 
       if (event.type === "turn.failed") {
+        turnFailed = true;
         writeSse(res, {
           event: "turn.failed",
           type: "turn.failed",
@@ -1402,6 +1483,7 @@ async function streamWithCodex(req, res, body, corsHeaders) {
       }
 
       if (event.type === "error") {
+        turnError = true;
         writeSse(res, {
           event: "thread.error",
           type: "error",
@@ -1446,6 +1528,15 @@ async function streamWithCodex(req, res, body, corsHeaders) {
             stateByItemId.set(itemId, currentText);
           }
 
+          if (itemType === "agent_message") {
+            const agentItemKey = itemId || "__agent_message__";
+            if (!agentMessageByItemId.has(agentItemKey)) {
+              agentMessageItemOrder.push(agentItemKey);
+            }
+            agentMessageByItemId.set(agentItemKey, currentText);
+            continue;
+          }
+
           if (delta) {
             const eventShape = toItemDeltaEventType(itemType);
             writeSse(res, {
@@ -1484,6 +1575,16 @@ async function streamWithCodex(req, res, body, corsHeaders) {
           if (itemId) {
             stateByItemId.set(itemId, text);
           }
+
+          if (itemType === "agent_message") {
+            const agentItemKey = itemId || "__agent_message__";
+            if (!agentMessageByItemId.has(agentItemKey)) {
+              agentMessageItemOrder.push(agentItemKey);
+            }
+            agentMessageByItemId.set(agentItemKey, text);
+            continue;
+          }
+
           const eventShape = toItemDoneEventType(itemType);
           writeSse(res, {
             event: eventShape.event,
@@ -1510,6 +1611,51 @@ async function streamWithCodex(req, res, body, corsHeaders) {
           item: event.item,
         });
       }
+    }
+
+    if (!controller.signal.aborted && !res.writableEnded && !turnFailed && !turnError) {
+      const rawEnhancerOutput = pickPrimaryAgentMessageText(agentMessageByItemId, agentMessageItemOrder);
+      const postProcessed = postProcessEnhancementResponse({
+        llmResponseText: rawEnhancerOutput,
+        userInput: prompt,
+        context: enhancementContext,
+      });
+      const finalEnhancedPrompt = postProcessed.enhanced_prompt?.trim() || rawEnhancerOutput.trim();
+
+      if (finalEnhancedPrompt) {
+        const syntheticItemId = `item_enhanced_${randomUUID().replaceAll("-", "")}`;
+        writeSse(res, {
+          event: "item/agent_message/delta",
+          type: "response.output_text.delta",
+          turn_id: turnId,
+          thread_id: activeThreadId,
+          item_id: syntheticItemId,
+          item_type: "agent_message",
+          delta: finalEnhancedPrompt,
+          choices: [{ delta: { content: finalEnhancedPrompt } }],
+          item: { id: syntheticItemId, type: "agent_message", delta: finalEnhancedPrompt },
+        });
+        writeSse(res, {
+          event: "item/completed",
+          type: "response.output_text.done",
+          turn_id: turnId,
+          thread_id: activeThreadId,
+          item_id: syntheticItemId,
+          item_type: "agent_message",
+          payload: { text: finalEnhancedPrompt },
+          text: finalEnhancedPrompt,
+          output_text: finalEnhancedPrompt,
+          item: { id: syntheticItemId, type: "agent_message", text: finalEnhancedPrompt },
+        });
+      }
+
+      writeSse(res, {
+        event: "enhance/metadata",
+        type: "enhance.metadata",
+        turn_id: turnId,
+        thread_id: activeThreadId,
+        payload: postProcessed,
+      });
     }
 
     endSse(res);
@@ -1640,13 +1786,7 @@ async function handleExtractUrl(req, res, body, corsHeaders) {
 
   let pageResponse;
   try {
-    pageResponse = await fetchWithTimeout(parsedUrl.href, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; PromptForge/1.0; +https://promptforge.app)",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      },
-      redirect: "follow",
-    }, FETCH_TIMEOUT_MS);
+    pageResponse = await fetchPageWithHeaderFallback(parsedUrl.href, FETCH_TIMEOUT_MS);
   } catch (error) {
     if (isTimeoutError(error)) {
       json(res, 504, { error: "Timed out while fetching the URL." }, corsHeaders);
@@ -1659,32 +1799,50 @@ async function handleExtractUrl(req, res, body, corsHeaders) {
     json(
       res,
       422,
-      { error: `Could not fetch URL (status ${pageResponse.status})` },
+      {
+        error: `Could not fetch URL (status ${pageResponse.status}). The target site may block automated access.`,
+      },
       corsHeaders,
     );
     return;
   }
 
-  if (!hasAllowedContentType(pageResponse)) {
-    json(res, 422, { error: "URL did not return an HTML or text content type." }, corsHeaders);
-    return;
-  }
-
-  let html;
+  let bodyText;
   try {
-    html = await readBodyWithLimit(pageResponse, MAX_RESPONSE_BYTES);
+    bodyText = await readBodyWithLimit(pageResponse, MAX_RESPONSE_BYTES);
   } catch {
     json(res, 413, { error: "Response body is too large to process." }, corsHeaders);
     return;
   }
 
-  const title = extractTitle(html, parsedUrl.href);
-  let plainText = stripHtml(html);
-  if (plainText.length > 8000) {
-    plainText = `${plainText.slice(0, 8000)}…`;
+  const mimeType = responseMimeType(pageResponse);
+  if (!isTextLikeContentType(mimeType) && looksLikeBinaryPayload(bodyText)) {
+    json(
+      res,
+      422,
+      {
+        error:
+          "The URL appears to be non-text or binary content. Provide a page URL with readable text, or paste content manually.",
+      },
+      corsHeaders,
+    );
+    return;
   }
+
+  const title = extractTitle(bodyText, parsedUrl.href);
+  let plainText = normalizeExtractableText(bodyText, mimeType);
+  plainText = clampExtractText(plainText, 8000);
+
   if (plainText.length < 50) {
-    json(res, 422, { error: "Page had too little readable text content." }, corsHeaders);
+    json(
+      res,
+      422,
+      {
+        error:
+          "Page had too little readable text content (often caused by script-only pages or anti-bot blocks). You can still paste text manually.",
+      },
+      corsHeaders,
+    );
     return;
   }
 

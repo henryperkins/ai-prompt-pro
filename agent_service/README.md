@@ -28,6 +28,15 @@ npm run agent:codex
 {
   "prompt": "Your draft prompt text",       // required
   "thread_id": "thread_abc123",             // optional: resume a previous thread
+  "builder_mode": "guided",                 // optional: quick|guided|advanced
+  "builder_fields": {                       // optional but recommended: pass all 6 keys, even empty
+    "role": "",
+    "context": "",
+    "task": "",
+    "output_format": "",
+    "examples": "",
+    "guardrails": ""
+  },
   "thread_options": {                       // optional
     "modelReasoningEffort": "medium"        // minimal|low|medium|high|xhigh
   }

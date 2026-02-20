@@ -721,4 +721,53 @@ describe("ai-client auth recovery", () => {
 
     expect(body).toEqual({ prompt: "Improve this" });
   });
+
+  it("sends builder mode and all six builder fields when provided", async () => {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "valid-token",
+          expires_at: nowSeconds + 3600,
+        },
+      },
+      error: null,
+    });
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(streamingResponse("enhanced"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { streamEnhance } = await import("@/lib/ai-client");
+
+    await streamEnhance({
+      prompt: "Improve this",
+      builderMode: "guided",
+      builderFields: {
+        role: "",
+        context: "",
+        task: "Generate a refined prompt",
+        outputFormat: "",
+        examples: "",
+        guardrails: "",
+      },
+      onDelta: vi.fn(),
+      onDone: vi.fn(),
+      onError: vi.fn(),
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const request = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const body = JSON.parse((request.body as string) || "{}") as Record<string, unknown>;
+
+    expect(body.builder_mode).toBe("guided");
+    expect(body.builder_fields).toEqual({
+      role: "",
+      context: "",
+      task: "Generate a refined prompt",
+      output_format: "",
+      examples: "",
+      guardrails: "",
+    });
+  });
 });

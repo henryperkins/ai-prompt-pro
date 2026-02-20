@@ -147,17 +147,17 @@ Per-request `thread_options` accepted from caller are currently limited to:
 
 ### Enhancement instruction wrapping
 
-The raw user-built prompt is wrapped in a service-side enhancer instruction template:
+The raw user-built prompt is now processed through a 3-layer enhancement pipeline:
 
-- preserve user intent/constraints
-- improve clarity/specificity/structure without changing scope
-- bounded ambiguity handling (`Assumptions` when required)
-- conditional source citation block only when web search was used
-- optional prompt-structure analysis hints (Role/Task/Context/Format/Constraints coverage)
+1. **Pre-processing** (intent/domain/complexity/structure)
+2. **Meta-prompt engine** (6-part framework + mode/intent add-ons)
+3. **Post-processing** (JSON validation + quality metadata + final prompt extraction)
+
+In addition to `prompt`, the frontend sends `builder_fields` with the six form fields (`role`, `context`, `task`, `output_format`, `examples`, `guardrails`) so the enhancer can "complete the form" even when some values are empty.
 
 Then sent as:
 
-- `thread.runStreamed(buildEnhancerInput(prompt), { signal })`
+- `thread.runStreamed(buildEnhancementMetaPrompt(prompt, context), { signal })`
 
 ### Streaming adaptation
 
@@ -165,8 +165,9 @@ Codex events are mapped to SSE events compatible with frontend parsers:
 
 - thread/turn lifecycle events
 - item started/updated/completed events
-- text delta packets (`response.output_text.delta`)
-- final text done packet (`response.output_text.done`)
+- reasoning delta packets (`response.reasoning_summary_text.delta`) are forwarded directly
+- final enhanced prompt text is emitted from post-processed JSON as `response.output_text.delta` + `response.output_text.done`
+- enhancement metadata is emitted as `enhance.metadata` (non-rendered, available to event listeners)
 - `[DONE]` terminator
 
 ## 7) End-to-End Sequence
@@ -176,7 +177,7 @@ User edits builder fields
   -> usePromptBuilder updates PromptConfig
   -> buildPrompt(config) derives builtPrompt
 User clicks Enhance
-  -> Index.handleEnhance calls streamEnhance({ prompt, threadOptions })
+  -> Index.handleEnhance calls streamEnhance({ prompt, threadOptions, builderFields })
   -> ai-client POST /enhance
   -> agent service validates + rate-limits + streams response
   -> Codex service wraps prompt with enhancer instructions and runs thread

@@ -829,9 +829,33 @@ const Index = () => {
           ? ((window as typeof window & { __promptforgeEnhanceEvents?: EnhanceDebugEventSnapshot[] })
               .__promptforgeEnhanceEvents ??= [])
           : null;
+      const outputFormats = [
+        ...configForEnhance.format,
+        configForEnhance.customFormat.trim(),
+      ].filter((value) => value.length > 0);
+      const outputFormatField = [
+        outputFormats.join(", "),
+        configForEnhance.lengthPreference ? `Length: ${configForEnhance.lengthPreference}` : "",
+      ]
+        .filter((value) => value.length > 0)
+        .join(" | ");
+      const guardrailItems = [
+        ...configForEnhance.constraints,
+        configForEnhance.customConstraint.trim(),
+        configForEnhance.tone ? `Tone: ${configForEnhance.tone}` : "",
+        configForEnhance.complexity ? `Complexity: ${configForEnhance.complexity}` : "",
+      ].filter((value) => value.length > 0);
       streamEnhance({
         prompt: promptForEnhance,
         threadOptions: { ...ENHANCE_THREAD_OPTIONS_BASE, webSearchEnabled },
+        builderFields: {
+          role: (configForEnhance.customRole || configForEnhance.role || "").trim(),
+          context: configForEnhance.context.trim(),
+          task: (configForEnhance.originalPrompt || configForEnhance.task || "").trim(),
+          outputFormat: outputFormatField,
+          examples: configForEnhance.examples.trim(),
+          guardrails: guardrailItems.join("; "),
+        },
         onDelta: (text) => {
           if (!hasReceivedDelta) {
             hasReceivedDelta = true;

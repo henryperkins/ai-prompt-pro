@@ -475,6 +475,15 @@ export interface EnhanceThreadOptions {
   webSearchEnabled?: boolean;
 }
 
+export interface EnhanceBuilderFields {
+  role: string;
+  context: string;
+  task: string;
+  outputFormat: string;
+  examples: string;
+  guardrails: string;
+}
+
 function isRenderableItemType(itemType: string | null): boolean {
   if (!itemType) return true;
   const normalized = itemType.trim().toLowerCase();
@@ -631,6 +640,8 @@ export async function streamEnhance({
   prompt,
   threadId,
   threadOptions,
+  builderMode,
+  builderFields,
   onDelta,
   onDone,
   onError,
@@ -639,6 +650,8 @@ export async function streamEnhance({
   prompt: string;
   threadId?: string;
   threadOptions?: EnhanceThreadOptions;
+  builderMode?: "quick" | "guided" | "advanced";
+  builderFields?: EnhanceBuilderFields;
   onDelta: (text: string) => void;
   onDone: () => void;
   onError: (error: string) => void;
@@ -660,6 +673,19 @@ export async function streamEnhance({
     }
     if (threadOptions && typeof threadOptions === "object") {
       payload.thread_options = threadOptions;
+    }
+    if (builderMode) {
+      payload.builder_mode = builderMode;
+    }
+    if (builderFields && typeof builderFields === "object") {
+      payload.builder_fields = {
+        role: typeof builderFields.role === "string" ? builderFields.role : "",
+        context: typeof builderFields.context === "string" ? builderFields.context : "",
+        task: typeof builderFields.task === "string" ? builderFields.task : "",
+        output_format: typeof builderFields.outputFormat === "string" ? builderFields.outputFormat : "",
+        examples: typeof builderFields.examples === "string" ? builderFields.examples : "",
+        guardrails: typeof builderFields.guardrails === "string" ? builderFields.guardrails : "",
+      };
     }
 
     const resp = await postFunctionWithAuthRecovery("enhance-prompt", payload);
