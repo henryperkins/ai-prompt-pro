@@ -223,6 +223,11 @@ function parseTags(value: string): string[] | undefined {
   return tags.length > 0 ? tags : undefined;
 }
 
+const savedPromptActionButtonClass =
+  "h-10 min-w-[84px] rounded-md px-2.5 text-xs font-medium tracking-tight sm:h-8 sm:min-w-[72px] sm:px-2";
+const savedPromptIconButtonClass =
+  "h-10 w-10 rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive sm:h-8 sm:w-8";
+
 function PromptList({
   activeCategory,
   setActiveCategory,
@@ -349,7 +354,7 @@ function PromptList({
 
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 pb-2 border-b border-border/60">
+      <div className="grid grid-cols-1 gap-2 border-b border-border/60 pb-2 sm:grid-cols-[1fr_auto]">
         <div className="relative">
           <label htmlFor="prompt-library-search" className="sr-only">
             Search saved prompts and templates
@@ -360,13 +365,13 @@ function PromptList({
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
             placeholder="Search prompts by name, description, tags, or starter text"
-            className="h-11 bg-background pl-8 sm:h-10"
+            className="h-11 bg-background pl-8 sm:h-9"
           />
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           <ArrowDownUp className="w-3.5 h-3.5 text-muted-foreground" />
           <Select value={sortBy} onValueChange={(value: SavedPromptSort) => onSortByChange(value)}>
-            <SelectTrigger className="h-11 min-w-[138px] sm:h-10" aria-label="Sort saved prompts">
+            <SelectTrigger className="h-11 min-w-[138px] sm:h-9" aria-label="Sort saved prompts">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -393,7 +398,7 @@ function PromptList({
               No saved prompts yet. Create one in the Builder, then save it to your library.
             </p>
             <div className="mt-2">
-              <Button asChild size="sm" className="h-11 text-sm sm:h-9 sm:text-base" onClick={onClose}>
+              <Button asChild size="sm" className="h-11 text-sm sm:h-8 sm:text-sm" onClick={onClose}>
                 <Link to="/">Go to Builder</Link>
               </Button>
             </div>
@@ -407,21 +412,18 @@ function PromptList({
         )}
 
         {filteredSaved.map((prompt) => (
-          <Card
-            key={prompt.id}
-            className="interactive-card p-3 hover:border-primary/50 group"
-          >
+          <Card key={prompt.id} className="interactive-card group border-border/70 bg-card/90 p-3 hover:border-primary/45">
             <div className="flex items-start justify-between gap-2">
               <button
                 type="button"
-                className="space-y-1 min-w-0 flex-1 text-left rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="min-w-0 flex-1 space-y-1.5 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onClick={() => {
                   onSelectSaved(prompt.id);
                   onClose();
                 }}
               >
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h4 className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+                  <h4 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
                     {prompt.name}
                   </h4>
                   <Badge variant="outline" className="text-xs">
@@ -451,7 +453,7 @@ function PromptList({
                 <p className="text-xs text-muted-foreground/90 line-clamp-2">
                   <span className="font-medium text-foreground/80">Start:</span> {prompt.starterPrompt}
                 </p>
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
                   <span className="capitalize">{prompt.category || "general"}</span>
                   <span>•</span>
                   <span>{formatUpdatedAt(prompt.updatedAt)}</span>
@@ -481,13 +483,13 @@ function PromptList({
                   </div>
                 )}
               </button>
-              <div className="flex flex-col gap-1">
+              <div className="flex shrink-0 flex-col gap-1 rounded-md border border-border/70 bg-background/70 p-1">
                 {prompt.isShared && prompt.communityPostId && (
                   <Button
                     asChild
                     variant="ghost"
                     size="sm"
-                    className="h-11 px-2 text-sm sm:h-9 sm:text-base"
+                    className={cn(savedPromptActionButtonClass, "gap-1.5 text-muted-foreground hover:text-foreground")}
                   >
                     <Link to={`/community/${prompt.communityPostId}`}>
                       Open
@@ -499,7 +501,7 @@ function PromptList({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-11 px-2 text-sm sm:h-9 sm:text-base"
+                    className={cn(savedPromptActionButtonClass, "border-border/70 bg-background/60")}
                     onClick={(event) => {
                       event.stopPropagation();
                       void onUnshareSaved(prompt.id);
@@ -511,7 +513,7 @@ function PromptList({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-11 px-2 text-sm sm:h-9 sm:text-base"
+                    className={cn(savedPromptActionButtonClass, "border-border/70 bg-background/60")}
                     disabled={!canShareSavedPrompts}
                     onClick={(event) => {
                       event.stopPropagation();
@@ -525,7 +527,7 @@ function PromptList({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="w-11 h-11 sm:w-9 sm:h-9"
+                  className={savedPromptIconButtonClass}
                   onClick={(event) => {
                     event.stopPropagation();
                     setPendingDeletePrompt(prompt);
@@ -545,14 +547,14 @@ function PromptList({
           <h3 className="text-xs font-medium text-foreground">Starter Templates</h3>
         </div>
 
-        <div className="flex flex-wrap gap-1.5 sm:gap-2 py-2">
+        <div className="flex flex-wrap gap-1.5 py-2">
           {categories.map((cat) => (
             <Button
               key={cat}
               variant={activeCategory === cat ? "default" : "outline"}
               size="sm"
               onClick={() => setActiveCategory(cat)}
-              className="interactive-chip h-11 gap-1.5 text-sm capitalize sm:h-9 sm:text-base"
+              className="interactive-chip h-10 gap-1.5 rounded-full px-3 text-xs font-medium capitalize tracking-tight sm:h-8 sm:px-2.5 sm:text-sm"
             >
               {cat !== "all" && categoryIcons[cat]}
               {cat === "all" ? "All" : categoryLabels[cat]}
@@ -578,7 +580,7 @@ function PromptList({
               >
                 <button
                   type="button"
-                  className="w-full p-3 sm:p-4 text-left rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="w-full rounded-sm p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-3.5"
                   onClick={() => {
                     onSelectTemplate(template);
                     onClose();
@@ -595,7 +597,7 @@ function PromptList({
                         >
                           {categoryIcons[template.category] ?? categoryIcons.general}
                         </span>
-                        <h3 className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">
+                        <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
                           {template.name}
                         </h3>
                         <Badge variant="outline" className={cn("text-xs capitalize", skin.badge)}>
@@ -606,18 +608,18 @@ function PromptList({
                       <p className="text-xs text-muted-foreground/90 line-clamp-2">
                         <span className="font-medium text-foreground/80">Start:</span> {template.starterPrompt}
                       </p>
-                      <div className="flex gap-1 mt-1.5">
-                        <Badge variant="secondary" className="text-xs">
+                      <div className="mt-1.5 flex gap-1">
+                        <Badge variant="secondary" className="text-[11px]">
                           {template.tone}
                         </Badge>
-                        <Badge variant="secondary" className="text-xs">
+                        <Badge variant="secondary" className="text-[11px]">
                           {template.complexity}
                         </Badge>
                       </div>
                     </div>
                     <span
                       className={cn(
-                        "shrink-0 text-xs opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex items-center rounded-md border px-2.5 h-9",
+                        "hidden h-8 shrink-0 items-center rounded-md border px-2 text-[11px] font-medium uppercase tracking-wide opacity-70 transition-opacity group-hover:opacity-100 sm:inline-flex",
                         skin.action,
                       )}
                     >
