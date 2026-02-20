@@ -358,7 +358,10 @@ describe("ai-client auth recovery", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(onDone).not.toHaveBeenCalled();
     expect(onError).toHaveBeenCalledWith(
-      "Could not reach the enhancement service at https://agent.test. Check your connection and try again.",
+      expect.objectContaining({
+        code: "network_unavailable",
+        message: "Could not reach the enhancement service at https://agent.test. Check your connection and try again.",
+      }),
     );
   });
 
@@ -388,7 +391,12 @@ describe("ai-client auth recovery", () => {
 
     expect(fetchMock).not.toHaveBeenCalled();
     expect(onDone).not.toHaveBeenCalled();
-    expect(onError).toHaveBeenCalledWith("Could not read auth session: Invalid refresh token");
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "auth_session_invalid",
+        message: "Could not read auth session: Invalid refresh token",
+      }),
+    );
   });
 
   it("ignores non-output completed items while streaming agent text", async () => {
@@ -769,5 +777,123 @@ describe("ai-client auth recovery", () => {
       examples: "",
       guardrails: "",
     });
+  });
+
+  it("reports request_timeout when enhancement exceeds configured timeout", async () => {
+    vi.useFakeTimers();
+    try {
+      const nowSeconds = Math.floor(Date.now() / 1000);
+
+      mocks.getSession.mockResolvedValue({
+        data: {
+          session: {
+            access_token: "valid-token",
+            expires_at: nowSeconds + 3600,
+          },
+        },
+        error: null,
+      });
+
+      const fetchMock = vi.fn().mockImplementation((_url: string, init?: RequestInit) => {
+        const signal = init?.signal as AbortSignal | undefined;
+        return new Promise<Response>((_resolve, reject) => {
+          const abortError = Object.assign(new Error("Aborted"), { name: "AbortError" });
+          if (!signal) {
+            reject(new Error("Missing abort signal"));
+            return;
+          }
+          if (signal.aborted) {
+            reject(abortError);
+            return;
+          }
+          signal.addEventListener("abort", () => {
+            reject(abortError);
+          }, { once: true });
+        });
+      });
+
+      vi.stubGlobal("fetch", fetchMock);
+
+      const { streamEnhance } = await import("@/lib/ai-client");
+
+      const onDone = vi.fn();
+      const onError = vi.fn();
+
+      const streamPromise = streamEnhance({
+        prompt: "Improve this",
+        onDelta: vi.fn(),
+        onDone,
+        onError,
+        timeoutMs: 25,
+      });
+
+      await vi.advanceTimersByTimeAsync(30);
+      await streamPromise;
+
+      expect(onDone).not.toHaveBeenCalled();
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: "request_timeout",
+          message: "Enhancement timed out. Please try again.",
+        }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("silently ignores caller-triggered stream aborts", async () => {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "valid-token",
+          expires_at: nowSeconds + 3600,
+        },
+      },
+      error: null,
+    });
+
+    const fetchMock = vi.fn().mockImplementation((_url: string, init?: RequestInit) => {
+      const signal = init?.signal as AbortSignal | undefined;
+      return new Promise<Response>((_resolve, reject) => {
+        const abortError = Object.assign(new Error("Aborted"), { name: "AbortError" });
+        if (!signal) {
+          reject(new Error("Missing abort signal"));
+          return;
+        }
+        if (signal.aborted) {
+          reject(abortError);
+          return;
+        }
+        signal.addEventListener("abort", () => {
+          reject(abortError);
+        }, { once: true });
+      });
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { streamEnhance } = await import("@/lib/ai-client");
+
+    const onDone = vi.fn();
+    const onError = vi.fn();
+    const controller = new AbortController();
+
+    const streamPromise = streamEnhance({
+      prompt: "Improve this",
+      onDelta: vi.fn(),
+      onDone,
+      onError,
+      signal: controller.signal,
+      timeoutMs: 60_000,
+    });
+
+    controller.abort();
+    await streamPromise;
+
+    expect(onDone).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
   });
 });

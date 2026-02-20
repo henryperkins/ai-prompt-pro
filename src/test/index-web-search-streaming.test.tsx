@@ -162,7 +162,7 @@ function buildPromptBuilderState() {
 
 async function renderIndex() {
   const { default: Index } = await import("@/pages/Index");
-  render(
+  return render(
     <MemoryRouter>
       <Index />
     </MemoryRouter>,
@@ -213,6 +213,23 @@ describe("Index web search streaming", () => {
         "[Release notes](https://example.com/release)|[Status page](https://status.example.com/)",
       );
     });
+  });
+
+  it("aborts an in-flight stream when the page unmounts", async () => {
+    let receivedSignal: AbortSignal | undefined;
+    mocks.streamEnhance.mockImplementation(({ signal }: { signal?: AbortSignal }) => {
+      receivedSignal = signal;
+    });
+
+    const view = await renderIndex();
+    fireEvent.click(screen.getByRole("button", { name: "enhance" }));
+
+    expect(receivedSignal).toBeDefined();
+    expect(receivedSignal?.aborted).toBe(false);
+
+    view.unmount();
+
+    expect(receivedSignal?.aborted).toBe(true);
   });
 
   it("captures reasoning summary from stream events", async () => {
@@ -429,7 +446,7 @@ describe("Index web search streaming", () => {
       }: {
         onEvent?: (event: EnhanceStreamEvent) => void;
         onDone?: () => void;
-        onError?: (error: string) => void;
+        onError?: (error: { message: string; code?: string }) => void;
       }) => {
         enhanceRun += 1;
         if (enhanceRun === 1) {
@@ -446,7 +463,7 @@ describe("Index web search streaming", () => {
           return;
         }
 
-        onError?.("stream failed");
+        onError?.({ message: "stream failed", code: "service_error" });
       },
     );
 

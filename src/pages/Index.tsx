@@ -14,6 +14,7 @@ import { usePromptBuilder } from "@/hooks/usePromptBuilder";
 import {
   inferBuilderFields,
   streamEnhance,
+  type AIClientError,
   type EnhanceThreadOptions,
 } from "@/lib/ai-client";
 import {
@@ -527,6 +528,8 @@ const Index = () => {
   const suggestionLoadToken = useRef(0);
   const enhanceStartedAt = useRef<number | null>(null);
   const enhancePending = useRef(false);
+  const enhanceAbortController = useRef<AbortController | null>(null);
+  const enhanceStreamToken = useRef(0);
   const [suggestionChips, setSuggestionChips] = useState<BuilderSuggestionChip[]>([]);
   const [isInferringSuggestions, setIsInferringSuggestions] = useState(false);
   const [hasInferenceError, setHasInferenceError] = useState(false);
@@ -818,6 +821,12 @@ const Index = () => {
 
       if (isMobile) setDrawerOpen(true);
 
+      enhanceStreamToken.current += 1;
+      enhanceAbortController.current?.abort();
+      const streamToken = enhanceStreamToken.current;
+      const streamAbortController = new AbortController();
+      enhanceAbortController.current = streamAbortController;
+
       let accumulated = "";
       let hasReceivedDelta = false;
       const reasoningByItemId = new Map<string, string>();
@@ -856,7 +865,9 @@ const Index = () => {
           examples: configForEnhance.examples.trim(),
           guardrails: guardrailItems.join("; "),
         },
+        signal: streamAbortController.signal,
         onDelta: (text) => {
+          if (streamToken !== enhanceStreamToken.current) return;
           if (!hasReceivedDelta) {
             hasReceivedDelta = true;
             setEnhancePhase("streaming");
@@ -878,6 +889,7 @@ const Index = () => {
           }
         },
         onEvent: (event) => {
+          if (streamToken !== enhanceStreamToken.current) return;
           if (debugEventStore) {
             debugEventStore.push(toEnhanceDebugEventSnapshot(event));
             if (debugEventStore.length > DEBUG_ENHANCE_EVENTS_MAX) {
@@ -905,6 +917,10 @@ const Index = () => {
           setReasoningSummary(merged);
         },
         onDone: () => {
+          if (streamToken !== enhanceStreamToken.current) return;
+          if (enhanceAbortController.current === streamAbortController) {
+            enhanceAbortController.current = null;
+          }
           const startedAt = enhanceStartedAt.current;
           const durationMs = startedAt ? Math.max(Date.now() - startedAt, 0) : -1;
           enhanceStartedAt.current = null;
@@ -924,19 +940,27 @@ const Index = () => {
           enhancePhaseTimers.current.push(doneTimer, idleTimer);
           toast({ title: "Prompt enhanced!", description: "Your prompt has been optimized by AI." });
         },
-        onError: (error) => {
+        onError: (error: AIClientError) => {
+          if (streamToken !== enhanceStreamToken.current) return;
+          if (enhanceAbortController.current === streamAbortController) {
+            enhanceAbortController.current = null;
+          }
+          if (error.code === "request_aborted") return;
+
+          const errorMessage = error.message;
           const startedAt = enhanceStartedAt.current;
           const durationMs = startedAt ? Math.max(Date.now() - startedAt, 0) : -1;
           enhanceStartedAt.current = null;
           trackBuilderEvent("builder_enhance_completed", {
             success: false,
             durationMs,
-            error,
+            error: errorMessage,
+            errorCode: error.code,
           });
           clearEnhanceTimers();
           setIsEnhancing(false);
           setEnhancePhase("idle");
-          toast({ title: "Enhancement failed", description: error, variant: "destructive" });
+          toast({ title: "Enhancement failed", description: errorMessage, variant: "destructive" });
         },
       });
     })();
@@ -968,6 +992,15 @@ const Index = () => {
     if (enhancedPrompt.trim()) return;
     setReasoningSummary((prev) => (prev ? "" : prev));
   }, [enhancedPrompt, isEnhancing]);
+
+  useEffect(() => {
+    return () => {
+      clearEnhanceTimers();
+      enhanceStreamToken.current += 1;
+      enhanceAbortController.current?.abort();
+      enhanceAbortController.current = null;
+    };
+  }, [clearEnhanceTimers]);
 
   const handleSavePrompt = useCallback(
     async (input: { name: string; description?: string; tags?: string[]; category?: string; remixNote?: string }) => {

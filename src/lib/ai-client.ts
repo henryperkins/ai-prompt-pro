@@ -15,13 +15,71 @@ function normalizeEnvValue(value?: string): string | undefined {
   return trimmed;
 }
 
+function parsePositiveInteger(value?: string): number | null {
+  if (typeof value !== "string") return null;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return parsed;
+}
+
 const AGENT_SERVICE_URL = normalizeEnvValue(import.meta.env.VITE_AGENT_SERVICE_URL);
 const PUBLIC_FUNCTION_API_KEY =
   normalizeEnvValue(import.meta.env.VITE_NEON_PUBLISHABLE_KEY);
+const configuredEnhanceRequestTimeoutMs = parsePositiveInteger(
+  normalizeEnvValue(import.meta.env.VITE_ENHANCE_REQUEST_TIMEOUT_MS),
+);
 
 let bootstrapTokenPromise: Promise<string> | null = null;
 const ACCESS_TOKEN_REFRESH_GRACE_SECONDS = 30;
 const FUNCTION_NETWORK_RETRY_DELAY_MS = 250;
+const DEFAULT_ENHANCE_REQUEST_TIMEOUT_MS = 90_000;
+export const ENHANCE_REQUEST_TIMEOUT_MS =
+  configuredEnhanceRequestTimeoutMs ?? DEFAULT_ENHANCE_REQUEST_TIMEOUT_MS;
+
+export type AIClientErrorCode =
+  | "unknown"
+  | "network_unavailable"
+  | "auth_required"
+  | "auth_session_invalid"
+  | "request_aborted"
+  | "request_timeout"
+  | "rate_limited"
+  | "service_error"
+  | "bad_response";
+
+interface AIClientErrorInit {
+  message: string;
+  code: AIClientErrorCode;
+  status?: number;
+  retryable?: boolean;
+  cause?: unknown;
+}
+
+export class AIClientError extends Error {
+  readonly code: AIClientErrorCode;
+  readonly status?: number;
+  readonly retryable: boolean;
+
+  constructor({ message, code, status, retryable = false, cause }: AIClientErrorInit) {
+    super(message);
+    this.name = "AIClientError";
+    this.code = code;
+    this.status = status;
+    this.retryable = retryable;
+    if (cause !== undefined) {
+      Object.defineProperty(this, "cause", {
+        value: cause,
+        enumerable: false,
+        configurable: true,
+        writable: true,
+      });
+    }
+  }
+}
+
+export function isAIClientError(error: unknown): error is AIClientError {
+  return error instanceof AIClientError;
+}
 
 function sessionExpiresSoon(expiresAt: number | null | undefined): boolean {
   if (typeof expiresAt !== "number" || !Number.isFinite(expiresAt)) return false;
@@ -50,10 +108,52 @@ function isRetryableAuthSessionError(error: unknown): boolean {
   );
 }
 
-function waitFor(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    globalThis.setTimeout(resolve, ms);
+function getAbortSignalReason(signal?: AbortSignal): unknown {
+  if (!signal) return undefined;
+  return (signal as AbortSignal & { reason?: unknown }).reason;
+}
+
+function isAbortError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const name = (error as { name?: unknown }).name;
+  return typeof name === "string" && name.toLowerCase().includes("abort");
+}
+
+function waitFor(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(getAbortSignalReason(signal) ?? new AIClientError({
+        message: "Request was cancelled.",
+        code: "request_aborted",
+      }));
+      return;
+    }
+
+    let timer: ReturnType<typeof globalThis.setTimeout> | null = null;
+
+    const onAbort = () => {
+      if (timer !== null) {
+        globalThis.clearTimeout(timer);
+      }
+      signal?.removeEventListener("abort", onAbort);
+      reject(getAbortSignalReason(signal) ?? new AIClientError({
+        message: "Request was cancelled.",
+        code: "request_aborted",
+      }));
+    };
+
+    timer = globalThis.setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+
+    signal?.addEventListener("abort", onAbort, { once: true });
   });
+}
+
+function isTimeoutLikeErrorMessage(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return normalized.includes("timeout") || normalized.includes("timed out");
 }
 
 function isNetworkLikeErrorMessage(message: string): boolean {
@@ -72,6 +172,9 @@ function isNetworkLikeErrorMessage(message: string): boolean {
 }
 
 function isRetryableFunctionRequestError(error: unknown): boolean {
+  if (isAIClientError(error)) {
+    return error.retryable;
+  }
   if (isRetryableAuthSessionError(error)) return true;
   if (!error || typeof error !== "object") return false;
   const candidate = error as { message?: unknown; name?: unknown };
@@ -142,15 +245,130 @@ function serviceUnavailableMessage(name: "enhance-prompt" | "extract-url" | "inf
   return `Could not reach the inference service${destinationText}. ${hint || "Check your connection and try again."}`;
 }
 
-function normalizeClientErrorMessage(
+function timeoutMessage(name: "enhance-prompt" | "extract-url" | "infer-builder-fields"): string {
+  if (name === "enhance-prompt") {
+    return "Enhancement timed out. Please try again.";
+  }
+  if (name === "extract-url") {
+    return "URL extraction timed out. Please try again.";
+  }
+  return "Inference timed out. Please try again.";
+}
+
+function errorCodeFromStatus(status: number | undefined): AIClientErrorCode {
+  if (status === 401) return "auth_session_invalid";
+  if (status === 429) return "rate_limited";
+  if (status === 408 || status === 504) return "request_timeout";
+  if (typeof status === "number" && status >= 500) return "service_error";
+  return "bad_response";
+}
+
+function messageLooksLikeAuthError(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("sign in required") ||
+    normalized.includes("auth session") ||
+    normalized.includes("invalid or expired auth session")
+  );
+}
+
+function messageLooksLikeRateLimitError(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return normalized.includes("rate limit") || normalized.includes("too many requests") || normalized.includes("429");
+}
+
+function messageLooksLikeServiceError(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return normalized.includes("service unavailable") || normalized.includes("temporarily unavailable");
+}
+
+function normalizeClientError(
   name: "enhance-prompt" | "extract-url" | "infer-builder-fields",
   error: unknown,
-): string {
-  const message = errorMessage(error);
-  if (isNetworkLikeErrorMessage(message)) {
-    return serviceUnavailableMessage(name);
+  options: { status?: number; code?: AIClientErrorCode } = {},
+): AIClientError {
+  if (isAIClientError(error)) return error;
+
+  if (isAbortError(error)) {
+    return new AIClientError({
+      message: "Request was cancelled.",
+      code: "request_aborted",
+      status: options.status,
+      retryable: true,
+      cause: error,
+    });
   }
-  return message;
+
+  const rawMessage = errorMessage(error);
+  const message = rawMessage.trim() || "Unexpected error from AI service.";
+  const status = options.status;
+
+  if (options.code) {
+    return new AIClientError({
+      message,
+      code: options.code,
+      status,
+      retryable: options.code === "network_unavailable" || options.code === "rate_limited" || options.code === "service_error" || options.code === "request_timeout",
+      cause: error,
+    });
+  }
+
+  if (messageLooksLikeAuthError(message)) {
+    return new AIClientError({
+      message,
+      code: message.toLowerCase().includes("sign in required") ? "auth_required" : "auth_session_invalid",
+      status,
+      cause: error,
+    });
+  }
+
+  if (messageLooksLikeRateLimitError(message) || status === 429) {
+    return new AIClientError({
+      message,
+      code: "rate_limited",
+      status,
+      retryable: true,
+      cause: error,
+    });
+  }
+
+  if (isTimeoutLikeErrorMessage(message) || status === 408 || status === 504) {
+    return new AIClientError({
+      message: timeoutMessage(name),
+      code: "request_timeout",
+      status,
+      retryable: true,
+      cause: error,
+    });
+  }
+
+  if (isNetworkLikeErrorMessage(message)) {
+    return new AIClientError({
+      message: serviceUnavailableMessage(name),
+      code: "network_unavailable",
+      status,
+      retryable: true,
+      cause: error,
+    });
+  }
+
+  if (messageLooksLikeServiceError(message) || (typeof status === "number" && status >= 500)) {
+    return new AIClientError({
+      message,
+      code: "service_error",
+      status,
+      retryable: true,
+      cause: error,
+    });
+  }
+
+  return new AIClientError({
+    message,
+    code: errorCodeFromStatus(status),
+    status,
+    retryable: typeof status === "number" && status >= 500,
+    cause: error,
+  });
 }
 
 function errorMessage(error: unknown): string {
@@ -165,7 +383,7 @@ function errorMessage(error: unknown): string {
     }
   }
 
-  return "Unknown error";
+  return "Unexpected error from AI service.";
 }
 
 async function refreshSessionAccessToken(): Promise<string | null> {
@@ -321,24 +539,47 @@ function functionHeadersWithPublishableKey(): Record<string, string> {
   return functionHeadersWithAccessToken(PUBLIC_FUNCTION_API_KEY);
 }
 
-async function readFunctionError(resp: Response): Promise<string> {
-  const fallbackMessage = `Error: ${resp.status}`;
+function normalizeServerErrorCode(code: unknown): AIClientErrorCode | undefined {
+  if (typeof code !== "string" || !code.trim()) return undefined;
+  const normalized = code.trim().toLowerCase().replace(/[-.\s]/g, "_");
+  if (normalized.includes("rate_limit") || normalized === "429") return "rate_limited";
+  if (normalized.includes("timeout")) return "request_timeout";
+  if (normalized.includes("auth") || normalized.includes("session")) return "auth_session_invalid";
+  if (normalized.includes("network")) return "network_unavailable";
+  if (normalized.includes("service")) return "service_error";
+  if (normalized.includes("bad") || normalized.includes("invalid")) return "bad_response";
+  return undefined;
+}
+
+async function readFunctionError(resp: Response): Promise<{ message: string; code?: AIClientErrorCode }> {
+  const fallbackMessage = `Request failed with status ${resp.status}.`;
   const errorData = await resp.json().catch(() => null);
   if (!errorData || typeof errorData !== "object") {
-    return fallbackMessage;
+    return { message: fallbackMessage };
   }
+
+  const normalizedCode = normalizeServerErrorCode((errorData as { code?: unknown }).code);
 
   const maybeError = (errorData as { error?: unknown }).error;
   if (typeof maybeError === "string" && maybeError.trim()) {
-    return maybeError.trim();
+    return {
+      message: maybeError.trim(),
+      code: normalizedCode,
+    };
   }
 
   const maybeDetail = (errorData as { detail?: unknown }).detail;
   if (typeof maybeDetail === "string" && maybeDetail.trim()) {
-    return maybeDetail.trim();
+    return {
+      message: maybeDetail.trim(),
+      code: normalizedCode,
+    };
   }
 
-  return fallbackMessage;
+  return {
+    message: fallbackMessage,
+    code: normalizedCode,
+  };
 }
 
 function isInvalidAuthSessionError(status: number, errorMessage: string): boolean {
@@ -363,12 +604,14 @@ function isRecoverableAuthServiceError(status: number, errorMessage: string): bo
 async function postFunctionWithAuthRecovery(
   name: "enhance-prompt" | "extract-url" | "infer-builder-fields",
   payload: Record<string, unknown>,
+  options: { signal?: AbortSignal } = {},
 ): Promise<Response> {
   const request = (headers: Record<string, string>) =>
     fetch(functionUrl(name), {
       method: "POST",
       headers,
       body: JSON.stringify(payload),
+      signal: options.signal,
     });
   const requestWithRetry = async (headers: Record<string, string>): Promise<Response> => {
     try {
@@ -378,7 +621,7 @@ async function postFunctionWithAuthRecovery(
         throw firstError;
       }
 
-      await waitFor(FUNCTION_NETWORK_RETRY_DELAY_MS);
+      await waitFor(FUNCTION_NETWORK_RETRY_DELAY_MS, options.signal);
       return request(headers);
     }
   };
@@ -387,25 +630,33 @@ async function postFunctionWithAuthRecovery(
     let response = await requestWithRetry(await functionHeaders());
     if (response.ok) return response;
 
-    let errorMessage = await readFunctionError(response);
+    let errorDetails = await readFunctionError(response);
+    let errorMessage = errorDetails.message;
     const firstFailureWasAuth =
       response.status === 401
       || isInvalidAuthSessionError(response.status, errorMessage)
       || isRecoverableAuthServiceError(response.status, errorMessage);
     if (!firstFailureWasAuth) {
-      throw new Error(errorMessage);
+      throw normalizeClientError(name, errorMessage, {
+        status: response.status,
+        code: errorDetails.code,
+      });
     }
 
     response = await requestWithRetry(await functionHeaders({ forceRefresh: true, allowSessionToken: false }));
     if (response.ok) return response;
 
-    errorMessage = await readFunctionError(response);
+    errorDetails = await readFunctionError(response);
+    errorMessage = errorDetails.message;
     const secondFailureWasAuth =
       response.status === 401
       || isInvalidAuthSessionError(response.status, errorMessage)
       || isRecoverableAuthServiceError(response.status, errorMessage);
     if (!secondFailureWasAuth) {
-      throw new Error(errorMessage);
+      throw normalizeClientError(name, errorMessage, {
+        status: response.status,
+        code: errorDetails.code,
+      });
     }
 
     // If refresh returned another unusable session token, force a deterministic API-key retry.
@@ -413,10 +664,13 @@ async function postFunctionWithAuthRecovery(
     response = await requestWithRetry(functionHeadersWithPublishableKey());
     if (response.ok) return response;
 
-    errorMessage = await readFunctionError(response);
-    throw new Error(errorMessage);
+    errorDetails = await readFunctionError(response);
+    throw normalizeClientError(name, errorDetails.message, {
+      status: response.status,
+      code: errorDetails.code,
+    });
   } catch (error) {
-    throw new Error(normalizeClientErrorMessage(name, error));
+    throw normalizeClientError(name, error);
   }
 }
 
@@ -646,6 +900,8 @@ export async function streamEnhance({
   onDone,
   onError,
   onEvent,
+  signal,
+  timeoutMs = ENHANCE_REQUEST_TIMEOUT_MS,
 }: {
   prompt: string;
   threadId?: string;
@@ -654,7 +910,7 @@ export async function streamEnhance({
   builderFields?: EnhanceBuilderFields;
   onDelta: (text: string) => void;
   onDone: () => void;
-  onError: (error: string) => void;
+  onError: (error: AIClientError) => void;
   onEvent?: (event: {
     eventType: string | null;
     responseType: string | null;
@@ -664,7 +920,42 @@ export async function streamEnhance({
     itemType: string | null;
     payload: unknown;
   }) => void;
+  signal?: AbortSignal;
+  timeoutMs?: number;
 }) {
+  const requestController = new AbortController();
+  const linkSignalAbort = (sourceSignal?: AbortSignal) => {
+    if (!sourceSignal) return () => undefined;
+    if (sourceSignal.aborted) {
+      requestController.abort(getAbortSignalReason(sourceSignal));
+      return () => undefined;
+    }
+
+    const onAbort = () => {
+      requestController.abort(getAbortSignalReason(sourceSignal));
+    };
+    sourceSignal.addEventListener("abort", onAbort, { once: true });
+    return () => {
+      sourceSignal.removeEventListener("abort", onAbort);
+    };
+  };
+
+  const unlinkExternalSignal = linkSignalAbort(signal);
+  let timeoutHandle: ReturnType<typeof globalThis.setTimeout> | null = null;
+  if (typeof timeoutMs === "number" && Number.isFinite(timeoutMs) && timeoutMs > 0) {
+    timeoutHandle = globalThis.setTimeout(() => {
+      requestController.abort(
+        new AIClientError({
+          message: timeoutMessage("enhance-prompt"),
+          code: "request_timeout",
+          retryable: true,
+        }),
+      );
+    }, timeoutMs);
+  }
+
+  let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+
   try {
     const payload: Record<string, unknown> = { prompt };
     const normalizedThreadId = typeof threadId === "string" ? threadId.trim() : "";
@@ -688,14 +979,19 @@ export async function streamEnhance({
       };
     }
 
-    const resp = await postFunctionWithAuthRecovery("enhance-prompt", payload);
+    const resp = await postFunctionWithAuthRecovery("enhance-prompt", payload, {
+      signal: requestController.signal,
+    });
 
     if (!resp.body) {
-      onError("No response body");
+      onError(new AIClientError({
+        message: "No response body from enhancement service.",
+        code: "bad_response",
+      }));
       return;
     }
 
-    const reader = resp.body.getReader();
+    reader = resp.body.getReader();
     const decoder = new TextDecoder();
     let textBuffer = "";
     let streamDone = false;
@@ -759,7 +1055,7 @@ export async function streamEnhance({
     }
 
     if (terminalError) {
-      onError(normalizeClientErrorMessage("enhance-prompt", terminalError));
+      onError(normalizeClientError("enhance-prompt", terminalError));
       return;
     }
 
@@ -807,14 +1103,30 @@ export async function streamEnhance({
     }
 
     if (terminalError) {
-      onError(normalizeClientErrorMessage("enhance-prompt", terminalError));
+      onError(normalizeClientError("enhance-prompt", terminalError));
       return;
     }
 
     onDone();
   } catch (e) {
-    console.error("Stream error:", e);
-    onError(normalizeClientErrorMessage("enhance-prompt", e));
+    const abortReason = requestController.signal.aborted
+      ? getAbortSignalReason(requestController.signal)
+      : null;
+    const normalizedError = normalizeClientError("enhance-prompt", abortReason ?? e);
+    if (normalizedError.code === "request_aborted") {
+      return;
+    }
+
+    console.error("Stream error:", normalizedError);
+    onError(normalizedError);
+  } finally {
+    unlinkExternalSignal();
+    if (timeoutHandle !== null) {
+      globalThis.clearTimeout(timeoutHandle);
+    }
+    if (reader) {
+      await reader.cancel().catch(() => undefined);
+    }
   }
 }
 
