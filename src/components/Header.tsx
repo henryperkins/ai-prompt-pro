@@ -60,7 +60,7 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
   const [authOpen, setAuthOpen] = useState(false);
   const [desktopNotificationsOpen, setDesktopNotificationsOpen] = useState(false);
   const [mobileNotificationsOpen, setMobileNotificationsOpen] = useState(false);
-  const [gravatarUrl, setGravatarUrl] = useState<string | null>(null);
+  const [gravatarData, setGravatarData] = useState<{ email: string; url: string } | null>(null);
   const [displayNameOpen, setDisplayNameOpen] = useState(false);
   const [displayNameDraft, setDisplayNameDraft] = useState("");
   const [displayNameError, setDisplayNameError] = useState("");
@@ -77,17 +77,20 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
 
   useEffect(() => {
     if (oauthAvatar || !user?.email) {
-      setGravatarUrl(null);
       return;
     }
     let cancelled = false;
-    getGravatarUrl(user.email, 80).then((url) => {
-      if (!cancelled) setGravatarUrl(url);
+    const email = user.email;
+    getGravatarUrl(email, 80).then((url) => {
+      if (cancelled) return;
+      setGravatarData({ email, url });
     });
     return () => { cancelled = true; };
   }, [oauthAvatar, user?.email]);
 
-  const avatarSrc = oauthAvatar || gravatarUrl || undefined;
+  const resolvedGravatarUrl =
+    user?.email && gravatarData?.email === user.email ? gravatarData.url : null;
+  const avatarSrc = oauthAvatar || resolvedGravatarUrl || undefined;
 
   const metadataDisplayName =
     typeof user?.user_metadata?.display_name === "string"
@@ -124,14 +127,12 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
   useEffect(() => {
     if (!mobileNotificationsOpen) return;
     const mq = window.matchMedia("(min-width: 640px)");
-    const handler = (e: MediaQueryListEvent) => {
-      if (e.matches) setMobileNotificationsOpen(false);
+    const closeIfDesktop = (matches: boolean) => {
+      if (matches) setMobileNotificationsOpen(false);
     };
-    if (mq.matches) {
-      setMobileNotificationsOpen(false);
-      return;
-    }
+    const handler = (e: MediaQueryListEvent) => closeIfDesktop(e.matches);
     mq.addEventListener("change", handler);
+    closeIfDesktop(mq.matches);
     return () => mq.removeEventListener("change", handler);
   }, [mobileNotificationsOpen]);
 

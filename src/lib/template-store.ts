@@ -521,7 +521,7 @@ function parseTemplateRecord(raw: unknown): TemplateRecord | null {
 
 function readAllRecords(): TemplateRecord[] {
   if (typeof window === "undefined") return [];
-  let raw: string | null = null;
+  let raw!: string | null;
   try {
     raw = localStorage.getItem(STORAGE_KEY);
   } catch {

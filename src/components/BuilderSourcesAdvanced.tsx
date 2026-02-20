@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ContextIntegrations } from "@/components/ContextIntegrations";
 import { ContextSourceChips } from "@/components/ContextSourceChips";
 import { ProjectNotes } from "@/components/ProjectNotes";
@@ -36,19 +36,12 @@ export function BuilderSourcesAdvanced({
   onUpdateProjectNotes,
   onToggleDelimiters,
 }: BuilderSourcesAdvancedProps) {
-  const [showAdvanced, setShowAdvanced] = useState(
-    contextConfig.databaseConnections.length > 0 || contextConfig.rag.enabled || !contextConfig.useDelimiters,
-  );
-
   const sourceCount = contextConfig.sources.length;
   const hasAdvancedConfig =
     contextConfig.databaseConnections.length > 0 || contextConfig.rag.enabled || !contextConfig.useDelimiters;
 
-  useEffect(() => {
-    if (hasAdvancedConfig) {
-      setShowAdvanced(true);
-    }
-  }, [hasAdvancedConfig]);
+  const [advancedVisibility, setAdvancedVisibility] = useState<"auto" | "shown" | "hidden">("auto");
+  const showAdvanced = advancedVisibility === "auto" ? hasAdvancedConfig : advancedVisibility === "shown";
 
   const handleAddSource = (source: ContextSource) => {
     onUpdateSources([...contextConfig.sources, source]);
@@ -105,7 +98,12 @@ export function BuilderSourcesAdvanced({
                 size="sm"
                 variant={showAdvanced ? "secondary" : "outline"}
                 className="h-11 gap-1.5 text-sm sm:h-9 sm:text-base"
-                onClick={() => setShowAdvanced((previous) => !previous)}
+                onClick={() =>
+                  setAdvancedVisibility((previous) => {
+                    const previousShown = previous === "auto" ? hasAdvancedConfig : previous === "shown";
+                    return previousShown ? "hidden" : "shown";
+                  })
+                }
               >
                 <Settings2 className="h-3.5 w-3.5" />
                 {showAdvanced ? "Hide advanced" : "Show advanced"}

@@ -56,15 +56,10 @@ function resolveSignUpName(email: string, displayName?: string): string {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [session, setSession] = useState<AuthSession>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(isBackendConfigured);
 
   useEffect(() => {
-    if (!isBackendConfigured) {
-      setSession(null);
-      setUser(null);
-      setLoading(false);
-      return;
-    }
+    if (!isBackendConfigured) return;
 
     let isMounted = true;
 

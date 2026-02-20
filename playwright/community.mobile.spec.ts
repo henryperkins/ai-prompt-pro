@@ -279,7 +279,7 @@ async function installCommunityMocks(page: Page): Promise<void> {
   });
 
   await page.route("**/rest/v1/rpc/community_profiles_by_ids**", async (route) => {
-    let ids: string[] = [];
+    let ids: string[];
     try {
       const payload = route.request().postDataJSON() as { input_ids?: string[] };
       ids = payload?.input_ids ?? [];

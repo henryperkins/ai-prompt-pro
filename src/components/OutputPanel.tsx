@@ -157,40 +157,7 @@ export function OutputPanel({
   const isMobile = useIsMobile();
   const displayPrompt = enhancedPrompt || builtPrompt;
   const trimmedReasoningSummary = reasoningSummary.trim();
-
-  const developerToolItems = (
-    <>
-      <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodex("exec")}>
-        Copy Codex exec command
-      </DropdownMenuItem>
-      <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodex("tui")}>
-        Copy Codex TUI command
-      </DropdownMenuItem>
-      <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodex("appServer")}>
-        Copy app server command
-      </DropdownMenuItem>
-      <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodexSkillScaffold()}>
-        Copy skill scaffold
-      </DropdownMenuItem>
-      <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleDownloadSkill()}>
-        Download SKILL.md
-      </DropdownMenuItem>
-      <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleDownloadAgents("agents")}>
-        Download AGENTS.md
-      </DropdownMenuItem>
-      <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleDownloadAgents("override")}>
-        Download AGENTS.override.md
-      </DropdownMenuItem>
-    </>
-  );
-
-  useEffect(() => {
-    if (shareEnabled && !canSharePrompt) {
-      setShareEnabled(false);
-      setSaveUseCaseTouched(false);
-      setSaveConfirmedSafeTouched(false);
-    }
-  }, [canSharePrompt, shareEnabled]);
+  const shareEnabledForUi = shareEnabled && canSharePrompt;
 
   const downloadTextFile = (filename: string, content: string) => {
     const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
@@ -316,6 +283,32 @@ export function OutputPanel({
     }
   };
 
+  const developerToolItems = (
+    <>
+      <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodex("exec")}>
+        Copy Codex exec command
+      </DropdownMenuItem>
+      <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodex("tui")}>
+        Copy Codex TUI command
+      </DropdownMenuItem>
+      <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodex("appServer")}>
+        Copy app server command
+      </DropdownMenuItem>
+      <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodexSkillScaffold()}>
+        Copy skill scaffold
+      </DropdownMenuItem>
+      <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleDownloadSkill()}>
+        Download SKILL.md
+      </DropdownMenuItem>
+      <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleDownloadAgents("agents")}>
+        Download AGENTS.md
+      </DropdownMenuItem>
+      <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleDownloadAgents("override")}>
+        Download AGENTS.override.md
+      </DropdownMenuItem>
+    </>
+  );
+
   const isStreamingVisual = enhancePhase === "starting" || enhancePhase === "streaming";
   const isSettledVisual = enhancePhase === "settling" || enhancePhase === "done";
   const statusLabel =
@@ -353,7 +346,7 @@ export function OutputPanel({
   const canUseSaveMenu = canSavePrompt || canSharePrompt || Boolean(displayPrompt);
   const saveValidationErrors = validateSaveDialogInput({
     name: saveName,
-    shareEnabled,
+    shareEnabled: shareEnabledForUi,
     useCase: saveUseCase,
     confirmedSafe: saveConfirmedSafe,
   });
@@ -370,16 +363,6 @@ export function OutputPanel({
     if (!compareDialogOpen || !hasCompare) return null;
     return buildLineDiff(builtPrompt, enhancedPrompt);
   }, [compareDialogOpen, hasCompare, builtPrompt, enhancedPrompt]);
-
-  useEffect(() => {
-    if (remixContext) {
-      if (!saveName.trim()) {
-        setSaveName(`Remix of ${remixContext.title}`);
-      }
-    } else {
-      setSaveRemixNote("");
-    }
-  }, [remixContext, saveName]);
 
   const handleCopy = async () => {
     if (!displayPrompt) return;
@@ -478,6 +461,13 @@ export function OutputPanel({
 
   const openSaveDialog = (share: boolean) => {
     if (share && !canSharePrompt) return;
+    if (remixContext) {
+      if (!saveName.trim()) {
+        setSaveName(`Remix of ${remixContext.title}`);
+      }
+    } else {
+      setSaveRemixNote("");
+    }
     setShareEnabled(share);
     trackBuilderEvent("builder_save_clicked", { shareEnabled: share });
     setSaveDialogOpen(true);
@@ -613,11 +603,11 @@ export function OutputPanel({
       </Dialog>
 
       <Dialog open={saveDialogOpen} onOpenChange={handleSaveDialogOpenChange}>
-        <DialogContent className="sm:max-w-md max-h-[85vh] overflow-auto">
+          <DialogContent className="sm:max-w-md max-h-[85vh] overflow-auto">
           <DialogHeader>
-            <DialogTitle>{shareEnabled ? "Save & Share Prompt" : "Save Prompt"}</DialogTitle>
+            <DialogTitle>{shareEnabledForUi ? "Save & Share Prompt" : "Save Prompt"}</DialogTitle>
             <DialogDescription>
-              {shareEnabled
+              {shareEnabledForUi
                 ? "Publish this prompt recipe to the community feed."
                 : "Save a private prompt snapshot to your library."}
             </DialogDescription>
@@ -718,7 +708,7 @@ export function OutputPanel({
                   </div>
                   <Switch
                     id="save-dialog-share-toggle"
-                    checked={shareEnabled}
+                    checked={shareEnabledForUi}
                     onCheckedChange={handleShareToggleChange}
                     disabled={!canSharePrompt}
                   />
@@ -731,7 +721,7 @@ export function OutputPanel({
               </div>
             )}
 
-            {shareEnabled && (
+            {shareEnabledForUi && (
               <>
                 <div className="space-y-1">
                   <Label htmlFor="save-dialog-use-case" className="text-xs font-medium">
@@ -802,7 +792,7 @@ export function OutputPanel({
               Cancel
             </Button>
             <Button onClick={handleSaveSubmit}>
-              {shareEnabled ? "Save & Share" : "Save Prompt"}
+              {shareEnabledForUi ? "Save & Share" : "Save Prompt"}
             </Button>
           </DialogFooter>
         </DialogContent>
