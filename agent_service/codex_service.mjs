@@ -3,6 +3,7 @@ import { createServer } from "node:http";
 import process from "node:process";
 import { Codex } from "@openai/codex-sdk";
 import { createRemoteJWKSet, jwtVerify } from "jose";
+import { WebSocketServer } from "ws";
 import {
   buildEnhancementMetaPrompt,
   detectEnhancementContext,
@@ -47,6 +48,18 @@ const EXTRACT_PER_MINUTE = Number.parseInt(process.env.EXTRACT_PER_MINUTE || "6"
 const EXTRACT_PER_DAY = Number.parseInt(process.env.EXTRACT_PER_DAY || "120", 10);
 const INFER_PER_MINUTE = Number.parseInt(process.env.INFER_PER_MINUTE || "15", 10);
 const INFER_PER_DAY = Number.parseInt(process.env.INFER_PER_DAY || "400", 10);
+const ENHANCE_WS_INITIAL_MESSAGE_TIMEOUT_MS = parsePositiveIntegerEnv(
+  "ENHANCE_WS_INITIAL_MESSAGE_TIMEOUT_MS",
+  5000,
+);
+const ENHANCE_WS_MAX_PAYLOAD_BYTES = parsePositiveIntegerEnv(
+  "ENHANCE_WS_MAX_PAYLOAD_BYTES",
+  64 * 1024,
+);
+const ENHANCE_WS_MAX_CONNECTIONS_PER_IP = parsePositiveIntegerEnv(
+  "ENHANCE_WS_MAX_CONNECTIONS_PER_IP",
+  10,
+);
 
 const OPENAI_API_BASE_URL = process.env.OPENAI_BASE_URL?.trim() || "https://api.openai.com/v1";
 const EXTRACT_MODEL = process.env.EXTRACT_MODEL?.trim() || "gpt-4.1-mini";
@@ -155,6 +168,16 @@ function parseEnumEnv(name, allowedValues) {
   return raw;
 }
 
+function parsePositiveIntegerEnv(name, defaultValue) {
+  const raw = normalizeEnvValue(name);
+  if (!raw) return defaultValue;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error(`${name} must be a positive integer.`);
+  }
+  return parsed;
+}
+
 function normalizeStringRecord(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   const record = {};
@@ -252,7 +275,14 @@ const INFERENCE_FIELD_CONFIDENCE = {
   constraints: 0.64,
 };
 
+const ENHANCE_WS_PATH = "/enhance/ws";
+const ENHANCE_WS_PROTOCOL = "promptforge.enhance.v1";
+const ENHANCE_WS_BEARER_PROTOCOL_PREFIX = "auth.bearer.";
+const ENHANCE_WS_APIKEY_PROTOCOL_PREFIX = "auth.apikey.";
+const ENHANCE_WS_SERVICE_PROTOCOL_PREFIX = "auth.service.";
+
 const rateLimitStores = new Map();
+const activeEnhanceWebSocketConnectionsByIp = new Map();
 
 let neonJwksResolver = null;
 let hasLoggedAuthConfigWarning = false;
@@ -264,6 +294,130 @@ function headerValue(req, headerName) {
   if (typeof rawValue === "string") return rawValue;
   if (Array.isArray(rawValue)) return rawValue[0];
   return undefined;
+}
+
+function decodeBase64UrlValue(value) {
+  if (typeof value !== "string" || !value.trim()) return undefined;
+  try {
+    return Buffer.from(value.trim(), "base64url").toString("utf8").trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function parseWebSocketProtocols(req) {
+  const raw = headerValue(req, "sec-websocket-protocol") || "";
+  return raw
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function extractWebSocketAuthHeadersFromProtocols(req) {
+  const protocols = parseWebSocketProtocols(req);
+  const authHeaders = {};
+
+  for (const protocol of protocols) {
+    if (protocol.startsWith(ENHANCE_WS_BEARER_PROTOCOL_PREFIX)) {
+      const encodedToken = protocol.slice(ENHANCE_WS_BEARER_PROTOCOL_PREFIX.length);
+      const token = decodeBase64UrlValue(encodedToken);
+      if (token) {
+        authHeaders.authorization = `Bearer ${token}`;
+      }
+      continue;
+    }
+
+    if (protocol.startsWith(ENHANCE_WS_APIKEY_PROTOCOL_PREFIX)) {
+      const encodedToken = protocol.slice(ENHANCE_WS_APIKEY_PROTOCOL_PREFIX.length);
+      const apiKey = decodeBase64UrlValue(encodedToken);
+      if (apiKey) {
+        authHeaders.apikey = apiKey;
+      }
+      continue;
+    }
+
+    if (protocol.startsWith(ENHANCE_WS_SERVICE_PROTOCOL_PREFIX)) {
+      const encodedToken = protocol.slice(ENHANCE_WS_SERVICE_PROTOCOL_PREFIX.length);
+      const serviceToken = decodeBase64UrlValue(encodedToken);
+      if (serviceToken) {
+        authHeaders["x-agent-token"] = serviceToken;
+      }
+    }
+  }
+
+  return authHeaders;
+}
+
+function extractWebSocketAuthHeadersFromPayload(rawAuth) {
+  if (!rawAuth || typeof rawAuth !== "object" || Array.isArray(rawAuth)) {
+    return {};
+  }
+
+  const auth = rawAuth;
+  const authHeaders = {};
+
+  const bearerToken =
+    asNonEmptyString(auth.bearer_token)
+    || asNonEmptyString(auth.bearerToken)
+    || asNonEmptyString(auth.access_token)
+    || asNonEmptyString(auth.accessToken);
+  if (bearerToken) {
+    authHeaders.authorization = `Bearer ${bearerToken}`;
+  }
+
+  const apiKey =
+    asNonEmptyString(auth.apikey)
+    || asNonEmptyString(auth.api_key)
+    || asNonEmptyString(auth.apiKey);
+  if (apiKey) {
+    authHeaders.apikey = apiKey;
+  }
+
+  const serviceToken =
+    asNonEmptyString(auth.service_token)
+    || asNonEmptyString(auth.serviceToken);
+  if (serviceToken) {
+    authHeaders["x-agent-token"] = serviceToken;
+  }
+
+  return authHeaders;
+}
+
+function createWebSocketRequestView(req, overrideHeaders = {}) {
+  return {
+    socket: req.socket,
+    headers: {
+      ...req.headers,
+      ...extractWebSocketAuthHeadersFromProtocols(req),
+      ...overrideHeaders,
+    },
+  };
+}
+
+function rejectWebSocketUpgrade(socket, status, payload) {
+  const body = JSON.stringify(payload);
+  const statusText =
+    status === 400
+      ? "Bad Request"
+      : status === 401
+        ? "Unauthorized"
+        : status === 403
+          ? "Forbidden"
+          : status === 405
+            ? "Method Not Allowed"
+            : status === 429
+              ? "Too Many Requests"
+              : "Internal Server Error";
+  const response =
+    `HTTP/1.1 ${status} ${statusText}\r\n`
+    + "Connection: close\r\n"
+    + "Content-Type: application/json; charset=utf-8\r\n"
+    + `Content-Length: ${Buffer.byteLength(body)}\r\n`
+    + "\r\n"
+    + body;
+
+  socket.write(response);
+  socket.destroy();
 }
 
 function baseCorsHeaders(origin) {
@@ -595,6 +749,47 @@ async function requireAuthenticatedUser(req) {
     status: 401,
     error: "Invalid or expired auth session.",
   };
+}
+
+async function authenticateRequestContext(req) {
+  const providedServiceToken = (headerValue(req, "x-agent-token") || "").trim();
+  if (providedServiceToken) {
+    if (!SERVICE_CONFIG.token || providedServiceToken !== SERVICE_CONFIG.token) {
+      return {
+        ok: false,
+        status: 401,
+        error: "Invalid or missing service token.",
+      };
+    }
+    return {
+      ok: true,
+      userId: "service",
+      isPublicKey: false,
+      rateKey: `service:${getClientIp(req)}`,
+    };
+  }
+
+  return requireAuthenticatedUser(req);
+}
+
+function acquireEnhanceWebSocketConnectionSlot(clientIp) {
+  const key = clientIp || "unknown";
+  const current = activeEnhanceWebSocketConnectionsByIp.get(key) || 0;
+  if (current >= ENHANCE_WS_MAX_CONNECTIONS_PER_IP) {
+    return false;
+  }
+  activeEnhanceWebSocketConnectionsByIp.set(key, current + 1);
+  return true;
+}
+
+function releaseEnhanceWebSocketConnectionSlot(clientIp) {
+  const key = clientIp || "unknown";
+  const current = activeEnhanceWebSocketConnectionsByIp.get(key) || 0;
+  if (current <= 1) {
+    activeEnhanceWebSocketConnectionsByIp.delete(key);
+    return;
+  }
+  activeEnhanceWebSocketConnectionsByIp.set(key, current - 1);
 }
 
 function getStore(scope) {
@@ -1371,52 +1566,79 @@ async function runStreamedWithRetry(thread, input, turnOptions) {
   }
 }
 
-async function streamWithCodex(req, res, body, corsHeaders) {
-  const prompt = asNonEmptyString(body.prompt);
+function buildEnhanceStreamRequest(body) {
+  const requestBody = body && typeof body === "object" && !Array.isArray(body)
+    ? body
+    : {};
+
+  const prompt = asNonEmptyString(requestBody.prompt);
   if (!prompt) {
-    json(res, 400, { detail: "Prompt is required." }, corsHeaders);
-    return;
+    return {
+      ok: false,
+      status: 400,
+      detail: "Prompt is required.",
+    };
   }
   if (prompt.length > MAX_PROMPT_CHARS) {
-    json(
-      res,
-      413,
-      { detail: `Prompt is too large. Maximum ${MAX_PROMPT_CHARS} characters.` },
-      corsHeaders,
-    );
-    return;
+    return {
+      ok: false,
+      status: 413,
+      detail: `Prompt is too large. Maximum ${MAX_PROMPT_CHARS} characters.`,
+    };
   }
 
-  const hasThreadIdField = Object.prototype.hasOwnProperty.call(body, "thread_id")
-    || Object.prototype.hasOwnProperty.call(body, "threadId");
-  const requestedThreadId = asNonEmptyString(body.thread_id) || asNonEmptyString(body.threadId);
+  const hasThreadIdField = Object.prototype.hasOwnProperty.call(requestBody, "thread_id")
+    || Object.prototype.hasOwnProperty.call(requestBody, "threadId");
+  const requestedThreadId = asNonEmptyString(requestBody.thread_id) || asNonEmptyString(requestBody.threadId);
   if (hasThreadIdField && !requestedThreadId) {
-    json(res, 400, { detail: "thread_id must be a non-empty string when provided." }, corsHeaders);
-    return;
+    return {
+      ok: false,
+      status: 400,
+      detail: "thread_id must be a non-empty string when provided.",
+    };
   }
-  const requestThreadOptions = extractThreadOptions(body.thread_options || body.threadOptions);
+
+  const requestThreadOptions = extractThreadOptions(requestBody.thread_options || requestBody.threadOptions);
   const threadOptions = { ...DEFAULT_THREAD_OPTIONS, ...requestThreadOptions };
-  const builderMode = parseEnhancementRequestMode(body);
-  const builderFields = parseEnhancementRequestBuilderFields(body);
+  const builderMode = parseEnhancementRequestMode(requestBody);
+  const builderFields = parseEnhancementRequestBuilderFields(requestBody);
   const enhancementContext = detectEnhancementContext(prompt, {
     builderMode,
     builderFields,
   });
   const enhancementInput = buildEnhancementMetaPrompt(prompt, enhancementContext);
 
-  const turnId = `turn_${randomUUID().replaceAll("-", "")}`;
+  return {
+    ok: true,
+    requestData: {
+      prompt,
+      requestedThreadId,
+      threadOptions,
+      enhancementContext,
+      enhancementInput,
+      turnId: `turn_${randomUUID().replaceAll("-", "")}`,
+    },
+  };
+}
+
+async function runEnhanceTurnStream(requestData, options) {
+  const {
+    prompt,
+    requestedThreadId,
+    threadOptions,
+    enhancementContext,
+    enhancementInput,
+    turnId,
+  } = requestData;
+  const {
+    signal,
+    emit,
+    isClosed,
+  } = options;
+
   const stateByItemId = new Map();
   const agentMessageByItemId = new Map();
   const agentMessageItemOrder = [];
-  const controller = new AbortController();
-  req.on("aborted", () => controller.abort("Client disconnected"));
-  res.on("close", () => {
-    if (!res.writableEnded) {
-      controller.abort("Client disconnected");
-    }
-  });
-
-  beginSse(res, corsHeaders);
 
   try {
     const codex = getCodexClient();
@@ -1424,7 +1646,7 @@ async function streamWithCodex(req, res, body, corsHeaders) {
       ? codex.resumeThread(requestedThreadId, threadOptions)
       : codex.startThread(threadOptions);
     const { events } = await runStreamedWithRetry(thread, enhancementInput, {
-      signal: controller.signal,
+      signal,
     });
 
     let activeThreadId = requestedThreadId || null;
@@ -1432,11 +1654,11 @@ async function streamWithCodex(req, res, body, corsHeaders) {
     let turnError = false;
 
     for await (const event of events) {
-      if (controller.signal.aborted || res.writableEnded) break;
+      if (signal.aborted || isClosed()) break;
 
       if (event.type === "thread.started") {
         activeThreadId = event.thread_id;
-        writeSse(res, {
+        emit({
           event: "thread.started",
           type: "thread.started",
           thread_id: activeThreadId,
@@ -1445,7 +1667,7 @@ async function streamWithCodex(req, res, body, corsHeaders) {
       }
 
       if (event.type === "turn.started") {
-        writeSse(res, {
+        emit({
           event: "turn.started",
           type: "response.created",
           turn_id: turnId,
@@ -1456,7 +1678,7 @@ async function streamWithCodex(req, res, body, corsHeaders) {
       }
 
       if (event.type === "turn.completed") {
-        writeSse(res, {
+        emit({
           event: "turn.completed",
           type: "response.completed",
           turn_id: turnId,
@@ -1472,7 +1694,7 @@ async function streamWithCodex(req, res, body, corsHeaders) {
 
       if (event.type === "turn.failed") {
         turnFailed = true;
-        writeSse(res, {
+        emit({
           event: "turn.failed",
           type: "turn.failed",
           turn_id: turnId,
@@ -1484,7 +1706,7 @@ async function streamWithCodex(req, res, body, corsHeaders) {
 
       if (event.type === "error") {
         turnError = true;
-        writeSse(res, {
+        emit({
           event: "thread.error",
           type: "error",
           turn_id: turnId,
@@ -1497,7 +1719,7 @@ async function streamWithCodex(req, res, body, corsHeaders) {
       if (event.type === "item.started") {
         const itemId = idFromItem(event.item);
         const itemType = typeFromItem(event.item);
-        writeSse(res, {
+        emit({
           event: "item.started",
           type: "response.output_item.added",
           turn_id: turnId,
@@ -1539,7 +1761,7 @@ async function streamWithCodex(req, res, body, corsHeaders) {
 
           if (delta) {
             const eventShape = toItemDeltaEventType(itemType);
-            writeSse(res, {
+            emit({
               event: eventShape.event,
               type: eventShape.type,
               turn_id: turnId,
@@ -1554,7 +1776,7 @@ async function streamWithCodex(req, res, body, corsHeaders) {
           continue;
         }
 
-        writeSse(res, {
+        emit({
           event: "item.updated",
           type: "response.output_item.updated",
           turn_id: turnId,
@@ -1586,7 +1808,7 @@ async function streamWithCodex(req, res, body, corsHeaders) {
           }
 
           const eventShape = toItemDoneEventType(itemType);
-          writeSse(res, {
+          emit({
             event: eventShape.event,
             type: eventShape.type,
             turn_id: turnId,
@@ -1601,7 +1823,7 @@ async function streamWithCodex(req, res, body, corsHeaders) {
           continue;
         }
 
-        writeSse(res, {
+        emit({
           event: "item.completed",
           type: "response.output_item.done",
           turn_id: turnId,
@@ -1613,7 +1835,7 @@ async function streamWithCodex(req, res, body, corsHeaders) {
       }
     }
 
-    if (!controller.signal.aborted && !res.writableEnded && !turnFailed && !turnError) {
+    if (!signal.aborted && !isClosed() && !turnFailed && !turnError) {
       const rawEnhancerOutput = pickPrimaryAgentMessageText(agentMessageByItemId, agentMessageItemOrder);
       const postProcessed = postProcessEnhancementResponse({
         llmResponseText: rawEnhancerOutput,
@@ -1624,7 +1846,7 @@ async function streamWithCodex(req, res, body, corsHeaders) {
 
       if (finalEnhancedPrompt) {
         const syntheticItemId = `item_enhanced_${randomUUID().replaceAll("-", "")}`;
-        writeSse(res, {
+        emit({
           event: "item/agent_message/delta",
           type: "response.output_text.delta",
           turn_id: turnId,
@@ -1635,7 +1857,7 @@ async function streamWithCodex(req, res, body, corsHeaders) {
           choices: [{ delta: { content: finalEnhancedPrompt } }],
           item: { id: syntheticItemId, type: "agent_message", delta: finalEnhancedPrompt },
         });
-        writeSse(res, {
+        emit({
           event: "item/completed",
           type: "response.output_text.done",
           turn_id: turnId,
@@ -1649,7 +1871,7 @@ async function streamWithCodex(req, res, body, corsHeaders) {
         });
       }
 
-      writeSse(res, {
+      emit({
         event: "enhance/metadata",
         type: "enhance.metadata",
         turn_id: turnId,
@@ -1657,16 +1879,240 @@ async function streamWithCodex(req, res, body, corsHeaders) {
         payload: postProcessed,
       });
     }
-
-    endSse(res);
   } catch (error) {
-    writeSse(res, {
-      event: "turn/error",
-      type: "turn/error",
-      turn_id: turnId,
-      error: toErrorMessage(error),
+    if (!isClosed()) {
+      const message = toErrorMessage(error);
+      emit({
+        event: "turn/error",
+        type: "turn/error",
+        turn_id: turnId,
+        error: message,
+        code: "service_error",
+      });
+    }
+  }
+}
+
+async function streamWithCodex(req, res, body, corsHeaders) {
+  const preparedRequest = buildEnhanceStreamRequest(body);
+  if (!preparedRequest.ok) {
+    json(res, preparedRequest.status, { detail: preparedRequest.detail }, corsHeaders);
+    return;
+  }
+
+  const controller = new AbortController();
+  req.on("aborted", () => controller.abort("Client disconnected"));
+  res.on("close", () => {
+    if (!res.writableEnded) {
+      controller.abort("Client disconnected");
+    }
+  });
+
+  beginSse(res, corsHeaders);
+  await runEnhanceTurnStream(preparedRequest.requestData, {
+    signal: controller.signal,
+    emit: (payload) => writeSse(res, payload),
+    isClosed: () => res.writableEnded,
+  });
+  endSse(res);
+}
+
+function isWebSocketOpen(ws) {
+  return ws && ws.readyState === 1;
+}
+
+function writeWebSocketEvent(ws, payload) {
+  if (!isWebSocketOpen(ws)) return;
+  ws.send(JSON.stringify(payload));
+}
+
+function closeWebSocket(ws, code = 1000, reason = "done") {
+  if (typeof ws.readyState === "number" && ws.readyState >= 2) return;
+  ws.close(code, reason);
+}
+
+function writeWebSocketError(ws, options) {
+  const {
+    message,
+    status,
+    code,
+    retryAfterSeconds,
+  } = options;
+  writeWebSocketEvent(ws, {
+    event: "turn/error",
+    type: "turn/error",
+    error: message,
+    ...(typeof status === "number" ? { status } : {}),
+    ...(typeof code === "string" ? { code } : {}),
+    ...(typeof retryAfterSeconds === "number" ? { retry_after_seconds: retryAfterSeconds } : {}),
+  });
+}
+
+function classifyWebSocketAuthErrorCode(status, message) {
+  if (status !== 401) return "service_error";
+  const normalized = typeof message === "string" ? message.toLowerCase() : "";
+  if (
+    normalized.includes("missing bearer token")
+    || normalized.includes("missing token")
+    || normalized.includes("sign in required")
+  ) {
+    return "auth_required";
+  }
+  return "auth_session_invalid";
+}
+
+async function handleEnhanceWebSocketConnection(ws, request) {
+  const clientIp = getClientIp(request);
+  if (!acquireEnhanceWebSocketConnectionSlot(clientIp)) {
+    writeWebSocketError(ws, {
+      message: "Too many concurrent websocket connections. Please retry shortly.",
+      status: 429,
+      code: "rate_limited",
     });
-    endSse(res);
+    closeWebSocket(ws, 1008, "too_many_connections");
+    return;
+  }
+
+  let releasedConnectionSlot = false;
+  const releaseConnectionSlot = () => {
+    if (releasedConnectionSlot) return;
+    releasedConnectionSlot = true;
+    releaseEnhanceWebSocketConnectionSlot(clientIp);
+  };
+  ws.on("close", releaseConnectionSlot);
+
+  try {
+    const controller = new AbortController();
+    let receivedStartMessage = false;
+    const firstMessageTimeoutHandle = globalThis.setTimeout(() => {
+      if (receivedStartMessage || !isWebSocketOpen(ws)) return;
+      writeWebSocketError(ws, {
+        message: "Timed out waiting for websocket start payload.",
+        status: 408,
+        code: "request_timeout",
+      });
+      closeWebSocket(ws, 1008, "start_timeout");
+    }, ENHANCE_WS_INITIAL_MESSAGE_TIMEOUT_MS);
+
+    ws.on("close", () => {
+      globalThis.clearTimeout(firstMessageTimeoutHandle);
+      if (!controller.signal.aborted) {
+        controller.abort("Client disconnected");
+      }
+    });
+
+    ws.once("message", (rawData, isBinary) => {
+      receivedStartMessage = true;
+      globalThis.clearTimeout(firstMessageTimeoutHandle);
+      void (async () => {
+        if (isBinary) {
+          writeWebSocketError(ws, {
+            message: "Invalid websocket payload.",
+            status: 400,
+            code: "bad_response",
+          });
+          closeWebSocket(ws, 1003, "invalid_payload");
+          return;
+        }
+
+        const rawText = typeof rawData === "string"
+          ? rawData
+          : Buffer.from(rawData).toString("utf8");
+
+        let messageBody;
+        try {
+          messageBody = JSON.parse(rawText);
+        } catch {
+          writeWebSocketError(ws, {
+            message: "Invalid JSON body.",
+            status: 400,
+            code: "bad_response",
+          });
+          closeWebSocket(ws, 1003, "invalid_json");
+          return;
+        }
+
+        const hasStartEnvelope =
+          messageBody
+          && typeof messageBody === "object"
+          && !Array.isArray(messageBody)
+          && messageBody.type === "enhance.start";
+        const payload =
+          hasStartEnvelope
+            ? messageBody.payload
+            : messageBody;
+        const rawAuthPayload =
+          hasStartEnvelope
+            ? messageBody.auth
+            : (
+              messageBody
+              && typeof messageBody === "object"
+              && !Array.isArray(messageBody)
+            )
+              ? (messageBody.auth ?? messageBody.authentication)
+              : undefined;
+
+        const req = createWebSocketRequestView(
+          request,
+          extractWebSocketAuthHeadersFromPayload(rawAuthPayload),
+        );
+        const auth = await authenticateRequestContext(req);
+        if (!auth.ok) {
+          writeWebSocketError(ws, {
+            message: auth.error,
+            status: auth.status,
+            code: classifyWebSocketAuthErrorCode(auth.status, auth.error),
+          });
+          closeWebSocket(ws, 1008, "auth_failed");
+          return;
+        }
+
+        const rateLimit = checkEnhanceRateLimits(auth, clientIp);
+        if (!rateLimit.ok) {
+          writeWebSocketError(ws, {
+            message: rateLimit.error,
+            status: rateLimit.status,
+            code: "rate_limited",
+            retryAfterSeconds: rateLimit.retryAfterSeconds,
+          });
+          closeWebSocket(ws, 1008, "rate_limited");
+          return;
+        }
+
+        const preparedRequest = buildEnhanceStreamRequest(payload || {});
+        if (!preparedRequest.ok) {
+          writeWebSocketError(ws, {
+            message: preparedRequest.detail,
+            status: preparedRequest.status,
+            code: "bad_response",
+          });
+          closeWebSocket(ws, 1008, "invalid_request");
+          return;
+        }
+
+        await runEnhanceTurnStream(preparedRequest.requestData, {
+          signal: controller.signal,
+          emit: (eventPayload) => writeWebSocketEvent(ws, eventPayload),
+          isClosed: () => !isWebSocketOpen(ws),
+        });
+
+        if (!controller.signal.aborted && isWebSocketOpen(ws)) {
+          writeWebSocketEvent(ws, {
+            event: "stream.done",
+            type: "stream.done",
+          });
+          closeWebSocket(ws, 1000, "done");
+        }
+      })();
+    });
+  } catch (error) {
+    writeWebSocketError(ws, {
+      message: toErrorMessage(error),
+      status: 500,
+      code: "service_error",
+    });
+    closeWebSocket(ws, 1011, "internal_error");
+    releaseConnectionSlot();
   }
 }
 
@@ -1685,22 +2131,41 @@ function enforceRateLimit(res, corsHeaders, options, failureMessage) {
   return false;
 }
 
-async function authenticateRequest(req, res, corsHeaders) {
-  const providedServiceToken = (headerValue(req, "x-agent-token") || "").trim();
-  if (providedServiceToken) {
-    if (!SERVICE_CONFIG.token || providedServiceToken !== SERVICE_CONFIG.token) {
-      json(res, 401, { error: "Invalid or missing service token." }, corsHeaders);
-      return null;
-    }
-    return {
-      ok: true,
-      userId: "service",
-      isPublicKey: false,
-      rateKey: `service:${getClientIp(req)}`,
-    };
+function checkRateLimit(options, failureMessage) {
+  const result = applyRateLimit(options);
+  if (result.ok) {
+    return { ok: true };
   }
 
-  const auth = await requireAuthenticatedUser(req);
+  return {
+    ok: false,
+    status: 429,
+    error: failureMessage,
+    retryAfterSeconds: result.retryAfterSeconds,
+  };
+}
+
+function checkEnhanceRateLimits(auth, clientIp) {
+  const minuteWindow = checkRateLimit({
+    scope: "enhance-minute",
+    key: `${auth.rateKey}:${clientIp}`,
+    limit: ENHANCE_PER_MINUTE,
+    windowMs: 60_000,
+  }, "Rate limit exceeded. Please try again later.");
+  if (!minuteWindow.ok) {
+    return minuteWindow;
+  }
+
+  return checkRateLimit({
+    scope: "enhance-day",
+    key: auth.rateKey,
+    limit: ENHANCE_PER_DAY,
+    windowMs: 86_400_000,
+  }, "Daily quota exceeded. Please try again tomorrow.");
+}
+
+async function authenticateRequest(req, res, corsHeaders) {
+  const auth = await authenticateRequestContext(req);
   if (!auth.ok) {
     json(res, auth.status, { error: auth.error }, corsHeaders);
     return null;
@@ -1713,21 +2178,19 @@ async function handleEnhance(req, res, body, corsHeaders) {
   if (!auth) return;
 
   const clientIp = getClientIp(req);
-  if (!enforceRateLimit(res, corsHeaders, {
-    scope: "enhance-minute",
-    key: `${auth.rateKey}:${clientIp}`,
-    limit: ENHANCE_PER_MINUTE,
-    windowMs: 60_000,
-  }, "Rate limit exceeded. Please try again later.")) {
-    return;
-  }
-
-  if (!enforceRateLimit(res, corsHeaders, {
-    scope: "enhance-day",
-    key: auth.rateKey,
-    limit: ENHANCE_PER_DAY,
-    windowMs: 86_400_000,
-  }, "Daily quota exceeded. Please try again tomorrow.")) {
+  const rateLimit = checkEnhanceRateLimits(auth, clientIp);
+  if (!rateLimit.ok) {
+    json(
+      res,
+      rateLimit.status,
+      { error: rateLimit.error },
+      {
+        ...corsHeaders,
+        ...(rateLimit.retryAfterSeconds
+          ? { "Retry-After": String(rateLimit.retryAfterSeconds) }
+          : {}),
+      },
+    );
     return;
   }
 
@@ -2008,8 +2471,54 @@ async function requestHandler(req, res) {
   json(res, 404, { detail: "Not found." });
 }
 
+const enhanceWebSocketServer = new WebSocketServer({
+  noServer: true,
+  maxPayload: ENHANCE_WS_MAX_PAYLOAD_BYTES,
+  handleProtocols: (protocols) => {
+    if (protocols.has(ENHANCE_WS_PROTOCOL)) {
+      return ENHANCE_WS_PROTOCOL;
+    }
+    return false;
+  },
+});
+
+enhanceWebSocketServer.on("connection", (ws, req) => {
+  void handleEnhanceWebSocketConnection(ws, req);
+});
+
 const server = createServer((req, res) => {
   void requestHandler(req, res);
+});
+
+server.on("upgrade", (req, socket, head) => {
+  const url = new URL(req.url || "/", "http://localhost");
+  if (url.pathname !== ENHANCE_WS_PATH) {
+    socket.destroy();
+    return;
+  }
+
+  if (req.method !== "GET") {
+    rejectWebSocketUpgrade(socket, 405, { error: "Method not allowed." });
+    return;
+  }
+
+  const offeredProtocols = parseWebSocketProtocols(req);
+  if (!offeredProtocols.includes(ENHANCE_WS_PROTOCOL)) {
+    rejectWebSocketUpgrade(socket, 400, {
+      error: `Missing websocket protocol ${ENHANCE_WS_PROTOCOL}.`,
+    });
+    return;
+  }
+
+  const cors = resolveCors(req);
+  if (!cors.ok) {
+    rejectWebSocketUpgrade(socket, cors.status || 403, { error: cors.error || "Origin is not allowed." });
+    return;
+  }
+
+  enhanceWebSocketServer.handleUpgrade(req, socket, head, (ws) => {
+    enhanceWebSocketServer.emit("connection", ws, req);
+  });
 });
 
 server.listen(SERVICE_CONFIG.port, SERVICE_CONFIG.host, () => {

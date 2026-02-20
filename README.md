@@ -1,68 +1,85 @@
-# Welcome to your Lovable project
+# AI Prompt Pro
 
-## Project info
+Build, enhance, and share AI prompts with a structured prompt builder, a private library, and a public community feed.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+- Production: `https://prompt.lakefrontdigital.io`
+- Frontend: Vite + React + TypeScript + Tailwind + shadcn/ui
+- Backend: Neon Postgres via Neon Data API + Neon Auth
+- Optional: prompt enhancement via a local Codex SDK agent service (`agent_service/`)
 
-## How can I edit this code?
+## Features
 
-There are several ways of editing your application.
+- Prompt builder with guided sections, templates, and quality scoring
+- Streaming enhancement (SSE or WebSocket) via `agent_service`
+- Private prompt library with save/load, share/unshare, and bulk edit
+- Community feed with search/filter/sort, upvotes, verified votes, comments, and remix attribution
+- Prompt history/version restore and reusable presets
+- Optional Community mobile UX enhancements behind `VITE_COMMUNITY_MOBILE_ENHANCEMENTS`
 
-**Use Lovable**
+## Local development
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
+1. Install dependencies:
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+npm install
+```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+2. Configure environment:
+```sh
+cp .env.example .env
+```
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+3. Start the dev server:
+```sh
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## Common commands
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+- `npm run dev`: start frontend dev server (Vite)
+- `npm run build`: production build to `dist/`
+- `npm run preview`: serve the built app locally
+- `npm run lint`: run ESLint on `ts/tsx` sources
+- `npm test`: run Vitest once
+- `npm run test:watch`: run Vitest in watch mode
+- `npm run test:mobile`: run Playwright mobile checks
+- `npm run test:rls`: run Supabase RLS-focused tests
+- `npm run check:prod`: lint + tests + build (pre-merge gate)
+- `npm run agent:codex`: run local Codex SDK agent service
 
-**Use GitHub Codespaces**
+## Project structure
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+- `src/`: Vite + React TypeScript app
+- `src/components/`: feature UI components
+- `src/components/ui/`: shared primitives
+- `src/pages/`: route-level screens
+- `src/hooks/`: reusable stateful logic
+- `src/lib/`: domain logic/helpers
+- `src/test/`: Vitest tests
+- `playwright/`: Playwright mobile E2E coverage + viewport baselines
+- `supabase/functions/`: Edge functions
+- `supabase/migrations/`: SQL migrations
+- `agent_service/`: Codex SDK service for prompt enhancement
+- `docs/`: specs + runbooks + QA checklists
+- `public/`: static assets
+- `dist/`: build output (generated, do not edit manually)
 
-## What technologies are used for this project?
+## Environment variables
 
-This project is built with:
+See `.env.example` for the full list.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Key frontend vars:
 
-## How can I deploy this project?
+- `VITE_NEON_PROJECT_ID`
+- `VITE_NEON_DATA_API_URL`
+- `VITE_NEON_AUTH_URL`
+- `VITE_NEON_PUBLISHABLE_KEY` (optional fallback key for signed-out calls)
+- `VITE_AGENT_SERVICE_URL` (required for Enhance/Extract/Infer features)
+- `VITE_ENHANCE_REQUEST_TIMEOUT_MS` (optional; defaults to 90s)
+- `VITE_ENHANCE_TRANSPORT` (`auto` | `sse` | `ws`)
+- `VITE_ENHANCE_WS_CONNECT_TIMEOUT_MS` (optional; defaults to 3500ms)
+- `VITE_COMMUNITY_MOBILE_ENHANCEMENTS` (feature flag)
 
-### Deploy to Azure Static Web Apps (production)
+## Deploy to Azure Static Web Apps (production)
 
 This repo is configured for Azure Static Web Apps using:
 
@@ -99,33 +116,15 @@ CI/CD flow:
 - Push to `main` triggers production deployment to the linked Azure Static Web App.
 - Pull requests create/update preview environments and close them when PRs are closed.
 
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
-
 ## Codex SDK Agent Service (recommended)
 
 This project can route prompt enhancement through a Node service that uses `@openai/codex-sdk`.
 
-1. Install deps and start the Codex service:
+1. Start the Codex service:
 ```sh
 npm install
+# Prefer `.env` for local dev, but exporting also works.
 export OPENAI_API_KEY="<your-openai-api-key>"
-# Optional Codex SDK overrides
-# export OPENAI_BASE_URL="https://api.openai.com/v1"
-# export CODEX_MODEL="gpt-5.2-codex"
-# export CODEX_SANDBOX_MODE="workspace-write"   # read-only|workspace-write|danger-full-access
-# export CODEX_WORKING_DIRECTORY="/absolute/path/to/repo"
-# export CODEX_SKIP_GIT_REPO_CHECK="true"
-# export CODEX_MODEL_REASONING_EFFORT="medium"  # low|medium|high|xhigh
-# export CODEX_MODEL_VERBOSITY="low"            # low|medium|high
-# export CODEX_NETWORK_ACCESS_ENABLED="true"
-# export CODEX_WEB_SEARCH_MODE="live"           # disabled|cached|live
-# export CODEX_APPROVAL_POLICY="never"          # never|on-request|on-failure|untrusted
 npm run agent:codex
 ```
 

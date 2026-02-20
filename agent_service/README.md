@@ -19,6 +19,7 @@ npm run agent:codex
 | `GET` | `/` | Service info |
 | `GET` | `/health` | Health check (returns model and sandbox mode) |
 | `POST` | `/enhance` | Stream-enhanced prompt via SSE |
+| `WS` | `/enhance/ws` | Stream-enhanced prompt via WebSocket |
 | `POST` | `/extract-url` | Fetch URL content and return extracted bullet points |
 | `POST` | `/infer-builder-fields` | Heuristic builder-field suggestions |
 
@@ -42,6 +43,28 @@ npm run agent:codex
   }
 }
 ```
+
+### `WS /enhance/ws`
+
+- Subprotocols:
+  - `promptforge.enhance.v1` (required)
+- First client message: send an `enhance.start` envelope with auth and payload:
+
+```jsonc
+{
+  "type": "enhance.start",
+  "auth": {
+    "bearer_token": "<jwt>",   // required unless using apikey/service token fallback
+    "apikey": "<key>"          // optional
+  },
+  "payload": {
+    "prompt": "Your draft prompt text"
+  }
+}
+```
+
+- Legacy auth subprotocols (`auth.bearer.*`, `auth.apikey.*`, `auth.service.*`) are still accepted for compatibility, but message auth is recommended to reduce token exposure in edge logs.
+- Server messages mirror the SSE event payloads and end with `{ "event": "stream.done", "type": "stream.done" }`.
 
 ### `POST /extract-url` body
 
@@ -88,6 +111,9 @@ npm run agent:codex
 | `AGENT_SERVICE_TOKEN` | _(none)_ | Optional service-to-service token (`x-agent-token`) |
 | `ALLOWED_ORIGINS` | `*` | Comma-separated list of allowed browser origins |
 | `FUNCTION_PUBLIC_API_KEY` | _(none)_ | Optional publishable key accepted for unauthenticated calls |
+| `ENHANCE_WS_INITIAL_MESSAGE_TIMEOUT_MS` | `5000` | Time allowed for first websocket message before the socket is closed |
+| `ENHANCE_WS_MAX_PAYLOAD_BYTES` | `65536` | Maximum websocket message payload size in bytes |
+| `ENHANCE_WS_MAX_CONNECTIONS_PER_IP` | `10` | Maximum concurrent `/enhance/ws` connections allowed per client IP |
 | `ALLOW_UNVERIFIED_JWT_FALLBACK` | `false` | Dev-only: allow decoded JWT fallback when Neon Auth config/service is unavailable |
 | `ALLOW_UNVERIFIED_JWT_FALLBACK_IN_PRODUCTION` | `false` | Explicit override to permit decoded-JWT fallback in production (emergency use only) |
 | `MAX_PROMPT_CHARS` | `16000` | Maximum prompt character length |

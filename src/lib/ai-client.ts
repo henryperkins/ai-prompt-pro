@@ -28,6 +28,10 @@ const PUBLIC_FUNCTION_API_KEY =
 const configuredEnhanceRequestTimeoutMs = parsePositiveInteger(
   normalizeEnvValue(import.meta.env.VITE_ENHANCE_REQUEST_TIMEOUT_MS),
 );
+const configuredEnhanceTransport = normalizeEnvValue(import.meta.env.VITE_ENHANCE_TRANSPORT);
+const configuredEnhanceWebSocketConnectTimeoutMs = parsePositiveInteger(
+  normalizeEnvValue(import.meta.env.VITE_ENHANCE_WS_CONNECT_TIMEOUT_MS),
+);
 
 let bootstrapTokenPromise: Promise<string> | null = null;
 const ACCESS_TOKEN_REFRESH_GRACE_SECONDS = 30;
@@ -35,6 +39,22 @@ const FUNCTION_NETWORK_RETRY_DELAY_MS = 250;
 const DEFAULT_ENHANCE_REQUEST_TIMEOUT_MS = 90_000;
 export const ENHANCE_REQUEST_TIMEOUT_MS =
   configuredEnhanceRequestTimeoutMs ?? DEFAULT_ENHANCE_REQUEST_TIMEOUT_MS;
+const DEFAULT_ENHANCE_WS_CONNECT_TIMEOUT_MS = 3_500;
+const ENHANCE_WS_CONNECT_TIMEOUT_MS =
+  configuredEnhanceWebSocketConnectTimeoutMs ?? DEFAULT_ENHANCE_WS_CONNECT_TIMEOUT_MS;
+const ENHANCE_WS_PROTOCOL = "promptforge.enhance.v1";
+
+type EnhanceTransportMode = "auto" | "sse" | "ws";
+
+function normalizeEnhanceTransportMode(value: string | undefined): EnhanceTransportMode {
+  if (!value) return "auto";
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "ws" || normalized === "websocket") return "ws";
+  if (normalized === "sse" || normalized === "http") return "sse";
+  return "auto";
+}
+
+const ENHANCE_TRANSPORT_MODE = normalizeEnhanceTransportMode(configuredEnhanceTransport);
 
 export type AIClientErrorCode =
   | "unknown"
@@ -372,6 +392,10 @@ function normalizeClientError(
 }
 
 function errorMessage(error: unknown): string {
+  if (typeof error === "string" && error.trim()) {
+    return error.trim();
+  }
+
   if (error instanceof Error && typeof error.message === "string" && error.message.trim()) {
     return error.message.trim();
   }
@@ -426,6 +450,37 @@ function functionUrl(name: "enhance-prompt" | "extract-url" | "infer-builder-fie
       ? "enhance"
       : name;
   return `${base}/${route}`;
+}
+
+function enhanceWebSocketUrl(): string {
+  const httpUrl = functionUrl("enhance-prompt");
+  const parsed = new URL(httpUrl);
+  if (parsed.protocol === "https:") {
+    parsed.protocol = "wss:";
+  } else if (parsed.protocol === "http:") {
+    parsed.protocol = "ws:";
+  }
+
+  parsed.pathname = parsed.pathname.replace(/\/enhance$/, "/enhance/ws");
+  return parsed.toString();
+}
+
+function buildEnhanceWebSocketProtocols(): string[] {
+  return [ENHANCE_WS_PROTOCOL];
+}
+
+function buildEnhanceWebSocketStartMessage(
+  payload: Record<string, unknown>,
+  accessToken: string,
+): Record<string, unknown> {
+  return {
+    type: "enhance.start",
+    auth: {
+      bearer_token: accessToken,
+      ...(PUBLIC_FUNCTION_API_KEY ? { apikey: PUBLIC_FUNCTION_API_KEY } : {}),
+    },
+    payload,
+  };
 }
 
 async function getAccessToken({
@@ -541,9 +596,18 @@ function functionHeadersWithPublishableKey(): Record<string, string> {
 
 function normalizeServerErrorCode(code: unknown): AIClientErrorCode | undefined {
   if (typeof code !== "string" || !code.trim()) return undefined;
-  const normalized = code.trim().toLowerCase().replace(/[-.\s]/g, "_");
+  const normalized = code.trim().toLowerCase().replace(/[/.\s-]/g, "_");
   if (normalized.includes("rate_limit") || normalized === "429") return "rate_limited";
   if (normalized.includes("timeout")) return "request_timeout";
+  if (
+    normalized === "auth_required"
+    || normalized.includes("sign_in_required")
+    || normalized.includes("missing_bearer")
+    || normalized.includes("missing_token")
+    || normalized.includes("unauthenticated")
+  ) {
+    return "auth_required";
+  }
   if (normalized.includes("auth") || normalized.includes("session")) return "auth_session_invalid";
   if (normalized.includes("network")) return "network_unavailable";
   if (normalized.includes("service")) return "service_error";
@@ -674,18 +738,44 @@ async function postFunctionWithAuthRecovery(
   }
 }
 
-function extractSseError(payload: unknown): string | null {
+function extractSseErrorDetails(payload: unknown): {
+  message: string;
+  code?: AIClientErrorCode;
+  status?: number;
+} | null {
   if (!payload || typeof payload !== "object") return null;
-  const data = payload as { error?: unknown };
+  const data = payload as { error?: unknown; code?: unknown; status?: unknown };
+
   if (typeof data.error === "string" && data.error.trim()) {
-    return data.error.trim();
+    const status = typeof data.status === "number" ? data.status : undefined;
+    return {
+      message: data.error.trim(),
+      status,
+      code: normalizeServerErrorCode(data.code),
+    };
   }
+
   if (data.error && typeof data.error === "object") {
-    const message = (data.error as { message?: unknown }).message;
-    if (typeof message === "string" && message.trim()) {
-      return message.trim();
-    }
+    const errObject = data.error as { message?: unknown; code?: unknown; status?: unknown };
+    const message =
+      typeof errObject.message === "string" && errObject.message.trim()
+        ? errObject.message.trim()
+        : null;
+    if (!message) return null;
+
+    const status =
+      typeof errObject.status === "number"
+        ? errObject.status
+        : typeof data.status === "number"
+          ? data.status
+          : undefined;
+    return {
+      message,
+      status,
+      code: normalizeServerErrorCode(errObject.code ?? data.code),
+    };
   }
+
   return null;
 }
 
@@ -889,6 +979,236 @@ export function readSseEventMeta(payload: unknown): {
   return { eventType, responseType, threadId, turnId, itemId, itemType };
 }
 
+type WebSocketEnhanceOutcome =
+  | { outcome: "completed" }
+  | { outcome: "aborted" }
+  | { outcome: "fallback" }
+  | { outcome: "error"; error: AIClientError };
+
+async function streamEnhanceViaWebSocket({
+  payload,
+  signal,
+  didTimeout,
+  connectTimeoutMs,
+  onDelta,
+  onEvent,
+}: {
+  payload: Record<string, unknown>;
+  signal: AbortSignal;
+  didTimeout: () => boolean;
+  connectTimeoutMs: number;
+  onDelta: (text: string) => void;
+  onEvent?: (event: {
+    eventType: string | null;
+    responseType: string | null;
+    threadId: string | null;
+    turnId: string | null;
+    itemId: string | null;
+    itemType: string | null;
+    payload: unknown;
+  }) => void;
+}): Promise<WebSocketEnhanceOutcome> {
+  if (typeof globalThis.WebSocket !== "function") {
+    return { outcome: "fallback" };
+  }
+
+  let accessToken: string;
+  try {
+    accessToken = await getAccessTokenWithBootstrap();
+  } catch (error) {
+    return {
+      outcome: "error",
+      error: normalizeClientError("enhance-prompt", error),
+    };
+  }
+
+  const url = enhanceWebSocketUrl();
+  const protocols = buildEnhanceWebSocketProtocols();
+  const requestBody = buildEnhanceWebSocketStartMessage(payload, accessToken);
+
+  return new Promise<WebSocketEnhanceOutcome>((resolve) => {
+    let ws: WebSocket;
+    try {
+      ws = new WebSocket(url, protocols);
+    } catch {
+      resolve({ outcome: "fallback" });
+      return;
+    }
+
+    let resolved = false;
+    let sawPayload = false;
+    let hasOpened = false;
+    let streamDone = false;
+    let terminalError: AIClientError | null = null;
+    let connectTimeoutHandle: ReturnType<typeof globalThis.setTimeout> | null = null;
+    const deltaItemIds = new Set<string>();
+
+    const resolveOnce = (value: WebSocketEnhanceOutcome) => {
+      if (resolved) return;
+      resolved = true;
+      signal.removeEventListener("abort", onAbort);
+      if (connectTimeoutHandle !== null) {
+        globalThis.clearTimeout(connectTimeoutHandle);
+        connectTimeoutHandle = null;
+      }
+      resolve(value);
+    };
+
+    const onAbort = () => {
+      const abortReason = getAbortSignalReason(signal);
+      let abortOutcome: WebSocketEnhanceOutcome;
+
+      if (
+        (isAIClientError(abortReason) && abortReason.code === "request_timeout")
+        || didTimeout()
+      ) {
+        const timeoutError = isAIClientError(abortReason)
+          ? abortReason
+          : new AIClientError({
+            message: timeoutMessage("enhance-prompt"),
+            code: "request_timeout",
+            retryable: true,
+          });
+        abortOutcome = { outcome: "error", error: timeoutError };
+      } else {
+        abortOutcome = { outcome: "aborted" };
+      }
+
+      resolveOnce(abortOutcome);
+      try {
+        ws.close(1000, "client_abort");
+      } catch {
+        // Ignore close races.
+      }
+    };
+
+    if (signal.aborted) {
+      onAbort();
+      return;
+    }
+    signal.addEventListener("abort", onAbort, { once: true });
+
+    connectTimeoutHandle = globalThis.setTimeout(() => {
+      if (resolved || hasOpened || sawPayload) return;
+      resolveOnce({ outcome: "fallback" });
+      try {
+        ws.close(1000, "connect_timeout");
+      } catch {
+        // Ignore close races.
+      }
+    }, connectTimeoutMs);
+
+    ws.addEventListener("open", () => {
+      hasOpened = true;
+      if (signal.aborted) {
+        onAbort();
+        return;
+      }
+      ws.send(JSON.stringify(requestBody));
+    });
+
+    ws.addEventListener("message", (event) => {
+      sawPayload = true;
+      const rawData = typeof event.data === "string" ? event.data : "";
+      if (!rawData) return;
+
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(rawData);
+      } catch {
+        return;
+      }
+
+      const streamType = (parsed as { type?: unknown }).type;
+      if (streamType === "stream.done") {
+        streamDone = true;
+        try {
+          ws.close(1000, "done");
+        } catch {
+          // Ignore close races.
+        }
+        return;
+      }
+
+      const parsedError = extractSseErrorDetails(parsed);
+      if (parsedError) {
+        terminalError = normalizeClientError("enhance-prompt", parsedError.message, {
+          status: parsedError.status,
+          code: parsedError.code,
+        });
+        try {
+          ws.close(1011, "turn_error");
+        } catch {
+          // Ignore close races.
+        }
+        return;
+      }
+
+      const meta = readSseEventMeta(parsed);
+      onEvent?.({ ...meta, payload: parsed });
+
+      if (isItemDeltaEventType(meta.eventType) || isResponseOutputTextDelta(meta.responseType)) {
+        if (meta.itemId) deltaItemIds.add(meta.itemId);
+      }
+      if (
+        (isItemCompletedEventType(meta.eventType) || isResponseOutputTextDone(meta.responseType)) &&
+        meta.itemId &&
+        deltaItemIds.has(meta.itemId)
+      ) {
+        return;
+      }
+
+      if (!shouldEmitSseText(meta)) {
+        return;
+      }
+
+      const content = extractSseText(parsed);
+      if (content) onDelta(content);
+    });
+
+    ws.addEventListener("close", () => {
+      if (signal.aborted) {
+        resolveOnce({ outcome: "aborted" });
+        return;
+      }
+
+      if (terminalError) {
+        resolveOnce({ outcome: "error", error: terminalError });
+        return;
+      }
+
+      if (streamDone) {
+        resolveOnce({ outcome: "completed" });
+        return;
+      }
+
+      if (!sawPayload) {
+        resolveOnce({ outcome: "fallback" });
+        return;
+      }
+
+      resolveOnce({
+        outcome: "error",
+        error: new AIClientError({
+          message: serviceUnavailableMessage("enhance-prompt"),
+          code: "network_unavailable",
+          retryable: true,
+        }),
+      });
+    });
+
+    ws.addEventListener("error", () => {
+      if (!sawPayload) {
+        try {
+          ws.close();
+        } catch {
+          // Ignore close races.
+        }
+      }
+    });
+  });
+}
+
 
 export async function streamEnhance({
   prompt,
@@ -941,9 +1261,11 @@ export async function streamEnhance({
   };
 
   const unlinkExternalSignal = linkSignalAbort(signal);
+  let timeoutTriggered = false;
   let timeoutHandle: ReturnType<typeof globalThis.setTimeout> | null = null;
   if (typeof timeoutMs === "number" && Number.isFinite(timeoutMs) && timeoutMs > 0) {
     timeoutHandle = globalThis.setTimeout(() => {
+      timeoutTriggered = true;
       requestController.abort(
         new AIClientError({
           message: timeoutMessage("enhance-prompt"),
@@ -979,6 +1301,58 @@ export async function streamEnhance({
       };
     }
 
+    const shouldTryWebSocket =
+      ENHANCE_TRANSPORT_MODE !== "sse"
+      && typeof globalThis.WebSocket === "function";
+    if (shouldTryWebSocket) {
+      const resolvedConnectTimeoutMs =
+        typeof timeoutMs === "number" && Number.isFinite(timeoutMs) && timeoutMs > 0
+          ? Math.max(250, Math.min(ENHANCE_WS_CONNECT_TIMEOUT_MS, Math.floor(timeoutMs * 0.35)))
+          : ENHANCE_WS_CONNECT_TIMEOUT_MS;
+      const wsResult = await streamEnhanceViaWebSocket({
+        payload,
+        signal: requestController.signal,
+        didTimeout: () => timeoutTriggered,
+        connectTimeoutMs: resolvedConnectTimeoutMs,
+        onDelta,
+        onEvent,
+      });
+
+      if (wsResult.outcome === "completed") {
+        onDone();
+        return;
+      }
+      if (wsResult.outcome === "aborted") {
+        return;
+      }
+      if (wsResult.outcome === "error") {
+        if (
+          ENHANCE_TRANSPORT_MODE === "auto"
+          && (
+            (wsResult.error.retryable && wsResult.error.code !== "request_timeout")
+            || wsResult.error.code === "auth_session_invalid"
+            || wsResult.error.code === "auth_required"
+          )
+        ) {
+          // Fall through to SSE transport as a compatibility fallback.
+        } else {
+          onError(wsResult.error);
+          return;
+        }
+      } else if (wsResult.outcome === "fallback") {
+        if (ENHANCE_TRANSPORT_MODE === "ws") {
+          onError(new AIClientError({
+            message: serviceUnavailableMessage("enhance-prompt"),
+            code: "network_unavailable",
+            retryable: true,
+          }));
+          return;
+        }
+      } else {
+        return;
+      }
+    }
+
     const resp = await postFunctionWithAuthRecovery("enhance-prompt", payload, {
       signal: requestController.signal,
     });
@@ -995,7 +1369,7 @@ export async function streamEnhance({
     const decoder = new TextDecoder();
     let textBuffer = "";
     let streamDone = false;
-    let terminalError: string | null = null;
+    let terminalError: AIClientError | null = null;
     const deltaItemIds = new Set<string>();
 
     while (!streamDone) {
@@ -1020,9 +1394,12 @@ export async function streamEnhance({
 
         try {
           const parsed = JSON.parse(jsonStr);
-          const parsedError = extractSseError(parsed);
+          const parsedError = extractSseErrorDetails(parsed);
           if (parsedError) {
-            terminalError = parsedError;
+            terminalError = normalizeClientError("enhance-prompt", parsedError.message, {
+              status: parsedError.status,
+              code: parsedError.code,
+            });
             streamDone = true;
             break;
           }
@@ -1055,7 +1432,7 @@ export async function streamEnhance({
     }
 
     if (terminalError) {
-      onError(normalizeClientError("enhance-prompt", terminalError));
+      onError(terminalError);
       return;
     }
 
@@ -1070,9 +1447,12 @@ export async function streamEnhance({
         if (jsonStr === "[DONE]") continue;
         try {
           const parsed = JSON.parse(jsonStr);
-          const parsedError = extractSseError(parsed);
+          const parsedError = extractSseErrorDetails(parsed);
           if (parsedError) {
-            terminalError = parsedError;
+            terminalError = normalizeClientError("enhance-prompt", parsedError.message, {
+              status: parsedError.status,
+              code: parsedError.code,
+            });
             break;
           }
 
@@ -1103,7 +1483,7 @@ export async function streamEnhance({
     }
 
     if (terminalError) {
-      onError(normalizeClientError("enhance-prompt", terminalError));
+      onError(terminalError);
       return;
     }
 

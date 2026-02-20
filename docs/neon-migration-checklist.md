@@ -142,7 +142,7 @@ This is an execution-ready checklist for migrating this repo from Supabase to Ne
   - [x] Keep CORS behavior
   - [x] Remove anonymous-auth branches
 
-### 3.4 Remove Lovable gateway dependency
+### 3.4 Remove legacy gateway dependency
 
 - [x] Port `extract-url` to direct OpenAI API call in `agent_service` route.
 - [x] Remove any required `LOVABLE_*` runtime dependency from this flow.

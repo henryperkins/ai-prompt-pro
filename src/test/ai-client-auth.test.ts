@@ -41,6 +41,7 @@ describe("ai-client auth recovery", () => {
     vi.clearAllMocks();
     vi.stubEnv("VITE_AGENT_SERVICE_URL", "https://agent.test");
     vi.stubEnv("VITE_NEON_PUBLISHABLE_KEY", "\"sb_publishable_test\"");
+    vi.stubEnv("VITE_ENHANCE_TRANSPORT", "sse");
 
     mocks.signOut.mockResolvedValue({ error: null });
   });
@@ -361,6 +362,58 @@ describe("ai-client auth recovery", () => {
       expect.objectContaining({
         code: "network_unavailable",
         message: "Could not reach the enhancement service at https://agent.test. Check your connection and try again.",
+      }),
+    );
+  });
+
+  it("preserves auth_required when stream error payload includes an auth code", async () => {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "valid-token",
+          expires_at: nowSeconds + 3600,
+        },
+      },
+      error: null,
+    });
+
+    const body = [
+      `data: ${JSON.stringify({
+        event: "turn/error",
+        type: "turn/error",
+        error: {
+          message: "Sign in required.",
+          code: "auth.required",
+          status: 401,
+        },
+      })}`,
+      "",
+      "data: [DONE]",
+      "",
+    ].join("\n");
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(streamingRaw(body));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { streamEnhance } = await import("@/lib/ai-client");
+
+    const onDone = vi.fn();
+    const onError = vi.fn();
+
+    await streamEnhance({
+      prompt: "Improve this",
+      onDelta: vi.fn(),
+      onDone,
+      onError,
+    });
+
+    expect(onDone).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "auth_required",
+        message: "Sign in required.",
       }),
     );
   });
