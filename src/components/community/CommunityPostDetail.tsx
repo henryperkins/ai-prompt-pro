@@ -5,8 +5,12 @@ import {
   BookmarkPlus,
   CheckCircle2,
   ExternalLink,
+  Flag,
   GitBranch,
   MessageCircle,
+  MoreHorizontal,
+  UserCheck,
+  UserX,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { CommunityPost, CommunityProfile, VoteState, VoteType } from "@/lib/community";
@@ -14,6 +18,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { PromptPreviewPanel } from "@/components/community/PromptPreviewPanel";
 import { CommunityComments } from "@/components/community/CommunityComments";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
@@ -35,6 +45,14 @@ interface CommunityPostDetailProps {
   canVote: boolean;
   canSaveToLibrary: boolean;
   onSaveToLibrary: (postId: string) => void;
+  canModerate?: boolean;
+  canBlockAuthor?: boolean;
+  isAuthorBlocked?: boolean;
+  blockedUserIds?: string[];
+  onReportPost?: (post: CommunityPost) => void;
+  onReportComment?: (commentId: string, userId: string, postId: string) => void;
+  onBlockUser?: (userId: string) => void;
+  onUnblockUser?: (userId: string) => void;
 }
 
 function getInitials(name: string): string {
@@ -130,6 +148,14 @@ export function CommunityPostDetail({
   canVote,
   canSaveToLibrary,
   onSaveToLibrary,
+  canModerate = false,
+  canBlockAuthor = true,
+  isAuthorBlocked = false,
+  blockedUserIds = [],
+  onReportPost,
+  onReportComment,
+  onBlockUser,
+  onUnblockUser,
 }: CommunityPostDetailProps) {
   const isMobile = useIsMobile();
   const useMobileCommentsDrawer = isMobile && communityFeatureFlags.communityMobileEnhancements;
@@ -148,7 +174,7 @@ export function CommunityPostDetail({
               <AvatarFallback className="type-reply-label">{getInitials(authorName)}</AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <p className="type-author truncate text-foreground">{authorName}</p>
+              <p className="type-author type-wrap-safe text-foreground">{authorName}</p>
               <p className="type-timestamp text-muted-foreground">{createdAgo}</p>
             </div>
           </div>
@@ -167,6 +193,53 @@ export function CommunityPostDetail({
               <BookmarkPlus className="h-3.5 w-3.5" />
               Save to Library
             </Button>
+            {canModerate && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-11 w-11 sm:h-9 sm:w-9"
+                    aria-label="Open moderation actions"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onSelect={(event) => {
+                      event.preventDefault();
+                      onReportPost?.(post);
+                    }}
+                  >
+                    <Flag className="mr-2 h-4 w-4" />
+                    Report post
+                  </DropdownMenuItem>
+                  {canBlockAuthor && (isAuthorBlocked ? (
+                    <DropdownMenuItem
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        onUnblockUser?.(post.authorId);
+                      }}
+                    >
+                      <UserCheck className="mr-2 h-4 w-4" />
+                      Unblock user
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        onBlockUser?.(post.authorId);
+                      }}
+                    >
+                      <UserX className="mr-2 h-4 w-4" />
+                      Block user
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
 
@@ -325,6 +398,10 @@ export function CommunityPostDetail({
           postId={post.id}
           totalCount={post.commentCount}
           onCommentAdded={onCommentAdded}
+          blockedUserIds={blockedUserIds}
+          onReportComment={onReportComment}
+          onBlockUser={onBlockUser}
+          onUnblockUser={onUnblockUser}
           className="border-border/80 bg-card/85 p-4 sm:p-5"
         />
       )}
@@ -344,6 +421,10 @@ export function CommunityPostDetail({
                 postId={post.id}
                 totalCount={post.commentCount}
                 onCommentAdded={onCommentAdded}
+                blockedUserIds={blockedUserIds}
+                onReportComment={onReportComment}
+                onBlockUser={onBlockUser}
+                onUnblockUser={onUnblockUser}
                 className="space-y-2 border-0 bg-transparent p-0 shadow-none"
               />
             </div>
@@ -371,7 +452,7 @@ export function CommunityPostDetail({
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="type-author truncate text-foreground">{remix.title}</p>
+                  <p className="type-author type-wrap-safe text-foreground">{remix.title}</p>
                   <p className="type-meta text-muted-foreground">
                     by {remixAuthor} • {created}
                   </p>

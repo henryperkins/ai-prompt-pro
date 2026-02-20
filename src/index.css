@@ -557,6 +557,16 @@ All colors MUST be HSL.
     font-variant-numeric: tabular-nums;
   }
 
+  .type-wrap-safe {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    hyphens: auto;
+  }
+
+  .type-prose-measure {
+    max-inline-size: 62ch;
+  }
+
   .community-feed-card {
     animation: community-feed-enter 420ms var(--motion-snap) both;
   }

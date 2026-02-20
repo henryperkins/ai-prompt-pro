@@ -166,6 +166,84 @@ export type Database = {
           },
         ]
       }
+      community_reports: {
+        Row: {
+          comment_id: string | null
+          created_at: string
+          details: string
+          id: string
+          post_id: string | null
+          reason: string
+          reported_user_id: string | null
+          reporter_id: string
+          status: string
+          target_type: string
+        }
+        Insert: {
+          comment_id?: string | null
+          created_at?: string
+          details?: string
+          id?: string
+          post_id?: string | null
+          reason?: string
+          reported_user_id?: string | null
+          reporter_id: string
+          status?: string
+          target_type: string
+        }
+        Update: {
+          comment_id?: string | null
+          created_at?: string
+          details?: string
+          id?: string
+          post_id?: string | null
+          reason?: string
+          reported_user_id?: string | null
+          reporter_id?: string
+          status?: string
+          target_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_reports_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "community_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_reports_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "community_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_user_blocks: {
+        Row: {
+          blocked_user_id: string
+          blocker_id: string
+          created_at: string
+          id: string
+          reason: string
+        }
+        Insert: {
+          blocked_user_id: string
+          blocker_id: string
+          created_at?: string
+          id?: string
+          reason?: string
+        }
+        Update: {
+          blocked_user_id?: string
+          blocker_id?: string
+          created_at?: string
+          id?: string
+          reason?: string
+        }
+        Relationships: []
+      }
       drafts: {
         Row: {
           config: Json
@@ -417,6 +495,10 @@ export type Database = {
           display_name: string
           id: string
         }[]
+      }
+      delete_my_account: {
+        Args: never
+        Returns: boolean
       }
       dearmor: { Args: { "": string }; Returns: string }
       gen_random_uuid: { Args: never; Returns: string }

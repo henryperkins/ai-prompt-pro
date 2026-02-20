@@ -62,8 +62,8 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
           </div>
           <div className="flex items-center gap-2">
             {selectedRole && (
-              <Badge variant="secondary" className="max-w-[140px] truncate text-xs">
-                {selectedRole}
+              <Badge variant="secondary" className="max-w-[180px] text-xs">
+                <span className="type-wrap-safe">{selectedRole}</span>
               </Badge>
             )}
             {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}

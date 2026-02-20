@@ -311,7 +311,7 @@ const Library = () => {
                 </Avatar>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="truncate text-sm font-medium text-foreground">{prompt.name}</h3>
+                    <h3 className="type-wrap-safe text-sm font-medium text-foreground">{prompt.name}</h3>
                     <Badge variant="outline" className="text-xs">
                       r{prompt.revision}
                     </Badge>

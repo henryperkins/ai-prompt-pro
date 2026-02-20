@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   user: null as Record<string, unknown> | null,
   signOut: vi.fn(),
   updateDisplayName: vi.fn(),
+  deleteAccount: vi.fn().mockResolvedValue({ error: null }),
   refreshNotifications: vi.fn(),
   markNotificationAsRead: vi.fn(),
   markAllNotificationsAsRead: vi.fn(),
@@ -18,6 +19,7 @@ vi.mock("@/hooks/useAuth", () => ({
     user: mocks.user,
     signOut: mocks.signOut,
     updateDisplayName: mocks.updateDisplayName,
+    deleteAccount: mocks.deleteAccount,
   }),
 }));
 

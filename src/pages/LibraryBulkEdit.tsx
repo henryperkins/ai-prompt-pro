@@ -259,7 +259,7 @@ const LibraryBulkEdit = () => {
                               <AvatarFallback className="text-xs">{getInitials(ownerName)}</AvatarFallback>
                             </Avatar>
                             <div className="min-w-0">
-                              <p className="truncate text-sm font-medium text-foreground">{prompt.name}</p>
+                              <p className="type-wrap-safe text-sm font-medium text-foreground">{prompt.name}</p>
                               <p className="text-xs text-muted-foreground">{ownerName}</p>
                             </div>
                             <Badge variant="outline" className="ml-auto text-xs">

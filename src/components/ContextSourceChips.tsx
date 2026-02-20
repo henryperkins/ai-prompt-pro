@@ -326,7 +326,7 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
               title={`${source.title}\n${source.summary}`}
             >
               {chipIcon(source.type)}
-              <span className="truncate text-xs">{source.title}</span>
+              <span className="type-wrap-safe text-xs">{source.title}</span>
               <button
                 onClick={() => onRemove(source.id)}
                 className="ml-0.5 rounded-full p-0.5 hover:bg-destructive/20 transition-colors"

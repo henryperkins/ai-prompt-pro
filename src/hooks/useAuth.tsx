@@ -33,6 +33,7 @@ interface AuthContextValue {
   ) => Promise<{ error: string | null; session: AuthSession }>;
   signOut: () => Promise<void>;
   updateDisplayName: (displayName: string) => Promise<{ error: string | null; user: AuthUser | null }>;
+  deleteAccount: () => Promise<{ error: string | null }>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -195,9 +196,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: null, user: nextUser };
   }, [user]);
 
+  const deleteAccount = useCallback(async () => {
+    if (!isBackendConfigured) {
+      return { error: AUTH_UNAVAILABLE_MESSAGE };
+    }
+
+    if (!user?.id) {
+      return { error: "Sign in required." };
+    }
+
+    const { error } = await neon.rpc("delete_my_account");
+    if (error) {
+      return { error: error.message || "Failed to delete account." };
+    }
+
+    await neon.auth.signOut();
+    setSession(null);
+    setUser(null);
+    return { error: null };
+  }, [user]);
+
   return (
     <AuthContext.Provider
-      value={{ user, session, loading, signUp, signIn, signInWithOAuth, signOut, updateDisplayName }}
+      value={{ user, session, loading, signUp, signIn, signInWithOAuth, signOut, updateDisplayName, deleteAccount }}
     >
       {children}
     </AuthContext.Provider>

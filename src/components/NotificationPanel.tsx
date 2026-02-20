@@ -125,7 +125,7 @@ export function NotificationPanel({
                       <span className="font-medium">{notification.actorDisplayName}</span>{" "}
                       {getTypeLabel(notification.type)}
                     </p>
-                    <p className="truncate text-xs text-muted-foreground">{notification.postTitle}</p>
+                    <p className="type-wrap-safe line-clamp-2 text-xs text-muted-foreground">{notification.postTitle}</p>
                     <p className="mt-1 text-xs text-muted-foreground">{createdAgo}</p>
                   </div>
                 </div>

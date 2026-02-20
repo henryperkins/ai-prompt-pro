@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "react-router-dom";
-import { MessageCircle, Send } from "lucide-react";
+import { Flag, MessageCircle, MoreHorizontal, Send, UserCheck, UserX } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { CommunityComment, CommunityProfile } from "@/lib/community";
 import { addComment, loadComments, loadProfilesByIds } from "@/lib/community";
@@ -11,6 +11,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -22,6 +28,10 @@ interface CommunityCommentsProps {
   totalCount: number;
   compact?: boolean;
   onCommentAdded?: (postId: string) => void;
+  blockedUserIds?: string[];
+  onReportComment?: (commentId: string, userId: string, postId: string) => void;
+  onBlockUser?: (userId: string) => void;
+  onUnblockUser?: (userId: string) => void;
   className?: string;
 }
 
@@ -47,6 +57,10 @@ export function CommunityComments({
   totalCount,
   compact = false,
   onCommentAdded,
+  blockedUserIds = [],
+  onReportComment,
+  onBlockUser,
+  onUnblockUser,
   className,
 }: CommunityCommentsProps) {
   const { user } = useAuth();
@@ -58,16 +72,7 @@ export function CommunityComments({
   const [draft, setDraft] = useState("");
 
   const limit = compact ? 2 : 120;
-  const shouldVirtualize = !compact && comments.length >= COMMENTS_VIRTUALIZATION_THRESHOLD;
   const commentsScrollRef = useRef<HTMLDivElement | null>(null);
-  const commentVirtualizer = useVirtualizer({
-    count: shouldVirtualize ? comments.length : 0,
-    getScrollElement: () => commentsScrollRef.current,
-    estimateSize: () => 108,
-    overscan: 8,
-    measureElement: (element) => element.getBoundingClientRect().height,
-    enabled: shouldVirtualize,
-  });
 
   const loadThread = useCallback(async () => {
     setLoading(true);
@@ -143,7 +148,98 @@ export function CommunityComments({
     [authorById, comments],
   );
 
+  const blockedSet = useMemo(() => new Set(blockedUserIds), [blockedUserIds]);
+  const visibleCommentItems = useMemo(
+    () => commentItems.filter((item) => !blockedSet.has(item.comment.userId)),
+    [blockedSet, commentItems],
+  );
+  const hiddenCommentCount = commentItems.length - visibleCommentItems.length;
+  const shouldVirtualize = !compact && visibleCommentItems.length >= COMMENTS_VIRTUALIZATION_THRESHOLD;
+  const commentVirtualizer = useVirtualizer({
+    count: shouldVirtualize ? visibleCommentItems.length : 0,
+    getScrollElement: () => commentsScrollRef.current,
+    estimateSize: () => 108,
+    overscan: 8,
+    measureElement: (element) => element.getBoundingClientRect().height,
+    enabled: shouldVirtualize,
+  });
+
   const canComment = Boolean(user);
+  const hasCommentActions = Boolean(user?.id && (onReportComment || onBlockUser || onUnblockUser));
+
+  function renderCommentRow(item: (typeof visibleCommentItems)[number]) {
+    const canToggleBlock = Boolean(user?.id && user.id !== item.comment.userId);
+    const isBlocked = blockedSet.has(item.comment.userId);
+
+    return (
+      <div className="rounded-lg border border-border/60 bg-background/70 px-2.5 py-2 sm:p-2.5">
+        <div className="flex items-start gap-2">
+          <Avatar className="h-7 w-7 border border-border/60">
+            <AvatarImage src={item.author?.avatarUrl ?? undefined} alt={item.displayName} />
+            <AvatarFallback className="type-reply-label">{getInitials(item.displayName)}</AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <div className="type-meta flex flex-wrap items-center gap-1.5 text-muted-foreground sm:gap-2">
+              <span className="type-author text-foreground">{item.displayName}</span>
+              <span className="type-timestamp">{item.createdAt}</span>
+              {hasCommentActions && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="ml-auto h-7 w-7"
+                      aria-label="Open comment moderation actions"
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        onReportComment?.(item.comment.id, item.comment.userId, postId);
+                      }}
+                    >
+                      <Flag className="mr-2 h-4 w-4" />
+                      Report comment
+                    </DropdownMenuItem>
+                    {canToggleBlock && (
+                      isBlocked ? (
+                        <DropdownMenuItem
+                          onSelect={(event) => {
+                            event.preventDefault();
+                            onUnblockUser?.(item.comment.userId);
+                          }}
+                        >
+                          <UserCheck className="mr-2 h-4 w-4" />
+                          Unblock user
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem
+                          onSelect={(event) => {
+                            event.preventDefault();
+                            onBlockUser?.(item.comment.userId);
+                          }}
+                        >
+                          <UserX className="mr-2 h-4 w-4" />
+                          Block user
+                        </DropdownMenuItem>
+                      )
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
+            <p className="type-comment-body type-prose-measure type-wrap-safe mt-0.5 whitespace-pre-wrap text-foreground sm:mt-1">
+              {item.comment.body}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Card className={cn("space-y-2.5 border-border/75 bg-card/90 p-2.5 sm:space-y-3 sm:p-3", className)}>
@@ -168,7 +264,13 @@ export function CommunityComments({
         <p className="type-help text-muted-foreground">Be the first to comment.</p>
       )}
 
-      {!loading && comments.length > 0 && (
+      {!loading && hiddenCommentCount > 0 && (
+        <p className="type-help text-muted-foreground">
+          {hiddenCommentCount} comment{hiddenCommentCount === 1 ? "" : "s"} hidden from blocked users.
+        </p>
+      )}
+
+      {!loading && visibleCommentItems.length > 0 && (
         <>
           {shouldVirtualize ? (
             <div
@@ -178,7 +280,7 @@ export function CommunityComments({
             >
               <div className="relative w-full" style={{ height: `${commentVirtualizer.getTotalSize()}px` }}>
                 {commentVirtualizer.getVirtualItems().map((virtualItem) => {
-                  const item = commentItems[virtualItem.index];
+                  const item = visibleCommentItems[virtualItem.index];
                   if (!item) return null;
 
                   return (
@@ -188,23 +290,7 @@ export function CommunityComments({
                       className="absolute left-0 top-0 w-full pb-1.5 sm:pb-2"
                       style={{ transform: `translateY(${virtualItem.start}px)` }}
                     >
-                      <div className="rounded-lg border border-border/60 bg-background/70 px-2.5 py-2 sm:p-2.5">
-                        <div className="flex items-start gap-2">
-                          <Avatar className="h-7 w-7 border border-border/60">
-                            <AvatarImage src={item.author?.avatarUrl ?? undefined} alt={item.displayName} />
-                            <AvatarFallback className="type-reply-label">{getInitials(item.displayName)}</AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0 flex-1">
-                            <div className="type-meta flex flex-wrap items-center gap-1.5 text-muted-foreground sm:gap-2">
-                              <span className="type-author text-foreground">{item.displayName}</span>
-                              <span className="type-timestamp">{item.createdAt}</span>
-                            </div>
-                            <p className="type-comment-body type-prose-measure type-wrap-safe mt-0.5 whitespace-pre-wrap text-foreground sm:mt-1">
-                              {item.comment.body}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
+                      {renderCommentRow(item)}
                     </div>
                   );
                 })}
@@ -217,23 +303,9 @@ export function CommunityComments({
                 !compact && "max-h-[42vh] overflow-y-auto pr-1 sm:max-h-none sm:overflow-visible sm:pr-0",
               )}
             >
-              {commentItems.map((item) => (
-                <div key={item.comment.id} className="rounded-lg border border-border/60 bg-background/70 px-2.5 py-2 sm:p-2.5">
-                  <div className="flex items-start gap-2">
-                    <Avatar className="h-7 w-7 border border-border/60">
-                      <AvatarImage src={item.author?.avatarUrl ?? undefined} alt={item.displayName} />
-                      <AvatarFallback className="type-reply-label">{getInitials(item.displayName)}</AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0 flex-1">
-                      <div className="type-meta flex flex-wrap items-center gap-1.5 text-muted-foreground sm:gap-2">
-                        <span className="type-author text-foreground">{item.displayName}</span>
-                        <span className="type-timestamp">{item.createdAt}</span>
-                      </div>
-                      <p className="type-comment-body type-prose-measure type-wrap-safe mt-0.5 whitespace-pre-wrap text-foreground sm:mt-1">
-                        {item.comment.body}
-                      </p>
-                    </div>
-                  </div>
+              {visibleCommentItems.map((item) => (
+                <div key={item.comment.id}>
+                  {renderCommentRow(item)}
                 </div>
               ))}
             </div>

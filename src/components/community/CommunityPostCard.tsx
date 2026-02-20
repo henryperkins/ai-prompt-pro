@@ -1,12 +1,18 @@
 import { memo, useMemo, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { ArrowUp, CheckCircle2, Database, GitBranch, MessageCircle } from "lucide-react";
+import { ArrowUp, CheckCircle2, Database, Flag, GitBranch, MessageCircle, MoreHorizontal, UserCheck, UserX } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { CommunityPost, VoteState, VoteType } from "@/lib/community";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { PromptPreviewPanel } from "@/components/community/PromptPreviewPanel";
 import { CommunityComments } from "@/components/community/CommunityComments";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
@@ -27,6 +33,14 @@ interface CommunityPostCardProps {
   onCommentAdded: (postId: string) => void;
   onCommentThreadOpen?: (postId: string) => void;
   canVote: boolean;
+  canModerate?: boolean;
+  canBlockAuthor?: boolean;
+  isAuthorBlocked?: boolean;
+  blockedUserIds?: string[];
+  onReportPost?: (post: CommunityPost) => void;
+  onReportComment?: (commentId: string, userId: string, postId: string) => void;
+  onBlockUser?: (userId: string) => void;
+  onUnblockUser?: (userId: string) => void;
 }
 
 function getInitials(name: string): string {
@@ -62,6 +76,14 @@ function CommunityPostCardComponent({
   onCommentAdded,
   onCommentThreadOpen,
   canVote,
+  canModerate = false,
+  canBlockAuthor = true,
+  isAuthorBlocked = false,
+  blockedUserIds = [],
+  onReportPost,
+  onReportComment,
+  onBlockUser,
+  onUnblockUser,
 }: CommunityPostCardProps) {
   const isMobile = useIsMobile();
   const useMobileCommentsDrawer = isMobile && communityFeatureFlags.communityMobileEnhancements;
@@ -96,7 +118,7 @@ function CommunityPostCardComponent({
               <AvatarFallback className="type-reply-label">{getInitials(authorName)}</AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <p className="type-author truncate text-foreground">{authorName}</p>
+              <p className="type-author type-wrap-safe text-foreground">{authorName}</p>
               <p className="type-timestamp text-muted-foreground">{createdAgo}</p>
             </div>
           </div>
@@ -109,6 +131,53 @@ function CommunityPostCardComponent({
             <Badge variant="outline" className="type-chip h-6 px-2 capitalize sm:h-5 sm:px-1.5">
               {post.category}
             </Badge>
+            {canModerate && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    aria-label="Open moderation actions"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onSelect={(event) => {
+                      event.preventDefault();
+                      onReportPost?.(post);
+                    }}
+                  >
+                    <Flag className="mr-2 h-4 w-4" />
+                    Report post
+                  </DropdownMenuItem>
+                  {canBlockAuthor && (isAuthorBlocked ? (
+                    <DropdownMenuItem
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        onUnblockUser?.(post.authorId);
+                      }}
+                    >
+                      <UserCheck className="mr-2 h-4 w-4" />
+                      Unblock user
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        onBlockUser?.(post.authorId);
+                      }}
+                    >
+                      <UserX className="mr-2 h-4 w-4" />
+                      Block user
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
 
@@ -236,6 +305,10 @@ function CommunityPostCardComponent({
             totalCount={post.commentCount}
             compact
             onCommentAdded={onCommentAdded}
+            blockedUserIds={blockedUserIds}
+            onReportComment={onReportComment}
+            onBlockUser={onBlockUser}
+            onUnblockUser={onUnblockUser}
           />
         )}
 
@@ -254,6 +327,10 @@ function CommunityPostCardComponent({
                   postId={post.id}
                   totalCount={post.commentCount}
                   onCommentAdded={onCommentAdded}
+                  blockedUserIds={blockedUserIds}
+                  onReportComment={onReportComment}
+                  onBlockUser={onBlockUser}
+                  onUnblockUser={onUnblockUser}
                   className="space-y-2 border-0 bg-transparent p-0 shadow-none"
                 />
               </div>
@@ -283,6 +360,14 @@ function arePropsEqual(previous: CommunityPostCardProps, next: CommunityPostCard
     previous.onCommentAdded === next.onCommentAdded &&
     previous.onCommentThreadOpen === next.onCommentThreadOpen &&
     previous.canVote === next.canVote &&
+    previous.canModerate === next.canModerate &&
+    previous.canBlockAuthor === next.canBlockAuthor &&
+    previous.isAuthorBlocked === next.isAuthorBlocked &&
+    previous.onReportPost === next.onReportPost &&
+    previous.onReportComment === next.onReportComment &&
+    previous.onBlockUser === next.onBlockUser &&
+    previous.onUnblockUser === next.onUnblockUser &&
+    previous.blockedUserIds === next.blockedUserIds &&
     areVoteStatesEqual(previous.voteState, next.voteState)
   );
 }

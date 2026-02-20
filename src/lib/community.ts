@@ -23,6 +23,7 @@ import {
   inferTemplateStarterPrompt,
   normalizeTemplateConfig,
 } from "@/lib/template-store";
+import { assertCommunityTextAllowed } from "@/lib/content-moderation";
 
 const SAVED_PROMPT_SELECT_COLUMNS =
   "id, user_id, title, description, category, tags, config, built_prompt, enhanced_prompt, fingerprint, revision, is_shared, target_model, use_case, remixed_from, remix_note, remix_diff, created_at, updated_at";
@@ -587,7 +588,7 @@ export async function sharePrompt(
   const userId = await requireUserId();
 
   try {
-    return await shareSavedPromptForUser(userId, savedPromptId, {
+    const result = await shareSavedPromptForUser(userId, savedPromptId, {
       useCase: shareMeta?.useCase,
       targetModel: shareMeta?.targetModel,
       category: shareMeta?.category,
@@ -595,6 +596,7 @@ export async function sharePrompt(
       title: shareMeta?.title,
       description: shareMeta?.description,
     });
+    return result.shared;
   } catch (error) {
     throw toError(error, "Failed to share prompt.");
   }
@@ -832,6 +834,7 @@ export async function addComment(postId: string, body: string): Promise<Communit
   const userId = await requireUserId();
   const content = sanitizePostgresText(body).trim();
   if (!content) throw new Error("Comment is required.");
+  assertCommunityTextAllowed(content, "This comment violates community safety rules.");
 
   try {
     const { data, error } = await neon

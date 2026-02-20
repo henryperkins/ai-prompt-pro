@@ -105,7 +105,11 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
         ) : (
           <div className="space-y-4">
             {/* OAuth buttons */}
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <Button variant="outline" onClick={() => handleOAuth("apple")}>
+                <AppleIcon className="w-4 h-4 mr-2" />
+                Apple
+              </Button>
               <Button variant="outline" onClick={() => handleOAuth("github")}>
                 <GitHubIcon className="w-4 h-4 mr-2" />
                 GitHub
@@ -178,6 +182,14 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function AppleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M16.365 1.43c0 1.14-.41 2.155-1.23 3.045-.82.89-1.81 1.385-2.97 1.335-.02-.14-.03-.285-.03-.435 0-1.09.45-2.12 1.35-3.09.45-.5 1.02-.905 1.71-1.215.69-.31 1.34-.475 1.95-.495.14.285.21.57.21.855zm3.405 16.14c-.34.8-.75 1.55-1.23 2.25-.65.95-1.18 1.61-1.59 1.98-.63.61-1.305.925-2.025.945-.52 0-1.15-.15-1.89-.45-.74-.3-1.42-.45-2.04-.45-.65 0-1.35.15-2.1.45-.75.3-1.355.46-1.815.48-.69.03-1.38-.295-2.07-.975-.44-.39-.995-1.075-1.665-2.055-.72-1.04-1.31-2.245-1.77-3.615-.49-1.48-.735-2.915-.735-4.305 0-1.59.345-2.96 1.035-4.11.54-.92 1.26-1.645 2.16-2.175.9-.53 1.875-.8 2.925-.82.55 0 1.27.17 2.16.51.89.34 1.46.51 1.71.51.19 0 .84-.205 1.95-.615 1.05-.38 1.935-.54 2.655-.48 1.95.16 3.415.925 4.395 2.295-1.75 1.06-2.615 2.545-2.595 4.455.02 1.49.555 2.73 1.605 3.72.48.47 1.015.835 1.605 1.095-.13.37-.27.73-.42 1.08z" />
+    </svg>
   );
 }
 

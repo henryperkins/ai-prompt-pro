@@ -20,6 +20,9 @@ const Library = lazy(() => import("./pages/Library"));
 const LibraryBulkEdit = lazy(() => import("./pages/LibraryBulkEdit"));
 const Presets = lazy(() => import("./pages/Presets"));
 const History = lazy(() => import("./pages/History"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const Terms = lazy(() => import("./pages/Terms"));
+const Contact = lazy(() => import("./pages/Contact"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -50,6 +53,9 @@ const App = () => (
               />
               <Route path="/presets" element={withRouteFallback(<Presets />, <BuilderRouteFallback />)} />
               <Route path="/history" element={withRouteFallback(<History />, <GenericRouteFallback />)} />
+              <Route path="/privacy" element={withRouteFallback(<Privacy />, <GenericRouteFallback />)} />
+              <Route path="/terms" element={withRouteFallback(<Terms />, <GenericRouteFallback />)} />
+              <Route path="/contact" element={withRouteFallback(<Contact />, <GenericRouteFallback />)} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={withRouteFallback(<NotFound />, <GenericRouteFallback />)} />
             </Routes>

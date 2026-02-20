@@ -203,3 +203,128 @@ When evolving the design system, use this order:
 4. **Feature-specific semantic classes**: e.g., community type roles in `src/index.css`
 
 Avoid direct hardcoded `px` typography values and avoid bypassing primitives unless strictly necessary.
+
+---
+
+## 11) Apple Alignment Implementation Checklist
+
+Use this checklist for iOS-facing releases and major UI refactors. It consolidates guidance from:
+
+- `https://developer.apple.com/design/human-interface-guidelines/`
+- `docs/apple-color.md`
+- `docs/apple-layout.html`
+- `docs/apple-typography.md`
+- `docs/apple-web-standards.md`
+- `docs/app-review-guidelines.md`
+
+### 11.1 Color Checklist (HIG Color)
+
+- [ ] Use semantic tokens only for UI color in app code (no one-off hex/rgb in components).
+- [ ] Keep semantic intent stable (`--primary` for emphasis, `--muted` for supporting surfaces, etc.); avoid reusing one color token for conflicting meanings.
+- [ ] Validate light and dark variants for all tokens used in foreground/background pairs.
+- [ ] Validate increased-contrast readability for key interactions (button labels, links, status chips, destructive actions).
+- [ ] Do not rely on color alone for state or meaning; pair with text, iconography, or shape.
+- [ ] Keep high-emphasis tinted controls limited per surface (single primary action by default).
+- [ ] Export standard raster assets in sRGB unless a tested Display P3 workflow is explicitly required.
+
+Implementation map:
+
+- Token source: `src/index.css`
+- Tailwind color mapping: `tailwind.config.ts`
+- Primitive usage enforcement: `src/components/ui/*`
+- Brand/delight accents: `src/index.css` (`--delight-*`)
+
+### 11.2 Typography Checklist (HIG Typography)
+
+- [ ] Keep runtime font dependencies system-based (`--font-sans`, `--font-serif`, `--font-mono`).
+- [ ] Map all role text to the tokenized scale (`--type-*`) and Tailwind semantic sizes (`text-sm`, `sm:text-base`, etc.).
+- [ ] Avoid thin/ultralight weights in UI copy; prefer regular/medium/semibold/bold hierarchy.
+- [ ] Preserve hierarchy under larger text settings (primary content remains most prominent and earliest in scan order).
+- [ ] Minimize truncation at larger sizes; allow useful multi-line wrapping for key content.
+- [ ] Scale meaningful icons with adjacent text where icons carry information.
+- [ ] Use shared tracking utilities (`.type-label-caps`, `.type-label-shortcut`) instead of one-off tracking classes.
+
+Implementation map:
+
+- Typography tokens and base rules: `src/index.css`
+- Tailwind font families and sizing hooks: `tailwind.config.ts`
+- Primitive label/input/button text contracts: `src/components/ui/*`
+- Community-specific roles: `.community-typography` rules in `src/index.css`
+
+### 11.3 Layout and Adaptivity Checklist (HIG Layout)
+
+- [ ] Preserve clear grouping and separation of related content using spacing, surfaces, and separators.
+- [ ] Keep critical information/actions in primary scan areas (top + leading side in reading order).
+- [ ] Ensure controls remain visually distinct from content layers.
+- [ ] Respect safe areas and avoid overlap with device/system UI.
+- [ ] Prefer full-bleed content regions where appropriate; avoid clipped/letterboxed primary layouts unless intentional.
+- [ ] Keep touch targets and spacing comfortable so adjacent controls remain clearly distinguishable.
+- [ ] Support orientation/viewport changes without abrupt hierarchy breaks or content jumps.
+- [ ] Validate long text, localization expansion, and wrap behavior (including RTL-sensitive layouts).
+
+Implementation map:
+
+- Layout tokens and spacing primitives: `src/index.css`
+- Responsive breakpoint contracts: `tailwind.config.ts`, `src/components/ui/*`
+- Route-level composition and content hierarchy: `src/pages/*`
+- Mobile viewport regression checks: `playwright/community.mobile.spec.ts`
+
+### 11.4 iOS Web App Standards Checklist (Safari / Home Screen)
+
+Apply when this project is delivered as a Home Screen web app (PWA-like install flow on iOS).
+
+- [ ] Provide `apple-touch-icon` assets with appropriate sizes from `public/`.
+- [ ] Define a stable web app title using `apple-mobile-web-app-title`.
+- [ ] If standalone mode is intended, set `apple-mobile-web-app-capable=yes`.
+- [ ] If standalone mode is enabled, set and verify `apple-mobile-web-app-status-bar-style`.
+- [ ] Provide startup image links only when explicitly required and tested across target devices.
+- [ ] Verify native link schemes (`tel:`, `sms:` and similar) open the expected system apps.
+
+Implementation map:
+
+- Head/meta tags: `index.html`
+- Icon/startup assets: `public/`
+- Deep link rendering and behavior checks: route-level pages in `src/pages/*`
+
+### 11.5 App Review Readiness Checklist (If Shipping via App Store Wrapper)
+
+Use for any native wrapper, hybrid shell, or packaged distribution that goes through App Review.
+
+- [ ] App experience is app-like and useful beyond a basic website wrapper.
+- [ ] Submission build is complete: no placeholder content, broken routes, or incomplete flows.
+- [ ] Demo credentials or a fully functional review mode is available for App Review.
+- [ ] Privacy policy is accessible in-app and accurately describes collection, sharing, retention, and deletion.
+- [ ] User-generated content flows include reporting, moderation handling, and user blocking.
+- [ ] Payments for digital features/content use in-app purchase where required by policy.
+- [ ] Subscription terms are clear before purchase (value, billing cadence, cancellation path).
+- [ ] Any third-party login implementation includes required equivalent login options.
+- [ ] Push notifications are optional for core functionality and respect explicit user consent.
+
+Implementation map:
+
+- UX and primitive quality baseline: `src/components/ui/*`, `src/pages/*`
+- Community moderation/UGC surfaces: `src/pages/*`, `src/hooks/*`, `src/lib/*`
+- Policy and release process docs: `docs/*`
+
+### 11.6 Release Verification Steps
+
+1. Run `npm run lint`.
+2. Run `npm test`.
+3. Run `npm run test:mobile`.
+4. Run `npm run build`.
+5. Perform manual checklist pass for sections 11.1 through 11.5.
+
+### 11.7 Maintenance Rule
+
+When Apple guidance changes, update this section and the underlying implementation in this order:
+
+1. `src/index.css` token/model updates
+2. `tailwind.config.ts` semantic mapping updates
+3. `src/components/ui/*` primitive contract updates
+4. Feature-level semantics in `src/pages/*`, `src/hooks/*`, `src/lib/*`
+5. Documentation sync in `docs/design-system.md`
+
+Monitor source updates from:
+
+- `https://developer.apple.com/design/human-interface-guidelines/` ("New and updated")
+- `https://developer.apple.com/app-store/review/guidelines/` (policy changes)
