@@ -69,7 +69,7 @@ jobs:
               NEON_JWKS_URL="${{ secrets.VITE_NEON_AUTH_URL }}/.well-known/jwks.json" \
               FUNCTION_PUBLIC_API_KEY="${{ secrets.VITE_NEON_PUBLISHABLE_KEY }}" \
               NEON_PUBLISHABLE_KEY="${{ secrets.VITE_NEON_PUBLISHABLE_KEY }}" \
-              ALLOWED_ORIGINS="https://gentle-dune-075b4710f.2.azurestaticapps.net,https://prompt.lakefrontdigital.io"
+              ALLOWED_ORIGINS="https://gentle-dune-075b4710f.2.azurestaticapps.net,https://prompt.lakefrontdigital.io,http://localhost:5173"
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
