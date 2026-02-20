@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import process from "node:process";
 import { Codex } from "@openai/codex-sdk";
@@ -102,6 +102,170 @@ const REASONING_EFFORTS = new Set(["minimal", "low", "medium", "high", "xhigh"])
 const REASONING_SUMMARIES = new Set(["auto", "concise", "detailed"]);
 const WEB_SEARCH_MODES = new Set(["disabled", "cached", "live"]);
 const APPROVAL_POLICIES = new Set(["never", "on-request", "on-failure", "untrusted"]);
+const SERVICE_NAME = "ai-prompt-pro-codex-service";
+
+function cleanLogFields(fields) {
+  const entries = Object.entries(fields || {});
+  return Object.fromEntries(entries.filter(([, value]) => value !== undefined));
+}
+
+function logEvent(level, event, fields = {}) {
+  const payload = cleanLogFields({
+    timestamp: new Date().toISOString(),
+    level,
+    event,
+    service: SERVICE_NAME,
+    ...fields,
+  });
+  const serialized = JSON.stringify(payload);
+  if (level === "error") {
+    console.error(serialized);
+    return;
+  }
+  if (level === "warn") {
+    console.warn(serialized);
+    return;
+  }
+  console.log(serialized);
+}
+
+function toFiniteNumber(value) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return undefined;
+}
+
+function hashUserIdentifier(userId) {
+  if (typeof userId !== "string") return undefined;
+  const normalized = userId.trim();
+  if (!normalized) return undefined;
+  return createHash("sha256").update(normalized).digest("hex").slice(0, 16);
+}
+
+function inferErrorCodeFromStatus(statusCode) {
+  if (!Number.isFinite(statusCode)) return undefined;
+  if (statusCode === 401) return "auth_session_invalid";
+  if (statusCode === 403) return "forbidden";
+  if (statusCode === 404) return "not_found";
+  if (statusCode === 405) return "method_not_allowed";
+  if (statusCode === 408 || statusCode === 504) return "request_timeout";
+  if (statusCode === 413) return "payload_too_large";
+  if (statusCode === 422) return "bad_response";
+  if (statusCode === 429) return "rate_limited";
+  if (statusCode === 499) return "request_aborted";
+  if (statusCode === 503) return "service_unavailable";
+  if (statusCode >= 500) return "service_error";
+  if (statusCode >= 400) return "bad_request";
+  return undefined;
+}
+
+function createRequestContext(requestId, endpoint, method, transport) {
+  return {
+    requestId,
+    endpoint,
+    method,
+    transport,
+    startedAt: Date.now(),
+    retryCount: 0,
+    circuitState: "closed",
+    userIdHash: undefined,
+    usageInputTokens: undefined,
+    usageOutputTokens: undefined,
+    errorCode: undefined,
+    errorMessage: undefined,
+    statusCode: undefined,
+    completed: false,
+  };
+}
+
+function setRequestError(requestContext, errorCode, errorMessage, statusCode) {
+  if (!requestContext) return;
+  if (typeof errorCode === "string" && errorCode.trim()) {
+    requestContext.errorCode = errorCode.trim();
+  }
+  if (typeof errorMessage === "string" && errorMessage.trim()) {
+    requestContext.errorMessage = errorMessage.trim().slice(0, 400);
+  }
+  if (Number.isFinite(statusCode)) {
+    requestContext.statusCode = statusCode;
+  }
+}
+
+function completeRequestContext(requestContext, statusCode) {
+  if (!requestContext || requestContext.completed) return;
+  requestContext.completed = true;
+  const durationMs = Math.max(0, Date.now() - requestContext.startedAt);
+  const resolvedStatus = Number.isFinite(statusCode)
+    ? statusCode
+    : Number.isFinite(requestContext.statusCode)
+      ? requestContext.statusCode
+      : 500;
+  const resolvedErrorCode = requestContext.errorCode || inferErrorCodeFromStatus(resolvedStatus);
+  const basePayload = cleanLogFields({
+    request_id: requestContext.requestId,
+    endpoint: requestContext.endpoint,
+    method: requestContext.method,
+    transport: requestContext.transport,
+    status_code: resolvedStatus,
+    duration_ms: durationMs,
+    retry_count: requestContext.retryCount,
+    circuit_state: requestContext.circuitState,
+    error_code: resolvedErrorCode,
+    error_message: requestContext.errorMessage,
+    user_id_hash: requestContext.userIdHash,
+    usage_input_tokens: requestContext.usageInputTokens,
+    usage_output_tokens: requestContext.usageOutputTokens,
+  });
+
+  if (resolvedErrorCode) {
+    const level = resolvedStatus >= 500 ? "error" : "warn";
+    logEvent(level, "request_error", basePayload);
+  }
+  const endLevel = resolvedStatus >= 500 ? "error" : resolvedStatus >= 400 ? "warn" : "info";
+  logEvent(endLevel, "request_end", basePayload);
+}
+
+function attachHttpRequestLifecycleLogging(res, requestContext) {
+  res.on("finish", () => {
+    completeRequestContext(requestContext, res.statusCode);
+  });
+  res.on("close", () => {
+    if (requestContext?.completed) return;
+    const closedBeforeFinish = !res.writableEnded;
+    if (closedBeforeFinish && !requestContext.errorCode) {
+      setRequestError(requestContext, "request_aborted", "Client disconnected before response completed.");
+    }
+    const statusCode = closedBeforeFinish ? 499 : res.statusCode;
+    completeRequestContext(requestContext, statusCode);
+  });
+}
+
+function transportForEndpoint(endpoint) {
+  if (endpoint === "/enhance") return "sse";
+  if (endpoint === ENHANCE_WS_PATH) return "ws";
+  return "http";
+}
+
+function captureUsageMetrics(requestContext, usage) {
+  if (!requestContext || !usage || typeof usage !== "object") return;
+  const inputTokens = toFiniteNumber(
+    usage.input_tokens
+      ?? usage.inputTokens
+      ?? usage.prompt_tokens
+      ?? usage.promptTokens,
+  );
+  const outputTokens = toFiniteNumber(
+    usage.output_tokens
+      ?? usage.outputTokens
+      ?? usage.completion_tokens
+      ?? usage.completionTokens,
+  );
+  if (inputTokens !== undefined) requestContext.usageInputTokens = inputTokens;
+  if (outputTokens !== undefined) requestContext.usageOutputTokens = outputTokens;
+}
 
 function normalizeEnvValue(name) {
   const value = process.env[name];
@@ -394,7 +558,12 @@ function createWebSocketRequestView(req, overrideHeaders = {}) {
   };
 }
 
-function rejectWebSocketUpgrade(socket, status, payload) {
+function rejectWebSocketUpgrade(socket, status, payload, requestContext) {
+  setRequestError(
+    requestContext,
+    inferErrorCodeFromStatus(status),
+    typeof payload?.error === "string" ? payload.error : undefined,
+  );
   const body = JSON.stringify(payload);
   const statusText =
     status === 400
@@ -418,6 +587,7 @@ function rejectWebSocketUpgrade(socket, status, payload) {
 
   socket.write(response);
   socket.destroy();
+  completeRequestContext(requestContext, status);
 }
 
 function baseCorsHeaders(origin) {
@@ -522,10 +692,12 @@ function allowUnverifiedJwtFallback() {
 
   if (!hasLoggedJwtFallbackProductionWarning) {
     hasLoggedJwtFallbackProductionWarning = true;
-    console.error(
-      "ALLOW_UNVERIFIED_JWT_FALLBACK is ignored in production by default. "
+    logEvent("error", "auth_config_warning", {
+      error_code: "auth_config_invalid",
+      message:
+        "ALLOW_UNVERIFIED_JWT_FALLBACK is ignored in production by default. "
         + "Set ALLOW_UNVERIFIED_JWT_FALLBACK_IN_PRODUCTION=true only for emergency recovery scenarios.",
-    );
+    });
   }
 
   return false;
@@ -587,9 +759,12 @@ function tryDecodeUserFromJwtFallback(bearerToken, reason) {
 
   if (!hasLoggedJwtFallbackWarning) {
     hasLoggedJwtFallbackWarning = true;
-    console.warn(
-      `ALLOW_UNVERIFIED_JWT_FALLBACK is enabled; accepting decoded JWT claims without signature verification (${reason}).`,
-    );
+    logEvent("warn", "auth_fallback_enabled", {
+      error_code: "auth_fallback_unverified_jwt",
+      reason,
+      message:
+        `ALLOW_UNVERIFIED_JWT_FALLBACK is enabled; accepting decoded JWT claims without signature verification (${reason}).`,
+    });
   }
 
   return decodedUser;
@@ -703,11 +878,13 @@ async function requireAuthenticatedUser(req) {
 
     if (!hasLoggedAuthConfigWarning) {
       hasLoggedAuthConfigWarning = true;
-      console.error(
-        "NEON_AUTH_URL or NEON_JWKS_URL is required to validate bearer tokens. "
+      logEvent("error", "auth_config_warning", {
+        error_code: "auth_config_missing",
+        message:
+          "NEON_AUTH_URL or NEON_JWKS_URL is required to validate bearer tokens. "
           + "Set one of those env vars, provide FUNCTION_PUBLIC_API_KEY for anonymous fallback, "
           + "or enable ALLOW_UNVERIFIED_JWT_FALLBACK for local development only.",
-      );
+      });
     }
 
     return {
@@ -1522,7 +1699,8 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function runStreamedWithRetry(thread, input, turnOptions) {
+async function runStreamedWithRetry(thread, input, turnOptions, telemetry = {}) {
+  const requestContext = telemetry.requestContext;
   let attempt = 0;
   while (true) {
     let sawAnyEvent = false;
@@ -1535,7 +1713,20 @@ async function runStreamedWithRetry(thread, input, turnOptions) {
       if (!first.done && isRateLimitTurnFailure(first.value) && attempt < CODEX_429_MAX_RETRIES) {
         const backoff = CODEX_429_BACKOFF_BASE_SECONDS * (2 ** attempt);
         const delay = Math.min(Math.random() * backoff, CODEX_429_BACKOFF_MAX_SECONDS) * 1000;
-        console.log(`Codex 429 detected; retrying (attempt ${attempt + 1}/${CODEX_429_MAX_RETRIES}) after ${(delay / 1000).toFixed(2)}s`);
+        if (requestContext) {
+          requestContext.retryCount = attempt + 1;
+        }
+        logEvent("warn", "retry_attempt", cleanLogFields({
+          request_id: requestContext?.requestId,
+          endpoint: requestContext?.endpoint,
+          method: requestContext?.method,
+          transport: requestContext?.transport,
+          retry_count: attempt + 1,
+          max_retries: CODEX_429_MAX_RETRIES,
+          error_code: "rate_limited",
+          backoff_ms: Math.round(delay),
+          source: "codex_turn_failed",
+        }));
         await sleep(delay);
         attempt++;
         continue;
@@ -1559,7 +1750,20 @@ async function runStreamedWithRetry(thread, input, turnOptions) {
       }
       const backoff = CODEX_429_BACKOFF_BASE_SECONDS * (2 ** attempt);
       const delay = Math.min(Math.random() * backoff, CODEX_429_BACKOFF_MAX_SECONDS) * 1000;
-      console.log(`Codex 429 thrown; retrying (attempt ${attempt + 1}/${CODEX_429_MAX_RETRIES}) after ${(delay / 1000).toFixed(2)}s`);
+      if (requestContext) {
+        requestContext.retryCount = attempt + 1;
+      }
+      logEvent("warn", "retry_attempt", cleanLogFields({
+        request_id: requestContext?.requestId,
+        endpoint: requestContext?.endpoint,
+        method: requestContext?.method,
+        transport: requestContext?.transport,
+        retry_count: attempt + 1,
+        max_retries: CODEX_429_MAX_RETRIES,
+        error_code: "rate_limited",
+        backoff_ms: Math.round(delay),
+        source: "codex_exception",
+      }));
       await sleep(delay);
       attempt++;
     }
@@ -1634,6 +1838,7 @@ async function runEnhanceTurnStream(requestData, options) {
     signal,
     emit,
     isClosed,
+    requestContext,
   } = options;
 
   const stateByItemId = new Map();
@@ -1645,9 +1850,12 @@ async function runEnhanceTurnStream(requestData, options) {
     const thread = requestedThreadId
       ? codex.resumeThread(requestedThreadId, threadOptions)
       : codex.startThread(threadOptions);
-    const { events } = await runStreamedWithRetry(thread, enhancementInput, {
-      signal,
-    });
+    const { events } = await runStreamedWithRetry(
+      thread,
+      enhancementInput,
+      { signal },
+      { requestContext },
+    );
 
     let activeThreadId = requestedThreadId || null;
     let turnFailed = false;
@@ -1678,6 +1886,7 @@ async function runEnhanceTurnStream(requestData, options) {
       }
 
       if (event.type === "turn.completed") {
+        captureUsageMetrics(requestContext, event.usage);
         emit({
           event: "turn.completed",
           type: "response.completed",
@@ -1694,6 +1903,11 @@ async function runEnhanceTurnStream(requestData, options) {
 
       if (event.type === "turn.failed") {
         turnFailed = true;
+        const failureMessage = toErrorMessage(event.error);
+        const failureCode = /(^|\b)429(\b|$)|rate.limit|too many requests|throttl/i.test(failureMessage.toLowerCase())
+          ? "rate_limited"
+          : "service_error";
+        setRequestError(requestContext, failureCode, failureMessage);
         emit({
           event: "turn.failed",
           type: "turn.failed",
@@ -1706,6 +1920,7 @@ async function runEnhanceTurnStream(requestData, options) {
 
       if (event.type === "error") {
         turnError = true;
+        setRequestError(requestContext, "service_error", toErrorMessage(event.message));
         emit({
           event: "thread.error",
           type: "error",
@@ -1880,6 +2095,7 @@ async function runEnhanceTurnStream(requestData, options) {
       });
     }
   } catch (error) {
+    setRequestError(requestContext, "service_error", toErrorMessage(error), 500);
     if (!isClosed()) {
       const message = toErrorMessage(error);
       emit({
@@ -1893,17 +2109,27 @@ async function runEnhanceTurnStream(requestData, options) {
   }
 }
 
-async function streamWithCodex(req, res, body, corsHeaders) {
+async function streamWithCodex(req, res, body, corsHeaders, requestContext) {
   const preparedRequest = buildEnhanceStreamRequest(body);
   if (!preparedRequest.ok) {
+    setRequestError(
+      requestContext,
+      inferErrorCodeFromStatus(preparedRequest.status),
+      preparedRequest.detail,
+      preparedRequest.status,
+    );
     json(res, preparedRequest.status, { detail: preparedRequest.detail }, corsHeaders);
     return;
   }
 
   const controller = new AbortController();
-  req.on("aborted", () => controller.abort("Client disconnected"));
+  req.on("aborted", () => {
+    setRequestError(requestContext, "request_aborted", "Client disconnected.", 499);
+    controller.abort("Client disconnected");
+  });
   res.on("close", () => {
     if (!res.writableEnded) {
+      setRequestError(requestContext, "request_aborted", "Client disconnected.", 499);
       controller.abort("Client disconnected");
     }
   });
@@ -1913,6 +2139,7 @@ async function streamWithCodex(req, res, body, corsHeaders) {
     signal: controller.signal,
     emit: (payload) => writeSse(res, payload),
     isClosed: () => res.writableEnded,
+    requestContext,
   });
   endSse(res);
 }
@@ -1961,15 +2188,30 @@ function classifyWebSocketAuthErrorCode(status, message) {
   return "auth_session_invalid";
 }
 
-async function handleEnhanceWebSocketConnection(ws, request) {
+function classifyHttpAuthErrorCode(status, message) {
+  if (status === 401) {
+    return classifyWebSocketAuthErrorCode(status, message);
+  }
+  if (status === 503) return "service_unavailable";
+  return "service_error";
+}
+
+async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
   const clientIp = getClientIp(request);
   if (!acquireEnhanceWebSocketConnectionSlot(clientIp)) {
+    setRequestError(
+      requestContext,
+      "rate_limited",
+      "Too many concurrent websocket connections.",
+      429,
+    );
     writeWebSocketError(ws, {
       message: "Too many concurrent websocket connections. Please retry shortly.",
       status: 429,
       code: "rate_limited",
     });
     closeWebSocket(ws, 1008, "too_many_connections");
+    completeRequestContext(requestContext, 429);
     return;
   }
 
@@ -1986,6 +2228,12 @@ async function handleEnhanceWebSocketConnection(ws, request) {
     let receivedStartMessage = false;
     const firstMessageTimeoutHandle = globalThis.setTimeout(() => {
       if (receivedStartMessage || !isWebSocketOpen(ws)) return;
+      setRequestError(
+        requestContext,
+        "request_timeout",
+        "Timed out waiting for websocket start payload.",
+        408,
+      );
       writeWebSocketError(ws, {
         message: "Timed out waiting for websocket start payload.",
         status: 408,
@@ -1999,6 +2247,12 @@ async function handleEnhanceWebSocketConnection(ws, request) {
       if (!controller.signal.aborted) {
         controller.abort("Client disconnected");
       }
+      const closeStatus = Number.isFinite(requestContext?.statusCode)
+        ? requestContext.statusCode
+        : requestContext?.errorCode
+          ? 400
+          : 200;
+      completeRequestContext(requestContext, closeStatus);
     });
 
     ws.once("message", (rawData, isBinary) => {
@@ -2006,6 +2260,7 @@ async function handleEnhanceWebSocketConnection(ws, request) {
       globalThis.clearTimeout(firstMessageTimeoutHandle);
       void (async () => {
         if (isBinary) {
+          setRequestError(requestContext, "bad_response", "Invalid websocket payload.", 400);
           writeWebSocketError(ws, {
             message: "Invalid websocket payload.",
             status: 400,
@@ -2023,6 +2278,7 @@ async function handleEnhanceWebSocketConnection(ws, request) {
         try {
           messageBody = JSON.parse(rawText);
         } catch {
+          setRequestError(requestContext, "bad_response", "Invalid JSON body.", 400);
           writeWebSocketError(ws, {
             message: "Invalid JSON body.",
             status: 400,
@@ -2058,6 +2314,12 @@ async function handleEnhanceWebSocketConnection(ws, request) {
         );
         const auth = await authenticateRequestContext(req);
         if (!auth.ok) {
+          setRequestError(
+            requestContext,
+            classifyHttpAuthErrorCode(auth.status, auth.error),
+            auth.error,
+            auth.status,
+          );
           writeWebSocketError(ws, {
             message: auth.error,
             status: auth.status,
@@ -2066,9 +2328,13 @@ async function handleEnhanceWebSocketConnection(ws, request) {
           closeWebSocket(ws, 1008, "auth_failed");
           return;
         }
+        if (requestContext) {
+          requestContext.userIdHash = hashUserIdentifier(auth.userId);
+        }
 
         const rateLimit = checkEnhanceRateLimits(auth, clientIp);
         if (!rateLimit.ok) {
+          setRequestError(requestContext, "rate_limited", rateLimit.error, rateLimit.status);
           writeWebSocketError(ws, {
             message: rateLimit.error,
             status: rateLimit.status,
@@ -2081,6 +2347,12 @@ async function handleEnhanceWebSocketConnection(ws, request) {
 
         const preparedRequest = buildEnhanceStreamRequest(payload || {});
         if (!preparedRequest.ok) {
+          setRequestError(
+            requestContext,
+            inferErrorCodeFromStatus(preparedRequest.status),
+            preparedRequest.detail,
+            preparedRequest.status,
+          );
           writeWebSocketError(ws, {
             message: preparedRequest.detail,
             status: preparedRequest.status,
@@ -2094,6 +2366,7 @@ async function handleEnhanceWebSocketConnection(ws, request) {
           signal: controller.signal,
           emit: (eventPayload) => writeWebSocketEvent(ws, eventPayload),
           isClosed: () => !isWebSocketOpen(ws),
+          requestContext,
         });
 
         if (!controller.signal.aborted && isWebSocketOpen(ws)) {
@@ -2106,6 +2379,7 @@ async function handleEnhanceWebSocketConnection(ws, request) {
       })();
     });
   } catch (error) {
+    setRequestError(requestContext, "service_error", toErrorMessage(error), 500);
     writeWebSocketError(ws, {
       message: toErrorMessage(error),
       status: 500,
@@ -2113,12 +2387,14 @@ async function handleEnhanceWebSocketConnection(ws, request) {
     });
     closeWebSocket(ws, 1011, "internal_error");
     releaseConnectionSlot();
+    completeRequestContext(requestContext, 500);
   }
 }
 
-function enforceRateLimit(res, corsHeaders, options, failureMessage) {
+function enforceRateLimit(res, corsHeaders, options, failureMessage, requestContext) {
   const result = applyRateLimit(options);
   if (result.ok) return true;
+  setRequestError(requestContext, "rate_limited", failureMessage, 429);
   json(
     res,
     429,
@@ -2164,22 +2440,32 @@ function checkEnhanceRateLimits(auth, clientIp) {
   }, "Daily quota exceeded. Please try again tomorrow.");
 }
 
-async function authenticateRequest(req, res, corsHeaders) {
+async function authenticateRequest(req, res, corsHeaders, requestContext) {
   const auth = await authenticateRequestContext(req);
   if (!auth.ok) {
+    setRequestError(
+      requestContext,
+      classifyHttpAuthErrorCode(auth.status, auth.error),
+      auth.error,
+      auth.status,
+    );
     json(res, auth.status, { error: auth.error }, corsHeaders);
     return null;
+  }
+  if (requestContext) {
+    requestContext.userIdHash = hashUserIdentifier(auth.userId);
   }
   return auth;
 }
 
-async function handleEnhance(req, res, body, corsHeaders) {
-  const auth = await authenticateRequest(req, res, corsHeaders);
+async function handleEnhance(req, res, body, corsHeaders, requestContext) {
+  const auth = await authenticateRequest(req, res, corsHeaders, requestContext);
   if (!auth) return;
 
   const clientIp = getClientIp(req);
   const rateLimit = checkEnhanceRateLimits(auth, clientIp);
   if (!rateLimit.ok) {
+    setRequestError(requestContext, "rate_limited", rateLimit.error, rateLimit.status);
     json(
       res,
       rateLimit.status,
@@ -2194,11 +2480,11 @@ async function handleEnhance(req, res, body, corsHeaders) {
     return;
   }
 
-  await streamWithCodex(req, res, body, corsHeaders);
+  await streamWithCodex(req, res, body, corsHeaders, requestContext);
 }
 
-async function handleExtractUrl(req, res, body, corsHeaders) {
-  const auth = await authenticateRequest(req, res, corsHeaders);
+async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
+  const auth = await authenticateRequest(req, res, corsHeaders, requestContext);
   if (!auth) return;
 
   const clientIp = getClientIp(req);
@@ -2207,7 +2493,7 @@ async function handleExtractUrl(req, res, body, corsHeaders) {
     key: `${auth.rateKey}:${clientIp}`,
     limit: EXTRACT_PER_MINUTE,
     windowMs: 60_000,
-  }, "Rate limit exceeded. Please try again later.")) {
+  }, "Rate limit exceeded. Please try again later.", requestContext)) {
     return;
   }
 
@@ -2216,7 +2502,7 @@ async function handleExtractUrl(req, res, body, corsHeaders) {
     key: auth.rateKey,
     limit: EXTRACT_PER_DAY,
     windowMs: 86_400_000,
-  }, "Daily quota exceeded. Please try again tomorrow.")) {
+  }, "Daily quota exceeded. Please try again tomorrow.", requestContext)) {
     return;
   }
 
@@ -2323,14 +2609,28 @@ async function handleExtractUrl(req, res, body, corsHeaders) {
   if (!summaryResult.ok) {
     const errText = summaryResult.errorBody.trim();
     if (summaryResult.status === 429) {
+      setRequestError(requestContext, "rate_limited", "Rate limit exceeded while extracting content.", 429);
       json(res, 429, { error: "Rate limit exceeded. Please try again in a moment." }, corsHeaders);
       return;
     }
     if (summaryResult.status === 402) {
+      setRequestError(requestContext, "quota_exceeded", "AI credits depleted.", 402);
       json(res, 402, { error: "AI credits depleted. Please add funds to continue." }, corsHeaders);
       return;
     }
-    console.error("OpenAI extraction error:", summaryResult.status, errText);
+    setRequestError(
+      requestContext,
+      inferErrorCodeFromStatus(summaryResult.status) || "service_error",
+      errText || "OpenAI extraction request failed.",
+      summaryResult.status,
+    );
+    logEvent("error", "extract_url_openai_error", cleanLogFields({
+      request_id: requestContext?.requestId,
+      endpoint: requestContext?.endpoint,
+      status_code: summaryResult.status,
+      error_code: requestContext?.errorCode || inferErrorCodeFromStatus(summaryResult.status) || "service_error",
+      error_message: errText || "OpenAI extraction request failed.",
+    }));
     json(res, 500, { error: "Failed to extract content from the page." }, corsHeaders);
     return;
   }
@@ -2338,8 +2638,8 @@ async function handleExtractUrl(req, res, body, corsHeaders) {
   json(res, 200, { title, content: summaryResult.content }, corsHeaders);
 }
 
-async function handleInferBuilderFields(req, res, body, corsHeaders) {
-  const auth = await authenticateRequest(req, res, corsHeaders);
+async function handleInferBuilderFields(req, res, body, corsHeaders, requestContext) {
+  const auth = await authenticateRequest(req, res, corsHeaders, requestContext);
   if (!auth) return;
 
   const clientIp = getClientIp(req);
@@ -2348,7 +2648,7 @@ async function handleInferBuilderFields(req, res, body, corsHeaders) {
     key: `${auth.rateKey}:${clientIp}`,
     limit: INFER_PER_MINUTE,
     windowMs: 60_000,
-  }, "Rate limit exceeded. Please try again later.")) {
+  }, "Rate limit exceeded. Please try again later.", requestContext)) {
     return;
   }
 
@@ -2357,7 +2657,7 @@ async function handleInferBuilderFields(req, res, body, corsHeaders) {
     key: auth.rateKey,
     limit: INFER_PER_DAY,
     windowMs: 86_400_000,
-  }, "Daily quota exceeded. Please try again tomorrow.")) {
+  }, "Daily quota exceeded. Please try again tomorrow.", requestContext)) {
     return;
   }
 
@@ -2386,6 +2686,23 @@ async function handleInferBuilderFields(req, res, body, corsHeaders) {
 
 async function requestHandler(req, res) {
   const url = new URL(req.url || "/", "http://localhost");
+  const rawRequestId = (headerValue(req, "x-request-id") || "").trim();
+  const requestId = rawRequestId || `req_${randomUUID().replaceAll("-", "")}`;
+  const method = typeof req.method === "string" ? req.method : "GET";
+  const requestContext = createRequestContext(
+    requestId,
+    url.pathname,
+    method,
+    transportForEndpoint(url.pathname),
+  );
+  res.setHeader("x-request-id", requestId);
+  attachHttpRequestLifecycleLogging(res, requestContext);
+  logEvent("info", "request_start", {
+    request_id: requestContext.requestId,
+    endpoint: requestContext.endpoint,
+    method: requestContext.method,
+    transport: requestContext.transport,
+  });
 
   if (req.method === "GET" && url.pathname === "/") {
     json(res, 200, {
@@ -2417,6 +2734,7 @@ async function requestHandler(req, res) {
     const cors = resolveCors(req);
     if (req.method === "OPTIONS") {
       if (!cors.ok) {
+        setRequestError(requestContext, inferErrorCodeFromStatus(cors.status), cors.error, cors.status);
         json(res, cors.status, { error: cors.error }, cors.headers);
         return;
       }
@@ -2426,11 +2744,13 @@ async function requestHandler(req, res) {
     }
 
     if (!cors.ok) {
+      setRequestError(requestContext, inferErrorCodeFromStatus(cors.status), cors.error, cors.status);
       json(res, cors.status, { error: cors.error }, cors.headers);
       return;
     }
 
     if (req.method !== "POST") {
+      setRequestError(requestContext, inferErrorCodeFromStatus(405), "Method not allowed.", 405);
       json(res, 405, { error: "Method not allowed." }, cors.headers);
       return;
     }
@@ -2439,25 +2759,34 @@ async function requestHandler(req, res) {
     try {
       body = await readBodyJson(req);
     } catch (error) {
+      setRequestError(requestContext, "bad_request", toErrorMessage(error), 400);
       json(res, 400, { error: toErrorMessage(error) }, cors.headers);
       return;
     }
 
     try {
       if (url.pathname === "/enhance") {
-        await handleEnhance(req, res, body, cors.headers);
+        await handleEnhance(req, res, body, cors.headers, requestContext);
         return;
       }
       if (url.pathname === "/extract-url") {
-        await handleExtractUrl(req, res, body, cors.headers);
+        await handleExtractUrl(req, res, body, cors.headers, requestContext);
         return;
       }
       if (url.pathname === "/infer-builder-fields") {
-        await handleInferBuilderFields(req, res, body, cors.headers);
+        await handleInferBuilderFields(req, res, body, cors.headers, requestContext);
         return;
       }
     } catch (error) {
-      console.error(`${url.pathname} error:`, error);
+      setRequestError(requestContext, "service_error", toErrorMessage(error), 500);
+      logEvent("error", "request_handler_exception", cleanLogFields({
+        request_id: requestContext.requestId,
+        endpoint: requestContext.endpoint,
+        method: requestContext.method,
+        transport: requestContext.transport,
+        error_code: requestContext.errorCode || "service_error",
+        error_message: requestContext.errorMessage,
+      }));
       json(
         res,
         500,
@@ -2468,6 +2797,7 @@ async function requestHandler(req, res) {
     }
   }
 
+  setRequestError(requestContext, inferErrorCodeFromStatus(404), "Not found.", 404);
   json(res, 404, { detail: "Not found." });
 }
 
@@ -2482,8 +2812,18 @@ const enhanceWebSocketServer = new WebSocketServer({
   },
 });
 
+const websocketRequestContextByRequest = new WeakMap();
+
 enhanceWebSocketServer.on("connection", (ws, req) => {
-  void handleEnhanceWebSocketConnection(ws, req);
+  const requestContext = websocketRequestContextByRequest.get(req)
+    || createRequestContext(
+      `req_${randomUUID().replaceAll("-", "")}`,
+      ENHANCE_WS_PATH,
+      "GET",
+      "ws",
+    );
+  websocketRequestContextByRequest.delete(req);
+  void handleEnhanceWebSocketConnection(ws, req, requestContext);
 });
 
 const server = createServer((req, res) => {
@@ -2492,13 +2832,29 @@ const server = createServer((req, res) => {
 
 server.on("upgrade", (req, socket, head) => {
   const url = new URL(req.url || "/", "http://localhost");
+  const rawRequestId = (headerValue(req, "x-request-id") || "").trim();
+  const requestId = rawRequestId || `req_${randomUUID().replaceAll("-", "")}`;
+  const requestContext = createRequestContext(
+    requestId,
+    url.pathname || ENHANCE_WS_PATH,
+    typeof req.method === "string" ? req.method : "GET",
+    "ws",
+  );
+  logEvent("info", "request_start", {
+    request_id: requestContext.requestId,
+    endpoint: requestContext.endpoint,
+    method: requestContext.method,
+    transport: requestContext.transport,
+  });
   if (url.pathname !== ENHANCE_WS_PATH) {
     socket.destroy();
+    setRequestError(requestContext, "not_found", "Not found.", 404);
+    completeRequestContext(requestContext, 404);
     return;
   }
 
   if (req.method !== "GET") {
-    rejectWebSocketUpgrade(socket, 405, { error: "Method not allowed." });
+    rejectWebSocketUpgrade(socket, 405, { error: "Method not allowed." }, requestContext);
     return;
   }
 
@@ -2506,23 +2862,33 @@ server.on("upgrade", (req, socket, head) => {
   if (!offeredProtocols.includes(ENHANCE_WS_PROTOCOL)) {
     rejectWebSocketUpgrade(socket, 400, {
       error: `Missing websocket protocol ${ENHANCE_WS_PROTOCOL}.`,
-    });
+    }, requestContext);
     return;
   }
 
   const cors = resolveCors(req);
   if (!cors.ok) {
-    rejectWebSocketUpgrade(socket, cors.status || 403, { error: cors.error || "Origin is not allowed." });
+    rejectWebSocketUpgrade(
+      socket,
+      cors.status || 403,
+      { error: cors.error || "Origin is not allowed." },
+      requestContext,
+    );
     return;
   }
 
   enhanceWebSocketServer.handleUpgrade(req, socket, head, (ws) => {
+    websocketRequestContextByRequest.set(req, requestContext);
     enhanceWebSocketServer.emit("connection", ws, req);
   });
 });
 
 server.listen(SERVICE_CONFIG.port, SERVICE_CONFIG.host, () => {
-  console.log(
-    `Codex SDK service listening on http://${SERVICE_CONFIG.host}:${SERVICE_CONFIG.port}`,
-  );
+  logEvent("info", "service_start", {
+    host: SERVICE_CONFIG.host,
+    port: SERVICE_CONFIG.port,
+    provider: "codex-sdk",
+    model: DEFAULT_THREAD_OPTIONS.model || null,
+    sandbox_mode: DEFAULT_THREAD_OPTIONS.sandboxMode || null,
+  });
 });
