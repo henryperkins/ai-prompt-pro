@@ -59,6 +59,10 @@ interface BaselineMetric {
   lastActionableBottom: number | null;
   bottomNavTop: number | null;
   controlsUnder44px: Array<{ testId: string; width: number; height: number }>;
+  commentsSheetOffscreenPx: number;
+  commentsComposerHeight: number | null;
+  commentsComposerOverlapPx: number;
+  commentsComposerOutsideViewportPx: number;
 }
 
 const PUBLIC_CONFIG_FIXTURE = {
@@ -337,6 +341,7 @@ test("captures mobile community baseline metrics at key widths", async ({ page }
         await expect(page.getByRole("heading", { name: "Community prompts" })).toBeVisible();
         await expect(page.getByRole("button", { name: /Filter/i })).toBeVisible();
         await expect(page.getByRole("link", { name: "Open Backend migration helper" })).toBeVisible();
+        await expect(page.getByTestId("community-comment-toggle").first()).toBeVisible();
       } else {
         await expect(page.getByRole("heading", { name: "Backend migration helper" })).toBeVisible();
         await expect(page.getByTestId("community-comments-thread-trigger")).toBeVisible();
@@ -346,7 +351,7 @@ test("captures mobile community baseline metrics at key widths", async ({ page }
         window.scrollTo(0, document.documentElement.scrollHeight);
       });
 
-      const metrics = await page.evaluate(() => {
+      const pageMetrics = await page.evaluate(() => {
         const controls = Array.from(
           document.querySelectorAll<HTMLElement>(
             "[data-testid='community-filter-trigger'], [data-testid='community-sort-button'], [data-testid='community-remix-cta'], [data-testid='community-vote-upvote'], [data-testid='community-vote-verified'], [data-testid='community-comment-toggle'], [data-testid='community-comments-thread-trigger']",
@@ -405,24 +410,85 @@ test("captures mobile community baseline metrics at key widths", async ({ page }
         };
       });
 
+      const routeId = route.replace(/[^a-z0-9-]/gi, "_");
+      await page.screenshot({
+        path: testInfo.outputPath(`community-mobile-${routeId}-${width}.png`),
+        fullPage: true,
+      });
+
+      if (route === "/community") {
+        await page.getByTestId("community-comment-toggle").first().click();
+      } else {
+        await page.getByTestId("community-comments-thread-trigger").click();
+      }
+
+      await expect(page.getByTestId("community-comments-sheet")).toBeVisible();
+      await expect(page.getByText("Use transactions for reliability.")).toBeVisible();
+
+      const drawerMetrics = await page.evaluate(() => {
+        const commentsSheets = Array.from(
+          document.querySelectorAll<HTMLElement>("[data-testid='community-comments-sheet']"),
+        );
+        const commentsSheet = commentsSheets.find((sheet) => {
+          const rect = sheet.getBoundingClientRect();
+          const style = window.getComputedStyle(sheet);
+          return (
+            rect.width > 0 &&
+            rect.height > 0 &&
+            rect.bottom > 0 &&
+            rect.top < window.innerHeight &&
+            style.display !== "none" &&
+            style.visibility !== "hidden" &&
+            style.pointerEvents !== "none"
+          );
+        }) || null;
+        const composer = commentsSheet?.querySelector<HTMLTextAreaElement>("textarea") || null;
+        const postButton = commentsSheet
+          ? Array.from(commentsSheet.querySelectorAll<HTMLButtonElement>("button")).find((button) =>
+              (button.textContent || "").toLowerCase().includes("post comment"),
+            ) || null
+          : null;
+
+        const sheetRect = commentsSheet?.getBoundingClientRect() || null;
+        const composerRect = composer?.getBoundingClientRect() || null;
+        const postButtonRect = postButton?.getBoundingClientRect() || null;
+        const composerBottom = postButtonRect?.bottom ?? composerRect?.bottom ?? null;
+
+        const commentsSheetOffscreenPx = sheetRect ? Math.max(0, Math.round(sheetRect.bottom - window.innerHeight)) : 0;
+        const commentsComposerOverlapPx =
+          sheetRect && composerBottom !== null ? Math.max(0, Math.round(composerBottom - sheetRect.bottom)) : 0;
+        const commentsComposerOutsideViewportPx =
+          composerBottom !== null ? Math.max(0, Math.round(composerBottom - window.innerHeight)) : 0;
+
+        return {
+          commentsSheetOffscreenPx,
+          commentsComposerHeight: composerRect ? Math.round(composerRect.height) : null,
+          commentsComposerOverlapPx,
+          commentsComposerOutsideViewportPx,
+        };
+      });
+
       baseline.push({
         route,
         width,
         viewportHeight: VIEWPORT_HEIGHT,
-        documentScrollWidth: metrics.documentScrollWidth,
-        hasHorizontalOverflow: metrics.hasHorizontalOverflow,
-        navHeight: metrics.navHeight,
-        pageShellPaddingBottom: metrics.pageShellPaddingBottom,
-        bottomNavSafeAreaPadding: metrics.bottomNavSafeAreaPadding,
-        bottomNavOverlapPx: metrics.bottomNavOverlapPx,
-        lastActionableBottom: metrics.lastActionableBottom,
-        bottomNavTop: metrics.bottomNavTop,
-        controlsUnder44px: metrics.controlsUnder44px,
+        documentScrollWidth: pageMetrics.documentScrollWidth,
+        hasHorizontalOverflow: pageMetrics.hasHorizontalOverflow,
+        navHeight: pageMetrics.navHeight,
+        pageShellPaddingBottom: pageMetrics.pageShellPaddingBottom,
+        bottomNavSafeAreaPadding: pageMetrics.bottomNavSafeAreaPadding,
+        bottomNavOverlapPx: pageMetrics.bottomNavOverlapPx,
+        lastActionableBottom: pageMetrics.lastActionableBottom,
+        bottomNavTop: pageMetrics.bottomNavTop,
+        controlsUnder44px: pageMetrics.controlsUnder44px,
+        commentsSheetOffscreenPx: drawerMetrics.commentsSheetOffscreenPx,
+        commentsComposerHeight: drawerMetrics.commentsComposerHeight,
+        commentsComposerOverlapPx: drawerMetrics.commentsComposerOverlapPx,
+        commentsComposerOutsideViewportPx: drawerMetrics.commentsComposerOutsideViewportPx,
       });
 
-      const routeId = route.replace(/[^a-z0-9-]/gi, "_");
       await page.screenshot({
-        path: testInfo.outputPath(`community-mobile-${routeId}-${width}.png`),
+        path: testInfo.outputPath(`community-mobile-${routeId}-comments-${width}.png`),
         fullPage: true,
       });
     }
@@ -454,6 +520,18 @@ test("captures mobile community baseline metrics at key widths", async ({ page }
       metric.bottomNavOverlapPx,
       `${metric.route} width ${metric.width} has content clipped under bottom nav`,
     ).toBe(0);
+    expect(
+      metric.commentsComposerOverlapPx,
+      `${metric.route} width ${metric.width} has comment composer clipped by comments sheet`,
+    ).toBe(0);
+    expect(
+      metric.commentsComposerHeight,
+      `${metric.route} width ${metric.width} should render visible comment composer`,
+    ).not.toBeNull();
+    expect(
+      metric.commentsComposerHeight ?? 0,
+      `${metric.route} width ${metric.width} comment composer should preserve mobile-friendly height`,
+    ).toBeGreaterThanOrEqual(72);
   }
 });
 
@@ -471,6 +549,12 @@ test("runs mobile smoke flow for feed, filter, post open, and comments", async (
   await page.getByRole("button", { name: /^Backend/ }).click();
   await expect(page.getByTestId("community-filter-sheet")).toBeHidden();
   await expect(filterTrigger).toContainText("Backend");
+
+  await page.getByTestId("community-comment-toggle").first().click();
+  await expect(page.getByTestId("community-comments-sheet")).toBeVisible();
+  await expect(page.getByText("Use transactions for reliability.")).toBeVisible();
+  await page.mouse.click(12, 12);
+  await expect(page.getByTestId("community-comments-sheet")).toBeHidden();
 
   await page.getByRole("link", { name: "Open Backend migration helper" }).click();
   await expect(page).toHaveURL(/\/community\/11111111-1111-1111-1111-111111111111$/);
