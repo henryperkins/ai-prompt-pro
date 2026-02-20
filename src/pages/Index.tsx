@@ -35,6 +35,7 @@ import { consumeRestoredVersionPrompt } from "@/lib/history-restore";
 import { builderRedesignFlags } from "@/lib/feature-flags";
 import { trackBuilderEvent } from "@/lib/telemetry";
 import { templates } from "@/lib/templates";
+import { getUserPreferences, setUserPreference } from "@/lib/user-preferences";
 import {
   Accordion,
   AccordionContent,
@@ -44,6 +45,7 @@ import {
 import {
   Drawer,
   DrawerContent,
+  DrawerDescription,
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
@@ -515,7 +517,7 @@ const Index = () => {
   const [openSections, setOpenSections] = useState<BuilderSection[]>(["builder"]);
   const [isAdjustDetailsOpen, setIsAdjustDetailsOpen] = useState(false);
   const [isSourcesAdvancedOpen, setIsSourcesAdvancedOpen] = useState(false);
-  const [showAdvancedControls, setShowAdvancedControls] = useState(false);
+  const [showAdvancedControls, setShowAdvancedControls] = useState(() => getUserPreferences().showAdvancedControls);
   const [enhancePhase, setEnhancePhase] = useState<EnhancePhase>("idle");
   const enhancePhaseTimers = useRef<number[]>([]);
   const hasTrackedBuilderLoaded = useRef(false);
@@ -528,7 +530,7 @@ const Index = () => {
   const [suggestionChips, setSuggestionChips] = useState<BuilderSuggestionChip[]>([]);
   const [isInferringSuggestions, setIsInferringSuggestions] = useState(false);
   const [hasInferenceError, setHasInferenceError] = useState(false);
-  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  const [webSearchEnabled, setWebSearchEnabled] = useState(() => getUserPreferences().webSearchEnabled);
   const [webSearchSources, setWebSearchSources] = useState<string[]>([]);
   const [reasoningSummary, setReasoningSummary] = useState("");
   const [fieldOwnership, setFieldOwnership] = useState<BuilderFieldOwnershipMap>(() =>
@@ -536,6 +538,22 @@ const Index = () => {
   );
   const { toast } = useToast();
   const isMobile = useIsMobile();
+
+  const persistedSetWebSearchEnabled = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
+    setWebSearchEnabled((prev) => {
+      const next = typeof value === "function" ? value(prev) : value;
+      setUserPreference("webSearchEnabled", next);
+      return next;
+    });
+  }, []);
+
+  const persistedSetShowAdvancedControls = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
+    setShowAdvancedControls((prev) => {
+      const next = typeof value === "function" ? value(prev) : value;
+      setUserPreference("showAdvancedControls", next);
+      return next;
+    });
+  }, []);
 
   const {
     config,
@@ -1157,7 +1175,7 @@ const Index = () => {
     if (!isBuilderRedesignPhase1) return;
 
     if (hasEnhancedOnce || hasDetailSelections || hasSourceOrAdvancedSelections) {
-      setShowAdvancedControls(true);
+      persistedSetShowAdvancedControls(true);
     }
     if (hasDetailSelections || hasEnhancedOnce) {
       setIsAdjustDetailsOpen(true);
@@ -1170,6 +1188,7 @@ const Index = () => {
     hasEnhancedOnce,
     hasDetailSelections,
     hasSourceOrAdvancedSelections,
+    persistedSetShowAdvancedControls,
   ]);
 
   useEffect(() => {
@@ -1271,7 +1290,7 @@ const Index = () => {
   const openAndFocusSection = useCallback((section: BuilderSection) => {
     if (isBuilderRedesignPhase1) {
       const targetId = section === "context" ? "builder-zone-3" : "builder-zone-2";
-      setShowAdvancedControls(true);
+      persistedSetShowAdvancedControls(true);
       if (section === "context") {
         setIsSourcesAdvancedOpen(true);
       } else {
@@ -1294,7 +1313,7 @@ const Index = () => {
         block: "center",
       });
     });
-  }, [isBuilderRedesignPhase1]);
+  }, [isBuilderRedesignPhase1, persistedSetShowAdvancedControls]);
 
   return (
     <PageShell mainClassName="py-3 sm:py-6">
@@ -1406,7 +1425,7 @@ const Index = () => {
                         size="sm"
                         variant="outline"
                         className="h-11 text-sm sm:h-9 sm:text-base"
-                        onClick={() => setShowAdvancedControls(true)}
+                        onClick={() => persistedSetShowAdvancedControls(true)}
                       >
                         Show advanced controls
                       </Button>
@@ -1619,7 +1638,7 @@ const Index = () => {
                 canSharePrompt={canSharePrompt}
                 phase2Enabled={isBuilderRedesignPhase2}
                 webSearchEnabled={webSearchEnabled}
-                onWebSearchToggle={setWebSearchEnabled}
+                onWebSearchToggle={persistedSetWebSearchEnabled}
                 webSearchSources={webSearchSources}
                 remixContext={
                   remixContext
@@ -1663,7 +1682,7 @@ const Index = () => {
             >
               <Switch
                 checked={webSearchEnabled}
-                onCheckedChange={setWebSearchEnabled}
+                onCheckedChange={persistedSetWebSearchEnabled}
                 disabled={isEnhancing}
                 aria-label="Enable web search during enhancement"
               />
@@ -1709,6 +1728,9 @@ const Index = () => {
               <DrawerTitle>
                 {enhancedPrompt ? "✨ Enhanced Prompt" : "📝 Preview"}
               </DrawerTitle>
+              <DrawerDescription className="sr-only">
+                Review, copy, and save your current prompt output.
+              </DrawerDescription>
             </DrawerHeader>
             <div className="px-4 pb-6 overflow-auto flex-1">
               <OutputPanel

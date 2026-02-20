@@ -26,11 +26,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import { PROMPT_CATEGORY_OPTIONS } from "@/lib/prompt-categories";
 import { copyTextToClipboard } from "@/lib/clipboard";
@@ -149,8 +152,35 @@ export function OutputPanel({
   const [saveSubmitAttempted, setSaveSubmitAttempted] = useState(false);
 
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const displayPrompt = enhancedPrompt || builtPrompt;
   const trimmedReasoningSummary = reasoningSummary.trim();
+
+  const developerToolItems = (
+    <>
+      <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodex("exec")}>
+        Copy Codex exec command
+      </DropdownMenuItem>
+      <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodex("tui")}>
+        Copy Codex TUI command
+      </DropdownMenuItem>
+      <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodex("appServer")}>
+        Copy app server command
+      </DropdownMenuItem>
+      <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodexSkillScaffold()}>
+        Copy skill scaffold
+      </DropdownMenuItem>
+      <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleDownloadSkill()}>
+        Download SKILL.md
+      </DropdownMenuItem>
+      <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleDownloadAgents("agents")}>
+        Download AGENTS.md
+      </DropdownMenuItem>
+      <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleDownloadAgents("override")}>
+        Download AGENTS.override.md
+      </DropdownMenuItem>
+    </>
+  );
 
   useEffect(() => {
     if (shareEnabled && !canSharePrompt) {
@@ -535,32 +565,20 @@ export function OutputPanel({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger>Developer tools</DropdownMenuSubTrigger>
-                <DropdownMenuSubContent>
-                  <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodex("exec")}>
-                    Copy Codex exec command
-                  </DropdownMenuItem>
-                  <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodex("tui")}>
-                    Copy Codex TUI command
-                  </DropdownMenuItem>
-                  <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodex("appServer")}>
-                    Copy app server command
-                  </DropdownMenuItem>
-                  <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodexSkillScaffold()}>
-                    Copy skill scaffold
-                  </DropdownMenuItem>
-                  <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleDownloadSkill()}>
-                    Download SKILL.md
-                  </DropdownMenuItem>
-                  <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleDownloadAgents("agents")}>
-                    Download AGENTS.md
-                  </DropdownMenuItem>
-                  <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleDownloadAgents("override")}>
-                    Download AGENTS.override.md
-                  </DropdownMenuItem>
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
+              {isMobile ? (
+                <>
+                  <DropdownMenuLabel>Developer tools</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {developerToolItems}
+                </>
+              ) : (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>Developer tools</DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    {developerToolItems}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

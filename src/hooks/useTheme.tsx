@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { getUserPreferences, setUserPreference } from "@/lib/user-preferences";
 
 interface ThemeContextValue {
   isDark: boolean;
@@ -8,13 +9,11 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [isDark, setIsDark] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return document.documentElement.classList.contains("dark");
-  });
+  const [isDark, setIsDark] = useState(() => getUserPreferences().theme === "dark");
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", isDark);
+    setUserPreference("theme", isDark ? "dark" : "light");
   }, [isDark]);
 
   const toggleTheme = useCallback(() => {

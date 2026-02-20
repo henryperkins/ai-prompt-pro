@@ -2,7 +2,17 @@ import { writeFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 
 const MOBILE_WIDTHS = [360, 390, 428] as const;
+const DEVTOOLS_MOBILE_WIDTHS = [320, 375, 390, 428] as const;
 const VIEWPORT_HEIGHT = 900;
+const DEVELOPER_TOOL_MENU_ITEMS = [
+  "Copy Codex exec command",
+  "Copy Codex TUI command",
+  "Copy app server command",
+  "Copy skill scaffold",
+  "Download SKILL.md",
+  "Download AGENTS.md",
+  "Download AGENTS.override.md",
+] as const;
 
 interface BuilderMobileMetric {
   width: number;
@@ -102,5 +112,37 @@ test("captures Builder mobile sticky-bar ergonomics at 360-430px widths", async 
       metric.stickyControlsGapPx,
       `width ${metric.width} needs more spacing between sticky toggle and enhance action`,
     ).toBeGreaterThanOrEqual(4);
+  }
+});
+
+test("keeps Builder developer tools menu fully within mobile viewport", async ({ page }) => {
+  for (const width of DEVTOOLS_MOBILE_WIDTHS) {
+    await page.setViewportSize({ width, height: VIEWPORT_HEIGHT });
+    await page.goto("/");
+
+    await page.getByRole("textbox", { name: "Your Prompt" }).fill("Plan a weekly engineering sync agenda");
+    await page.getByTestId("builder-mobile-preview-trigger").click();
+
+    const previewDialog = page.getByRole("dialog", { name: /Preview/i });
+    await expect(previewDialog).toBeVisible();
+
+    await previewDialog.getByRole("button", { name: "More" }).click();
+    await expect(page.getByText("Developer tools")).toBeVisible();
+
+    for (const itemLabel of DEVELOPER_TOOL_MENU_ITEMS) {
+      const item = page.getByRole("menuitem", { name: itemLabel });
+      await expect(item, `width ${width}: "${itemLabel}" should be visible`).toBeVisible();
+
+      const box = await item.boundingBox();
+      expect(box, `width ${width}: "${itemLabel}" should have a bounding box`).not.toBeNull();
+      expect(box!.x, `width ${width}: "${itemLabel}" should not overflow left`).toBeGreaterThanOrEqual(0);
+      expect(
+        box!.x + box!.width,
+        `width ${width}: "${itemLabel}" should not overflow right`,
+      ).toBeLessThanOrEqual(width);
+    }
+
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Escape");
   }
 });
