@@ -34,6 +34,7 @@ import {
   type SaveTemplateResult,
   type TemplateSaveInput,
 } from "@/lib/template-store";
+import { assertCommunityTextAllowed } from "@/lib/content-moderation";
 
 const DRAFT_KEY = "promptforge-draft";
 const SAVED_PROMPT_FULL_SELECT_COLUMNS =
@@ -594,6 +595,13 @@ export async function sharePrompt(
     const effectiveUseCase = (normalizedUseCaseInput ?? existing.use_case ?? "").trim();
     if (!effectiveUseCase) {
       throw new PersistenceError("unknown", "Use case is required before sharing.");
+    }
+    assertCommunityTextAllowed(effectiveUseCase, "Use case violates community safety rules.");
+    if (input.title !== undefined) {
+      assertCommunityTextAllowed(input.title, "Title violates community safety rules.");
+    }
+    if (input.description !== undefined) {
+      assertCommunityTextAllowed(input.description, "Description violates community safety rules.");
     }
 
     const updatePayload: Record<string, unknown> = {

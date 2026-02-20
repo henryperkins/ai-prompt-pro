@@ -21,6 +21,12 @@ interface CommunityFeedProps {
   onCommentAdded: (postId: string) => void;
   onCommentThreadOpen?: (postId: string) => void;
   canVote: boolean;
+  currentUserId?: string | null;
+  blockedUserIds?: string[];
+  onReportPost?: (post: CommunityPost) => void;
+  onReportComment?: (commentId: string, userId: string, postId: string) => void;
+  onBlockUser?: (userId: string) => void;
+  onUnblockUser?: (userId: string) => void;
   hasMore?: boolean;
   isLoadingMore?: boolean;
   onLoadMore?: () => void;
@@ -61,6 +67,12 @@ export function CommunityFeed({
   onCommentAdded,
   onCommentThreadOpen,
   canVote,
+  currentUserId,
+  blockedUserIds = [],
+  onReportPost,
+  onReportComment,
+  onBlockUser,
+  onUnblockUser,
   hasMore = false,
   isLoadingMore = false,
   onLoadMore,
@@ -89,6 +101,14 @@ export function CommunityFeed({
             onCommentAdded={onCommentAdded}
             onCommentThreadOpen={onCommentThreadOpen}
             canVote={canVote}
+            canModerate={Boolean(currentUserId)}
+            canBlockAuthor={currentUserId !== post.authorId}
+            isAuthorBlocked={blockedUserIds.includes(post.authorId)}
+            blockedUserIds={blockedUserIds}
+            onReportPost={onReportPost}
+            onReportComment={onReportComment}
+            onBlockUser={onBlockUser}
+            onUnblockUser={onUnblockUser}
           />
         );
       }),
@@ -102,6 +122,12 @@ export function CommunityFeed({
       onCommentAdded,
       onCommentThreadOpen,
       canVote,
+      currentUserId,
+      blockedUserIds,
+      onReportPost,
+      onReportComment,
+      onBlockUser,
+      onUnblockUser,
       isMobile,
     ],
   );

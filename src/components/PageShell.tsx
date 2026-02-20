@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { BottomNav } from "@/components/BottomNav";
 import { Header } from "@/components/Header";
 import { useTheme } from "@/hooks/useTheme";
@@ -24,6 +25,13 @@ export function PageShell({ children, mainClassName }: PageShellProps) {
       >
         {children}
       </main>
+      <footer className="border-t border-border/70 bg-card/55">
+        <div className="container mx-auto flex items-center justify-center gap-4 px-4 py-2 text-xs text-muted-foreground">
+          <Link to="/privacy" className="hover:text-foreground">Privacy</Link>
+          <Link to="/terms" className="hover:text-foreground">Terms</Link>
+          <Link to="/contact" className="hover:text-foreground">Contact</Link>
+        </div>
+      </footer>
       <BottomNav />
     </div>
   );

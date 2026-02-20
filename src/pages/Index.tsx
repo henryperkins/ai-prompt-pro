@@ -1420,7 +1420,7 @@ const Index = () => {
           </p>
           <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
             {brandCopy.pillars.map((pillar) => (
-              <Badge key={pillar.title} variant="outline" className="text-[11px] sm:text-xs">
+              <Badge key={pillar.title} variant="outline" className="text-2xs sm:text-xs">
                 {pillar.title}
               </Badge>
             ))}
@@ -1610,8 +1610,8 @@ const Index = () => {
                       </span>
                       <span className="ml-auto mr-2 flex items-center gap-1.5">
                         {selectedRole && (
-                          <Badge variant="secondary" className="max-w-[120px] truncate text-xs">
-                            {selectedRole}
+                          <Badge variant="secondary" className="max-w-[180px] text-xs">
+                            <span className="type-wrap-safe">{selectedRole}</span>
                           </Badge>
                         )}
                         <SectionHealthBadge state={sectionHealth.builder} />

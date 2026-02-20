@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { CommunityFeed } from "@/components/community/CommunityFeed";
+import { CommunityReportDialog } from "@/components/community/CommunityReportDialog";
 import { PageHero, PageShell } from "@/components/PageShell";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
@@ -27,6 +28,12 @@ import { communityFeatureFlags } from "@/lib/feature-flags";
 import { toCommunityErrorState, type CommunityErrorState } from "@/lib/community-errors";
 import { PROMPT_CATEGORY_OPTIONS } from "@/lib/prompt-categories";
 import { copyTextToClipboard } from "@/lib/clipboard";
+import {
+  blockCommunityUser,
+  loadBlockedUserIds,
+  submitCommunityReport,
+  unblockCommunityUser,
+} from "@/lib/community-moderation";
 import { cn } from "@/lib/utils";
 
 const SORT_OPTIONS: Array<{ label: string; value: CommunitySort }> = [
@@ -41,6 +48,13 @@ const CATEGORY_OPTIONS = [
   ...PROMPT_CATEGORY_OPTIONS,
 ];
 const FEED_PAGE_SIZE = 20;
+
+interface CommunityReportTarget {
+  targetType: "post" | "comment";
+  postId: string;
+  commentId?: string;
+  reportedUserId: string | null;
+}
 
 function toProfileMap(profiles: CommunityProfile[]): Record<string, CommunityProfile> {
   return profiles.reduce<Record<string, CommunityProfile>>((map, profile) => {
@@ -73,6 +87,9 @@ const Community = () => {
   const [page, setPage] = useState(0);
   const [errorState, setErrorState] = useState<CommunityErrorState | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
+  const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
+  const [reportTarget, setReportTarget] = useState<CommunityReportTarget | null>(null);
+  const [reportSubmitting, setReportSubmitting] = useState(false);
   const requestToken = useRef(0);
   const voteInFlightByPost = useRef<Set<string>>(new Set());
   const { toast } = useToast();
@@ -94,6 +111,30 @@ const Community = () => {
     }, 250);
     return () => window.clearTimeout(timer);
   }, [queryInput]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setBlockedUserIds([]);
+      return;
+    }
+
+    let cancelled = false;
+    void loadBlockedUserIds()
+      .then((ids) => {
+        if (!cancelled) {
+          setBlockedUserIds(ids);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.error("Failed to load blocked users:", error);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   const hydrateFeedContext = useCallback(
     async (
@@ -303,6 +344,113 @@ const Community = () => {
     trackInteraction("comment", "thread_opened", { postId });
   }, [trackFirstMeaningfulAction, trackInteraction]);
 
+  const visiblePosts = useMemo(
+    () => posts.filter((post) => !blockedUserIds.includes(post.authorId)),
+    [blockedUserIds, posts],
+  );
+
+  const handleBlockUser = useCallback(async (targetUserId: string) => {
+    if (!user) {
+      toast({ title: "Sign in required", description: "Sign in to block users." });
+      return;
+    }
+    if (!targetUserId || targetUserId === user.id) {
+      return;
+    }
+
+    try {
+      await blockCommunityUser(targetUserId);
+      setBlockedUserIds((previous) => (
+        previous.includes(targetUserId) ? previous : [...previous, targetUserId]
+      ));
+      toast({
+        title: "User blocked",
+        description: "Posts and comments from this user are now hidden.",
+      });
+    } catch (error) {
+      toast({
+        title: "Unable to block user",
+        description: error instanceof Error ? error.message : "Unexpected error",
+        variant: "destructive",
+      });
+    }
+  }, [toast, user]);
+
+  const handleUnblockUser = useCallback(async (targetUserId: string) => {
+    if (!user) {
+      toast({ title: "Sign in required", description: "Sign in to manage blocked users." });
+      return;
+    }
+
+    try {
+      await unblockCommunityUser(targetUserId);
+      setBlockedUserIds((previous) => previous.filter((id) => id !== targetUserId));
+      toast({ title: "User unblocked" });
+    } catch (error) {
+      toast({
+        title: "Unable to unblock user",
+        description: error instanceof Error ? error.message : "Unexpected error",
+        variant: "destructive",
+      });
+    }
+  }, [toast, user]);
+
+  const handleReportPost = useCallback((post: CommunityPost) => {
+    if (!user) {
+      toast({ title: "Sign in required", description: "Sign in to submit reports." });
+      return;
+    }
+
+    setReportTarget({
+      targetType: "post",
+      postId: post.id,
+      reportedUserId: post.authorId,
+    });
+  }, [toast, user]);
+
+  const handleReportComment = useCallback((commentId: string, userId: string, postId: string) => {
+    if (!user) {
+      toast({ title: "Sign in required", description: "Sign in to submit reports." });
+      return;
+    }
+
+    setReportTarget({
+      targetType: "comment",
+      postId,
+      commentId,
+      reportedUserId: userId,
+    });
+  }, [toast, user]);
+
+  const handleSubmitReport = useCallback(async ({ reason, details }: { reason: string; details: string }) => {
+    if (!reportTarget) return;
+
+    setReportSubmitting(true);
+    try {
+      await submitCommunityReport({
+        targetType: reportTarget.targetType,
+        postId: reportTarget.postId,
+        commentId: reportTarget.commentId ?? null,
+        reportedUserId: reportTarget.reportedUserId,
+        reason,
+        details,
+      });
+      setReportTarget(null);
+      toast({
+        title: "Thanks for the report",
+        description: "We review reports and take action when needed.",
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to submit report",
+        description: error instanceof Error ? error.message : "Unexpected error",
+        variant: "destructive",
+      });
+    } finally {
+      setReportSubmitting(false);
+    }
+  }, [reportTarget, toast]);
+
   const handleRetry = useCallback(() => {
     setRetryNonce((prev) => prev + 1);
   }, []);
@@ -361,7 +509,9 @@ const Community = () => {
                 data-testid="community-filter-trigger"
               >
                 <span>Filter</span>
-                <span className="type-meta truncate text-muted-foreground">{selectedCategoryLabel}</span>
+                <span className="type-meta type-wrap-safe max-w-[65%] text-right text-muted-foreground">
+                  {selectedCategoryLabel}
+                </span>
               </Button>
             )}
           </div>
@@ -482,7 +632,7 @@ const Community = () => {
         )}
 
         <CommunityFeed
-          posts={posts}
+          posts={visiblePosts}
           loading={loading}
           errorMessage={errorState?.message}
           errorType={errorState?.kind}
@@ -494,10 +644,28 @@ const Community = () => {
           onCommentAdded={handleCommentAdded}
           onCommentThreadOpen={handleCommentThreadOpen}
           canVote={Boolean(user)}
+          currentUserId={user?.id ?? null}
+          blockedUserIds={blockedUserIds}
+          onReportPost={handleReportPost}
+          onReportComment={handleReportComment}
+          onBlockUser={handleBlockUser}
+          onUnblockUser={handleUnblockUser}
           hasMore={hasMore}
           isLoadingMore={isLoadingMore}
           onLoadMore={handleLoadMore}
           onRetry={handleRetry}
+        />
+
+        <CommunityReportDialog
+          open={reportTarget !== null}
+          targetLabel={reportTarget?.targetType ?? "content"}
+          submitting={reportSubmitting}
+          onOpenChange={(open) => {
+            if (!open && !reportSubmitting) {
+              setReportTarget(null);
+            }
+          }}
+          onSubmit={handleSubmitReport}
         />
       </div>
     </PageShell>

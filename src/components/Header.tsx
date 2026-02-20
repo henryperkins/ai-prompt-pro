@@ -1,8 +1,18 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Bell, Loader2, LogIn, LogOut, Menu, Moon, Sun, Zap } from "lucide-react";
+import { Bell, Loader2, LogIn, LogOut, Menu, Moon, Shield, Sun, Trash2, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,7 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useToast } from "@/hooks/use-toast";
@@ -35,7 +45,7 @@ interface HeaderProps {
 }
 
 export function Header({ isDark, onToggleTheme }: HeaderProps) {
-  const { user, signOut, updateDisplayName } = useAuth();
+  const { user, signOut, updateDisplayName, deleteAccount } = useAuth();
   const { toast } = useToast();
   const {
     notifications,
@@ -46,6 +56,7 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
     markAllAsRead: markAllNotificationsAsRead,
   } = useNotifications();
   const location = useLocation();
+  const navigate = useNavigate();
   const [authOpen, setAuthOpen] = useState(false);
   const [desktopNotificationsOpen, setDesktopNotificationsOpen] = useState(false);
   const [mobileNotificationsOpen, setMobileNotificationsOpen] = useState(false);
@@ -54,7 +65,11 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
   const [displayNameDraft, setDisplayNameDraft] = useState("");
   const [displayNameError, setDisplayNameError] = useState("");
   const [savingDisplayName, setSavingDisplayName] = useState(false);
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
+  const [deleteAccountConfirmText, setDeleteAccountConfirmText] = useState("");
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const mobileNotificationsEnabled = communityFeatureFlags.communityMobileEnhancements;
+  const canDeleteAccount = deleteAccountConfirmText.trim().toUpperCase() === "DELETE";
 
   const unreadCountLabel = unreadCount > 99 ? "99+" : String(unreadCount);
 
@@ -140,6 +155,25 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
     setDisplayNameOpen(false);
     setDisplayNameError("");
     toast({ title: "Display name updated" });
+  };
+
+  const openDeleteAccountDialog = () => {
+    setDeleteAccountConfirmText("");
+    setDeleteAccountOpen(true);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!canDeleteAccount || deletingAccount) return;
+    setDeletingAccount(true);
+    const result = await deleteAccount();
+    setDeletingAccount(false);
+    if (result.error) {
+      toast({ title: "Failed to delete account", description: result.error, variant: "destructive" });
+      return;
+    }
+    setDeleteAccountOpen(false);
+    setDeleteAccountConfirmText("");
+    toast({ title: "Account deleted" });
   };
 
   return (
@@ -239,6 +273,41 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
                     <DropdownMenuItem
                       onSelect={(event) => {
                         event.preventDefault();
+                        navigate("/privacy");
+                      }}
+                    >
+                      <Shield className="w-4 h-4 mr-2" />
+                      Privacy Policy
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        navigate("/terms");
+                      }}
+                    >
+                      Terms of Use
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        navigate("/contact");
+                      }}
+                    >
+                      Contact Support
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        openDeleteAccountDialog();
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete account
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={(event) => {
+                        event.preventDefault();
                         void signOut();
                       }}
                     >
@@ -257,6 +326,31 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
                     Sign in
                   </DropdownMenuItem>
                 )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    navigate("/privacy");
+                  }}
+                >
+                  Privacy Policy
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    navigate("/terms");
+                  }}
+                >
+                  Terms of Use
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    navigate("/contact");
+                  }}
+                >
+                  Contact Support
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             {APP_ROUTE_NAV_ITEMS.map(({ to, label, icon: Icon, ariaLabel }) => (
@@ -346,6 +440,23 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={openDisplayNameDialog}>
                     Edit display name
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/privacy")}>
+                    <Shield className="w-4 h-4 mr-2" />
+                    Privacy Policy
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/terms")}>
+                    Terms of Use
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/contact")}>
+                    Contact Support
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={openDeleteAccountDialog}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete account
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => signOut()}>
                     <LogOut className="w-4 h-4 mr-2" />
@@ -461,6 +572,52 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={deleteAccountOpen}
+        onOpenChange={(open) => {
+          if (!deletingAccount) {
+            setDeleteAccountOpen(open);
+            if (!open) {
+              setDeleteAccountConfirmText("");
+            }
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes your profile and saved content. Type DELETE to confirm.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="delete-account-confirm">Type DELETE</Label>
+            <Input
+              id="delete-account-confirm"
+              value={deleteAccountConfirmText}
+              onChange={(event) => setDeleteAccountConfirmText(event.target.value)}
+              placeholder="DELETE"
+              autoComplete="off"
+              disabled={deletingAccount}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingAccount}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={!canDeleteAccount || deletingAccount}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleDeleteAccount();
+              }}
+            >
+              {deletingAccount && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete account
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
