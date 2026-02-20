@@ -98,6 +98,23 @@ describe("OutputPanel phase 2 save flow", () => {
     expect(onSavePrompt).not.toHaveBeenCalled();
   });
 
+  it("uses base font size for save-and-share controls to prevent mobile focus zoom", async () => {
+    renderPanel();
+
+    openMenu("Save");
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Save Prompt" }));
+
+    expect(screen.getByLabelText("Prompt title")).toHaveClass("text-base");
+    expect(screen.getByLabelText("Description")).toHaveClass("text-base");
+    expect(screen.getByLabelText("Tags")).toHaveClass("text-base");
+    expect(screen.getByRole("combobox", { name: "Category" })).toHaveClass("text-base");
+
+    fireEvent.click(screen.getByRole("switch", { name: "Share to community" }));
+
+    expect(screen.getByLabelText("Use case")).toHaveClass("text-base");
+    expect(screen.getByLabelText("Target model")).toHaveClass("text-base");
+  });
+
   it("shows compare inline and groups dev tools in submenu", async () => {
     renderPanel({
       enhancedPrompt: "Improved launch plan",

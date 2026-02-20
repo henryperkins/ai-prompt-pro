@@ -53,4 +53,27 @@ describe("PromptLibrary delete confirmation", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
     expect(onDeleteSaved).toHaveBeenCalledWith("prompt-1");
   });
+
+  it("uses base font size for share dialog form controls to prevent mobile focus zoom", async () => {
+    render(
+      <PromptLibraryContent
+        savedPrompts={[savedPrompt]}
+        canShareSavedPrompts
+        onSelectTemplate={vi.fn()}
+        onSelectSaved={vi.fn()}
+        onDeleteSaved={vi.fn()}
+        onShareSaved={vi.fn()}
+        onUnshareSaved={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Share" }));
+
+    expect(await screen.findByPlaceholderText("Prompt title")).toHaveClass("text-base");
+    expect(screen.getByPlaceholderText("Description (optional)")).toHaveClass("text-base");
+    expect(screen.getByPlaceholderText("Tags (comma-separated, optional)")).toHaveClass("text-base");
+    expect(screen.getByPlaceholderText("Use case (required)")).toHaveClass("text-base");
+    expect(screen.getByPlaceholderText("Target model (optional)")).toHaveClass("text-base");
+    expect(screen.getByRole("combobox")).toHaveClass("text-base");
+  });
 });
