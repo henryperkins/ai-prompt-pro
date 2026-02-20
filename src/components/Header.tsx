@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Bell, Loader2, LogIn, LogOut, Menu, Moon, Shield, Sun, Trash2, Zap } from "lucide-react";
+import { Bell, Loader2, LogIn, LogOut, Menu, Moon, Shield, Sun, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -181,12 +181,24 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
     <>
       <header className="border-b border-border/80 bg-card/75 backdrop-blur-md sticky top-0 z-50">
         <div className="container mx-auto flex items-center justify-between h-12 sm:h-14 px-3 sm:px-4">
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <div className="interactive-chip flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-primary text-primary-foreground">
-              <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </div>
-            <span className="text-base sm:text-lg font-bold text-foreground tracking-tight">{brandCopy.appName}</span>
-          </div>
+          <Link
+            to="/"
+            className="flex items-center gap-1.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:gap-2"
+            aria-label={brandCopy.appName}
+          >
+            <span className="interactive-chip flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-lg border border-primary/25 bg-primary/10">
+              <img
+                src="/brand/pf-logo-symbol-primary-v2.png"
+                alt=""
+                decoding="async"
+                className="h-4 w-4 sm:h-5 sm:w-5"
+                aria-hidden="true"
+              />
+            </span>
+            <span className="text-base font-bold text-foreground tracking-tight sm:text-lg">
+              {brandCopy.appName}
+            </span>
+          </Link>
 
           <nav className="flex items-center gap-0.5 sm:gap-1">
             {user && mobileNotificationsEnabled && (

@@ -439,10 +439,38 @@ All colors MUST be HSL.
       radial-gradient(420px 180px at 90% -20%, hsl(var(--delight-cool) / 0.16), transparent 54%),
       linear-gradient(180deg, hsl(var(--delight-surface) / 0.55), hsl(var(--card) / 0.85));
     backdrop-filter: blur(8px);
+    position: relative;
+    overflow: hidden;
   }
 
   .delight-hero {
     animation: delight-hero-drift 18s ease-in-out 1;
+  }
+
+  @media (min-width: 768px) {
+    .delight-hero::before,
+    .delight-hero-static::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: url("/brand/pf-gradient-hero-light.png");
+      background-position: center;
+      background-size: cover;
+      opacity: 0.22;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .dark .delight-hero::before,
+    .dark .delight-hero-static::before {
+      background-image: url("/brand/pf-gradient-hero-dark.png");
+    }
+
+    .delight-hero > *,
+    .delight-hero-static > * {
+      position: relative;
+      z-index: 1;
+    }
   }
 
   .interactive-chip {
