@@ -332,19 +332,19 @@ export function CommunityPostDetail({
       {useMobileCommentsDrawer && (
         <Drawer open={commentsOpen} onOpenChange={setCommentsOpen}>
           <DrawerContent
-            className="max-h-[85vh] pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+            className="max-h-[86vh] gap-0 border-border/80 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
             aria-describedby={undefined}
             data-testid="community-comments-sheet"
           >
-            <DrawerHeader className="pb-1">
+            <DrawerHeader className="border-b border-border/60 px-4 pb-2 pt-2.5">
               <DrawerTitle className="type-post-title">Comments</DrawerTitle>
             </DrawerHeader>
-            <div className="px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <div className="px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-4">
               <CommunityComments
                 postId={post.id}
                 totalCount={post.commentCount}
                 onCommentAdded={onCommentAdded}
-                className="border-border/70 bg-transparent p-0"
+                className="space-y-2 border-0 bg-transparent p-0 shadow-none"
               />
             </div>
           </DrawerContent>

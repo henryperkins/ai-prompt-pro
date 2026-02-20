@@ -146,21 +146,21 @@ export function CommunityComments({
   const canComment = Boolean(user);
 
   return (
-    <Card className={cn("space-y-3 border-border/80 bg-card/85 p-3", className)}>
+    <Card className={cn("space-y-2.5 border-border/75 bg-card/90 p-2.5 sm:space-y-3 sm:p-3", className)}>
       <div className="flex items-center justify-between gap-2">
-        <div className="type-tab-label flex items-center gap-2 text-foreground">
+        <div className="type-tab-label flex items-center gap-1.5 text-foreground sm:gap-2">
           <MessageCircle className="h-3.5 w-3.5" />
           Comments
         </div>
-        <Badge variant="secondary" className="type-chip type-numeric">
+        <Badge variant="secondary" className="type-chip type-numeric h-5 min-w-5 px-1.5">
           {totalCount}
         </Badge>
       </div>
 
       {loading && (
         <div className="space-y-2">
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-11 w-full" />
+          <Skeleton className="h-11 w-full" />
         </div>
       )}
 
@@ -173,7 +173,7 @@ export function CommunityComments({
           {shouldVirtualize ? (
             <div
               ref={commentsScrollRef}
-              className="max-h-[52vh] overflow-y-auto pr-1"
+              className="max-h-[48vh] overflow-y-auto pr-1 sm:max-h-[52vh]"
               data-testid="community-comments-virtualized-list"
             >
               <div className="relative w-full" style={{ height: `${commentVirtualizer.getTotalSize()}px` }}>
@@ -185,21 +185,21 @@ export function CommunityComments({
                     <div
                       key={item.comment.id}
                       ref={commentVirtualizer.measureElement}
-                      className="absolute left-0 top-0 w-full pb-2"
+                      className="absolute left-0 top-0 w-full pb-1.5 sm:pb-2"
                       style={{ transform: `translateY(${virtualItem.start}px)` }}
                     >
-                      <div className="rounded-md border border-border/70 bg-background/60 p-2">
+                      <div className="rounded-lg border border-border/60 bg-background/70 px-2.5 py-2 sm:p-2.5">
                         <div className="flex items-start gap-2">
                           <Avatar className="h-7 w-7 border border-border/60">
                             <AvatarImage src={item.author?.avatarUrl ?? undefined} alt={item.displayName} />
                             <AvatarFallback className="type-reply-label">{getInitials(item.displayName)}</AvatarFallback>
                           </Avatar>
                           <div className="min-w-0 flex-1">
-                            <div className="type-meta flex flex-wrap items-center gap-2 text-muted-foreground">
+                            <div className="type-meta flex flex-wrap items-center gap-1.5 text-muted-foreground sm:gap-2">
                               <span className="type-author text-foreground">{item.displayName}</span>
                               <span className="type-timestamp">{item.createdAt}</span>
                             </div>
-                            <p className="type-comment-body type-prose-measure type-wrap-safe mt-1 whitespace-pre-wrap text-foreground">
+                            <p className="type-comment-body type-prose-measure type-wrap-safe mt-0.5 whitespace-pre-wrap text-foreground sm:mt-1">
                               {item.comment.body}
                             </p>
                           </div>
@@ -213,23 +213,23 @@ export function CommunityComments({
           ) : (
             <div
               className={cn(
-                "space-y-2",
-                !compact && "max-h-[45vh] overflow-y-auto pr-1 sm:max-h-none sm:overflow-visible sm:pr-0",
+                "space-y-1.5 sm:space-y-2",
+                !compact && "max-h-[42vh] overflow-y-auto pr-1 sm:max-h-none sm:overflow-visible sm:pr-0",
               )}
             >
               {commentItems.map((item) => (
-                <div key={item.comment.id} className="rounded-md border border-border/70 bg-background/60 p-2">
+                <div key={item.comment.id} className="rounded-lg border border-border/60 bg-background/70 px-2.5 py-2 sm:p-2.5">
                   <div className="flex items-start gap-2">
                     <Avatar className="h-7 w-7 border border-border/60">
                       <AvatarImage src={item.author?.avatarUrl ?? undefined} alt={item.displayName} />
                       <AvatarFallback className="type-reply-label">{getInitials(item.displayName)}</AvatarFallback>
                     </Avatar>
                     <div className="min-w-0 flex-1">
-                      <div className="type-meta flex flex-wrap items-center gap-2 text-muted-foreground">
+                      <div className="type-meta flex flex-wrap items-center gap-1.5 text-muted-foreground sm:gap-2">
                         <span className="type-author text-foreground">{item.displayName}</span>
                         <span className="type-timestamp">{item.createdAt}</span>
                       </div>
-                      <p className="type-comment-body type-prose-measure type-wrap-safe mt-1 whitespace-pre-wrap text-foreground">
+                      <p className="type-comment-body type-prose-measure type-wrap-safe mt-0.5 whitespace-pre-wrap text-foreground sm:mt-1">
                         {item.comment.body}
                       </p>
                     </div>
@@ -250,15 +250,15 @@ export function CommunityComments({
         </Link>
       )}
 
-      <div className="space-y-2">
+      <div className="space-y-1.5 sm:space-y-2">
         <Textarea
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           placeholder={canComment ? "Write a comment..." : "Sign in to comment"}
           disabled={!canComment || submitting}
-          className="type-input type-wrap-safe min-h-[88px] bg-background"
+          className="type-input type-wrap-safe min-h-[76px] rounded-lg border-border/70 bg-background/95 sm:min-h-[88px]"
         />
-        <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+        <div className="flex justify-end">
           <Button
             type="button"
             size="sm"
