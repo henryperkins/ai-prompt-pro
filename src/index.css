@@ -431,6 +431,51 @@ All colors MUST be HSL.
 }
 
 @layer components {
+  .brand-gradient-hero {
+    background-image:
+      radial-gradient(520px 220px at 8% -12%, hsl(var(--delight-warm) / 0.2), transparent 58%),
+      radial-gradient(460px 220px at 92% -14%, hsl(var(--delight-cool) / 0.16), transparent 56%),
+      linear-gradient(180deg, hsl(var(--delight-surface) / 0.55), hsl(var(--card) / 0.9));
+  }
+
+  .brand-gradient-surface {
+    background-image: linear-gradient(
+      140deg,
+      hsl(var(--card)),
+      hsl(var(--delight-surface) / 0.72)
+    );
+  }
+
+  .brand-border-gradient {
+    border: 1px solid transparent;
+    background:
+      linear-gradient(hsl(var(--card)), hsl(var(--card))) padding-box,
+      linear-gradient(120deg, hsl(var(--delight-cool) / 0.6), hsl(var(--delight-warm) / 0.7)) border-box;
+  }
+
+  .brand-input-surface {
+    border: 1px solid transparent;
+    background:
+      linear-gradient(
+        140deg,
+        hsl(var(--card)),
+        hsl(var(--delight-surface) / 0.72)
+      ) padding-box,
+      linear-gradient(120deg, hsl(var(--delight-cool) / 0.6), hsl(var(--delight-warm) / 0.7)) border-box;
+  }
+
+  .brand-input-segment {
+    border-style: solid;
+    border-color: transparent;
+    background:
+      linear-gradient(
+        140deg,
+        hsl(var(--card)),
+        hsl(var(--delight-surface) / 0.72)
+      ) padding-box,
+      linear-gradient(120deg, hsl(var(--delight-cool) / 0.6), hsl(var(--delight-warm) / 0.7)) border-box;
+  }
+
   .delight-hero,
   .delight-hero-static {
     @apply rounded-2xl border border-border/70 px-4 py-5 sm:px-6 sm:py-7 shadow-sm;
