@@ -80,13 +80,7 @@ export function useCommunityMobileTelemetry({
   surface,
 }: UseCommunityMobileTelemetryInput) {
   const sessionRef = useRef<StoredMobileSessionState | null>(null);
-  const enabledStartedAtRef = useRef<number | null>(enabled ? Date.now() : null);
-
-  if (enabled && enabledStartedAtRef.current === null) {
-    enabledStartedAtRef.current = Date.now();
-  } else if (!enabled && enabledStartedAtRef.current !== null) {
-    enabledStartedAtRef.current = null;
-  }
+  const enabledStartedAtRef = useRef<number | null>(null);
 
   const ensureSession = useCallback((): StoredMobileSessionState | null => {
     if (!enabled) return null;
@@ -107,6 +101,15 @@ export function useCommunityMobileTelemetry({
     sessionRef.current = session;
     writeSession(session);
   }, []);
+
+  useEffect(() => {
+    if (enabled) {
+      enabledStartedAtRef.current = Date.now();
+      return;
+    }
+    enabledStartedAtRef.current = null;
+    sessionRef.current = null;
+  }, [enabled]);
 
   useEffect(() => {
     if (!enabled) return;

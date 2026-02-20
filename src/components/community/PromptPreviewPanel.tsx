@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -13,15 +13,12 @@ interface PromptPreviewPanelProps {
 const COMPACT_EXPAND_THRESHOLD = 260;
 
 export function PromptPreviewPanel({ text, mode = "compact", className, onCopy }: PromptPreviewPanelProps) {
-  const [expanded, setExpanded] = useState(false);
+  const [expandedFor, setExpandedFor] = useState<string | null>(null);
   const normalized = text.trim();
 
-  useEffect(() => {
-    setExpanded(false);
-  }, [normalized]);
-
   const canExpand = mode === "compact" && normalized.length > COMPACT_EXPAND_THRESHOLD;
-  const isCollapsed = mode === "compact" && !expanded && canExpand;
+  const isExpanded = expandedFor === normalized;
+  const isCollapsed = mode === "compact" && !isExpanded && canExpand;
 
   return (
     <div className={cn("rounded-lg border border-border/80 bg-muted/35 p-3 sm:p-4", className)}>
@@ -59,9 +56,9 @@ export function PromptPreviewPanel({ text, mode = "compact", className, onCopy }
             variant="ghost"
             size="sm"
             className="type-button-label h-11 px-3 sm:h-9 sm:px-2"
-            onClick={() => setExpanded((prev) => !prev)}
+            onClick={() => setExpandedFor((previous) => (previous === normalized ? null : normalized))}
           >
-            {expanded ? "Show less" : "Read more"}
+            {isExpanded ? "Show less" : "Read more"}
           </Button>
         </div>
       )}

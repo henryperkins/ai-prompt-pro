@@ -497,12 +497,10 @@ async function getAccessToken({
     if (forcedToken) return forcedToken;
   }
 
-  let sessionResult:
-    | {
-        data: { session: { access_token?: string; expires_at?: number | null } | null };
-        error: unknown;
-      }
-    | null = null;
+  let sessionResult!: {
+    data: { session: { access_token?: string; expires_at?: number | null } | null };
+    error: unknown;
+  };
 
   try {
     sessionResult = await neon.auth.getSession();
@@ -510,9 +508,9 @@ async function getAccessToken({
     if (isRetryableAuthSessionError(sessionError)) {
       await clearLocalSession();
       if (PUBLIC_FUNCTION_API_KEY) return PUBLIC_FUNCTION_API_KEY;
-      throw new Error(`Could not read auth session: ${errorMessage(sessionError)}`);
+      throw new Error(`Could not read auth session: ${errorMessage(sessionError)}`, { cause: sessionError });
     }
-    throw new Error(`Could not read auth session: ${errorMessage(sessionError)}`);
+    throw new Error(`Could not read auth session: ${errorMessage(sessionError)}`, { cause: sessionError });
   }
 
   const {
@@ -523,9 +521,9 @@ async function getAccessToken({
     if (isRetryableAuthSessionError(sessionError)) {
       await clearLocalSession();
       if (PUBLIC_FUNCTION_API_KEY) return PUBLIC_FUNCTION_API_KEY;
-      throw new Error(`Could not read auth session: ${errorMessage(sessionError)}`);
+      throw new Error(`Could not read auth session: ${errorMessage(sessionError)}`, { cause: sessionError });
     }
-    throw new Error(`Could not read auth session: ${errorMessage(sessionError)}`);
+    throw new Error(`Could not read auth session: ${errorMessage(sessionError)}`, { cause: sessionError });
   }
   if (session?.access_token) {
     if (!allowSessionToken) {

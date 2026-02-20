@@ -675,7 +675,7 @@ export async function loadPost(postId: string): Promise<CommunityPost | null> {
     return mapCommunityPost(data as CommunityPostRow);
   } catch (error) {
     if (isInvalidUuidInputError(error)) {
-      throw new Error("This link is invalid or expired.");
+      throw new Error("This link is invalid or expired.", { cause: error });
     }
     throw toError(error, "Failed to load community post.");
   }
