@@ -31,7 +31,7 @@ test("captures Builder mobile sticky-bar ergonomics at 360-430px widths", async 
     await page.goto("/");
 
     await expect(
-      page.getByRole("heading", { name: /Turn basic prompts into production-ready instructions/i }),
+      page.getByRole("heading", { name: /Turn rough ideas into quality prompts with context/i }),
     ).toBeVisible();
     await expect(page.getByTestId("builder-mobile-sticky-bar")).toBeVisible();
     await expect(page.getByTestId("builder-mobile-preview-trigger")).toBeVisible();

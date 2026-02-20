@@ -10,6 +10,7 @@ import { useCommunityMobileTelemetry } from "@/hooks/useCommunityMobileTelemetry
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { brandCopy } from "@/lib/brand-copy";
 import {
   type CommunityPost,
   type CommunityProfile,
@@ -204,7 +205,7 @@ const Community = () => {
         if (token !== requestToken.current) return;
         toast({
           title: "Could not load more posts",
-          description: error instanceof Error ? error.message : "Unexpected error",
+          description: error instanceof Error ? error.message : "Unexpected error while loading remix feed.",
           variant: "destructive",
         });
       } finally {
@@ -230,7 +231,10 @@ const Community = () => {
     async (post: CommunityPost) => {
       try {
         await copyTextToClipboard(post.enhancedPrompt || post.starterPrompt);
-        toast({ title: "Prompt copied", description: "Prompt text copied to your clipboard." });
+        toast({
+          title: "Prompt copied",
+          description: "Prompt text copied with context-ready formatting.",
+        });
       } catch {
         toast({
           title: "Copy failed",
@@ -307,8 +311,9 @@ const Community = () => {
     <PageShell>
       <div className="community-typography" data-density="comfortable">
         <PageHero
-          title="Community prompts"
-          subtitle="Browse prompts, filter by category, then copy or remix."
+          eyebrow={brandCopy.brandLine}
+          title="Community Remix Feed"
+          subtitle="Browse proven prompts, review context, and remix with clear attribution."
         />
 
         <div
@@ -337,7 +342,7 @@ const Community = () => {
                     (event.target as HTMLInputElement).blur();
                   }
                 }}
-                placeholder="Search by title or use case"
+                placeholder="Search by title, use case, or context keyword"
                 className="type-input h-11 border-0 bg-transparent pl-9 shadow-none"
                 aria-expanded={showCategorySuggestions}
                 aria-controls={showCategorySuggestions ? categoryPanelId : undefined}

@@ -33,10 +33,16 @@ import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { loadPost, loadProfilesByIds } from "@/lib/community";
 import { consumeRestoredVersionPrompt } from "@/lib/history-restore";
-import { builderRedesignFlags } from "@/lib/feature-flags";
+import { builderRedesignFlags, launchExperimentFlags } from "@/lib/feature-flags";
 import { trackBuilderEvent } from "@/lib/telemetry";
 import { templates } from "@/lib/templates";
 import { getUserPreferences, setUserPreference } from "@/lib/user-preferences";
+import { brandCopy } from "@/lib/brand-copy";
+import {
+  getHeroCopyVariant,
+  getLaunchExperimentAssignments,
+  getPrimaryCtaVariantLabel,
+} from "@/lib/launch-experiments";
 import {
   Accordion,
   AccordionContent,
@@ -585,6 +591,19 @@ const Index = () => {
     toggleDelimiters,
   } = usePromptBuilder();
 
+  const launchAssignments = useMemo(() => getLaunchExperimentAssignments(), []);
+  const heroCopyVariant = launchExperimentFlags.launchHeroCopyExperiment
+    ? launchAssignments.heroCopy
+    : "control";
+  const primaryCtaVariant = launchExperimentFlags.launchPrimaryCtaExperiment
+    ? launchAssignments.primaryCta
+    : "control";
+  const heroCopy = useMemo(() => getHeroCopyVariant(heroCopyVariant), [heroCopyVariant]);
+  const primaryCtaLabel = useMemo(
+    () => getPrimaryCtaVariantLabel(primaryCtaVariant),
+    [primaryCtaVariant],
+  );
+
   useEffect(() => {
     if (hasTrackedBuilderLoaded.current) return;
     hasTrackedBuilderLoaded.current = true;
@@ -596,6 +615,10 @@ const Index = () => {
       redesignPhase3: isBuilderRedesignPhase3,
       hasRemixParam: Boolean(remixId),
       hasPresetParam: Boolean(presetId),
+      heroCopyExperimentEnabled: launchExperimentFlags.launchHeroCopyExperiment,
+      primaryCtaExperimentEnabled: launchExperimentFlags.launchPrimaryCtaExperiment,
+      heroCopyVariant,
+      primaryCtaVariant,
     });
   }, [
     isMobile,
@@ -605,6 +628,8 @@ const Index = () => {
     isBuilderRedesignPhase3,
     remixId,
     presetId,
+    heroCopyVariant,
+    primaryCtaVariant,
   ]);
 
   useEffect(() => {
@@ -655,7 +680,10 @@ const Index = () => {
           parentTags: post.tags,
           parentCategory: post.category,
         });
-        toast({ title: "Remix ready", description: `Loaded “${post.title}” into the builder.` });
+        toast({
+          title: "Remix ready",
+          description: `Loaded “${post.title}” into Builder with context preserved.`,
+        });
       } catch (error) {
         if (token !== remixLoadToken.current) return;
         toast({
@@ -938,7 +966,10 @@ const Index = () => {
             setEnhancePhase("idle");
           }, 1800);
           enhancePhaseTimers.current.push(doneTimer, idleTimer);
-          toast({ title: "Prompt enhanced!", description: "Your prompt has been optimized by AI." });
+          toast({
+            title: "Quality pass complete",
+            description: "Prompt updated with clearer structure, context, and constraints.",
+          });
         },
         onError: (error: AIClientError) => {
           if (streamToken !== enhanceStreamToken.current) return;
@@ -1137,7 +1168,7 @@ const Index = () => {
         : "Enhancing…"
     : enhancePhase === "done"
       ? "Enhanced"
-      : "Enhance";
+      : primaryCtaLabel;
   const enhanceLiveMessage =
     enhancePhase === "starting"
       ? "Enhancement started."
@@ -1382,12 +1413,18 @@ const Index = () => {
         {/* Hero — compact on mobile */}
         <div className="delight-hero-static text-center mb-4 sm:mb-8">
           <h1 className="text-xl sm:text-3xl md:text-4xl font-bold text-foreground mb-1 sm:mb-2 tracking-tight">
-            Turn basic prompts into
-            <span className="text-primary"> production-ready instructions</span>
+            {heroCopy.headline}
           </h1>
-          <p className="text-muted-foreground text-xs sm:text-sm md:text-base max-w-xl mx-auto hidden sm:block">
-            Build clearer prompts with structured inputs and faster iteration.
+          <p className="text-muted-foreground text-xs sm:text-sm md:text-base max-w-2xl mx-auto">
+            {heroCopy.subhead}
           </p>
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
+            {brandCopy.pillars.map((pillar) => (
+              <Badge key={pillar.title} variant="outline" className="text-[11px] sm:text-xs">
+                {pillar.title}
+              </Badge>
+            ))}
+          </div>
         </div>
 
         {remixContext && (
@@ -1435,11 +1472,11 @@ const Index = () => {
                       <p className="text-sm font-medium text-foreground">Start in 3 steps</p>
                       <ol className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-3">
                         <li>1. Add your rough prompt</li>
-                        <li>2. Tap Enhance</li>
+                        <li>2. Tap {primaryCtaLabel}</li>
                         <li>3. Refine details</li>
                       </ol>
                       <p className="text-xs text-muted-foreground">
-                        Keep the first pass simple. You can tune role, sources, and constraints next.
+                        Keep the first pass simple, then strengthen quality, context, and remix readiness.
                       </p>
                     </div>
                   </Card>
@@ -1526,11 +1563,11 @@ const Index = () => {
                       <p className="text-sm font-medium text-foreground">Start in 3 steps</p>
                       <ol className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-3">
                         <li>1. Add your rough prompt</li>
-                        <li>2. Tap Enhance</li>
+                        <li>2. Tap {primaryCtaLabel}</li>
                         <li>3. Refine details</li>
                       </ol>
                       <p className="text-xs text-muted-foreground">
-                        Keep the first pass simple. You can tune role, sources, and constraints next.
+                        Keep the first pass simple, then strengthen quality, context, and remix readiness.
                       </p>
                     </div>
                   </Card>
@@ -1697,6 +1734,7 @@ const Index = () => {
                 webSearchEnabled={webSearchEnabled}
                 onWebSearchToggle={persistedSetWebSearchEnabled}
                 webSearchSources={webSearchSources}
+                enhanceIdleLabel={primaryCtaLabel}
                 remixContext={
                   remixContext
                     ? { title: remixContext.parentTitle, authorName: remixContext.parentAuthor }
@@ -1803,6 +1841,7 @@ const Index = () => {
                 canSavePrompt={canSavePrompt}
                 canSharePrompt={canSharePrompt}
                 phase2Enabled={isBuilderRedesignPhase2}
+                enhanceIdleLabel={primaryCtaLabel}
                 hideEnhanceButton
                 remixContext={
                   remixContext

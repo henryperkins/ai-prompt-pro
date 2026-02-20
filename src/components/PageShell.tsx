@@ -32,15 +32,17 @@ export function PageShell({ children, mainClassName }: PageShellProps) {
 interface PageHeroProps {
   title: string;
   subtitle?: string;
+  eyebrow?: string;
   className?: string;
 }
 
-export function PageHero({ title, subtitle, className }: PageHeroProps) {
+export function PageHero({ title, subtitle, eyebrow, className }: PageHeroProps) {
   return (
     <div className={cn("delight-hero mb-4 text-center sm:mb-6", className)}>
-      <h1 className="text-2xl font-bold text-foreground sm:text-3xl">{title}</h1>
+      {eyebrow && <p className="ui-section-label text-primary">{eyebrow}</p>}
+      <h1 className="page-hero-title text-2xl font-bold text-foreground sm:text-3xl">{title}</h1>
       {subtitle && (
-        <p className="mx-auto mt-1 max-w-2xl text-sm text-muted-foreground">
+        <p className="page-hero-subtitle mx-auto mt-1 max-w-2xl text-sm text-muted-foreground">
           {subtitle}
         </p>
       )}

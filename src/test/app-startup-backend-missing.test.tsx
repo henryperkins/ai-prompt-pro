@@ -28,7 +28,7 @@ describe("app startup when backend is unconfigured", () => {
     await renderAppAt("/");
 
     expect(
-      await screen.findByRole("heading", { name: /Turn basic prompts into production-ready instructions/i }),
+      await screen.findByRole("heading", { name: /Turn rough ideas into quality prompts with context/i }),
     ).toBeInTheDocument();
   });
 

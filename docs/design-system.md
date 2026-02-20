@@ -1,4 +1,4 @@
-# AI Prompt Pro Design System
+# PromptForge Design System
 
 ## 1) System Overview
 
@@ -13,6 +13,7 @@ Primary source files:
 - `src/index.css`
 - `tailwind.config.ts`
 - `src/components/ui/*`
+- `docs/launch-messaging-pack.md`
 
 ---
 
@@ -202,4 +203,3 @@ When evolving the design system, use this order:
 4. **Feature-specific semantic classes**: e.g., community type roles in `src/index.css`
 
 Avoid direct hardcoded `px` typography values and avoid bypassing primitives unless strictly necessary.
-

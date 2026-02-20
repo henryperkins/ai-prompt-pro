@@ -33,6 +33,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePromptBuilder } from "@/hooks/usePromptBuilder";
 import { useToast } from "@/hooks/use-toast";
+import { brandCopy } from "@/lib/brand-copy";
 import {
   getInitials,
   getUserAvatarUrl,
@@ -172,8 +173,8 @@ const Library = () => {
           title: `Prompt loaded: ${loaded.record.metadata.name}`,
           description:
             loaded.warnings.length > 0
-              ? `${loaded.warnings.length} context warning(s).`
-              : "Prompt restored successfully.",
+              ? `${loaded.warnings.length} context warning(s) found.`
+              : "Prompt and context restored successfully.",
         });
         navigate("/");
       } catch (error) {
@@ -218,7 +219,7 @@ const Library = () => {
       if (!shareUseCase) {
         toast({
           title: "Missing share metadata",
-          description: "Load this prompt, add a use case, then try sharing again.",
+          description: "Load this prompt, add a use case context, then try sharing again.",
           variant: "destructive",
         });
         return;
@@ -230,7 +231,7 @@ const Library = () => {
           return;
         }
         toast({
-          title: "Prompt shared to community",
+          title: "Prompt shared to community remix feed",
           action: result.postId ? (
             <ToastAction altText="View post" asChild>
               <Link to={`/community/${result.postId}`}>View</Link>
@@ -349,7 +350,7 @@ const Library = () => {
                 <span>•</span>
                 <span className="inline-flex items-center gap-1">
                   <Database className="h-3.5 w-3.5" />
-                  {prompt.sourceCount} src / {prompt.databaseCount} db
+                  {prompt.sourceCount} context src / {prompt.databaseCount} db
                 </span>
               </div>
               {prompt.tags.length > 0 && (
@@ -500,23 +501,24 @@ const Library = () => {
   return (
     <PageShell>
       <PageHero
-        title="Library Workspace"
-        subtitle="Manage saved prompts here. Presets stay in Builder."
+        eyebrow={brandCopy.brandLine}
+        title="Prompt Library"
+        subtitle="Track quality, context sources, and remix history for every saved prompt."
       />
 
       <div className="ui-density space-y-4" data-density="comfortable">
         <Card className="border-border/80 bg-card/85 p-3 sm:p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
-              <p className="ui-section-label text-primary">Saved prompts only</p>
+              <p className="ui-section-label text-primary">Quality + context + remix</p>
               <p className="text-sm text-muted-foreground">
-                Edit saved prompts without changing presets.
+                Keep your saved prompts production-ready without changing baseline templates.
               </p>
             </div>
             <Button asChild variant="outline" size="sm" className="h-11 gap-1 text-sm sm:h-9 sm:text-base">
               <Link to="/">
                 <Sparkles className="h-3.5 w-3.5" />
-                Open Builder Presets
+                Open Builder
               </Link>
             </Button>
           </div>
@@ -533,7 +535,7 @@ const Library = () => {
                 id="library-page-search"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search by name, tag, or text"
+                placeholder="Search by name, tag, context, or remix note"
                 className="h-11 bg-background pl-8 sm:h-10"
               />
             </div>
@@ -597,7 +599,7 @@ const Library = () => {
               <StateCard
                 variant="empty"
                 title="No saved prompts yet"
-                description="Create one in Builder, then save it to your library."
+                description="Create a prompt in Builder, run a quality pass, and save it here."
                 primaryAction={{ label: "Go to Builder", to: "/" }}
               />
             )}
@@ -605,8 +607,8 @@ const Library = () => {
             {templateSummaries.length > 0 && filteredSaved.length === 0 && (
               <StateCard
                 variant="empty"
-                title="No saved prompts match."
-                description="Try another search term or reset the category filter."
+                title="No prompts match this filter."
+                description="Try a different search term, category, or context keyword."
                 primaryAction={
                   hasActiveFilters
                     ? { label: "Reset filters", onClick: resetFilters }

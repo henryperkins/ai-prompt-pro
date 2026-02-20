@@ -1,0 +1,41 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="120" y1="40" x2="1080" y2="590" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F766E" />
+      <stop offset="1" stop-color="#0369A1" />
+    </linearGradient>
+    <radialGradient id="glowA" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(180 120) rotate(29) scale(520 300)">
+      <stop stop-color="#34D399" stop-opacity="0.65" />
+      <stop offset="1" stop-color="#34D399" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="glowB" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1030 70) rotate(121) scale(500 300)">
+      <stop stop-color="#67E8F9" stop-opacity="0.55" />
+      <stop offset="1" stop-color="#67E8F9" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)" />
+  <rect width="1200" height="630" fill="url(#glowA)" />
+  <rect width="1200" height="630" fill="url(#glowB)" />
+
+  <g>
+    <rect x="84" y="82" width="180" height="58" rx="14" fill="rgba(255,255,255,0.14)" />
+    <text x="112" y="120" fill="#ECFEFF" font-size="34" font-family="Segoe UI, Arial, sans-serif" font-weight="700">PromptForge</text>
+  </g>
+
+  <text x="84" y="244" fill="#F8FAFC" font-size="66" font-family="Segoe UI, Arial, sans-serif" font-weight="700">
+    Quality Prompts,
+  </text>
+  <text x="84" y="322" fill="#DCFCE7" font-size="66" font-family="Segoe UI, Arial, sans-serif" font-weight="700">
+    Grounded in Context
+  </text>
+
+  <text x="84" y="396" fill="#D1FAE5" font-size="34" font-family="Segoe UI, Arial, sans-serif" font-weight="500">
+    Build, score, and remix prompts your team can trust.
+  </text>
+
+  <g>
+    <rect x="84" y="454" width="206" height="58" rx="29" fill="#ECFDF5" />
+    <text x="126" y="490" fill="#065F46" font-size="30" font-family="Segoe UI, Arial, sans-serif" font-weight="700">Run quality pass</text>
+  </g>
+</svg>

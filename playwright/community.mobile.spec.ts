@@ -338,7 +338,7 @@ test("captures mobile community baseline metrics at key widths", async ({ page }
       await page.goto(route);
 
       if (route === "/community") {
-        await expect(page.getByRole("heading", { name: "Community prompts" })).toBeVisible();
+        await expect(page.getByRole("heading", { name: "Community Remix Feed" })).toBeVisible();
         await expect(page.getByRole("button", { name: /Filter/i })).toBeVisible();
         await expect(page.getByRole("link", { name: "Open Backend migration helper" })).toBeVisible();
         await expect(page.getByTestId("community-comment-toggle").first()).toBeVisible();
@@ -539,7 +539,7 @@ test("runs mobile smoke flow for feed, filter, post open, and comments", async (
   await page.setViewportSize({ width: 390, height: 844 });
 
   await page.goto("/community");
-  await expect(page.getByRole("heading", { name: "Community prompts" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Community Remix Feed" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open Backend migration helper" })).toBeVisible();
 
   const filterTrigger = page.getByTestId("community-filter-trigger");

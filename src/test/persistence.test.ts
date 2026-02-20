@@ -22,6 +22,13 @@ vi.mock("@/lib/feature-flags", () => ({
     builderRedesignPhase3: true,
     builderRedesignPhase4: true,
   },
+  communityFeatureFlags: {
+    communityMobileEnhancements: false,
+  },
+  launchExperimentFlags: {
+    launchHeroCopyExperiment: false,
+    launchPrimaryCtaExperiment: false,
+  },
 }));
 
 function buildConfig(overrides?: Partial<PromptConfig>): PromptConfig {

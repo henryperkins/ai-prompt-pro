@@ -74,6 +74,7 @@ interface OutputPanelProps {
   canSharePrompt: boolean;
   hideEnhanceButton?: boolean;
   enhancePhase?: EnhancePhase;
+  enhanceIdleLabel?: string;
   phase2Enabled?: boolean;
   remixContext?: { title: string; authorName: string };
   webSearchEnabled?: boolean;
@@ -126,6 +127,7 @@ export function OutputPanel({
   canSharePrompt,
   hideEnhanceButton = false,
   enhancePhase = "idle",
+  enhanceIdleLabel = "Enhance with AI",
   phase2Enabled = true,
   remixContext,
   webSearchEnabled = false,
@@ -334,7 +336,7 @@ export function OutputPanel({
         : "Enhancing..."
     : enhancePhase === "done"
       ? "Enhanced"
-      : "Enhance with AI";
+      : enhanceIdleLabel;
   const enhanceAssistiveStatus =
     enhancePhase === "starting"
       ? "Enhancement started."

@@ -414,7 +414,7 @@ describe("community hydration resilience", () => {
 
     expect(mocks.toast).toHaveBeenCalledWith({
       title: "Prompt copied",
-      description: "Prompt text copied to your clipboard.",
+      description: "Prompt text copied with context-ready formatting.",
     });
   });
 
@@ -477,7 +477,7 @@ describe("community hydration resilience", () => {
 
     expect(mocks.toast).toHaveBeenCalledWith({
       title: "Prompt copied",
-      description: "Prompt text copied to your clipboard.",
+      description: "Prompt text copied with context-ready formatting.",
     });
   });
 });

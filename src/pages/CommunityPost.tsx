@@ -142,7 +142,10 @@ const CommunityPost = () => {
     async (target: CommunityPostType) => {
       try {
         await copyTextToClipboard(target.enhancedPrompt || target.starterPrompt);
-        toast({ title: "Prompt copied", description: "Prompt text copied to your clipboard." });
+        toast({
+          title: "Prompt copied",
+          description: "Prompt text copied with context-ready formatting.",
+        });
       } catch {
         toast({
           title: "Copy failed",

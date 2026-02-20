@@ -26,6 +26,7 @@ import { NotificationPanel } from "@/components/NotificationPanel";
 import { communityFeatureFlags } from "@/lib/feature-flags";
 import { APP_ROUTE_NAV_ITEMS, isRouteActive } from "@/lib/navigation";
 import { getGravatarUrl } from "@/lib/gravatar";
+import { brandCopy } from "@/lib/brand-copy";
 import { DISPLAY_NAME_MAX_LENGTH, validateDisplayName } from "@/lib/profile";
 
 interface HeaderProps {
@@ -149,7 +150,7 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
             <div className="interactive-chip flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-primary text-primary-foreground">
               <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
-            <span className="text-base sm:text-lg font-bold text-foreground tracking-tight">PromptForge</span>
+            <span className="text-base sm:text-lg font-bold text-foreground tracking-tight">{brandCopy.appName}</span>
           </div>
 
           <nav className="flex items-center gap-0.5 sm:gap-1">

@@ -25,3 +25,13 @@ export interface CommunityFeatureFlags {
 export const communityFeatureFlags: CommunityFeatureFlags = {
   communityMobileEnhancements: parseBooleanFlag(import.meta.env.VITE_COMMUNITY_MOBILE_ENHANCEMENTS),
 };
+
+export interface LaunchExperimentFlags {
+  launchHeroCopyExperiment: boolean;
+  launchPrimaryCtaExperiment: boolean;
+}
+
+export const launchExperimentFlags: LaunchExperimentFlags = {
+  launchHeroCopyExperiment: parseBooleanFlag(import.meta.env.VITE_LAUNCH_EXPERIMENT_HERO_COPY),
+  launchPrimaryCtaExperiment: parseBooleanFlag(import.meta.env.VITE_LAUNCH_EXPERIMENT_PRIMARY_CTA),
+};
