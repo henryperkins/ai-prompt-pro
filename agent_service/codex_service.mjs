@@ -275,6 +275,9 @@ const INFERENCE_FIELD_CONFIDENCE = {
 const rateLimitStores = new Map();
 
 let neonJwksResolver = null;
+let hasLoggedAuthConfigWarning = false;
+let hasLoggedJwtFallbackWarning = false;
+let hasLoggedJwtFallbackProductionWarning = false;
 
 function headerValue(req, headerName) {
   const rawValue = req.headers[headerName.toLowerCase()];
@@ -349,6 +352,113 @@ function isConfiguredPublicApiKey(value) {
 
 function looksLikeJwt(value) {
   return typeof value === "string" && value.split(".").length === 3;
+}
+
+function isTruthyEnv(name) {
+  return normalizeBool(process.env[name], false);
+}
+
+function isProductionEnvironment() {
+  if (normalizeEnvValue("DENO_DEPLOYMENT_ID")) return true;
+
+  const envValue = (
+    normalizeEnvValue("APP_ENV")
+    || normalizeEnvValue("ENVIRONMENT")
+    || normalizeEnvValue("NODE_ENV")
+    || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  return envValue === "prod" || envValue === "production";
+}
+
+function allowUnverifiedJwtFallback() {
+  if (!isTruthyEnv("ALLOW_UNVERIFIED_JWT_FALLBACK")) {
+    return false;
+  }
+
+  if (!isProductionEnvironment()) {
+    return true;
+  }
+
+  if (isTruthyEnv("ALLOW_UNVERIFIED_JWT_FALLBACK_IN_PRODUCTION")) {
+    return true;
+  }
+
+  if (!hasLoggedJwtFallbackProductionWarning) {
+    hasLoggedJwtFallbackProductionWarning = true;
+    console.error(
+      "ALLOW_UNVERIFIED_JWT_FALLBACK is ignored in production by default. "
+        + "Set ALLOW_UNVERIFIED_JWT_FALLBACK_IN_PRODUCTION=true only for emergency recovery scenarios.",
+    );
+  }
+
+  return false;
+}
+
+function decodeJwtPayload(token) {
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+
+  try {
+    const decoded = Buffer.from(parts[1], "base64url").toString("utf8");
+    const parsed = JSON.parse(decoded);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function numericClaim(value) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function objectBooleanFlag(source, key) {
+  if (!source || typeof source !== "object" || Array.isArray(source)) return false;
+  return source[key] === true;
+}
+
+function decodeUserFromJwt(token) {
+  const claims = decodeJwtPayload(token.trim());
+  if (!claims) return null;
+
+  const subject = typeof claims.sub === "string" ? claims.sub.trim() : "";
+  if (!subject) return null;
+
+  const exp = numericClaim(claims.exp);
+  if (exp !== null && Date.now() >= exp * 1000) return null;
+
+  const isAnonymous = (
+    claims.role === "anon"
+    || claims.is_anonymous === true
+    || objectBooleanFlag(claims.app_metadata, "is_anonymous")
+    || objectBooleanFlag(claims.user_metadata, "is_anonymous")
+  );
+
+  return {
+    id: subject,
+    isAnonymous,
+  };
+}
+
+function tryDecodeUserFromJwtFallback(bearerToken, reason) {
+  if (!allowUnverifiedJwtFallback()) return null;
+  const decodedUser = decodeUserFromJwt(bearerToken);
+  if (!decodedUser) return null;
+
+  if (!hasLoggedJwtFallbackWarning) {
+    hasLoggedJwtFallbackWarning = true;
+    console.warn(
+      `ALLOW_UNVERIFIED_JWT_FALLBACK is enabled; accepting decoded JWT claims without signature verification (${reason}).`,
+    );
+  }
+
+  return decodedUser;
 }
 
 function getNeonJwksResolver() {
@@ -438,6 +548,34 @@ async function requireAuthenticatedUser(req) {
   }
 
   if (verified.reason === "config") {
+    if (isConfiguredPublicApiKey(apiKey)) {
+      return {
+        ok: true,
+        userId: null,
+        isPublicKey: true,
+        rateKey: `public:${clientIp}`,
+      };
+    }
+
+    const fallbackUser = tryDecodeUserFromJwtFallback(bearerToken, "missing_config");
+    if (fallbackUser) {
+      return {
+        ok: true,
+        userId: fallbackUser.id,
+        isPublicKey: false,
+        rateKey: fallbackUser.id,
+      };
+    }
+
+    if (!hasLoggedAuthConfigWarning) {
+      hasLoggedAuthConfigWarning = true;
+      console.error(
+        "NEON_AUTH_URL or NEON_JWKS_URL is required to validate bearer tokens. "
+          + "Set one of those env vars, provide FUNCTION_PUBLIC_API_KEY for anonymous fallback, "
+          + "or enable ALLOW_UNVERIFIED_JWT_FALLBACK for local development only.",
+      );
+    }
+
     return {
       ok: false,
       status: 503,
@@ -446,6 +584,25 @@ async function requireAuthenticatedUser(req) {
   }
 
   if (verified.reason === "unavailable") {
+    if (isConfiguredPublicApiKey(apiKey)) {
+      return {
+        ok: true,
+        userId: null,
+        isPublicKey: true,
+        rateKey: `public:${clientIp}`,
+      };
+    }
+
+    const fallbackUser = tryDecodeUserFromJwtFallback(bearerToken, "auth_unavailable");
+    if (fallbackUser) {
+      return {
+        ok: true,
+        userId: fallbackUser.id,
+        isPublicKey: false,
+        rateKey: fallbackUser.id,
+      };
+    }
+
     return {
       ok: false,
       status: 503,

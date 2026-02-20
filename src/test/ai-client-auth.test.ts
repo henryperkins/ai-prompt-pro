@@ -111,6 +111,67 @@ describe("ai-client auth recovery", () => {
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
+  it("retries with publishable key when service reports Neon auth is not configured", async () => {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "session-token",
+          expires_at: nowSeconds + 3600,
+        },
+      },
+      error: null,
+    });
+
+    mocks.refreshSession.mockResolvedValue({
+      data: { session: null },
+      error: { message: "No active refresh token" },
+    });
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            error: "Authentication service is unavailable because Neon auth is not configured.",
+          }),
+          {
+            status: 503,
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
+      )
+      .mockResolvedValueOnce(streamingResponse("public-key-recovery"));
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { streamEnhance } = await import("@/lib/ai-client");
+
+    const onDelta = vi.fn();
+    const onDone = vi.fn();
+    const onError = vi.fn();
+
+    await streamEnhance({
+      prompt: "Improve this",
+      onDelta,
+      onDone,
+      onError,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    const firstHeaders = (fetchMock.mock.calls[0]?.[1] as RequestInit).headers as Record<string, string>;
+    const secondHeaders = (fetchMock.mock.calls[1]?.[1] as RequestInit).headers as Record<string, string>;
+
+    expect(firstHeaders.Authorization).toBe("Bearer session-token");
+    expect(secondHeaders.Authorization).toBe("Bearer sb_publishable_test");
+    expect(mocks.signOut).toHaveBeenCalledTimes(1);
+    expect(onError).not.toHaveBeenCalled();
+    expect(onDelta).toHaveBeenCalledWith("public-key-recovery");
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
   it("refreshes near-expiry sessions before the first enhance request", async () => {
     const nowSeconds = Math.floor(Date.now() / 1000);
 

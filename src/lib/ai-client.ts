@@ -351,6 +351,15 @@ function isInvalidAuthSessionError(status: number, errorMessage: string): boolea
   );
 }
 
+function isRecoverableAuthServiceError(status: number, errorMessage: string): boolean {
+  if (status !== 503) return false;
+  const normalized = errorMessage.toLowerCase();
+  return (
+    normalized.includes("authentication service is unavailable because neon auth is not configured") ||
+    normalized.includes("authentication service is temporarily unavailable")
+  );
+}
+
 async function postFunctionWithAuthRecovery(
   name: "enhance-prompt" | "extract-url" | "infer-builder-fields",
   payload: Record<string, unknown>,
@@ -380,7 +389,9 @@ async function postFunctionWithAuthRecovery(
 
     let errorMessage = await readFunctionError(response);
     const firstFailureWasAuth =
-      response.status === 401 || isInvalidAuthSessionError(response.status, errorMessage);
+      response.status === 401
+      || isInvalidAuthSessionError(response.status, errorMessage)
+      || isRecoverableAuthServiceError(response.status, errorMessage);
     if (!firstFailureWasAuth) {
       throw new Error(errorMessage);
     }
@@ -390,7 +401,9 @@ async function postFunctionWithAuthRecovery(
 
     errorMessage = await readFunctionError(response);
     const secondFailureWasAuth =
-      response.status === 401 || isInvalidAuthSessionError(response.status, errorMessage);
+      response.status === 401
+      || isInvalidAuthSessionError(response.status, errorMessage)
+      || isRecoverableAuthServiceError(response.status, errorMessage);
     if (!secondFailureWasAuth) {
       throw new Error(errorMessage);
     }

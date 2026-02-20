@@ -68,7 +68,7 @@ npm run agent:codex
 | Variable | Description |
 |----------|-------------|
 | `OPENAI_API_KEY` or `CODEX_API_KEY` | OpenAI API key |
-| `NEON_AUTH_URL` or `NEON_JWKS_URL` | Neon Auth URL (or direct JWKS URL) for JWT validation |
+| `NEON_AUTH_URL` or `NEON_JWKS_URL` | Neon Auth URL (or direct JWKS URL) for JWT session validation (recommended in production) |
 
 ### Service configuration
 
@@ -79,6 +79,8 @@ npm run agent:codex
 | `AGENT_SERVICE_TOKEN` | _(none)_ | Optional service-to-service token (`x-agent-token`) |
 | `ALLOWED_ORIGINS` | `*` | Comma-separated list of allowed browser origins |
 | `FUNCTION_PUBLIC_API_KEY` | _(none)_ | Optional publishable key accepted for unauthenticated calls |
+| `ALLOW_UNVERIFIED_JWT_FALLBACK` | `false` | Dev-only: allow decoded JWT fallback when Neon Auth config/service is unavailable |
+| `ALLOW_UNVERIFIED_JWT_FALLBACK_IN_PRODUCTION` | `false` | Explicit override to permit decoded-JWT fallback in production (emergency use only) |
 | `MAX_PROMPT_CHARS` | `16000` | Maximum prompt character length |
 | `MAX_INFERENCE_PROMPT_CHARS` | `12000` | Maximum inference prompt length |
 | `MAX_URL_CHARS` | `2048` | Maximum extract-url input URL length |

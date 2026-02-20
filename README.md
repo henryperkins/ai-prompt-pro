@@ -144,6 +144,7 @@ export AGENT_SERVICE_TOKEN="<shared-secret>"
 ```
 
 Local dev note:
+- If `VITE_NEON_PUBLISHABLE_KEY` (frontend) and `FUNCTION_PUBLIC_API_KEY` (service) are set, enhancement can fall back to anonymous key auth when Neon Auth is not configured.
 - `ALLOW_UNVERIFIED_JWT_FALLBACK=true` enables decoded-JWT fallback only when Neon Auth config/service is unavailable.
 - Use this for local development only and keep it disabled in production.
 
