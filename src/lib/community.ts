@@ -27,8 +27,10 @@ import { assertCommunityTextAllowed } from "@/lib/content-moderation";
 
 const SAVED_PROMPT_SELECT_COLUMNS =
   "id, user_id, title, description, category, tags, config, built_prompt, enhanced_prompt, fingerprint, revision, is_shared, target_model, use_case, remixed_from, remix_note, remix_diff, created_at, updated_at";
+const COMMUNITY_POST_SELECT_COLUMNS_BASE =
+  "id, saved_prompt_id, author_id, title, enhanced_prompt, description, use_case, category, tags, target_model, is_public, public_config, starter_prompt, remixed_from, remix_note, remix_diff, upvote_count, verified_count, remix_count, comment_count, created_at, updated_at";
 const COMMUNITY_POST_SELECT_COLUMNS =
-  "id, saved_prompt_id, author_id, title, enhanced_prompt, description, use_case, category, tags, target_model, is_public, public_config, starter_prompt, remixed_from, remix_note, remix_diff, upvote_count, verified_count, remix_count, comment_count, rating_count, rating_avg, created_at, updated_at";
+  `${COMMUNITY_POST_SELECT_COLUMNS_BASE}, rating_count, rating_avg`;
 
 export type PromptSort = "recent" | "name" | "revision";
 export type CommunitySort = "new" | "popular" | "most_remixed" | "verified";
@@ -348,6 +350,22 @@ function isInvalidUuidInputError(error: unknown): boolean {
   return error.message.toLowerCase().includes("invalid input syntax for type uuid");
 }
 
+function isMissingCommunityRatingColumnsError(error: unknown): boolean {
+  if (!isPostgrestError(error) || error.code !== "42703") return false;
+  const detail = [error.message, error.details, error.hint].filter(Boolean).join(" ").toLowerCase();
+  return detail.includes("rating_count") || detail.includes("rating_avg");
+}
+
+async function runCommunityPostsSelect<T>(
+  execute: (selectColumns: string) => Promise<{ data: T; error: unknown | null }>,
+): Promise<{ data: T; error: unknown | null }> {
+  const primary = await execute(COMMUNITY_POST_SELECT_COLUMNS);
+  if (!primary.error || !isMissingCommunityRatingColumnsError(primary.error)) {
+    return primary;
+  }
+  return execute(COMMUNITY_POST_SELECT_COLUMNS_BASE);
+}
+
 function ensureCommunityBackend(featureLabel = "Community features"): void {
   assertBackendConfigured(featureLabel);
 }
@@ -631,39 +649,41 @@ export async function loadFeed(input: LoadFeedInput = {}): Promise<CommunityPost
   const normalizedPage = Math.max(page, 0);
 
   try {
-    let builder = neon
-      .from("community_posts")
-      .select(COMMUNITY_POST_SELECT_COLUMNS)
-      .eq("is_public", true)
-      .limit(normalizedLimit);
+    const { data, error } = await runCommunityPostsSelect((selectColumns) => {
+      let builder = neon
+        .from("community_posts")
+        .select(selectColumns)
+        .eq("is_public", true)
+        .limit(normalizedLimit);
 
-    if (category && category !== "all") {
-      builder = builder.eq("category", category);
-    }
+      if (category && category !== "all") {
+        builder = builder.eq("category", category);
+      }
 
-    if (search?.trim()) {
-      const escaped = escapePostgrestLikePattern(search.trim());
-      builder = builder.or(`title.ilike.%${escaped}%,use_case.ilike.%${escaped}%`);
-    }
+      if (search?.trim()) {
+        const escaped = escapePostgrestLikePattern(search.trim());
+        builder = builder.or(`title.ilike.%${escaped}%,use_case.ilike.%${escaped}%`);
+      }
 
-    if (cursor) {
-      builder = builder.lt("created_at", cursor);
-    } else if (normalizedPage > 0) {
-      const start = normalizedPage * normalizedLimit;
-      builder = builder.range(start, start + normalizedLimit - 1);
-    }
+      if (cursor) {
+        builder = builder.lt("created_at", cursor);
+      } else if (normalizedPage > 0) {
+        const start = normalizedPage * normalizedLimit;
+        builder = builder.range(start, start + normalizedLimit - 1);
+      }
 
-    if (sort === "popular") {
-      builder = builder.order("upvote_count", { ascending: false }).order("created_at", { ascending: false });
-    } else if (sort === "most_remixed") {
-      builder = builder.order("remix_count", { ascending: false }).order("created_at", { ascending: false });
-    } else if (sort === "verified") {
-      builder = builder.order("verified_count", { ascending: false }).order("created_at", { ascending: false });
-    } else {
-      builder = builder.order("created_at", { ascending: false });
-    }
+      if (sort === "popular") {
+        builder = builder.order("upvote_count", { ascending: false }).order("created_at", { ascending: false });
+      } else if (sort === "most_remixed") {
+        builder = builder.order("remix_count", { ascending: false }).order("created_at", { ascending: false });
+      } else if (sort === "verified") {
+        builder = builder.order("verified_count", { ascending: false }).order("created_at", { ascending: false });
+      } else {
+        builder = builder.order("created_at", { ascending: false });
+      }
 
-    const { data, error } = await builder;
+      return builder;
+    });
     if (error) throw error;
     return (data || []).map((row) => mapCommunityPost(row as CommunityPostRow));
   } catch (error) {
@@ -681,20 +701,22 @@ export async function loadPostsByAuthor(
   const normalizedPage = Math.max(page, 0);
 
   try {
-    let builder = neon
-      .from("community_posts")
-      .select(COMMUNITY_POST_SELECT_COLUMNS)
-      .eq("author_id", authorId)
-      .eq("is_public", true)
-      .order("created_at", { ascending: false })
-      .limit(normalizedLimit);
+    const { data, error } = await runCommunityPostsSelect((selectColumns) => {
+      let builder = neon
+        .from("community_posts")
+        .select(selectColumns)
+        .eq("author_id", authorId)
+        .eq("is_public", true)
+        .order("created_at", { ascending: false })
+        .limit(normalizedLimit);
 
-    if (normalizedPage > 0) {
-      const start = normalizedPage * normalizedLimit;
-      builder = builder.range(start, start + normalizedLimit - 1);
-    }
+      if (normalizedPage > 0) {
+        const start = normalizedPage * normalizedLimit;
+        builder = builder.range(start, start + normalizedLimit - 1);
+      }
 
-    const { data, error } = await builder;
+      return builder;
+    });
     if (error) throw error;
     return (data || []).map((row) => mapCommunityPost(row as CommunityPostRow));
   } catch (error) {
@@ -733,20 +755,22 @@ export async function loadPersonalFeed(options: { page?: number; limit?: number 
     const authorIds = Array.from(new Set([userId, ...followedUserIds]));
     if (authorIds.length === 0) return [];
 
-    let builder = neon
-      .from("community_posts")
-      .select(COMMUNITY_POST_SELECT_COLUMNS)
-      .eq("is_public", true)
-      .in("author_id", authorIds)
-      .order("created_at", { ascending: false })
-      .limit(normalizedLimit);
+    const { data, error } = await runCommunityPostsSelect((selectColumns) => {
+      let builder = neon
+        .from("community_posts")
+        .select(selectColumns)
+        .eq("is_public", true)
+        .in("author_id", authorIds)
+        .order("created_at", { ascending: false })
+        .limit(normalizedLimit);
 
-    if (normalizedPage > 0) {
-      const start = normalizedPage * normalizedLimit;
-      builder = builder.range(start, start + normalizedLimit - 1);
-    }
+      if (normalizedPage > 0) {
+        const start = normalizedPage * normalizedLimit;
+        builder = builder.range(start, start + normalizedLimit - 1);
+      }
 
-    const { data, error } = await builder;
+      return builder;
+    });
     if (error) throw error;
     return (data || []).map((row) => mapCommunityPost(row as CommunityPostRow));
   } catch (error) {
@@ -757,12 +781,9 @@ export async function loadPersonalFeed(options: { page?: number; limit?: number 
 export async function loadPost(postId: string): Promise<CommunityPost | null> {
   ensureCommunityBackend("Community posts");
   try {
-    const { data, error } = await neon
-      .from("community_posts")
-      .select(COMMUNITY_POST_SELECT_COLUMNS)
-      .eq("id", postId)
-      .eq("is_public", true)
-      .maybeSingle();
+    const { data, error } = await runCommunityPostsSelect((selectColumns) =>
+      neon.from("community_posts").select(selectColumns).eq("id", postId).eq("is_public", true).maybeSingle(),
+    );
 
     if (error) throw error;
     if (!data) return null;
@@ -781,11 +802,9 @@ export async function loadPostsByIds(postIds: string[]): Promise<CommunityPost[]
   if (uniqueIds.length === 0) return [];
 
   try {
-    const { data, error } = await neon
-      .from("community_posts")
-      .select(COMMUNITY_POST_SELECT_COLUMNS)
-      .in("id", uniqueIds)
-      .eq("is_public", true);
+    const { data, error } = await runCommunityPostsSelect((selectColumns) =>
+      neon.from("community_posts").select(selectColumns).in("id", uniqueIds).eq("is_public", true),
+    );
 
     if (error) throw error;
     return (data || []).map((row) => mapCommunityPost(row as CommunityPostRow));
@@ -925,12 +944,14 @@ export async function unfollowCommunityUser(targetUserId: string): Promise<boole
 export async function loadRemixes(postId: string): Promise<CommunityPost[]> {
   ensureCommunityBackend("Community remixes");
   try {
-    const { data, error } = await neon
-      .from("community_posts")
-      .select(COMMUNITY_POST_SELECT_COLUMNS)
-      .eq("remixed_from", postId)
-      .eq("is_public", true)
-      .order("created_at", { ascending: false });
+    const { data, error } = await runCommunityPostsSelect((selectColumns) =>
+      neon
+        .from("community_posts")
+        .select(selectColumns)
+        .eq("remixed_from", postId)
+        .eq("is_public", true)
+        .order("created_at", { ascending: false }),
+    );
 
     if (error) throw error;
     return (data || []).map((row) => mapCommunityPost(row as CommunityPostRow));
@@ -1221,12 +1242,9 @@ export async function remixToLibrary(
   const userId = await requireUserId();
 
   try {
-    const { data: postRow, error: postError } = await neon
-      .from("community_posts")
-      .select(COMMUNITY_POST_SELECT_COLUMNS)
-      .eq("id", postId)
-      .eq("is_public", true)
-      .single();
+    const { data: postRow, error: postError } = await runCommunityPostsSelect((selectColumns) =>
+      neon.from("community_posts").select(selectColumns).eq("id", postId).eq("is_public", true).single(),
+    );
 
     if (postError) throw postError;
     const post = mapCommunityPost(postRow as CommunityPostRow);
