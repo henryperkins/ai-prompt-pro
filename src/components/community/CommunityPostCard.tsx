@@ -1,6 +1,6 @@
 import { memo, useMemo, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { ArrowUp, CheckCircle2, Database, Flag, GitBranch, MessageCircle, MoreHorizontal, UserCheck, UserX } from "lucide-react";
+import { ArrowUp, CheckCircle2, Database, Flag, GitBranch, MessageCircle, MoreHorizontal, Star, UserCheck, UserX } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { CommunityPost, VoteState, VoteType } from "@/lib/community";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +33,9 @@ interface CommunityPostCardProps {
   onCommentAdded: (postId: string) => void;
   onCommentThreadOpen?: (postId: string) => void;
   canVote: boolean;
+  canRate?: boolean;
+  ratingValue?: number | null;
+  onRatePrompt?: (postId: string, rating: number | null) => void;
   canModerate?: boolean;
   canBlockAuthor?: boolean;
   isAuthorBlocked?: boolean;
@@ -76,6 +79,9 @@ function CommunityPostCardComponent({
   onCommentAdded,
   onCommentThreadOpen,
   canVote,
+  canRate = false,
+  ratingValue = null,
+  onRatePrompt,
   canModerate = false,
   canBlockAuthor = true,
   isAuthorBlocked = false,
@@ -94,6 +100,8 @@ function CommunityPostCardComponent({
   const [commentsOpen, setCommentsOpen] = useState(false);
   const promptBody = (post.enhancedPrompt || post.starterPrompt || "").trim();
   const tokenEstimate = useMemo(() => estimateTokens(promptBody), [promptBody]);
+  const ratingAverage = post.ratingAverage ?? 0;
+  const ratingCount = post.ratingCount ?? 0;
   const visibleTags = useMemo(() => {
     const mobileMax = 2;
     const desktopMax = isFeatured ? 6 : 4;
@@ -118,7 +126,9 @@ function CommunityPostCardComponent({
               <AvatarFallback className="type-reply-label">{getInitials(authorName)}</AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <p className="type-author type-wrap-safe text-foreground">{authorName}</p>
+              <Link to={`/profile/${post.authorId}`} className="type-author type-link-inline type-wrap-safe text-foreground">
+                {authorName}
+              </Link>
               <p className="type-timestamp text-muted-foreground">{createdAgo}</p>
             </div>
           </div>
@@ -297,6 +307,39 @@ function CommunityPostCardComponent({
               </Badge>
             )}
           </Button>
+        </div>
+
+        <div className="type-meta flex flex-wrap items-center gap-2 text-muted-foreground">
+          <span className="inline-flex items-center gap-1">
+            <Star className="h-3.5 w-3.5" />
+            <span className="type-numeric">{ratingAverage.toFixed(1)}</span>
+            <span>({ratingCount})</span>
+          </span>
+          {canRate && onRatePrompt && (
+            <div className="inline-flex items-center gap-0.5">
+              {[1, 2, 3, 4, 5].map((value) => {
+                const isActive = (ratingValue ?? 0) >= value;
+                return (
+                  <Button
+                    key={`${post.id}-rate-${value}`}
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    aria-label={`Rate ${value} star${value === 1 ? "" : "s"}`}
+                    onClick={() => onRatePrompt(post.id, ratingValue === value ? null : value)}
+                  >
+                    <Star
+                      className={cn(
+                        "h-4 w-4",
+                        isActive ? "fill-primary text-primary" : "text-muted-foreground",
+                      )}
+                    />
+                  </Button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {!useMobileCommentsDrawer && commentsOpen && (

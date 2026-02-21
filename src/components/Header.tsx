@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Bell, Loader2, LogIn, LogOut, Menu, Moon, Shield, Sun, Trash2 } from "lucide-react";
+import { Bell, Loader2, LogIn, LogOut, Menu, Moon, Shield, Sun, Trash2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -282,6 +282,15 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
                     <DropdownMenuItem
                       onSelect={(event) => {
                         event.preventDefault();
+                        navigate(`/profile/${user.id}`);
+                      }}
+                    >
+                      <User className="w-4 h-4 mr-2" />
+                      View profile
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={(event) => {
+                        event.preventDefault();
                         openDisplayNameDialog();
                       }}
                     >
@@ -454,6 +463,10 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem disabled className="text-xs text-muted-foreground">
                     {user.email}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate(`/profile/${user.id}`)}>
+                    <User className="w-4 h-4 mr-2" />
+                    View profile
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={openDisplayNameDialog}>
                     Edit display name

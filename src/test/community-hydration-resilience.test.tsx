@@ -16,7 +16,34 @@ const mocks = vi.hoisted(() => ({
   loadProfilesByIds: vi.fn(),
   loadPostsByIds: vi.fn(),
   loadMyVotes: vi.fn(),
+  loadMyRatings: vi.fn(),
   toggleVote: vi.fn(),
+  setPromptRating: vi.fn(),
+  computeNextPromptRatingSummary: vi.fn(
+    ({
+      currentCount,
+      currentAverage,
+      previousRating,
+      nextRating,
+    }: {
+      currentCount: number;
+      currentAverage: number;
+      previousRating: number | null;
+      nextRating: number | null;
+    }) => {
+      const count = Math.max(0, currentCount);
+      const average = Number.isFinite(currentAverage) ? Math.max(0, currentAverage) : 0;
+      const sum = average * count;
+      const hasPrevious = typeof previousRating === "number";
+      const hasNext = typeof nextRating === "number";
+      const nextCount = hasPrevious ? (hasNext ? count : Math.max(0, count - 1)) : hasNext ? count + 1 : count;
+      const nextSum = hasPrevious ? sum - (previousRating ?? 0) + (nextRating ?? 0) : sum + (nextRating ?? 0);
+      return {
+        ratingCount: nextCount,
+        ratingAverage: nextCount > 0 ? Number((nextSum / nextCount).toFixed(2)) : 0,
+      };
+    },
+  ),
   loadPost: vi.fn(),
   loadRemixes: vi.fn(),
   remixToLibrary: vi.fn(),
@@ -35,7 +62,10 @@ vi.mock("@/lib/community", () => ({
   loadProfilesByIds: (...args: unknown[]) => mocks.loadProfilesByIds(...args),
   loadPostsByIds: (...args: unknown[]) => mocks.loadPostsByIds(...args),
   loadMyVotes: (...args: unknown[]) => mocks.loadMyVotes(...args),
+  loadMyRatings: (...args: unknown[]) => mocks.loadMyRatings(...args),
   toggleVote: (...args: unknown[]) => mocks.toggleVote(...args),
+  setPromptRating: (...args: unknown[]) => mocks.setPromptRating(...args),
+  computeNextPromptRatingSummary: (...args: unknown[]) => mocks.computeNextPromptRatingSummary(...args),
   loadPost: (...args: unknown[]) => mocks.loadPost(...args),
   loadRemixes: (...args: unknown[]) => mocks.loadRemixes(...args),
   remixToLibrary: (...args: unknown[]) => mocks.remixToLibrary(...args),
@@ -195,10 +225,12 @@ describe("community hydration resilience", () => {
     mocks.loadProfilesByIds.mockResolvedValue([createProfile({ id: post.authorId })]);
     mocks.loadPostsByIds.mockResolvedValue([]);
     mocks.loadMyVotes.mockResolvedValue({});
+    mocks.loadMyRatings.mockResolvedValue({});
 
     mocks.loadPost.mockResolvedValue(post);
     mocks.loadRemixes.mockResolvedValue([]);
     mocks.toggleVote.mockResolvedValue({ active: true, rowId: "vote-1" });
+    mocks.setPromptRating.mockResolvedValue({ rating: null });
     mocks.remixToLibrary.mockResolvedValue({ title: "Remix copy" });
   });
 

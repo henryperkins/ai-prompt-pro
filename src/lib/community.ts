@@ -811,6 +811,117 @@ export async function loadProfilesByIds(userIds: string[]): Promise<CommunityPro
   }
 }
 
+export async function loadFollowStats(userId: string): Promise<FollowStats> {
+  ensureCommunityBackend("Community follows");
+  if (!userId) {
+    return { followersCount: 0, followingCount: 0 };
+  }
+
+  try {
+    const [followersResult, followingResult] = await Promise.all([
+      neon
+        .from("community_user_follows")
+        .select("id", { count: "exact", head: true })
+        .eq("followed_user_id", userId),
+      neon
+        .from("community_user_follows")
+        .select("id", { count: "exact", head: true })
+        .eq("follower_id", userId),
+    ]);
+
+    if (followersResult.error) throw followersResult.error;
+    if (followingResult.error) throw followingResult.error;
+
+    return {
+      followersCount: followersResult.count ?? 0,
+      followingCount: followingResult.count ?? 0,
+    };
+  } catch (error) {
+    throw toError(error, "Failed to load follow stats.");
+  }
+}
+
+export async function isFollowingCommunityUser(targetUserId: string): Promise<boolean> {
+  ensureCommunityBackend("Community follows");
+  if (!targetUserId) return false;
+  const { data: userData, error: userError } = await neon.auth.getUser();
+  if (userError || !userData.user?.id) return false;
+  if (userData.user.id === targetUserId) return false;
+
+  try {
+    const { data, error } = await neon
+      .from("community_user_follows")
+      .select("id")
+      .eq("follower_id", userData.user.id)
+      .eq("followed_user_id", targetUserId)
+      .maybeSingle();
+    if (error) throw error;
+    return Boolean(data?.id);
+  } catch {
+    return false;
+  }
+}
+
+export async function followCommunityUser(targetUserId: string): Promise<boolean> {
+  ensureCommunityBackend("Community follows");
+  const userId = await requireUserId();
+  if (!targetUserId || targetUserId === userId) {
+    throw new Error("You cannot follow your own account.");
+  }
+
+  try {
+    const { data, error } = await neon
+      .from("community_user_follows")
+      .upsert(
+        {
+          follower_id: userId,
+          followed_user_id: targetUserId,
+        },
+        {
+          onConflict: "follower_id,followed_user_id",
+          ignoreDuplicates: true,
+        },
+      )
+      .select("id")
+      .maybeSingle();
+
+    if (error) throw error;
+    if (data?.id) return true;
+
+    const { data: existing, error: lookupError } = await neon
+      .from("community_user_follows")
+      .select("id")
+      .eq("follower_id", userId)
+      .eq("followed_user_id", targetUserId)
+      .maybeSingle();
+
+    if (lookupError) throw lookupError;
+    return Boolean(existing?.id);
+  } catch (error) {
+    throw toError(error, "Failed to follow user.");
+  }
+}
+
+export async function unfollowCommunityUser(targetUserId: string): Promise<boolean> {
+  ensureCommunityBackend("Community follows");
+  const userId = await requireUserId();
+
+  try {
+    const { data, error } = await neon
+      .from("community_user_follows")
+      .delete()
+      .eq("follower_id", userId)
+      .eq("followed_user_id", targetUserId)
+      .select("id")
+      .maybeSingle();
+
+    if (error) throw error;
+    return Boolean(data?.id);
+  } catch (error) {
+    throw toError(error, "Failed to unfollow user.");
+  }
+}
+
 export async function loadRemixes(postId: string): Promise<CommunityPost[]> {
   ensureCommunityBackend("Community remixes");
   try {
@@ -863,6 +974,125 @@ export async function loadMyVotes(postIds: string[]): Promise<Record<string, Vot
   } catch {
     return {};
   }
+}
+
+export async function loadMyRatings(postIds: string[]): Promise<Record<string, number>> {
+  ensureCommunityBackend("Community ratings");
+  const uniqueIds = Array.from(new Set(postIds.filter(Boolean)));
+  if (uniqueIds.length === 0) return {};
+
+  const { data: userData, error: userError } = await neon.auth.getUser();
+  if (userError || !userData.user?.id) {
+    return {};
+  }
+
+  try {
+    const { data, error } = await neon
+      .from("community_prompt_ratings")
+      .select("post_id, rating")
+      .eq("user_id", userData.user.id)
+      .in("post_id", uniqueIds);
+
+    if (error) throw error;
+    const ratingByPost: Record<string, number> = {};
+    (data || []).forEach((row) => {
+      if (typeof row.post_id === "string" && typeof row.rating === "number") {
+        ratingByPost[row.post_id] = row.rating;
+      }
+    });
+    return ratingByPost;
+  } catch {
+    return {};
+  }
+}
+
+export async function setPromptRating(
+  postId: string,
+  rating: number | null,
+): Promise<{ rating: number | null }> {
+  ensureCommunityBackend("Community ratings");
+  const userId = await requireUserId();
+
+  if (!postId) {
+    throw new Error("Prompt ID is required.");
+  }
+
+  if (rating === null) {
+    try {
+      const { error } = await neon
+        .from("community_prompt_ratings")
+        .delete()
+        .eq("post_id", postId)
+        .eq("user_id", userId);
+      if (error) throw error;
+      return { rating: null };
+    } catch (error) {
+      throw toError(error, "Failed to clear rating.");
+    }
+  }
+
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+    throw new Error("Rating must be between 1 and 5.");
+  }
+
+  try {
+    const { data, error } = await neon
+      .from("community_prompt_ratings")
+      .upsert(
+        {
+          post_id: postId,
+          user_id: userId,
+          rating,
+        },
+        {
+          onConflict: "post_id,user_id",
+        },
+      )
+      .select("rating")
+      .maybeSingle();
+    if (error) throw error;
+    return { rating: typeof data?.rating === "number" ? data.rating : rating };
+  } catch (error) {
+    throw toError(error, "Failed to save rating.");
+  }
+}
+
+export function computeNextPromptRatingSummary(input: {
+  currentCount: number;
+  currentAverage: number;
+  previousRating: number | null;
+  nextRating: number | null;
+}): { ratingCount: number; ratingAverage: number } {
+  const normalizedCurrentCount = Math.max(0, Math.floor(input.currentCount));
+  const normalizedCurrentAverage = Number.isFinite(input.currentAverage)
+    ? Math.max(0, input.currentAverage)
+    : 0;
+  const currentSum = normalizedCurrentAverage * normalizedCurrentCount;
+
+  let nextCount = normalizedCurrentCount;
+  let nextSum = currentSum;
+
+  if (typeof input.previousRating === "number" && input.previousRating >= 1 && input.previousRating <= 5) {
+    nextCount = Math.max(0, nextCount - 1);
+    nextSum -= input.previousRating;
+  }
+
+  if (typeof input.nextRating === "number" && input.nextRating >= 1 && input.nextRating <= 5) {
+    nextCount += 1;
+    nextSum += input.nextRating;
+  }
+
+  if (nextCount === 0) {
+    return {
+      ratingCount: 0,
+      ratingAverage: 0,
+    };
+  }
+
+  return {
+    ratingCount: nextCount,
+    ratingAverage: Number((nextSum / nextCount).toFixed(2)),
+  };
 }
 
 export async function toggleVote(

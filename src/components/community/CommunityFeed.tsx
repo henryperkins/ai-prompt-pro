@@ -21,6 +21,9 @@ interface CommunityFeedProps {
   onCommentAdded: (postId: string) => void;
   onCommentThreadOpen?: (postId: string) => void;
   canVote: boolean;
+  canRate?: boolean;
+  ratingByPost?: Record<string, number | null>;
+  onRatePrompt?: (postId: string, rating: number | null) => void;
   currentUserId?: string | null;
   blockedUserIds?: string[];
   onReportPost?: (post: CommunityPost) => void;
@@ -67,6 +70,9 @@ export function CommunityFeed({
   onCommentAdded,
   onCommentThreadOpen,
   canVote,
+  canRate = false,
+  ratingByPost = {},
+  onRatePrompt,
   currentUserId,
   blockedUserIds = [],
   onReportPost,
@@ -101,6 +107,9 @@ export function CommunityFeed({
             onCommentAdded={onCommentAdded}
             onCommentThreadOpen={onCommentThreadOpen}
             canVote={canVote}
+            canRate={canRate}
+            ratingValue={ratingByPost[post.id] ?? null}
+            onRatePrompt={onRatePrompt}
             canModerate={Boolean(currentUserId)}
             canBlockAuthor={currentUserId !== post.authorId}
             isAuthorBlocked={blockedUserIds.includes(post.authorId)}
@@ -122,6 +131,9 @@ export function CommunityFeed({
       onCommentAdded,
       onCommentThreadOpen,
       canVote,
+      canRate,
+      ratingByPost,
+      onRatePrompt,
       currentUserId,
       blockedUserIds,
       onReportPost,

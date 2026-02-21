@@ -15,11 +15,14 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   type CommunityPost as CommunityPostType,
   type CommunityProfile,
+  computeNextPromptRatingSummary,
   loadPost,
+  loadMyRatings,
   loadProfilesByIds,
   loadRemixes,
   remixToLibrary,
   loadMyVotes,
+  setPromptRating,
   toggleVote,
   type VoteState,
   type VoteType,
@@ -56,6 +59,7 @@ const CommunityPost = () => {
   const { postId } = useParams<{ postId: string }>();
   const requestToken = useRef(0);
   const voteInFlightByPost = useRef<Set<string>>(new Set());
+  const ratingInFlightByPost = useRef<Set<string>>(new Set());
   const { toast } = useToast();
   const { user } = useAuth();
   const isMobile = useIsMobile();
@@ -69,6 +73,7 @@ const CommunityPost = () => {
   const [remixes, setRemixes] = useState<CommunityPostType[]>([]);
   const [authorById, setAuthorById] = useState<Record<string, CommunityProfile>>({});
   const [voteState, setVoteState] = useState<VoteState | null>(null);
+  const [ratingValue, setRatingValue] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorState, setErrorState] = useState<CommunityErrorState | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
@@ -107,6 +112,7 @@ const CommunityPost = () => {
       setRemixes([]);
       setAuthorById({});
       setVoteState(null);
+      setRatingValue(null);
     };
 
     if (!postId || !isUuid(postId)) {
@@ -137,10 +143,11 @@ const CommunityPost = () => {
           return;
         }
 
-        const [loadedParentResult, loadedRemixesResult, voteStatesResult] = await Promise.allSettled([
+        const [loadedParentResult, loadedRemixesResult, voteStatesResult, ratingsResult] = await Promise.allSettled([
           loadedPost.remixedFrom ? loadPost(loadedPost.remixedFrom) : Promise.resolve(null),
           loadRemixes(loadedPost.id),
           loadMyVotes([loadedPost.id]),
+          loadMyRatings([loadedPost.id]),
         ]);
 
         if (token !== requestToken.current) return;
@@ -148,6 +155,7 @@ const CommunityPost = () => {
         const loadedParent = loadedParentResult.status === "fulfilled" ? loadedParentResult.value : null;
         const loadedRemixes = loadedRemixesResult.status === "fulfilled" ? loadedRemixesResult.value : [];
         const voteStates = voteStatesResult.status === "fulfilled" ? voteStatesResult.value : {};
+        const ratings = ratingsResult.status === "fulfilled" ? ratingsResult.value : {};
         const authorIds = Array.from(
           new Set([
             loadedPost.authorId,
@@ -167,6 +175,7 @@ const CommunityPost = () => {
         setRemixes(loadedRemixes);
         setAuthorById(toProfileMap(profiles));
         setVoteState(voteStates[loadedPost.id] ?? { upvote: false, verified: false });
+        setRatingValue(ratings[loadedPost.id] ?? null);
       } catch (error) {
         if (token !== requestToken.current) return;
         resetPostState();
@@ -234,6 +243,47 @@ const CommunityPost = () => {
       }
     },
     [toast, trackInteraction, user],
+  );
+
+  const handleRatePrompt = useCallback(
+    async (targetId: string, rating: number | null) => {
+      if (!user) {
+        toast({ title: "Sign in required", description: "Create an account to rate prompts." });
+        return;
+      }
+      if (ratingInFlightByPost.current.has(targetId)) return;
+      ratingInFlightByPost.current.add(targetId);
+
+      const previousRating = ratingValue;
+
+      try {
+        const result = await setPromptRating(targetId, rating);
+        setRatingValue(result.rating);
+        setPost((prev) => {
+          if (!prev || prev.id !== targetId) return prev;
+          const summary = computeNextPromptRatingSummary({
+            currentCount: prev.ratingCount ?? 0,
+            currentAverage: prev.ratingAverage ?? 0,
+            previousRating,
+            nextRating: result.rating,
+          });
+          return {
+            ...prev,
+            ratingCount: summary.ratingCount,
+            ratingAverage: summary.ratingAverage,
+          };
+        });
+      } catch (error) {
+        toast({
+          title: "Rating failed",
+          description: error instanceof Error ? error.message : "Unexpected error",
+          variant: "destructive",
+        });
+      } finally {
+        ratingInFlightByPost.current.delete(targetId);
+      }
+    },
+    [ratingValue, toast, user],
   );
 
   const handleCommentAdded = useCallback((targetId: string) => {
@@ -446,6 +496,9 @@ const CommunityPost = () => {
             onCommentAdded={handleCommentAdded}
             onCommentThreadOpen={handleCommentThreadOpen}
             canVote={Boolean(user)}
+            canRate={Boolean(user)}
+            ratingValue={ratingValue}
+            onRatePrompt={handleRatePrompt}
             canSaveToLibrary={Boolean(user)}
             onSaveToLibrary={handleSaveToLibrary}
             canModerate={Boolean(user)}

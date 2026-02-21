@@ -16,6 +16,8 @@ import {
 const Index = lazy(() => import("./pages/Index"));
 const Community = lazy(() => import("./pages/Community"));
 const CommunityPost = lazy(() => import("./pages/CommunityPost"));
+const Feed = lazy(() => import("./pages/Feed"));
+const Profile = lazy(() => import("./pages/Profile"));
 const Library = lazy(() => import("./pages/Library"));
 const LibraryBulkEdit = lazy(() => import("./pages/LibraryBulkEdit"));
 const Presets = lazy(() => import("./pages/Presets"));
@@ -46,6 +48,8 @@ const App = () => (
                 path="/community/:postId"
                 element={withRouteFallback(<CommunityPost />, <CommunityRouteFallback />)}
               />
+              <Route path="/feed" element={withRouteFallback(<Feed />, <CommunityRouteFallback />)} />
+              <Route path="/profile/:userId" element={withRouteFallback(<Profile />, <CommunityRouteFallback />)} />
               <Route path="/library" element={withRouteFallback(<Library />, <LibraryRouteFallback />)} />
               <Route
                 path="/library/bulk-edit"

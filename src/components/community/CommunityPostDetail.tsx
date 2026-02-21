@@ -9,6 +9,7 @@ import {
   GitBranch,
   MessageCircle,
   MoreHorizontal,
+  Star,
   UserCheck,
   UserX,
 } from "lucide-react";
@@ -43,6 +44,9 @@ interface CommunityPostDetailProps {
   onCommentAdded: (postId: string) => void;
   onCommentThreadOpen?: (postId: string) => void;
   canVote: boolean;
+  canRate?: boolean;
+  ratingValue?: number | null;
+  onRatePrompt?: (postId: string, rating: number | null) => void;
   canSaveToLibrary: boolean;
   onSaveToLibrary: (postId: string) => void;
   canModerate?: boolean;
@@ -146,6 +150,9 @@ export function CommunityPostDetail({
   onCommentAdded,
   onCommentThreadOpen,
   canVote,
+  canRate = false,
+  ratingValue = null,
+  onRatePrompt,
   canSaveToLibrary,
   onSaveToLibrary,
   canModerate = false,
@@ -163,6 +170,8 @@ export function CommunityPostDetail({
   const createdAgo = formatDistanceToNow(new Date(post.createdAt), { addSuffix: true });
   const remixDiff = parseRemixDiff(post.remixDiff);
   const promptBody = (post.enhancedPrompt || post.starterPrompt || "").trim();
+  const ratingAverage = post.ratingAverage ?? 0;
+  const ratingCount = post.ratingCount ?? 0;
 
   return (
     <div className="space-y-4">
@@ -174,7 +183,9 @@ export function CommunityPostDetail({
               <AvatarFallback className="type-reply-label">{getInitials(authorName)}</AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <p className="type-author type-wrap-safe text-foreground">{authorName}</p>
+              <Link to={`/profile/${post.authorId}`} className="type-author type-link-inline type-wrap-safe text-foreground">
+                {authorName}
+              </Link>
               <p className="type-timestamp text-muted-foreground">{createdAgo}</p>
             </div>
           </div>
@@ -389,6 +400,32 @@ export function CommunityPostDetail({
               <MessageCircle className="h-3.5 w-3.5" />
               {post.commentCount}
             </span>
+          )}
+          <span className="type-numeric inline-flex items-center gap-1">
+            <Star className="h-3.5 w-3.5" />
+            {ratingAverage.toFixed(1)} ({ratingCount})
+          </span>
+          {canRate && onRatePrompt && (
+            <div className="inline-flex items-center gap-0.5">
+              {[1, 2, 3, 4, 5].map((value) => {
+                const isActive = (ratingValue ?? 0) >= value;
+                return (
+                  <Button
+                    key={`${post.id}-detail-rate-${value}`}
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    aria-label={`Rate ${value} star${value === 1 ? "" : "s"}`}
+                    onClick={() => onRatePrompt(post.id, ratingValue === value ? null : value)}
+                  >
+                    <Star
+                      className={isActive ? "h-4 w-4 fill-primary text-primary" : "h-4 w-4 text-muted-foreground"}
+                    />
+                  </Button>
+                );
+              })}
+            </div>
           )}
         </div>
       </Card>

@@ -16,7 +16,7 @@ describe("BottomNav", () => {
     expect(historyLink).toHaveAttribute("aria-current", "page");
   });
 
-  it("shows 5 top-level items including a standalone Presets link", () => {
+  it("shows 6 top-level items including personal feed and presets links", () => {
     render(
       <MemoryRouter initialEntries={["/"]}>
         <BottomNav />
@@ -25,9 +25,12 @@ describe("BottomNav", () => {
 
     const nav = screen.getByRole("navigation", { name: "Mobile navigation" });
     const links = nav.querySelectorAll("a.mobile-route-link");
-    expect(links.length).toBe(5);
+    expect(links.length).toBe(6);
 
     const presetsLink = screen.getByRole("link", { name: "Presets" });
     expect(presetsLink).toHaveAttribute("href", "/presets");
+
+    const feedLink = screen.getByRole("link", { name: "Feed" });
+    expect(feedLink).toHaveAttribute("href", "/feed");
   });
 });
