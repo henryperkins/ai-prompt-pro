@@ -55,6 +55,8 @@ export type Database = {
           id: string
           is_public: boolean
           public_config: Json
+          rating_avg: number
+          rating_count: number
           remix_count: number
           remix_diff: Json | null
           remix_note: string
@@ -79,6 +81,8 @@ export type Database = {
           id?: string
           is_public?: boolean
           public_config?: Json
+          rating_avg?: number
+          rating_count?: number
           remix_count?: number
           remix_diff?: Json | null
           remix_note?: string
@@ -103,6 +107,8 @@ export type Database = {
           id?: string
           is_public?: boolean
           public_config?: Json
+          rating_avg?: number
+          rating_count?: number
           remix_count?: number
           remix_diff?: Json | null
           remix_note?: string
@@ -130,6 +136,41 @@ export type Database = {
             columns: ["saved_prompt_id"]
             isOneToOne: true
             referencedRelation: "saved_prompts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_prompt_ratings: {
+        Row: {
+          created_at: string
+          id: string
+          post_id: string
+          rating: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_id: string
+          rating: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_id?: string
+          rating?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_prompt_ratings_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "community_posts"
             referencedColumns: ["id"]
           },
         ]
@@ -241,6 +282,27 @@ export type Database = {
           created_at?: string
           id?: string
           reason?: string
+        }
+        Relationships: []
+      }
+      community_user_follows: {
+        Row: {
+          created_at: string
+          followed_user_id: string
+          follower_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          followed_user_id: string
+          follower_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          followed_user_id?: string
+          follower_id?: string
+          id?: string
         }
         Relationships: []
       }

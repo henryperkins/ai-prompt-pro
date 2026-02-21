@@ -514,7 +514,7 @@ export function OutputPanel({
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" disabled={!canUseSaveMenu} className="ui-toolbar-button gap-1.5">
+              <Button variant="brandSecondary" size="sm" disabled={!canUseSaveMenu} className="ui-toolbar-button gap-1.5">
                 <Save className="w-3 h-3" />
                 Save
               </Button>
@@ -791,7 +791,7 @@ export function OutputPanel({
             <Button variant="outline" onClick={() => handleSaveDialogOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSaveSubmit}>
+            <Button variant="brandPrimary" onClick={handleSaveSubmit}>
               {shareEnabledForUi ? "Save & Share" : "Save Prompt"}
             </Button>
           </DialogFooter>
@@ -877,7 +877,7 @@ export function OutputPanel({
             </div>
           )}
           <Button
-            variant="glow"
+            variant="brandPrimary"
             size="lg"
             onClick={onEnhance}
             disabled={isEnhancing || !builtPrompt}

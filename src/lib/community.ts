@@ -28,7 +28,7 @@ import { assertCommunityTextAllowed } from "@/lib/content-moderation";
 const SAVED_PROMPT_SELECT_COLUMNS =
   "id, user_id, title, description, category, tags, config, built_prompt, enhanced_prompt, fingerprint, revision, is_shared, target_model, use_case, remixed_from, remix_note, remix_diff, created_at, updated_at";
 const COMMUNITY_POST_SELECT_COLUMNS =
-  "id, saved_prompt_id, author_id, title, enhanced_prompt, description, use_case, category, tags, target_model, is_public, public_config, starter_prompt, remixed_from, remix_note, remix_diff, upvote_count, verified_count, remix_count, comment_count, created_at, updated_at";
+  "id, saved_prompt_id, author_id, title, enhanced_prompt, description, use_case, category, tags, target_model, is_public, public_config, starter_prompt, remixed_from, remix_note, remix_diff, upvote_count, verified_count, remix_count, comment_count, rating_count, rating_avg, created_at, updated_at";
 
 export type PromptSort = "recent" | "name" | "revision";
 export type CommunitySort = "new" | "popular" | "most_remixed" | "verified";
@@ -146,6 +146,8 @@ export interface CommunityPost {
   verifiedCount: number;
   remixCount: number;
   commentCount: number;
+  ratingCount?: number;
+  ratingAverage?: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -163,6 +165,11 @@ export interface CommunityProfile {
   id: string;
   displayName: string;
   avatarUrl: string | null;
+}
+
+export interface FollowStats {
+  followersCount: number;
+  followingCount: number;
 }
 
 export interface RemixDiff {
@@ -197,6 +204,8 @@ interface CommunityPostRow {
   verified_count: number;
   remix_count: number;
   comment_count: number;
+  rating_count?: number | null;
+  rating_avg?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -295,6 +304,8 @@ function mapCommunityPost(row: CommunityPostRow): CommunityPost {
     verifiedCount: row.verified_count,
     remixCount: row.remix_count,
     commentCount: row.comment_count,
+    ratingCount: typeof row.rating_count === "number" ? row.rating_count : 0,
+    ratingAverage: typeof row.rating_avg === "number" ? row.rating_avg : 0,
     createdAt: new Date(row.created_at).getTime(),
     updatedAt: new Date(row.updated_at).getTime(),
   };
@@ -657,6 +668,89 @@ export async function loadFeed(input: LoadFeedInput = {}): Promise<CommunityPost
     return (data || []).map((row) => mapCommunityPost(row as CommunityPostRow));
   } catch (error) {
     throw toError(error, "Failed to load community feed.");
+  }
+}
+
+export async function loadPostsByAuthor(
+  authorId: string,
+  options: { page?: number; limit?: number } = {},
+): Promise<CommunityPost[]> {
+  ensureCommunityBackend("Community profiles");
+  const { page = 0, limit = 25 } = options;
+  const normalizedLimit = Math.min(Math.max(limit, 1), 100);
+  const normalizedPage = Math.max(page, 0);
+
+  try {
+    let builder = neon
+      .from("community_posts")
+      .select(COMMUNITY_POST_SELECT_COLUMNS)
+      .eq("author_id", authorId)
+      .eq("is_public", true)
+      .order("created_at", { ascending: false })
+      .limit(normalizedLimit);
+
+    if (normalizedPage > 0) {
+      const start = normalizedPage * normalizedLimit;
+      builder = builder.range(start, start + normalizedLimit - 1);
+    }
+
+    const { data, error } = await builder;
+    if (error) throw error;
+    return (data || []).map((row) => mapCommunityPost(row as CommunityPostRow));
+  } catch (error) {
+    throw toError(error, "Failed to load profile posts.");
+  }
+}
+
+export async function loadFollowingUserIds(): Promise<string[]> {
+  ensureCommunityBackend("Community follows");
+  const userId = await requireUserId();
+
+  try {
+    const { data, error } = await neon
+      .from("community_user_follows")
+      .select("followed_user_id")
+      .eq("follower_id", userId);
+
+    if (error) throw error;
+    return (data || [])
+      .map((row) => row.followed_user_id)
+      .filter((value): value is string => Boolean(value));
+  } catch (error) {
+    throw toError(error, "Failed to load follow list.");
+  }
+}
+
+export async function loadPersonalFeed(options: { page?: number; limit?: number } = {}): Promise<CommunityPost[]> {
+  ensureCommunityBackend("Personal feed");
+  const userId = await requireUserId();
+  const { page = 0, limit = 25 } = options;
+  const normalizedLimit = Math.min(Math.max(limit, 1), 100);
+  const normalizedPage = Math.max(page, 0);
+
+  try {
+    const followedUserIds = await loadFollowingUserIds();
+    const authorIds = Array.from(new Set([userId, ...followedUserIds]));
+    if (authorIds.length === 0) return [];
+
+    let builder = neon
+      .from("community_posts")
+      .select(COMMUNITY_POST_SELECT_COLUMNS)
+      .eq("is_public", true)
+      .in("author_id", authorIds)
+      .order("created_at", { ascending: false })
+      .limit(normalizedLimit);
+
+    if (normalizedPage > 0) {
+      const start = normalizedPage * normalizedLimit;
+      builder = builder.range(start, start + normalizedLimit - 1);
+    }
+
+    const { data, error } = await builder;
+    if (error) throw error;
+    return (data || []).map((row) => mapCommunityPost(row as CommunityPostRow));
+  } catch (error) {
+    throw toError(error, "Failed to load personal feed.");
   }
 }
 

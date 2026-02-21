@@ -188,16 +188,20 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
           >
             <span className="interactive-chip flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-lg border border-primary/25 bg-primary/10">
               <img
-                src="/brand/pf-logo-symbol-primary-v2.png"
+                src="/brand/pf-logo-symbol-primary-v3-tight.png"
                 alt=""
                 decoding="async"
-                className="h-4 w-4 sm:h-5 sm:w-5"
+                className="h-4 w-4 object-contain sm:h-5 sm:w-5"
                 aria-hidden="true"
               />
             </span>
-            <span className="text-base font-bold text-foreground tracking-tight sm:text-lg">
-              {brandCopy.appName}
-            </span>
+            <img
+              src="/brand/pf-logo-wordmark-horizontal-v3-tight.png"
+              alt=""
+              decoding="async"
+              className="h-4 w-auto object-contain sm:h-5"
+              aria-hidden="true"
+            />
           </Link>
 
           <nav className="flex items-center gap-0.5 sm:gap-1">
@@ -618,7 +622,7 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deletingAccount}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              variant="brandDestructive"
               disabled={!canDeleteAccount || deletingAccount}
               onClick={(event) => {
                 event.preventDefault();
