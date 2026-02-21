@@ -2,11 +2,11 @@ import { useState } from "react";
 import { ContextIntegrations } from "@/components/ContextIntegrations";
 import { ContextSourceChips } from "@/components/ContextSourceChips";
 import { ProjectNotes } from "@/components/ProjectNotes";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/base/primitives/badge";
+import { Button } from "@/components/base/primitives/button";
+import { Card } from "@/components/base/primitives/card";
+import { Label } from "@/components/base/primitives/label";
+import { Switch } from "@/components/base/primitives/switch";
 import type {
   ContextConfig,
   ContextSource,

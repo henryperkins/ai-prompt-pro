@@ -6,7 +6,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/components/base/primitives/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,27 +16,27 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from "@/components/base/primitives/alert-dialog";
 import {
   Drawer,
   DrawerContent,
   DrawerHeader,
   DrawerTitle,
-} from "@/components/ui/drawer";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+} from "@/components/base/primitives/drawer";
+import { Button } from "@/components/base/primitives/button";
+import { Badge } from "@/components/base/primitives/badge";
+import { Card } from "@/components/base/primitives/card";
+import { Checkbox } from "@/components/base/primitives/checkbox";
+import { Input } from "@/components/base/primitives/input";
+import { Label } from "@/components/base/primitives/label";
+import { Textarea } from "@/components/base/primitives/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/base/primitives/select";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { PROMPT_CATEGORY_OPTIONS } from "@/lib/prompt-categories";
 import { cn } from "@/lib/utils";

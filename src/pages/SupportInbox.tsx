@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHero, PageShell } from "@/components/PageShell";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/base/primitives/badge";
+import { Button } from "@/components/base/primitives/button";
+import { Card } from "@/components/base/primitives/card";
 import { useAuth } from "@/hooks/useAuth";
 import {
   isSupportReviewer,

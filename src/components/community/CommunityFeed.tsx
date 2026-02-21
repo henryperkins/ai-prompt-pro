@@ -1,10 +1,10 @@
 import { useMemo } from "react";
 import type { CommunityPost, CommunityProfile, VoteState, VoteType } from "@/lib/community";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/base/primitives/button";
+import { Card } from "@/components/base/primitives/card";
+import { Skeleton } from "@/components/base/primitives/skeleton";
 import { CommunityPostCard } from "@/components/community/CommunityPostCard";
-import { StateCard } from "@/components/ui/state-card";
+import { StateCard } from "@/components/base/primitives/state-card";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { CommunityErrorKind } from "@/lib/community-errors";
 

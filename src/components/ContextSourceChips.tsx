@@ -1,15 +1,15 @@
 import { useState, useCallback } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/base/primitives/button";
+import { Input } from "@/components/base/primitives/input";
+import { Textarea } from "@/components/base/primitives/textarea";
+import { Badge } from "@/components/base/primitives/badge";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
+} from "@/components/base/primitives/dialog";
 import { X, Link, FileText, Type, Plus, Upload, Loader2, Globe } from "lucide-react";
 import type { ContextSource } from "@/lib/context-types";
 import { summarizeSource } from "@/lib/context-types";

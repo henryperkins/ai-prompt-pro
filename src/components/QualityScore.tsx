@@ -1,5 +1,5 @@
-import { Card } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
+import { Card } from "@/components/base/primitives/card";
+import { Progress } from "@/components/base/primitives/progress";
 import { CheckCircle2, AlertCircle } from "lucide-react";
 
 interface QualityScoreProps {

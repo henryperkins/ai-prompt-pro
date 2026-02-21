@@ -1,5 +1,5 @@
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/base/primitives/textarea";
+import { Button } from "@/components/base/primitives/button";
 import { RotateCcw } from "lucide-react";
 
 interface PromptInputProps {

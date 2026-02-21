@@ -13,22 +13,22 @@ import {
   Sparkles,
 } from "lucide-react";
 import { PageHero, PageShell } from "@/components/PageShell";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { StateCard } from "@/components/ui/state-card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitives/avatar";
+import { Badge } from "@/components/base/primitives/badge";
+import { Button } from "@/components/base/primitives/button";
+import { Card } from "@/components/base/primitives/card";
+import { Checkbox } from "@/components/base/primitives/checkbox";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/base/primitives/dropdown-menu";
+import { Input } from "@/components/base/primitives/input";
+import { StateCard } from "@/components/base/primitives/state-card";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { ToastAction } from "@/components/ui/toast";
+} from "@/components/base/primitives/select";
+import { ToastAction } from "@/components/base/primitives/toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePromptBuilder } from "@/hooks/usePromptBuilder";

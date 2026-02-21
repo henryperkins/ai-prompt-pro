@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageShell, PageHero } from "@/components/PageShell";
 import { VersionHistoryContent } from "@/components/VersionHistory";
-import { Card } from "@/components/ui/card";
+import { Card } from "@/components/base/primitives/card";
 import { usePromptBuilder } from "@/hooks/usePromptBuilder";
 import { useToast } from "@/hooks/use-toast";
 import { queueRestoredVersionPrompt } from "@/lib/history-restore";

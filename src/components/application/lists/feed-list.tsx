@@ -4,8 +4,8 @@ import { Badge } from "@/components/base/badges/badges";
 import { BadgeGroup } from "@/components/base/badges/badge-groups";
 import { ButtonGroup, ButtonGroupItem } from "@/components/base/button-group/button-group";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Card } from "@/components/ui/card";
+import { Avatar, AvatarFallback } from "@/components/base/primitives/avatar";
+import { Card } from "@/components/base/primitives/card";
 import { cn } from "@/lib/utils";
 
 type FeedFilter = "all" | "mentions" | "deployments";

@@ -56,7 +56,7 @@ vi.mock("@/components/AuthDialog", () => ({
   AuthDialog: () => null,
 }));
 
-vi.mock("@/components/ui/dropdown-menu", () => ({
+vi.mock("@/components/base/primitives/dropdown-menu", () => ({
   DropdownMenu: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   DropdownMenuTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
   DropdownMenuContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,

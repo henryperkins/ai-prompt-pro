@@ -7,18 +7,18 @@ import type { CommunityComment, CommunityProfile } from "@/lib/community";
 import { addComment, loadComments, loadProfilesByIds } from "@/lib/community";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/base/primitives/badge";
+import { Button } from "@/components/base/primitives/button";
+import { Card } from "@/components/base/primitives/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitives/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Textarea } from "@/components/ui/textarea";
+} from "@/components/base/primitives/dropdown-menu";
+import { Skeleton } from "@/components/base/primitives/skeleton";
+import { Textarea } from "@/components/base/primitives/textarea";
 import { cn } from "@/lib/utils";
 
 const COMMENTS_VIRTUALIZATION_THRESHOLD = 30;

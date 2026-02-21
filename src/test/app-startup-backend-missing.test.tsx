@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/backend-config", async () => {
@@ -27,9 +27,10 @@ describe("app startup when backend is unconfigured", () => {
   it("keeps Builder route usable instead of crashing", async () => {
     await renderAppAt("/");
 
-    expect(
-      await screen.findByRole("heading", { name: /Turn rough ideas into quality prompts with context/i }),
-    ).toBeInTheDocument();
+    expect(await screen.findByTestId("page-shell")).toBeInTheDocument();
+    const hero = await screen.findByTestId("builder-hero", {}, { timeout: 5000 });
+    expect(hero).toBeInTheDocument();
+    expect(within(hero).getByRole("heading", { level: 1 })).toHaveTextContent(/\S+/);
   });
 
   it("shows actionable Community backend setup state instead of crashing", async () => {

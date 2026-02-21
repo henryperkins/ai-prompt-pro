@@ -4,10 +4,10 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@/components/base/primitives/dialog";
+import { Button } from "@/components/base/primitives/button";
+import { Input } from "@/components/base/primitives/input";
+import { Label } from "@/components/base/primitives/label";
 import { useAuth, type AuthOAuthProvider } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
 

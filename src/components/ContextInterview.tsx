@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge, badgeVariants } from "@/components/ui/badge";
+import { Button } from "@/components/base/primitives/button";
+import { Input } from "@/components/base/primitives/input";
+import { Badge, badgeVariants } from "@/components/base/primitives/badge";
 import { MessageSquareText, ChevronRight, Check } from "lucide-react";
 import { interviewQuestions } from "@/lib/context-types";
 import type { InterviewAnswer } from "@/lib/context-types";

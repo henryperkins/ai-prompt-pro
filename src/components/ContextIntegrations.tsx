@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/base/primitives/badge";
+import { Button } from "@/components/base/primitives/button";
+import { Input } from "@/components/base/primitives/input";
+import { Label } from "@/components/base/primitives/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/base/primitives/select";
+import { Switch } from "@/components/base/primitives/switch";
 import type { DatabaseConnection, RagParameters } from "@/lib/context-types";
 import { Database, Plus, X } from "lucide-react";
 

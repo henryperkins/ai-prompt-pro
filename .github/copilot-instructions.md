@@ -63,7 +63,7 @@ npm run test:rls
 - Use the `@/` path alias for all `src/` imports (configured in Vite, Vitest, and tsconfig).
 - TypeScript with React function components; 2-space indent, semicolons, double quotes.
 - Component files: PascalCase (`PromptLibrary.tsx`). Hooks: `useXxx`. Utilities: kebab-case (`template-store.ts`).
-- UI primitives in `src/components/ui/` (shadcn/ui + Radix). Feature components directly in `src/components/`.
+- UI primitives in `src/components/base/primitives/` (Radix). UUI components in `src/components/base/`. Feature components directly in `src/components/`.
 - Test files in `src/test/` named `{module}.test.ts(x)`.
 - Never hardcode env values; use `VITE_*` for frontend, server-side vars for agent service (see `.env.example`).
 - Commits: imperative mood with optional scope prefix (`ui: improve card spacing`).

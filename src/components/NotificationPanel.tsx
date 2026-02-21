@@ -1,10 +1,10 @@
 import { formatDistanceToNow } from "date-fns";
 import { ArrowUp, Bell, CheckCircle2, GitBranch, MessageCircle } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitives/avatar";
+import { Button } from "@/components/base/primitives/button";
+import { ScrollArea } from "@/components/base/primitives/scroll-area";
+import { Skeleton } from "@/components/base/primitives/skeleton";
 import type { Notification } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
 

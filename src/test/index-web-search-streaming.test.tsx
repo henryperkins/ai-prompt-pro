@@ -95,21 +95,21 @@ vi.mock("@/components/OutputPanel", () => ({
   ),
 }));
 
-vi.mock("@/components/ui/accordion", () => ({
+vi.mock("@/components/base/primitives/accordion", () => ({
   Accordion: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   AccordionItem: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   AccordionTrigger: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   AccordionContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
-vi.mock("@/components/ui/drawer", () => ({
+vi.mock("@/components/base/primitives/drawer", () => ({
   Drawer: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   DrawerContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   DrawerHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   DrawerTitle: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
-vi.mock("@/components/ui/button", () => ({
+vi.mock("@/components/base/primitives/button", () => ({
   Button: ({ children, ...props }: { children: ReactNode } & Record<string, unknown>) => (
     <button type="button" {...props}>
       {children}
@@ -117,11 +117,11 @@ vi.mock("@/components/ui/button", () => ({
   ),
 }));
 
-vi.mock("@/components/ui/badge", () => ({
+vi.mock("@/components/base/primitives/badge", () => ({
   Badge: ({ children }: { children: ReactNode }) => <span>{children}</span>,
 }));
 
-vi.mock("@/components/ui/card", () => ({
+vi.mock("@/components/base/primitives/card", () => ({
   Card: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 

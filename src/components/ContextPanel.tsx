@@ -1,12 +1,12 @@
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/base/primitives/switch";
+import { Label } from "@/components/base/primitives/label";
 import { ContextSourceChips } from "@/components/ContextSourceChips";
 import { StructuredContextForm } from "@/components/StructuredContextForm";
 import { ContextInterview } from "@/components/ContextInterview";
 import { ProjectNotes } from "@/components/ProjectNotes";
 import { ContextIntegrations } from "@/components/ContextIntegrations";
 import { ContextQualityMeter } from "@/components/ContextQualityMeter";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/base/primitives/tabs";
 import type {
   ContextConfig,
   ContextSource,

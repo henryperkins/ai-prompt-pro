@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card } from "@/components/base/primitives/card";
+import { Button } from "@/components/base/primitives/button";
 import { Copy, Check, Sparkles, Save, Loader2, MoreHorizontal, Globe } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/base/primitives/input";
+import { Label } from "@/components/base/primitives/label";
+import { Textarea } from "@/components/base/primitives/textarea";
 import {
   Dialog,
   DialogContent,
@@ -14,14 +14,14 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/components/base/primitives/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/base/primitives/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,7 +32,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/components/base/primitives/dropdown-menu";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import { PROMPT_CATEGORY_OPTIONS } from "@/lib/prompt-categories";
@@ -44,8 +44,8 @@ import { trackBuilderEvent } from "@/lib/telemetry";
 import { buildLineDiff, type DiffLine } from "@/lib/text-diff";
 import { cn } from "@/lib/utils";
 import { normalizeHttpUrl } from "@/lib/url-utils";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/base/primitives/checkbox";
+import { Switch } from "@/components/base/primitives/switch";
 
 export type EnhancePhase = "idle" | "starting" | "streaming" | "settling" | "done";
 const REASONING_SUMMARY_FADE_MS = 900;

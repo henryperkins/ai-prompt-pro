@@ -3,11 +3,11 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+} from "@/components/base/primitives/sheet";
+import { Button } from "@/components/base/primitives/button";
+import { Card } from "@/components/base/primitives/card";
 import { RotateCcw } from "lucide-react";
-import { StateCard } from "@/components/ui/state-card";
+import { StateCard } from "@/components/base/primitives/state-card";
 
 interface Version {
   id: string;

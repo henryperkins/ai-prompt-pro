@@ -54,7 +54,7 @@
       "*.pyc",
       "bun.lockb",
       "package-lock.json",
-      "src/components/ui/**",
+      "src/components/base/primitives/**",
       "*.log",
       "*.local",
       ".env*",

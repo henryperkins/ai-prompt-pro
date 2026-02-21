@@ -14,7 +14,8 @@ Primary source files:
 - `src/styles/globals.css`
 - `src/styles/typography.css`
 - `tailwind.config.ts`
-- `src/components/ui/*`
+- `src/components/base/primitives/*` (Radix/shadcn primitives)
+- `src/components/base/*` (Untitled UI components)
 - `docs/launch-messaging-pack.md`
 
 Legacy note:
@@ -299,7 +300,7 @@ When evolving the design system, use this order:
 1. **Token values**: `src/index.css`
 2. **Brand assets**: `public/brand/*`
 3. **Tailwind mapping**: `tailwind.config.ts`
-4. **Primitive contracts**: `src/components/ui/*`
+4. **Primitive contracts**: `src/components/base/primitives/*`
 5. **Feature-specific semantic classes**: e.g., community type roles in `src/index.css`
 
 Avoid direct hardcoded `px` typography values and avoid bypassing primitives unless strictly necessary.
@@ -331,7 +332,7 @@ Implementation map:
 
 - Token source: `src/index.css`
 - Tailwind color mapping: `tailwind.config.ts`
-- Primitive usage enforcement: `src/components/ui/*`
+- Primitive usage enforcement: `src/components/base/primitives/*`
 - Brand/delight accents: `src/index.css` (`--delight-*`)
 
 ### 11.2 Typography Checklist (HIG Typography)
@@ -348,7 +349,7 @@ Implementation map:
 
 - Typography tokens and base rules: `src/index.css`
 - Tailwind font families and sizing hooks: `tailwind.config.ts`
-- Primitive label/input/button text contracts: `src/components/ui/*`
+- Primitive label/input/button text contracts: `src/components/base/primitives/*`
 - Community-specific roles: `.community-typography` rules in `src/index.css`
 
 ### 11.3 Layout and Adaptivity Checklist (HIG Layout)
@@ -365,7 +366,7 @@ Implementation map:
 Implementation map:
 
 - Layout tokens and spacing primitives: `src/index.css`
-- Responsive breakpoint contracts: `tailwind.config.ts`, `src/components/ui/*`
+- Responsive breakpoint contracts: `tailwind.config.ts`, `src/components/base/primitives/*`
 - Route-level composition and content hierarchy: `src/pages/*`
 - Mobile viewport regression checks: `playwright/community.mobile.spec.ts`
 
@@ -402,7 +403,7 @@ Use for any native wrapper, hybrid shell, or packaged distribution that goes thr
 
 Implementation map:
 
-- UX and primitive quality baseline: `src/components/ui/*`, `src/pages/*`
+- UX and primitive quality baseline: `src/components/base/primitives/*`, `src/pages/*`
 - Community moderation/UGC surfaces: `src/pages/*`, `src/hooks/*`, `src/lib/*`
 - Policy and release process docs: `docs/*`
 
@@ -420,7 +421,7 @@ When Apple guidance changes, update this section and the underlying implementati
 
 1. `src/index.css` token/model updates
 2. `tailwind.config.ts` semantic mapping updates
-3. `src/components/ui/*` primitive contract updates
+3. `src/components/base/primitives/*` primitive contract updates
 4. Feature-level semantics in `src/pages/*`, `src/hooks/*`, `src/lib/*`
 5. Documentation sync in `docs/design-system.md`
 

@@ -50,7 +50,7 @@ npm run dev
 
 - `src/`: Vite + React TypeScript app
 - `src/components/`: feature UI components
-- `src/components/ui/`: shared primitives
+- `src/components/base/`: Untitled UI core components + Radix primitives
 - `src/pages/`: route-level screens
 - `src/hooks/`: reusable stateful logic
 - `src/lib/`: domain logic/helpers

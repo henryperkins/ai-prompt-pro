@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Bell, Loader2, LogIn, LogOut, Menu, Moon, Shield, Sun, Trash2, User } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/base/primitives/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitives/avatar";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/base/primitives/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,7 +12,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from "@/components/base/primitives/alert-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,11 +22,11 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+} from "@/components/base/primitives/dropdown-menu";
+import { Input } from "@/components/base/primitives/input";
+import { Label } from "@/components/base/primitives/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/base/primitives/popover";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/base/primitives/drawer";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";

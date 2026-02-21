@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Input } from "@/components/base/primitives/input";
+import { Button } from "@/components/base/primitives/button";
 import { ChevronDown, ChevronUp, Lightbulb } from "lucide-react";
 import type { StructuredContext } from "@/lib/context-types";
 import { structuredFieldsMeta } from "@/lib/context-types";

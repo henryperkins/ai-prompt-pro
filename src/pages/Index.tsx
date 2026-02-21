@@ -48,19 +48,19 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion";
+} from "@/components/base/primitives/accordion";
 import {
   Drawer,
   DrawerContent,
   DrawerDescription,
   DrawerHeader,
   DrawerTitle,
-} from "@/components/ui/drawer";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { ToastAction } from "@/components/ui/toast";
-import { Switch } from "@/components/ui/switch";
+} from "@/components/base/primitives/drawer";
+import { Button } from "@/components/base/primitives/button";
+import { Badge } from "@/components/base/primitives/badge";
+import { Card } from "@/components/base/primitives/card";
+import { ToastAction } from "@/components/base/primitives/toast";
+import { Switch } from "@/components/base/primitives/switch";
 import type { LucideIcon } from "lucide-react";
 import {
   Sparkles,
@@ -1411,7 +1411,7 @@ const Index = () => {
           </p>
         )}
         {/* Hero — compact on mobile */}
-        <div className="delight-hero-static text-center mb-4 sm:mb-8">
+        <div className="delight-hero-static text-center mb-4 sm:mb-8" data-testid="builder-hero">
           <h1 className="text-xl sm:text-3xl md:text-4xl font-bold text-foreground mb-1 sm:mb-2 tracking-tight">
             {heroCopy.headline}
           </h1>

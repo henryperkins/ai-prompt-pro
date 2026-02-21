@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { PageHero, PageShell } from "@/components/PageShell";
-import { Card } from "@/components/ui/card";
+import { Card } from "@/components/base/primitives/card";
 import { brandCopy } from "@/lib/brand-copy";
 
 const Privacy = () => {

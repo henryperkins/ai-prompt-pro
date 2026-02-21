@@ -1,11 +1,11 @@
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/base/primitives/badge";
+import { Button } from "@/components/base/primitives/button";
+import { Card } from "@/components/base/primitives/card";
+import { Checkbox } from "@/components/base/primitives/checkbox";
+import { Input } from "@/components/base/primitives/input";
+import { Label } from "@/components/base/primitives/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/base/primitives/select";
+import { Textarea } from "@/components/base/primitives/textarea";
 import {
   PromptConfig,
   constraintOptions,
