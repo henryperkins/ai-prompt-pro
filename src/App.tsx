@@ -25,6 +25,7 @@ const History = lazy(() => import("./pages/History"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
 const Contact = lazy(() => import("./pages/Contact"));
+const ComponentsShowcase = lazy(() => import("./pages/ComponentsShowcase"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -60,6 +61,10 @@ const App = () => (
               <Route path="/privacy" element={withRouteFallback(<Privacy />, <GenericRouteFallback />)} />
               <Route path="/terms" element={withRouteFallback(<Terms />, <GenericRouteFallback />)} />
               <Route path="/contact" element={withRouteFallback(<Contact />, <GenericRouteFallback />)} />
+              <Route
+                path="/components-showcase"
+                element={withRouteFallback(<ComponentsShowcase />, <GenericRouteFallback />)}
+              />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={withRouteFallback(<NotFound />, <GenericRouteFallback />)} />
             </Routes>

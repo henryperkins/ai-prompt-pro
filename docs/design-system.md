@@ -11,9 +11,15 @@ This project uses a **token-first design system** built on:
 Primary source files:
 
 - `src/index.css`
+- `src/styles/globals.css`
+- `src/styles/typography.css`
 - `tailwind.config.ts`
 - `src/components/ui/*`
 - `docs/launch-messaging-pack.md`
+
+Legacy note:
+
+- `src/styles/theme.css` is retained for reference but is not imported at runtime.
 
 ---
 
@@ -26,7 +32,7 @@ Primary source files:
 3. **Mobile-first ergonomics**
   - Controls are touch-friendly by default (`h-11` / ~44px) and default/small controls are denser on desktop (`sm:h-9`/`sm:h-10`).
 4. **Readable, consistent typography**
-   - Shared scale and line-height tokens are applied globally and in component primitives.
+   - Shared scale and line-height tokens are applied globally, in component primitives, and in `.prose` typography rules.
 5. **Accessible interactions**
    - Focus rings, reduced-motion support, and tabular numerics for data-heavy UI.
 
