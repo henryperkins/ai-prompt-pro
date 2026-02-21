@@ -124,7 +124,8 @@ This project can route prompt enhancement through a Node service that uses `@ope
 ```sh
 npm install
 # Prefer `.env` for local dev, but exporting also works.
-export OPENAI_API_KEY="<your-openai-api-key>"
+export AZURE_OPENAI_API_KEY="<your-azure-openai-api-key>"
+export CODEX_CONFIG_JSON='{"model_provider":"azure","model_providers":{"azure":{"name":"Azure OpenAI","base_url":"https://<resource>.openai.azure.com/openai/v1","env_key":"AZURE_OPENAI_API_KEY","wire_api":"responses"}}}'
 npm run agent:codex
 ```
 

@@ -13,21 +13,34 @@ import {
   postProcessEnhancementResponse,
 } from "./enhancement-pipeline.mjs";
 import { extractThreadOptions } from "./thread-options.mjs";
-import { loadCodexConfig, resolveApiKey, isAzureProvider } from "./codex-config.mjs";
+import {
+  loadCodexConfig,
+  resolveApiKey,
+  isAzureProvider,
+  resolveProviderConfig,
+} from "./codex-config.mjs";
 
 // ---------------------------------------------------------------------------
-// Resolve provider from ~/.codex/config.toml (Azure, OpenAI, etc.)
+// Resolve provider from ~/.codex/config.toml (preferred) or CODEX_CONFIG_JSON.
 // ---------------------------------------------------------------------------
-const CODEX_CONFIG = await loadCodexConfig();
+const CODEX_CONFIG_OVERRIDES = parseJsonObjectEnv("CODEX_CONFIG_JSON") || {};
+const CODEX_CONFIG_FROM_TOML = await loadCodexConfig();
+const CODEX_CONFIG_FROM_ENV = resolveProviderConfig(CODEX_CONFIG_OVERRIDES);
+const CODEX_CONFIG = CODEX_CONFIG_FROM_TOML || CODEX_CONFIG_FROM_ENV;
+const CODEX_CONFIG_SOURCE = CODEX_CONFIG_FROM_TOML
+  ? "config_toml"
+  : (CODEX_CONFIG_FROM_ENV ? "codex_config_json" : "fallback");
 const IS_AZURE_PROVIDER = isAzureProvider(CODEX_CONFIG);
 const RESOLVED_API_KEY = CODEX_CONFIG ? resolveApiKey(CODEX_CONFIG) : null;
+const REQUIRE_PROVIDER_CONFIG = normalizeBool(process.env.REQUIRE_PROVIDER_CONFIG, false);
 
 if (CODEX_CONFIG) {
   console.log(JSON.stringify({
     timestamp: new Date().toISOString(),
     level: "info",
-    event: "config_toml_resolved",
+    event: "provider_config_resolved",
     service: "ai-prompt-pro-codex-service",
+    config_source: CODEX_CONFIG_SOURCE,
     provider: CODEX_CONFIG.provider,
     provider_name: CODEX_CONFIG.name,
     base_url: CODEX_CONFIG.baseUrl,
@@ -39,11 +52,18 @@ if (CODEX_CONFIG) {
   console.log(JSON.stringify({
     timestamp: new Date().toISOString(),
     level: "warn",
-    event: "config_toml_not_found",
+    event: "provider_config_not_found",
     service: "ai-prompt-pro-codex-service",
-    message: "No ~/.codex/config.toml found or no model_provider set. Falling back to OPENAI_API_KEY.",
+    message: "No model provider config found in ~/.codex/config.toml or CODEX_CONFIG_JSON. Falling back to OPENAI_API_KEY.",
+    codex_config_json_set: Object.keys(CODEX_CONFIG_OVERRIDES).length > 0,
     openai_api_key_set: !!process.env.OPENAI_API_KEY,
   }));
+}
+
+if (REQUIRE_PROVIDER_CONFIG && !CODEX_CONFIG) {
+  throw new Error(
+    "REQUIRE_PROVIDER_CONFIG is true, but no provider config was found in ~/.codex/config.toml or CODEX_CONFIG_JSON.",
+  );
 }
 
 const MAX_PROMPT_CHARS = Number.parseInt(process.env.MAX_PROMPT_CHARS || "16000", 10);
@@ -93,8 +113,8 @@ const ENHANCE_WS_MAX_CONNECTIONS_PER_IP = parsePositiveIntegerEnv(
   10,
 );
 
-const OPENAI_API_BASE_URL = process.env.OPENAI_BASE_URL?.trim()
-  || (CODEX_CONFIG?.baseUrl ? CODEX_CONFIG.baseUrl.replace(/\/+$/, "") : null)
+const OPENAI_API_BASE_URL = (CODEX_CONFIG?.baseUrl ? CODEX_CONFIG.baseUrl.replace(/\/+$/, "") : null)
+  || process.env.OPENAI_BASE_URL?.trim()
   || "https://api.openai.com/v1";
 const EXTRACT_MODEL = process.env.EXTRACT_MODEL?.trim()
   || (IS_AZURE_PROVIDER ? "gpt-5.2" : "gpt-4.1-mini");
@@ -1092,9 +1112,9 @@ const DEFAULT_THREAD_OPTIONS = (() => {
 const DEFAULT_CODEX_OPTIONS = (() => {
   const options = {};
 
-  // When config.toml specifies a provider (e.g. "azure"), do NOT pass baseUrl
-  // or apiKey — let the Codex CLI subprocess read config.toml directly and
-  // resolve the provider, base URL, and API key from its own config chain.
+  // When a provider config is resolved (config.toml or CODEX_CONFIG_JSON),
+  // do NOT pass baseUrl/apiKey directly. Let the Codex CLI resolve provider
+  // settings and credentials from its config chain.
   if (!CODEX_CONFIG) {
     const baseUrl = normalizeEnvValue("OPENAI_BASE_URL") || normalizeEnvValue("CODEX_BASE_URL");
     if (baseUrl) options.baseUrl = baseUrl;
@@ -1106,7 +1126,7 @@ const DEFAULT_CODEX_OPTIONS = (() => {
   const codexPathOverride = normalizeEnvValue("CODEX_PATH_OVERRIDE");
   if (codexPathOverride) options.codexPathOverride = codexPathOverride;
 
-  const config = parseJsonObjectEnv("CODEX_CONFIG_JSON") || {};
+  const config = { ...CODEX_CONFIG_OVERRIDES };
 
   // Forward the provider from config.toml so the CLI subprocess gets it as a
   // --config flag in addition to reading its own config.toml.
@@ -1678,12 +1698,14 @@ function extractTextFromOpenAiContent(content) {
 }
 
 async function summarizeExtractedText(plainText) {
-  // Resolve API key: prefer config.toml provider key, then fall back to env vars.
-  const apiKey = RESOLVED_API_KEY
-    || normalizeEnvValue("OPENAI_API_KEY")
-    || normalizeEnvValue("CODEX_API_KEY");
+  const apiKey = CODEX_CONFIG
+    ? RESOLVED_API_KEY
+    : (normalizeEnvValue("OPENAI_API_KEY") || normalizeEnvValue("CODEX_API_KEY"));
   if (!apiKey) {
-    throw new Error("No API key configured. Set AZURE_OPENAI_API_KEY (via config.toml) or OPENAI_API_KEY.");
+    if (CODEX_CONFIG?.envKey) {
+      throw new Error(`No API key configured for provider '${CODEX_CONFIG.provider}'. Set ${CODEX_CONFIG.envKey}.`);
+    }
+    throw new Error("No API key configured. Set AZURE_OPENAI_API_KEY (via provider config) or OPENAI_API_KEY.");
   }
 
   // Azure OpenAI uses `api-key` header; standard OpenAI uses `Authorization: Bearer`.
@@ -2769,6 +2791,9 @@ async function requestHandler(req, res) {
     json(res, 200, {
       ok: true,
       provider: "codex-sdk",
+      provider_source: CODEX_CONFIG_SOURCE,
+      provider_name: CODEX_CONFIG?.name || "OpenAI",
+      provider_base_url: OPENAI_API_BASE_URL,
       model: DEFAULT_THREAD_OPTIONS.model || null,
       sandbox_mode: DEFAULT_THREAD_OPTIONS.sandboxMode || null,
     });
@@ -2938,6 +2963,7 @@ server.listen(SERVICE_CONFIG.port, SERVICE_CONFIG.host, () => {
   logEvent("info", "service_start", {
     host: SERVICE_CONFIG.host,
     port: SERVICE_CONFIG.port,
+    provider_source: CODEX_CONFIG_SOURCE,
     provider: CODEX_CONFIG?.provider || "openai",
     provider_name: CODEX_CONFIG?.name || "OpenAI",
     provider_base_url: CODEX_CONFIG?.baseUrl || "https://api.openai.com/v1",

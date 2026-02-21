@@ -8,7 +8,8 @@ The frontend calls this service directly for AI endpoints.
 
 ```bash
 npm install
-export OPENAI_API_KEY="<your-openai-api-key>"
+export AZURE_OPENAI_API_KEY="<your-azure-openai-api-key>"
+export CODEX_CONFIG_JSON='{"model_provider":"azure","model_providers":{"azure":{"name":"Azure OpenAI","base_url":"https://fifteenmodels.openai.azure.com/openai/v1","env_key":"AZURE_OPENAI_API_KEY","wire_api":"responses"}}}'
 npm run agent:codex
 ```
 
@@ -99,8 +100,19 @@ npm run agent:codex
 
 | Variable | Description |
 |----------|-------------|
-| `OPENAI_API_KEY` or `CODEX_API_KEY` | OpenAI API key |
+| `AZURE_OPENAI_API_KEY` | Azure OpenAI API key (required when using Azure provider config) |
+| `OPENAI_API_KEY` or `CODEX_API_KEY` | Fallback OpenAI API key (used only when no provider config is resolved) |
 | `NEON_AUTH_URL` or `NEON_JWKS_URL` | Neon Auth URL (or direct JWKS URL) for JWT session validation (recommended in production) |
+
+### Provider resolution order
+
+The service resolves AI provider settings in this order:
+
+1. `~/.codex/config.toml`
+2. `CODEX_CONFIG_JSON`
+3. OpenAI fallback (`OPENAI_API_KEY` / `CODEX_API_KEY`, optional)
+
+Set `REQUIRE_PROVIDER_CONFIG=true` to disable step 3 and fail fast instead of falling back.
 
 ### Service configuration
 
@@ -110,6 +122,7 @@ npm run agent:codex
 | `PORT` | `8001` | Listen port |
 | `AGENT_SERVICE_TOKEN` | _(none)_ | Optional service-to-service token (`x-agent-token`) |
 | `ALLOWED_ORIGINS` | `*` | Comma-separated list of allowed browser origins |
+| `REQUIRE_PROVIDER_CONFIG` | `false` | If `true`, startup fails unless provider config is resolved from `~/.codex/config.toml` or `CODEX_CONFIG_JSON` |
 | `FUNCTION_PUBLIC_API_KEY` | _(none)_ | Optional publishable key accepted for unauthenticated calls |
 | `ENHANCE_WS_INITIAL_MESSAGE_TIMEOUT_MS` | `5000` | Time allowed for first websocket message before the socket is closed |
 | `ENHANCE_WS_MAX_PAYLOAD_BYTES` | `65536` | Maximum websocket message payload size in bytes |
@@ -129,7 +142,7 @@ npm run agent:codex
 |----------|---------|-------------|
 | `OPENAI_BASE_URL` / `CODEX_BASE_URL` | _(none)_ | OpenAI-compatible API base URL |
 | `CODEX_PATH_OVERRIDE` | _(none)_ | Absolute path to Codex CLI binary |
-| `CODEX_CONFIG_JSON` | _(none)_ | JSON object of CLI `--config` overrides |
+| `CODEX_CONFIG_JSON` | _(none)_ | JSON object of CLI `--config` overrides, including `model_provider` and `model_providers` when `~/.codex/config.toml` is unavailable |
 | `CODEX_ENV_JSON` | _(none)_ | JSON object of env vars for the CLI process |
 | `CODEX_MAX_OUTPUT_TOKENS` | _(none)_ | Max output tokens (passed via CLI config) |
 

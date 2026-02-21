@@ -53,6 +53,17 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_6108801119154E0DB94F9CD80314E673 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_A34CBAD9B8184248B9A31387985B7908 }}
 
+      - name: Validate Azure OpenAI settings
+        run: |
+          if [ -z "${{ secrets.AZURE_OPENAI_API_KEY }}" ]; then
+            echo "Missing required secret: AZURE_OPENAI_API_KEY"
+            exit 1
+          fi
+          if [ -z "${{ secrets.CODEX_CONFIG_JSON }}" ]; then
+            echo "Missing required secret: CODEX_CONFIG_JSON"
+            exit 1
+          fi
+
       - name: Enforce Web App Runtime Configuration
         run: |
           az webapp config set \
@@ -69,6 +80,11 @@ jobs:
               NEON_JWKS_URL="${{ secrets.VITE_NEON_AUTH_URL }}/.well-known/jwks.json" \
               FUNCTION_PUBLIC_API_KEY="${{ secrets.VITE_NEON_PUBLISHABLE_KEY }}" \
               NEON_PUBLISHABLE_KEY="${{ secrets.VITE_NEON_PUBLISHABLE_KEY }}" \
+              AZURE_OPENAI_API_KEY="${{ secrets.AZURE_OPENAI_API_KEY }}" \
+              CODEX_CONFIG_JSON='${{ secrets.CODEX_CONFIG_JSON }}' \
+              REQUIRE_PROVIDER_CONFIG=true \
+              CODEX_MODEL="gpt-5.2" \
+              CODEX_MODEL_REASONING_EFFORT="xhigh" \
               ALLOWED_ORIGINS="https://gentle-dune-075b4710f.2.azurestaticapps.net,https://prompt.lakefrontdigital.io,http://localhost:5173"
 
       - name: Deploy to Azure Web App

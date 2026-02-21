@@ -36,6 +36,20 @@ export async function loadCodexConfig() {
     return null;
   }
 
+  return resolveProviderConfig(config);
+}
+
+/**
+ * Resolve provider details from a parsed Codex config object.
+ *
+ * Supports objects from ~/.codex/config.toml and CODEX_CONFIG_JSON.
+ *
+ * @param {Record<string, unknown> | null | undefined} config
+ * @returns {ResolvedProviderConfig | null}
+ */
+export function resolveProviderConfig(config) {
+  if (!config || typeof config !== "object" || Array.isArray(config)) return null;
+
   const providerKey = typeof config.model_provider === "string"
     ? config.model_provider.trim()
     : "";
