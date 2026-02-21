@@ -1,7 +1,8 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-`src/` contains the Vite + React TypeScript app. Keep feature UI in `src/components/`, shared primitives in `src/components/ui/`, route-level screens in `src/pages/`, reusable stateful logic in `src/hooks/`, and domain logic/helpers in `src/lib/`.  
+`src/` contains the Vite + React TypeScript app. Keep feature UI in `src/components/`, shared primitives in `src/components/ui/` (legacy shadcn) or `src/components/base/` (Untitled UI — migration target), route-level screens in `src/pages/`, reusable stateful logic in `src/hooks/`, and domain logic/helpers in `src/lib/`.  
+UUI marketing components live in `src/components/marketing/`, design foundations in `src/components/foundations/`.  
 Tests live in `src/test/` (Vitest).  
 Mobile E2E coverage and viewport baselines live in `playwright/` (Playwright).  
 Backend-adjacent code is split across `supabase/functions/` (Edge Functions), `supabase/migrations/` (SQL), and `agent_service/` (Codex SDK service for prompt enhancement).  

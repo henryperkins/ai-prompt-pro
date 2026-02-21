@@ -13,31 +13,36 @@ const Privacy = () => {
       />
 
       <div className="mx-auto max-w-3xl space-y-4">
-        <Card className="space-y-3 border-border/80 bg-card/90 p-4 sm:p-5">
+        <Card className="space-y-4 border-border/80 bg-card/90 p-4 sm:p-6">
           <p className="text-sm text-muted-foreground">Last updated: February 20, 2026</p>
-          <p className="text-sm text-foreground">
-            We collect only the information needed to provide account access, saved prompts, and community features.
-            We do not sell your personal data.
-          </p>
-
-          <div className="space-y-2 text-sm text-foreground">
+          <article className="prose prose-sm max-w-none text-foreground dark:prose-invert prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-strong:text-foreground">
             <p>
-              <span className="font-semibold">Account data:</span> email address, authentication metadata, and profile
-              details you choose to provide.
+              We collect only the information needed to provide account access, saved prompts, and community features.
+              We do not sell your personal data.
             </p>
-            <p>
-              <span className="font-semibold">Product data:</span> saved prompts, drafts, versions, and community
-              actions (shares, votes, comments, reports, and user blocks).
-            </p>
-            <p>
-              <span className="font-semibold">Security:</span> we apply access controls and row-level permissions to
-              protect account-scoped data.
-            </p>
-            <p>
-              <span className="font-semibold">Your controls:</span> you can update profile fields, remove shared
-              content, and delete your account in-app.
-            </p>
-          </div>
+            <h2>Data we collect</h2>
+            <ul>
+              <li>
+                <strong>Account data:</strong> email address, authentication metadata, and profile details you choose
+                to provide.
+              </li>
+              <li>
+                <strong>Product data:</strong> saved prompts, drafts, versions, and community actions (shares, votes,
+                comments, reports, and user blocks).
+              </li>
+            </ul>
+            <h2>Security and controls</h2>
+            <ul>
+              <li>
+                <strong>Security:</strong> we apply access controls and row-level permissions to protect
+                account-scoped data.
+              </li>
+              <li>
+                <strong>Your controls:</strong> you can update profile fields, remove shared content, and delete your
+                account in-app.
+              </li>
+            </ul>
+          </article>
         </Card>
 
         <Card className="space-y-2 border-border/80 bg-card/90 p-4 sm:p-5">

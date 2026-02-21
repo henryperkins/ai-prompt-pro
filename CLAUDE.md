@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 AI Prompt Pro - Build, enhance, and share AI prompts with a structured prompt builder, a private library, and a public community feed.
 
 - Production: `https://prompt.lakefrontdigital.io`
-- Frontend: Vite + React + TypeScript + Tailwind + shadcn/ui
+- Frontend: Vite + React + TypeScript + Tailwind + shadcn/ui (migrating to Untitled UI)
 - Backend: Neon Postgres via Neon Data API + Neon Auth
 - Optional: prompt enhancement via local Codex SDK agent service (`agent_service/`)
 
@@ -56,7 +56,10 @@ npx vitest run src/test/persistence.test.ts
 ## Key Directories
 
 - `src/components/`: feature UI components
-- `src/components/ui/`: shared shadcn/ui primitives (Radix-based)
+- `src/components/ui/`: shared shadcn/ui primitives — being migrated to UUI
+- `src/components/base/`: Untitled UI core components (migration target)
+- `src/components/foundations/`: UUI design tokens, logos, featured icons
+- `src/components/marketing/`: UUI marketing components (footers, headers)
 - `src/pages/`: route-level screens
 - `src/hooks/`: reusable stateful logic
 - `src/lib/`: domain logic/helpers (prompt-builder, persistence, ai-client, etc.)
@@ -93,3 +96,78 @@ Key frontend vars (see `.env.example` for full list):
 - Azure Static Web Apps via `.github/workflows/azure-static-web-apps-gentle-dune-075b4710f.yml`
 - SWA CLI config: `swa-cli.config.json`
 - Runtime routing: `public/staticwebapp.config.json`
+
+## Untitled UI (UUI) Component System
+
+The app is migrating from shadcn/ui (Radix) to **Untitled UI** (React Aria + Tailwind). Both systems coexist during migration.
+
+- **Official reference**: https://www.untitledui.com/react/AGENT.md (811 lines, comprehensive)
+- **CLI**: `npx untitledui@latest add <component-name> --yes`
+
+### UUI Directory Layout
+
+```
+src/components/
+├── base/           # UUI core components (Button, Input, Select, Checkbox, Avatar, Badge, Tooltip, etc.)
+├── foundations/    # UUI design tokens, logos, featured icons
+├── marketing/     # UUI marketing components (footers, headers, CTAs)
+├── ui/            # shadcn/ui components (being migrated away)
+└── ...            # App-specific feature components
+```
+
+### UUI Conventions
+
+- **React Aria imports MUST be prefixed**: `import { Button as AriaButton } from "react-aria-components"`
+- **File naming**: kebab-case for all files (matches our existing convention)
+- **No Link component**: Use `Button` with `href` prop + `link-color`/`link-gray`/`link-destructive` color variants
+- **Utility**: `cx()` from `@/lib/utils/cx` (UUI) vs `cn()` from `@/lib/utils` (shadcn — being removed)
+- **Style organization**: `sortCx()` pattern with `common`/`sizes`/`colors` keys
+
+### UUI Color System (CRITICAL)
+
+**MUST use semantic color tokens — NEVER raw Tailwind color scales.**
+
+```
+❌ text-gray-900, bg-blue-700, border-gray-300
+✅ text-primary, bg-brand-solid, border-secondary
+```
+
+**Text colors**: `text-primary`, `text-secondary`, `text-tertiary`, `text-quaternary`, `text-disabled`, `text-placeholder`, `text-brand-primary`, `text-brand-secondary`, `text-error-primary`, `text-warning-primary`, `text-success-primary`
+
+**Border colors**: `border-primary`, `border-secondary`, `border-tertiary`, `border-disabled`, `border-brand`, `border-error`
+
+**Foreground colors** (icons, non-text elements): `fg-primary`, `fg-secondary`, `fg-tertiary`, `fg-quaternary`, `fg-disabled`, `fg-brand-primary`, `fg-error-primary`, `fg-success-secondary`
+
+**Background colors**: `bg-primary`, `bg-secondary`, `bg-tertiary`, `bg-active`, `bg-disabled`, `bg-overlay`, `bg-brand-solid`, `bg-brand-section`, `bg-error-solid`, `bg-success-solid`
+
+### Key UUI Component APIs
+
+**Button** (`@/components/base/buttons/button`):
+- `color`: `"primary" | "secondary" | "tertiary" | "link-gray" | "link-color" | "primary-destructive" | "secondary-destructive" | "tertiary-destructive" | "link-destructive"`
+- `size`: `"sm" | "md" | "lg" | "xl"`
+- `iconLeading`/`iconTrailing`: `FC | ReactNode`
+- `isLoading`, `isDisabled`, `showTextWhileLoading`
+- `href` makes it a link; `onPress` (not `onClick`) for actions
+
+**Input** (`@/components/base/input/input`):
+- `label`, `hint`, `tooltip`, `icon`, `size`: `"sm" | "md"`, `isRequired`, `isDisabled`, `isInvalid`
+
+**Select** (`@/components/base/select/select`):
+- Data-driven with `items[]` array (not children-based like Radix)
+- Compound: `Select.Item`, `Select.ComboBox`
+
+**Avatar** (`@/components/base/avatar/avatar`):
+- Monolithic: `src`, `alt`, `initials`, `size`, `status`, `verified`
+
+**Badge** (`@/components/base/badges/badges`):
+- `Badge`, `BadgeWithDot`, `BadgeWithIcon`
+- `color`: `"gray" | "brand" | "error" | "warning" | "success" | ...`
+- `type`: `"pill-color" | "color" | "modern"`
+
+**Icons** (`@untitledui/icons`):
+- Named imports, tree-shakeable: `import { Home01, Settings01 } from "@untitledui/icons"`
+- When passing as JSX element: MUST include `data-icon` attribute
+
+### Brand Color Customization
+
+UUI uses a brand color scale from 25–950 in `src/styles/theme.css` via `--color-brand-*` CSS variables. Update these to change the entire brand palette across light and dark modes.

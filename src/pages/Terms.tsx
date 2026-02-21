@@ -13,10 +13,11 @@ const Terms = () => {
       />
 
       <div className="mx-auto max-w-3xl space-y-4">
-        <Card className="space-y-3 border-border/80 bg-card/90 p-4 sm:p-5">
+        <Card className="space-y-4 border-border/80 bg-card/90 p-4 sm:p-6">
           <p className="text-sm text-muted-foreground">Last updated: February 20, 2026</p>
 
-          <div className="space-y-2 text-sm text-foreground">
+          <article className="prose prose-sm max-w-none text-foreground dark:prose-invert prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-strong:text-foreground">
+            <h2>Using PromptForge responsibly</h2>
             <p>
               By using PromptForge, you agree not to post unlawful, abusive, or harmful content.
             </p>
@@ -29,10 +30,11 @@ const Terms = () => {
             <p>
               Repeated misuse may result in restricted access to community features.
             </p>
+            <h2>Service availability</h2>
             <p>
               PromptForge is provided "as is" and may change over time as features improve.
             </p>
-          </div>
+          </article>
         </Card>
 
         <Card className="space-y-2 border-border/80 bg-card/90 p-4 sm:p-5">

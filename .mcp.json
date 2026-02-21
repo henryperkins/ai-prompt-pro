@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "untitledui": {
+      "type": "http",
+      "url": "https://www.untitledui.com/react/api/mcp"
+    },
+    "react-aria": {
+      "command": "npx",
+      "args": ["@react-aria/mcp@latest"]
+    }
+  }
+}
