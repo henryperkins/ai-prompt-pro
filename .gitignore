@@ -50,6 +50,18 @@ product-spec.md
 # Playwright artifacts
 playwright-report/
 test-results/
+.playwright-cli/
+
+# Bun lockfile (project uses npm)
+bun.lockb
+
+# MCP server config (local paths/keys)
+.mcp.json
+
+# AI tool configs (local-only)
+.aider.conf.yml
+.lovable/
+.repomixignore
 
 # Local GitHub Actions runner
 actions-runner/
