@@ -70,7 +70,7 @@ export const useClipboard = (): UseClipboardReturnType => {
         return fallback(text, id);
       }
     }
-    return fallback(text);
+    return fallback(text, id);
   }, []);
 
   return { copied, copy };

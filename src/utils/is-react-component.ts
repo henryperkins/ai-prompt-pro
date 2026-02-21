@@ -3,6 +3,7 @@
 import type React from "react";
 
 type ReactComponent = React.FC<any> | React.ComponentClass<any, any>;
+const FORWARD_REF_SYMBOL = Symbol.for("react.forward_ref");
 
 /**
  * Checks if a given value is a function component.
@@ -26,11 +27,12 @@ export const isClassComponent = (component: any): component is React.ComponentCl
  * Checks if a given value is a forward ref component.
  */
 export const isForwardRefComponent = (component: any): component is React.ForwardRefExoticComponent<any> => {
-  return (
-    typeof component === "object" &&
-    component !== null &&
-    component.$$typeof.toString() === "Symbol(react.forward_ref)"
-  );
+  if (typeof component !== "object" || component === null) {
+    return false;
+  }
+
+  const symbolType = (component as { $$typeof?: unknown }).$$typeof;
+  return symbolType === FORWARD_REF_SYMBOL;
 };
 
 /**

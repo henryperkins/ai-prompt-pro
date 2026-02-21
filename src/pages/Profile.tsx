@@ -135,6 +135,7 @@ const Profile = () => {
       setHasMore(false);
       setPage(0);
       setIsFollowing(false);
+      setFollowPending(false);
       setIsLoadingMore(false);
       setLoading(false);
       setErrorState({
@@ -154,6 +155,7 @@ const Profile = () => {
     setHasMore(false);
     setPage(0);
     setIsFollowing(false);
+    setFollowPending(false);
     setLoading(true);
     setIsLoadingMore(false);
     setErrorState(null);
@@ -183,6 +185,7 @@ const Profile = () => {
           setHasMore(false);
           setPage(0);
           setIsFollowing(false);
+          setFollowPending(false);
           setErrorState({
             kind: "not_found",
             message: "This profile is unavailable.",
@@ -210,6 +213,7 @@ const Profile = () => {
         setHasMore(false);
         setPage(0);
         setIsFollowing(false);
+        setFollowPending(false);
         setErrorState(toCommunityErrorState(error, "Failed to load profile."));
       } finally {
         if (token === requestToken.current) {
