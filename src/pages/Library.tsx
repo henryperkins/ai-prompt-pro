@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
@@ -38,12 +38,12 @@ import {
   getInitials,
   getUserAvatarUrl,
   getUserDisplayName,
-  encodeSelectionIds,
 } from "@/lib/library-pages";
 import * as persistence from "@/lib/persistence";
 
 type SavedPromptSort = "recent" | "name" | "revision";
 const LIBRARY_VIRTUALIZATION_THRESHOLD = 50;
+const LIBRARY_SELECTION_STORAGE_KEY = "library-selection-ids";
 
 function formatUpdatedAt(timestamp: number): string {
   const date = new Date(timestamp);
@@ -63,6 +63,28 @@ function resolveShareUseCase(prompt: persistence.PromptSummary): string | undefi
   return undefined;
 }
 
+function normalizeSelectionIds(ids: string[]): string[] {
+  return Array.from(
+    new Set(
+      ids
+        .map((id) => id.trim())
+        .filter(Boolean),
+    ),
+  );
+}
+
+function loadSelectionFromSession(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.sessionStorage.getItem(LIBRARY_SELECTION_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return [];
+    return normalizeSelectionIds(parsed.filter((value): value is string => typeof value === "string"));
+  } catch {
+    return [];
+  }
+}
+
 const Library = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -75,13 +97,18 @@ const Library = () => {
     templateSummaries,
     isSignedIn,
     deleteSavedTemplate,
+    deleteSavedTemplates,
     shareSavedPrompt,
     unshareSavedPrompt,
+    unshareSavedPrompts,
   } = usePromptBuilder();
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState<SavedPromptSort>("recent");
   const [activeCategory, setActiveCategory] = useState<string>("all");
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>(() => loadSelectionFromSession());
+  const [showSelectedOnly, setShowSelectedOnly] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [isBulkUnsharing, setIsBulkUnsharing] = useState(false);
 
   const normalizedQuery = query.trim().toLowerCase();
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
@@ -122,13 +149,24 @@ const Library = () => {
     return sorted;
   }, [activeCategory, normalizedQuery, sortBy, templateSummaries]);
 
+  const visibleSaved = useMemo(() => {
+    if (!showSelectedOnly) return filteredSaved;
+    return filteredSaved.filter((prompt) => selectedSet.has(prompt.id));
+  }, [filteredSaved, selectedSet, showSelectedOnly]);
+
+  const promptById = useMemo(() => new Map(templateSummaries.map((prompt) => [prompt.id, prompt])), [templateSummaries]);
+  const selectedPrompts = useMemo(
+    () => selectedIds.map((id) => promptById.get(id)).filter(Boolean),
+    [promptById, selectedIds],
+  );
   const selectedCount = selectedIds.length;
   const allFilteredSelected = filteredSaved.length > 0 && filteredSaved.every((prompt) => selectedSet.has(prompt.id));
-  const hasActiveFilters = Boolean(normalizedQuery) || activeCategory !== "all";
-  const shouldVirtualize = filteredSaved.length >= LIBRARY_VIRTUALIZATION_THRESHOLD;
+  const hasActiveFilters = Boolean(normalizedQuery) || activeCategory !== "all" || showSelectedOnly;
+  const shouldVirtualize = visibleSaved.length >= LIBRARY_VIRTUALIZATION_THRESHOLD;
+  const isSelectionMode = selectedCount > 0;
   const listScrollRef = useRef<HTMLDivElement | null>(null);
   const rowVirtualizer = useVirtualizer({
-    count: shouldVirtualize ? filteredSaved.length : 0,
+    count: shouldVirtualize ? visibleSaved.length : 0,
     getScrollElement: () => listScrollRef.current,
     estimateSize: () => 248,
     overscan: 6,
@@ -136,8 +174,32 @@ const Library = () => {
     enabled: shouldVirtualize,
   });
 
+  useEffect(() => {
+    if (templateSummaries.length === 0) return;
+    setSelectedIds((prev) => {
+      const next = prev.filter((id) => promptById.has(id));
+      if (next.length === prev.length) return prev;
+      if (typeof window !== "undefined") {
+        if (next.length > 0) {
+          window.sessionStorage.setItem(LIBRARY_SELECTION_STORAGE_KEY, JSON.stringify(next));
+        } else {
+          window.sessionStorage.removeItem(LIBRARY_SELECTION_STORAGE_KEY);
+        }
+      }
+      return next;
+    });
+  }, [promptById, templateSummaries.length]);
+
   const applySelection = useCallback((ids: string[]) => {
-    setSelectedIds(Array.from(new Set(ids)));
+    const next = normalizeSelectionIds(ids);
+    setSelectedIds(next);
+    if (typeof window !== "undefined") {
+      if (next.length > 0) {
+        window.sessionStorage.setItem(LIBRARY_SELECTION_STORAGE_KEY, JSON.stringify(next));
+      } else {
+        window.sessionStorage.removeItem(LIBRARY_SELECTION_STORAGE_KEY);
+      }
+    }
   }, []);
 
   const togglePromptSelection = useCallback(
@@ -151,7 +213,8 @@ const Library = () => {
     (checked: boolean) => {
       const filteredIds = filteredSaved.map((prompt) => prompt.id);
       if (!checked) {
-        applySelection(selectedIds.filter((id) => !filteredIds.includes(id)));
+        const filteredSet = new Set(filteredIds);
+        applySelection(selectedIds.filter((id) => !filteredSet.has(id)));
         return;
       }
       applySelection([...selectedIds, ...filteredIds]);
@@ -196,7 +259,7 @@ const Library = () => {
           toast({ title: "Prompt not found", variant: "destructive" });
           return;
         }
-        setSelectedIds((prev) => prev.filter((value) => value !== id));
+        applySelection(selectedIds.filter((value) => value !== id));
         toast({ title: "Saved prompt deleted" });
       } catch (error) {
         toast({
@@ -206,7 +269,7 @@ const Library = () => {
         });
       }
     },
-    [deleteSavedTemplate, toast],
+    [applySelection, deleteSavedTemplate, selectedIds, toast],
   );
 
   const handleShareSaved = useCallback(
@@ -269,14 +332,90 @@ const Library = () => {
     [toast, unshareSavedPrompt],
   );
 
-  const openBulkEdit = useCallback(() => {
-    const params = encodeSelectionIds(selectedIds);
-    navigate(`/library/bulk-edit?${params.toString()}`);
-  }, [navigate, selectedIds]);
+  const handleLoadFirstSelected = useCallback(() => {
+    const first = selectedPrompts[0];
+    if (!first) return;
+    void handleSelectSaved(first.id);
+  }, [handleSelectSaved, selectedPrompts]);
+
+  const handleBulkSetPrivate = useCallback(async () => {
+    if (selectedIds.length === 0 || isBulkUnsharing) return;
+    setIsBulkUnsharing(true);
+    try {
+      const updatedIds = await unshareSavedPrompts(selectedIds);
+      if (updatedIds.length === 0) {
+        toast({ title: "No shared prompts selected" });
+      } else if (updatedIds.length === selectedIds.length) {
+        toast({
+          title:
+            updatedIds.length === 1 ? "1 prompt set to private" : `${updatedIds.length} prompts set to private`,
+        });
+      } else {
+        const unchangedCount = selectedIds.length - updatedIds.length;
+        toast({
+          title: `${updatedIds.length} prompts set to private`,
+          description:
+            unchangedCount === 1
+              ? "1 prompt was already private."
+              : `${unchangedCount} prompts were already private.`,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Failed to update visibility",
+        description: error instanceof Error ? error.message : "Unexpected error",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBulkUnsharing(false);
+    }
+  }, [isBulkUnsharing, selectedIds, toast, unshareSavedPrompts]);
+
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedIds.length === 0 || isBulkDeleting) return;
+    const confirmed = window.confirm(
+      selectedIds.length === 1
+        ? "Delete 1 selected prompt?"
+        : `Delete ${selectedIds.length} selected prompts?`,
+    );
+    if (!confirmed) return;
+
+    setIsBulkDeleting(true);
+    try {
+      const deletedIds = await deleteSavedTemplates(selectedIds);
+      if (deletedIds.length === 0) {
+        toast({ title: "No prompts were deleted", variant: "destructive" });
+        return;
+      }
+      const deletedSet = new Set(deletedIds);
+      applySelection(selectedIds.filter((id) => !deletedSet.has(id)));
+      if (deletedIds.length === selectedIds.length) {
+        toast({
+          title: deletedIds.length === 1 ? "Deleted 1 prompt" : `Deleted ${deletedIds.length} prompts`,
+        });
+      } else {
+        const skippedCount = selectedIds.length - deletedIds.length;
+        toast({
+          title: `Deleted ${deletedIds.length} prompts`,
+          description:
+            skippedCount === 1 ? "1 prompt could not be deleted." : `${skippedCount} prompts could not be deleted.`,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Failed to delete selected prompts",
+        description: error instanceof Error ? error.message : "Unexpected error",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  }, [applySelection, deleteSavedTemplates, isBulkDeleting, selectedIds, toast]);
 
   const resetFilters = useCallback(() => {
     setQuery("");
     setActiveCategory("all");
+    setShowSelectedOnly(false);
   }, []);
 
   const renderPromptCard = useCallback(
@@ -326,7 +465,7 @@ const Library = () => {
                         Private
                       </Badge>
                     )}
-                    {prompt.remixedFrom && (
+                    {!isSelectionMode && prompt.remixedFrom && (
                       <Badge variant="secondary" className="text-xs gap-1">
                         <GitBranch className="h-3 w-3" />
                         Remixed
@@ -337,34 +476,46 @@ const Library = () => {
                 </div>
               </div>
 
-              {prompt.description && (
-                <p className="line-clamp-2 text-xs text-muted-foreground">{prompt.description}</p>
-              )}
-              <p className="line-clamp-2 text-xs text-muted-foreground/90">
-                <span className="font-medium text-foreground/80">Start:</span> {prompt.starterPrompt}
-              </p>
-              <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                <span className="capitalize">{prompt.category || "general"}</span>
-                <span>•</span>
-                <span>{formatUpdatedAt(prompt.updatedAt)}</span>
-                <span>•</span>
-                <span className="inline-flex items-center gap-1">
-                  <Database className="h-3.5 w-3.5" />
-                  {prompt.sourceCount} context src / {prompt.databaseCount} db
-                </span>
-              </div>
-              {prompt.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {prompt.tags.slice(0, 5).map((tag) => (
-                    <Badge key={`${prompt.id}-${tag}`} variant="outline" className="text-xs">
-                      #{tag}
-                    </Badge>
-                  ))}
+              {isSelectionMode ? (
+                <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                  <span className="capitalize">{prompt.category || "general"}</span>
+                  <span>•</span>
+                  <span>{formatUpdatedAt(prompt.updatedAt)}</span>
+                  <span>•</span>
+                  <span>{prompt.isShared ? "Shared" : "Private"}</span>
                 </div>
+              ) : (
+                <>
+                  {prompt.description && (
+                    <p className="line-clamp-2 text-xs text-muted-foreground">{prompt.description}</p>
+                  )}
+                  <p className="line-clamp-2 text-xs text-muted-foreground/90">
+                    <span className="font-medium text-foreground/80">Start:</span> {prompt.starterPrompt}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                    <span className="capitalize">{prompt.category || "general"}</span>
+                    <span>•</span>
+                    <span>{formatUpdatedAt(prompt.updatedAt)}</span>
+                    <span>•</span>
+                    <span className="inline-flex items-center gap-1">
+                      <Database className="h-3.5 w-3.5" />
+                      {prompt.sourceCount} context src / {prompt.databaseCount} db
+                    </span>
+                  </div>
+                  {prompt.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {prompt.tags.slice(0, 5).map((tag) => (
+                        <Badge key={`${prompt.id}-${tag}`} variant="outline" className="text-xs">
+                          #{tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
-            {!isMobile && (
+            {!isMobile && !isSelectionMode && (
               <div className="flex shrink-0 flex-col items-end gap-1">
                 <Button
                   type="button"
@@ -423,7 +574,7 @@ const Library = () => {
             )}
           </div>
 
-          {isMobile && (
+          {isMobile && !isSelectionMode && (
             <div className="mt-2 flex items-center justify-end gap-2 border-t border-border/60 pt-2">
               {shareDisabledReason && !prompt.isShared && (
                 <p className="mr-auto text-xs text-muted-foreground">{shareDisabledReason}</p>
@@ -490,6 +641,7 @@ const Library = () => {
       handleUnshareSaved,
       isMobile,
       isSignedIn,
+      isSelectionMode,
       navigate,
       ownerAvatarUrl,
       ownerName,
@@ -577,21 +729,73 @@ const Library = () => {
                     onCheckedChange={(checked) => toggleSelectAllFiltered(checked === true)}
                     aria-label="Select all filtered prompts"
                   />
-                  <span>{selectedCount} selected for bulk edit</span>
+                  <span>{selectedCount} selected</span>
                   <Badge variant="secondary" className="text-xs">
-                    {filteredSaved.length} shown
+                    {visibleSaved.length} shown
                   </Badge>
+                  {showSelectedOnly && (
+                    <Badge variant="outline" className="text-xs">
+                      Selected only
+                    </Badge>
+                  )}
                 </div>
-                <Button
-                  type="button"
-                  variant="default"
-                  size="sm"
-                  className="h-11 text-sm sm:h-9 sm:text-base"
-                  disabled={selectedCount === 0}
-                  onClick={openBulkEdit}
-                >
-                  Open Bulk Edit
-                </Button>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant={showSelectedOnly ? "secondary" : "outline"}
+                    size="sm"
+                    className="h-11 text-sm sm:h-9 sm:text-base"
+                    disabled={selectedCount === 0 && !showSelectedOnly}
+                    onClick={() => setShowSelectedOnly((prev) => !prev)}
+                  >
+                    Selected only
+                  </Button>
+                  {selectedCount > 0 && (
+                    <>
+                      <Button
+                        type="button"
+                        variant="default"
+                        size="sm"
+                        className="h-11 text-sm sm:h-9 sm:text-base"
+                        onClick={handleLoadFirstSelected}
+                      >
+                        Load first
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-11 text-sm sm:h-9 sm:text-base"
+                        disabled={isBulkUnsharing}
+                        onClick={() => void handleBulkSetPrivate()}
+                      >
+                        {isBulkUnsharing ? "Setting private..." : "Set private"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-11 border-destructive/40 text-sm text-destructive hover:text-destructive sm:h-9 sm:text-base"
+                        disabled={isBulkDeleting}
+                        onClick={() => void handleBulkDelete()}
+                      >
+                        {isBulkDeleting ? "Deleting..." : "Delete selected"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-11 text-sm sm:h-9 sm:text-base"
+                        onClick={() => {
+                          applySelection([]);
+                          setShowSelectedOnly(false);
+                        }}
+                      >
+                        Clear
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -604,11 +808,15 @@ const Library = () => {
               />
             )}
 
-            {templateSummaries.length > 0 && filteredSaved.length === 0 && (
+            {templateSummaries.length > 0 && visibleSaved.length === 0 && (
               <StateCard
                 variant="empty"
-                title="No prompts match this filter."
-                description="Try a different search term, category, or context keyword."
+                title={showSelectedOnly ? "No selected prompts in this view." : "No prompts match this filter."}
+                description={
+                  showSelectedOnly
+                    ? "Select prompts, or switch off Selected only to browse everything."
+                    : "Try a different search term, category, or context keyword."
+                }
                 primaryAction={
                   hasActiveFilters
                     ? { label: "Reset filters", onClick: resetFilters }
@@ -629,7 +837,7 @@ const Library = () => {
                   style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
                 >
                   {rowVirtualizer.getVirtualItems().map((virtualItem) => {
-                    const prompt = filteredSaved[virtualItem.index];
+                    const prompt = visibleSaved[virtualItem.index];
                     if (!prompt) return null;
 
                     return (
@@ -648,7 +856,7 @@ const Library = () => {
               </div>
             ) : (
               <div className="space-y-2">
-                {filteredSaved.map((prompt) => renderPromptCard(prompt))}
+                {visibleSaved.map((prompt) => renderPromptCard(prompt))}
               </div>
             )}
           </div>

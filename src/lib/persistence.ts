@@ -178,6 +178,16 @@ function toPresetName(value: string): string {
   return normalized || "Untitled Prompt";
 }
 
+function normalizePromptIds(ids: string[]): string[] {
+  return Array.from(
+    new Set(
+      ids
+        .map((id) => id.trim())
+        .filter(Boolean),
+    ),
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Draft persistence
 // ---------------------------------------------------------------------------
@@ -640,6 +650,13 @@ export async function sharePrompt(
 }
 
 export async function unsharePrompt(userId: string | null, id: string): Promise<boolean> {
+  const [updatedId] = await unsharePrompts(userId, [id]);
+  return Boolean(updatedId);
+}
+
+export async function unsharePrompts(userId: string | null, ids: string[]): Promise<string[]> {
+  const normalizedIds = normalizePromptIds(ids);
+  if (normalizedIds.length === 0) return [];
   if (!userId) {
     throw new PersistenceError("unauthorized", "Sign in to unshare prompts.");
   }
@@ -650,20 +667,34 @@ export async function unsharePrompt(userId: string | null, id: string): Promise<
     const { data, error } = await neon
       .from("saved_prompts")
       .update({ is_shared: false })
-      .eq("id", id)
       .eq("user_id", userId)
-      .select("id")
-      .maybeSingle();
+      .eq("is_shared", true)
+      .in("id", normalizedIds)
+      .select("id");
 
-    if (error) throw mapPostgrestError(error, "Failed to unshare prompt.");
-    return !!data;
+    if (error) throw mapPostgrestError(error, "Failed to unshare prompts.");
+    return (data ?? []).map((row) => row.id);
   } catch (error) {
-    throw toPersistenceError(error, "Failed to unshare prompt.");
+    throw toPersistenceError(error, "Failed to unshare prompts.");
   }
 }
 
 export async function deletePrompt(userId: string | null, id: string): Promise<boolean> {
-  if (!userId) return deleteLocalTemplate(id);
+  const [deletedId] = await deletePrompts(userId, [id]);
+  return Boolean(deletedId);
+}
+
+export async function deletePrompts(userId: string | null, ids: string[]): Promise<string[]> {
+  const normalizedIds = normalizePromptIds(ids);
+  if (normalizedIds.length === 0) return [];
+
+  if (!userId) {
+    const deletedIds: string[] = [];
+    normalizedIds.forEach((id) => {
+      if (deleteLocalTemplate(id)) deletedIds.push(id);
+    });
+    return deletedIds;
+  }
 
   ensureCloudPersistence("Cloud prompts");
 
@@ -671,15 +702,14 @@ export async function deletePrompt(userId: string | null, id: string): Promise<b
     const { data, error } = await neon
       .from("saved_prompts")
       .delete()
-      .eq("id", id)
       .eq("user_id", userId)
-      .select("id")
-      .maybeSingle();
+      .in("id", normalizedIds)
+      .select("id");
 
-    if (error) throw mapPostgrestError(error, "Failed to delete prompt.");
-    return !!data;
+    if (error) throw mapPostgrestError(error, "Failed to delete prompts.");
+    return (data ?? []).map((row) => row.id);
   } catch (error) {
-    throw toPersistenceError(error, "Failed to delete prompt.");
+    throw toPersistenceError(error, "Failed to delete prompts.");
   }
 }
 

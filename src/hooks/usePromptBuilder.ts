@@ -465,9 +465,18 @@ export function usePromptBuilder() {
 
   const unshareSavedPrompt = useCallback(
     async (id: string): Promise<boolean> => {
-      const unshared = await persistence.unsharePrompt(userId, id);
-      if (unshared) await refreshTemplateSummaries();
-      return unshared;
+      const updatedIds = await persistence.unsharePrompts(userId, [id]);
+      if (updatedIds.length > 0) await refreshTemplateSummaries();
+      return updatedIds.length > 0;
+    },
+    [userId, refreshTemplateSummaries],
+  );
+
+  const unshareSavedPrompts = useCallback(
+    async (ids: string[]): Promise<string[]> => {
+      const updatedIds = await persistence.unsharePrompts(userId, ids);
+      if (updatedIds.length > 0) await refreshTemplateSummaries();
+      return updatedIds;
     },
     [userId, refreshTemplateSummaries],
   );
@@ -502,9 +511,18 @@ export function usePromptBuilder() {
 
   const deleteSavedTemplate = useCallback(
     async (id: string): Promise<boolean> => {
-      const deleted = await persistence.deletePrompt(userId, id);
-      if (deleted) await refreshTemplateSummaries();
-      return deleted;
+      const deletedIds = await persistence.deletePrompts(userId, [id]);
+      if (deletedIds.length > 0) await refreshTemplateSummaries();
+      return deletedIds.length > 0;
+    },
+    [userId, refreshTemplateSummaries],
+  );
+
+  const deleteSavedTemplates = useCallback(
+    async (ids: string[]): Promise<string[]> => {
+      const deletedIds = await persistence.deletePrompts(userId, ids);
+      if (deletedIds.length > 0) await refreshTemplateSummaries();
+      return deletedIds;
     },
     [userId, refreshTemplateSummaries],
   );
@@ -528,9 +546,11 @@ export function usePromptBuilder() {
     saveAndSharePrompt,
     shareSavedPrompt,
     unshareSavedPrompt,
+    unshareSavedPrompts,
     saveAsTemplate,
     loadSavedTemplate,
     deleteSavedTemplate,
+    deleteSavedTemplates,
     templateSummaries,
     remixContext,
     startRemix,
