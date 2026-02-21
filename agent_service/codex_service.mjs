@@ -13,6 +13,14 @@ import {
   postProcessEnhancementResponse,
 } from "./enhancement-pipeline.mjs";
 import { extractThreadOptions } from "./thread-options.mjs";
+import { loadCodexConfig, resolveApiKey, isAzureProvider } from "./codex-config.mjs";
+
+// ---------------------------------------------------------------------------
+// Resolve provider from ~/.codex/config.toml (Azure, OpenAI, etc.)
+// ---------------------------------------------------------------------------
+const CODEX_CONFIG = await loadCodexConfig();
+const IS_AZURE_PROVIDER = isAzureProvider(CODEX_CONFIG);
+const RESOLVED_API_KEY = CODEX_CONFIG ? resolveApiKey(CODEX_CONFIG) : null;
 
 const MAX_PROMPT_CHARS = Number.parseInt(process.env.MAX_PROMPT_CHARS || "16000", 10);
 if (!Number.isFinite(MAX_PROMPT_CHARS) || MAX_PROMPT_CHARS <= 0) {
@@ -61,8 +69,11 @@ const ENHANCE_WS_MAX_CONNECTIONS_PER_IP = parsePositiveIntegerEnv(
   10,
 );
 
-const OPENAI_API_BASE_URL = process.env.OPENAI_BASE_URL?.trim() || "https://api.openai.com/v1";
-const EXTRACT_MODEL = process.env.EXTRACT_MODEL?.trim() || "gpt-4.1-mini";
+const OPENAI_API_BASE_URL = process.env.OPENAI_BASE_URL?.trim()
+  || (CODEX_CONFIG?.baseUrl ? CODEX_CONFIG.baseUrl.replace(/\/+$/, "") : null)
+  || "https://api.openai.com/v1";
+const EXTRACT_MODEL = process.env.EXTRACT_MODEL?.trim()
+  || (IS_AZURE_PROVIDER ? "gpt-5.2" : "gpt-4.1-mini");
 
 // ---------------------------------------------------------------------------
 // 429 retry configuration
@@ -1057,16 +1068,27 @@ const DEFAULT_THREAD_OPTIONS = (() => {
 const DEFAULT_CODEX_OPTIONS = (() => {
   const options = {};
 
-  const baseUrl = normalizeEnvValue("OPENAI_BASE_URL") || normalizeEnvValue("CODEX_BASE_URL");
-  if (baseUrl) options.baseUrl = baseUrl;
+  // When config.toml specifies a provider (e.g. "azure"), do NOT pass baseUrl
+  // or apiKey — let the Codex CLI subprocess read config.toml directly and
+  // resolve the provider, base URL, and API key from its own config chain.
+  if (!CODEX_CONFIG) {
+    const baseUrl = normalizeEnvValue("OPENAI_BASE_URL") || normalizeEnvValue("CODEX_BASE_URL");
+    if (baseUrl) options.baseUrl = baseUrl;
 
-  const apiKey = normalizeEnvValue("CODEX_API_KEY") || normalizeEnvValue("OPENAI_API_KEY");
-  if (apiKey) options.apiKey = apiKey;
+    const apiKey = normalizeEnvValue("CODEX_API_KEY") || normalizeEnvValue("OPENAI_API_KEY");
+    if (apiKey) options.apiKey = apiKey;
+  }
 
   const codexPathOverride = normalizeEnvValue("CODEX_PATH_OVERRIDE");
   if (codexPathOverride) options.codexPathOverride = codexPathOverride;
 
   const config = parseJsonObjectEnv("CODEX_CONFIG_JSON") || {};
+
+  // Forward the provider from config.toml so the CLI subprocess gets it as a
+  // --config flag in addition to reading its own config.toml.
+  if (CODEX_CONFIG?.provider) {
+    config.model_provider = CODEX_CONFIG.provider;
+  }
 
   // Reasoning summary format: auto | concise | detailed
   config.model_reasoning_summary =
@@ -1632,17 +1654,22 @@ function extractTextFromOpenAiContent(content) {
 }
 
 async function summarizeExtractedText(plainText) {
-  const apiKey = normalizeEnvValue("OPENAI_API_KEY") || normalizeEnvValue("CODEX_API_KEY");
+  // Resolve API key: prefer config.toml provider key, then fall back to env vars.
+  const apiKey = RESOLVED_API_KEY
+    || normalizeEnvValue("OPENAI_API_KEY")
+    || normalizeEnvValue("CODEX_API_KEY");
   if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is not configured");
+    throw new Error("No API key configured. Set AZURE_OPENAI_API_KEY (via config.toml) or OPENAI_API_KEY.");
   }
+
+  // Azure OpenAI uses `api-key` header; standard OpenAI uses `Authorization: Bearer`.
+  const headers = IS_AZURE_PROVIDER
+    ? { "api-key": apiKey, "Content-Type": "application/json" }
+    : { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
 
   const response = await fetchWithTimeout(`${OPENAI_API_BASE_URL.replace(/\/+$/, "")}/chat/completions`, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
+    headers,
     body: JSON.stringify({
       model: EXTRACT_MODEL,
       messages: [
@@ -2887,8 +2914,11 @@ server.listen(SERVICE_CONFIG.port, SERVICE_CONFIG.host, () => {
   logEvent("info", "service_start", {
     host: SERVICE_CONFIG.host,
     port: SERVICE_CONFIG.port,
-    provider: "codex-sdk",
+    provider: CODEX_CONFIG?.provider || "openai",
+    provider_name: CODEX_CONFIG?.name || "OpenAI",
+    provider_base_url: CODEX_CONFIG?.baseUrl || "https://api.openai.com/v1",
     model: DEFAULT_THREAD_OPTIONS.model || null,
+    extract_model: EXTRACT_MODEL,
     sandbox_mode: DEFAULT_THREAD_OPTIONS.sandboxMode || null,
   });
 });
