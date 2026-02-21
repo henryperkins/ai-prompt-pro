@@ -390,6 +390,10 @@ function areVoteStatesEqual(previous?: VoteState, next?: VoteState): boolean {
     (previous?.verified ?? false) === (next?.verified ?? false);
 }
 
+function areRatingsEqual(previous: number | null | undefined, next: number | null | undefined): boolean {
+  return (previous ?? null) === (next ?? null);
+}
+
 function arePropsEqual(previous: CommunityPostCardProps, next: CommunityPostCardProps): boolean {
   return (
     previous.post === next.post &&
@@ -403,6 +407,9 @@ function arePropsEqual(previous: CommunityPostCardProps, next: CommunityPostCard
     previous.onCommentAdded === next.onCommentAdded &&
     previous.onCommentThreadOpen === next.onCommentThreadOpen &&
     previous.canVote === next.canVote &&
+    previous.canRate === next.canRate &&
+    areRatingsEqual(previous.ratingValue, next.ratingValue) &&
+    previous.onRatePrompt === next.onRatePrompt &&
     previous.canModerate === next.canModerate &&
     previous.canBlockAuthor === next.canBlockAuthor &&
     previous.isAuthorBlocked === next.isAuthorBlocked &&

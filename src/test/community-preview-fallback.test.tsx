@@ -159,6 +159,54 @@ describe("community prompt preview fallback", () => {
     expect(screen.queryByRole("button", { name: "Comments 0" })).toBeNull();
   });
 
+  it("updates rating controls when rating props change", () => {
+    const post = buildPost({ ratingAverage: 2.4, ratingCount: 11 });
+    const onCopyPrompt = vi.fn();
+    const onToggleVote = vi.fn();
+    const onCommentAdded = vi.fn();
+    const onRatePrompt = vi.fn();
+
+    const { rerender } = render(
+      <MemoryRouter>
+        <CommunityPostCard
+          post={post}
+          authorName="Prompt Dev"
+          onCopyPrompt={onCopyPrompt}
+          onToggleVote={onToggleVote}
+          onCommentAdded={onCommentAdded}
+          canVote
+          canRate
+          ratingValue={2}
+          onRatePrompt={onRatePrompt}
+        />
+      </MemoryRouter>,
+    );
+
+    const fiveStarButton = screen.getByRole("button", { name: "Rate 5 stars" });
+    const initialFiveStarIcon = fiveStarButton.querySelector("svg");
+    expect(initialFiveStarIcon).toHaveClass("text-muted-foreground");
+
+    rerender(
+      <MemoryRouter>
+        <CommunityPostCard
+          post={post}
+          authorName="Prompt Dev"
+          onCopyPrompt={onCopyPrompt}
+          onToggleVote={onToggleVote}
+          onCommentAdded={onCommentAdded}
+          canVote
+          canRate
+          ratingValue={5}
+          onRatePrompt={onRatePrompt}
+        />
+      </MemoryRouter>,
+    );
+
+    const updatedFiveStarIcon = screen.getByRole("button", { name: "Rate 5 stars" }).querySelector("svg");
+    expect(updatedFiveStarIcon).toHaveClass("fill-primary");
+    expect(updatedFiveStarIcon).toHaveClass("text-primary");
+  });
+
   it("renders starter prompt text in post detail when enhanced prompt is empty", () => {
     const post = buildPost();
 

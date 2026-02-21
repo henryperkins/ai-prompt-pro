@@ -125,6 +125,17 @@ const Profile = () => {
     const token = ++requestToken.current;
 
     if (!profileUserId) {
+      setProfile(null);
+      setProfileStats({ followersCount: 0, followingCount: 0 });
+      setPosts([]);
+      setAuthorById({});
+      setParentTitleById({});
+      setVoteStateByPost({});
+      setRatingByPost({});
+      setHasMore(false);
+      setPage(0);
+      setIsFollowing(false);
+      setIsLoadingMore(false);
       setLoading(false);
       setErrorState({
         kind: "not_found",
@@ -133,6 +144,16 @@ const Profile = () => {
       return;
     }
 
+    setProfile(null);
+    setProfileStats({ followersCount: 0, followingCount: 0 });
+    setPosts([]);
+    setAuthorById({});
+    setParentTitleById({});
+    setVoteStateByPost({});
+    setRatingByPost({});
+    setHasMore(false);
+    setPage(0);
+    setIsFollowing(false);
     setLoading(true);
     setIsLoadingMore(false);
     setErrorState(null);
