@@ -4,9 +4,11 @@ import { Badge } from "@/components/base/badges/badges";
 import { BadgeGroup } from "@/components/base/badges/badge-groups";
 import { ButtonGroup, ButtonGroupItem } from "@/components/base/button-group/button-group";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
+import { ActivityFeedsBlock } from "@/components/application/activity-feeds/activity-feeds";
 import { CodeSnippetTabs } from "@/components/application/code-snippet/code-snippet";
 import { FeedListBlock } from "@/components/application/lists/feed-list";
 import { ProgressSteps, type ProgressStepItem } from "@/components/application/progress-steps/progress-steps";
+import { TeamMembersTableBlock } from "@/components/application/tables/team-members-table";
 import { ProgressBar } from "@/components/base/progress-indicators/progress-indicators";
 import { ProgressBarCircle, ProgressBarHalfCircle } from "@/components/base/progress-indicators/progress-circles";
 import { PageHero, PageShell } from "@/components/PageShell";
@@ -29,7 +31,8 @@ export function UploadStatus({ value }: { value: number }) {
     label: "CLI",
     language: "bash",
     fileName: "commands.sh",
-    code: `npx untitledui@latest add progress-indicators progress-circles
+    code: `npx untitledui@latest add progress-indicators progress-circles progress-steps
+npx untitledui@latest add code-snippet activity-feed table
 npx untitledui@latest add button-utility badges badge-groups button-group`,
   },
 ];
@@ -54,8 +57,8 @@ const ComponentsShowcase = () => {
     <PageShell>
       <PageHero
         eyebrow="Untitled UI Integration"
-        title="Progress + Snippet Components"
-        subtitle="Progress indicators, progress steps, code snippets, utility buttons, badges, and button groups implemented in the active design system."
+        title="Untitled UI Component Showcase"
+        subtitle="Progress indicators, progress steps, activity feeds, tables, code snippets, utility buttons, badges, and button groups implemented in the active design system."
       />
 
       <div className="mx-auto max-w-5xl space-y-4">
@@ -105,6 +108,16 @@ const ComponentsShowcase = () => {
         <div className="space-y-2">
           <h2 className="text-base font-semibold text-foreground">Feed List Block</h2>
           <FeedListBlock />
+        </div>
+
+        <div className="space-y-2">
+          <h2 className="text-base font-semibold text-foreground">Activity Feeds</h2>
+          <ActivityFeedsBlock />
+        </div>
+
+        <div className="space-y-2">
+          <h2 className="text-base font-semibold text-foreground">Tables</h2>
+          <TeamMembersTableBlock />
         </div>
 
         <Card className="space-y-4 border-border/80 bg-card/90 p-4 sm:p-5">
