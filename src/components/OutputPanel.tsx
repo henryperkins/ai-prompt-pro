@@ -48,6 +48,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 
 export type EnhancePhase = "idle" | "starting" | "streaming" | "settling" | "done";
+const REASONING_SUMMARY_FADE_MS = 900;
 
 interface SavePromptInput {
   name: string;
@@ -157,7 +158,30 @@ export function OutputPanel({
   const isMobile = useIsMobile();
   const displayPrompt = enhancedPrompt || builtPrompt;
   const trimmedReasoningSummary = reasoningSummary.trim();
+  const [displayedReasoningSummary, setDisplayedReasoningSummary] = useState(trimmedReasoningSummary);
+  const [isReasoningSummaryFading, setIsReasoningSummaryFading] = useState(false);
   const shareEnabledForUi = shareEnabled && canSharePrompt;
+
+  useEffect(() => {
+    if (trimmedReasoningSummary) {
+      setDisplayedReasoningSummary(trimmedReasoningSummary);
+      setIsReasoningSummaryFading(false);
+      return;
+    }
+
+    if (!displayedReasoningSummary) {
+      setIsReasoningSummaryFading(false);
+      return;
+    }
+
+    setIsReasoningSummaryFading(true);
+    const fadeTimer = window.setTimeout(() => {
+      setDisplayedReasoningSummary("");
+      setIsReasoningSummaryFading(false);
+    }, REASONING_SUMMARY_FADE_MS);
+
+    return () => window.clearTimeout(fadeTimer);
+  }, [displayedReasoningSummary, trimmedReasoningSummary]);
 
   const downloadTextFile = (filename: string, content: string) => {
     const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
@@ -798,14 +822,19 @@ export function OutputPanel({
         </DialogContent>
       </Dialog>
 
-      {trimmedReasoningSummary && (
-        <Card className="border-amber-500/30 bg-amber-500/5 p-3">
+      {displayedReasoningSummary && (
+        <Card
+          className={cn(
+            "border-amber-500/30 bg-amber-500/5 p-3 transition-opacity duration-1000 ease-out",
+            isReasoningSummaryFading && "opacity-0",
+          )}
+        >
           <p className="ui-section-label text-amber-700">
             Reasoning summary
           </p>
           <div className="prose prose-sm mt-2 max-w-none whitespace-normal text-foreground/90 dark:prose-invert prose-headings:my-1 prose-p:my-1 prose-pre:my-1 prose-code:break-words prose-ul:my-1 prose-ol:my-1">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {trimmedReasoningSummary}
+              {displayedReasoningSummary}
             </ReactMarkdown>
           </div>
         </Card>

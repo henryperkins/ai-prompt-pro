@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { OutputPanel } from "@/components/OutputPanel";
 
@@ -182,5 +182,44 @@ describe("OutputPanel phase 2 save flow", () => {
     expect(screen.getByText("Summarized reasoning content.")).toBeInTheDocument();
     expect(screen.queryByText("## Plan")).not.toBeInTheDocument();
     expect(screen.getAllByText("Reasoning summary")).toHaveLength(1);
+  });
+
+  it("fades reasoning summary out before removing it", () => {
+    vi.useFakeTimers();
+
+    const baseProps: Parameters<typeof OutputPanel>[0] = {
+      builtPrompt: "Draft launch plan",
+      enhancedPrompt: "",
+      isEnhancing: false,
+      onEnhance: () => undefined,
+      onSaveVersion: () => undefined,
+      onSavePrompt: () => undefined,
+      onSaveAndSharePrompt: () => undefined,
+      canSavePrompt: true,
+      canSharePrompt: true,
+      reasoningSummary: "Fade this summary slowly.",
+    };
+
+    const { rerender } = render(<OutputPanel {...baseProps} />);
+
+    expect(screen.getByText("Fade this summary slowly.")).toBeInTheDocument();
+
+    rerender(
+      <OutputPanel
+        {...baseProps}
+        reasoningSummary=""
+      />,
+    );
+
+    expect(screen.getByText("Fade this summary slowly.")).toBeInTheDocument();
+    const summaryCard = screen.getByText("Reasoning summary").closest(".transition-opacity");
+    expect(summaryCard).toHaveClass("opacity-0");
+
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(screen.queryByText("Fade this summary slowly.")).not.toBeInTheDocument();
+    vi.useRealTimers();
   });
 });
