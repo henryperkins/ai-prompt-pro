@@ -22,6 +22,30 @@ const CODEX_CONFIG = await loadCodexConfig();
 const IS_AZURE_PROVIDER = isAzureProvider(CODEX_CONFIG);
 const RESOLVED_API_KEY = CODEX_CONFIG ? resolveApiKey(CODEX_CONFIG) : null;
 
+if (CODEX_CONFIG) {
+  console.log(JSON.stringify({
+    timestamp: new Date().toISOString(),
+    level: "info",
+    event: "config_toml_resolved",
+    service: "ai-prompt-pro-codex-service",
+    provider: CODEX_CONFIG.provider,
+    provider_name: CODEX_CONFIG.name,
+    base_url: CODEX_CONFIG.baseUrl,
+    env_key: CODEX_CONFIG.envKey,
+    api_key_resolved: !!RESOLVED_API_KEY,
+    is_azure: IS_AZURE_PROVIDER,
+  }));
+} else {
+  console.log(JSON.stringify({
+    timestamp: new Date().toISOString(),
+    level: "warn",
+    event: "config_toml_not_found",
+    service: "ai-prompt-pro-codex-service",
+    message: "No ~/.codex/config.toml found or no model_provider set. Falling back to OPENAI_API_KEY.",
+    openai_api_key_set: !!process.env.OPENAI_API_KEY,
+  }));
+}
+
 const MAX_PROMPT_CHARS = Number.parseInt(process.env.MAX_PROMPT_CHARS || "16000", 10);
 if (!Number.isFinite(MAX_PROMPT_CHARS) || MAX_PROMPT_CHARS <= 0) {
   throw new Error("MAX_PROMPT_CHARS must be a positive integer.");
