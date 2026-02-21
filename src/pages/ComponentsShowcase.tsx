@@ -5,6 +5,7 @@ import { BadgeGroup } from "@/components/base/badges/badge-groups";
 import { ButtonGroup, ButtonGroupItem } from "@/components/base/button-group/button-group";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { CodeSnippetTabs } from "@/components/application/code-snippet/code-snippet";
+import { FeedListBlock } from "@/components/application/lists/feed-list";
 import { ProgressSteps, type ProgressStepItem } from "@/components/application/progress-steps/progress-steps";
 import { ProgressBar } from "@/components/base/progress-indicators/progress-indicators";
 import { ProgressBarCircle, ProgressBarHalfCircle } from "@/components/base/progress-indicators/progress-circles";
@@ -100,6 +101,11 @@ const ComponentsShowcase = () => {
           </div>
           <ProgressSteps steps={steps} showNumbers={stepMode === "numbers"} />
         </Card>
+
+        <div className="space-y-2">
+          <h2 className="text-base font-semibold text-foreground">Feed List Block</h2>
+          <FeedListBlock />
+        </div>
 
         <Card className="space-y-4 border-border/80 bg-card/90 p-4 sm:p-5">
           <h2 className="text-base font-semibold text-foreground">Code Snippets</h2>

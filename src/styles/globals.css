@@ -3,6 +3,11 @@
 @import "./typography.css";
 @import "../index.css";
 
+/* Explicit source registration keeps class detection stable for non-standard paths. */
+@source "../**/*.{ts,tsx}";
+@source "../../docs/**/*.{md,mdx}";
+@source not "../test/**";
+
 @plugin "@tailwindcss/typography";
 @plugin "tailwindcss-react-aria-components";
 @plugin "tailwindcss-animate";
