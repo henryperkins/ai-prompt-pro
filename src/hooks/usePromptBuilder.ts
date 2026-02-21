@@ -81,109 +81,105 @@ export function usePromptBuilder() {
     const token = ++authLoadToken.current;
     const nextUserId = userId;
 
-    void Promise.resolve().then(() => {
+    resetDraftState();
+    setEnhancedPrompt("");
+    if (!hadPendingEdits) {
+      setConfig(defaultConfig);
+    }
+    setTemplateSummaries([]);
+    setVersions(nextUserId ? loadCachedCloudVersions(nextUserId) : loadLocalVersions());
+    if (!hadPendingEdits) {
+      setRemixContext(null);
+    }
+
+    if (!nextUserId) {
+      setIsCloudHydrated(true);
+      if (!hadPendingEdits) {
+        setConfig(loadLocalDraft());
+      }
+      setTemplateSummaries(listLocalTemplateSummaries().map(toPromptSummary));
+      setVersions(loadLocalVersions());
+      return;
+    }
+
+    const migrateVersionsFromGuestToCloud = !previousUserId
+      ? async () => {
+          const localVersions = loadLocalVersions();
+          if (localVersions.length === 0) return;
+
+          const migration = await Promise.allSettled(
+            localVersions.map((version) => persistence.saveVersion(nextUserId, version.name, version.prompt)),
+          );
+          const failedVersions = localVersions.filter((_, index) => migration[index]?.status === "rejected");
+          const failedCount = failedVersions.length;
+          if (failedCount > 0) {
+            saveLocalVersions(failedVersions);
+            toast({
+              title: "Some local versions were not migrated",
+              description:
+                failedCount === 1
+                  ? "1 local version could not be copied to cloud history."
+                  : `${failedCount} local versions could not be copied to cloud history.`,
+              variant: "destructive",
+            });
+            return;
+          }
+          clearLocalVersions();
+        }
+      : async () => {};
+
+    setIsCloudHydrated(false);
+
+    void Promise.allSettled([
+      persistence.loadDraft(nextUserId),
+      persistence.loadPrompts(nextUserId),
+      (async () => {
+        await migrateVersionsFromGuestToCloud();
+        return persistence.loadVersions(nextUserId);
+      })(),
+    ]).then(([draftResult, promptsResult, versionsResult]) => {
       if (token !== authLoadToken.current) return;
 
-      resetDraftState();
-      setEnhancedPrompt("");
-      if (!hadPendingEdits) {
-        setConfig(defaultConfig);
-      }
-      setTemplateSummaries([]);
-      setVersions(nextUserId ? loadCachedCloudVersions(nextUserId) : loadLocalVersions());
-      if (!hadPendingEdits) {
-        setRemixContext(null);
-      }
-
-      if (!nextUserId) {
-        setIsCloudHydrated(true);
-        if (!hadPendingEdits) {
-          setConfig(loadLocalDraft());
+      if (draftResult.status === "fulfilled") {
+        if (draftResult.value && !editsSinceAuthChange.current && !hadPendingEdits) {
+          setConfig(hydrateConfig(draftResult.value));
+        } else if (draftResult.value && (editsSinceAuthChange.current || hadPendingEdits)) {
+          toast({
+            title: "Cloud draft was not applied",
+            description: "You started editing before cloud draft finished loading, so your current edits were kept.",
+          });
         }
-        setTemplateSummaries(listLocalTemplateSummaries().map(toPromptSummary));
-        setVersions(loadLocalVersions());
-        return;
+      } else {
+        showPersistenceError("Failed to load draft", draftResult.reason, "Failed to load draft.");
       }
 
-      const migrateVersionsFromGuestToCloud = !previousUserId
-        ? async () => {
-            const localVersions = loadLocalVersions();
-            if (localVersions.length === 0) return;
+      if (promptsResult.status === "fulfilled") {
+        setTemplateSummaries(promptsResult.value);
+      } else {
+        setTemplateSummaries([]);
+        showPersistenceError("Failed to load prompts", promptsResult.reason, "Failed to load prompts.");
+      }
 
-            const migration = await Promise.allSettled(
-              localVersions.map((version) => persistence.saveVersion(nextUserId, version.name, version.prompt)),
-            );
-            const failedVersions = localVersions.filter((_, index) => migration[index]?.status === "rejected");
-            const failedCount = failedVersions.length;
-            if (failedCount > 0) {
-              saveLocalVersions(failedVersions);
-              toast({
-                title: "Some local versions were not migrated",
-                description:
-                  failedCount === 1
-                    ? "1 local version could not be copied to cloud history."
-                    : `${failedCount} local versions could not be copied to cloud history.`,
-                variant: "destructive",
-              });
-              return;
-            }
-            clearLocalVersions();
-          }
-        : async () => {};
-
-      setIsCloudHydrated(false);
-
-      void Promise.allSettled([
-        persistence.loadDraft(nextUserId),
-        persistence.loadPrompts(nextUserId),
-        (async () => {
-          await migrateVersionsFromGuestToCloud();
-          return persistence.loadVersions(nextUserId);
-        })(),
-      ]).then(([draftResult, promptsResult, versionsResult]) => {
-        if (token !== authLoadToken.current) return;
-
-        if (draftResult.status === "fulfilled") {
-          if (draftResult.value && !editsSinceAuthChange.current && !hadPendingEdits) {
-            setConfig(hydrateConfig(draftResult.value));
-          } else if (draftResult.value && (editsSinceAuthChange.current || hadPendingEdits)) {
-            toast({
-              title: "Cloud draft was not applied",
-              description: "You started editing before cloud draft finished loading, so your current edits were kept.",
-            });
-          }
+      if (versionsResult.status === "fulfilled") {
+        const cloudVersions = versionsResult.value;
+        if (cloudVersions.length > 0) {
+          setVersions(cloudVersions);
+          saveCachedCloudVersions(nextUserId, cloudVersions);
         } else {
-          showPersistenceError("Failed to load draft", draftResult.reason, "Failed to load draft.");
+          setVersions([]);
+          clearCachedCloudVersions(nextUserId);
         }
+      } else {
+        setVersions(loadCachedCloudVersions(nextUserId));
+        showPersistenceError(
+          "Failed to load version history",
+          versionsResult.reason,
+          "Failed to load version history.",
+        );
+      }
 
-        if (promptsResult.status === "fulfilled") {
-          setTemplateSummaries(promptsResult.value);
-        } else {
-          setTemplateSummaries([]);
-          showPersistenceError("Failed to load prompts", promptsResult.reason, "Failed to load prompts.");
-        }
-
-        if (versionsResult.status === "fulfilled") {
-          const cloudVersions = versionsResult.value;
-          if (cloudVersions.length > 0) {
-            setVersions(cloudVersions);
-            saveCachedCloudVersions(nextUserId, cloudVersions);
-          } else {
-            setVersions([]);
-            clearCachedCloudVersions(nextUserId);
-          }
-        } else {
-          setVersions(loadCachedCloudVersions(nextUserId));
-          showPersistenceError(
-            "Failed to load version history",
-            versionsResult.reason,
-            "Failed to load version history.",
-          );
-        }
-
-        setIsCloudHydrated(true);
-        clearDirtyIfClean();
-      });
+      setIsCloudHydrated(true);
+      clearDirtyIfClean();
     });
   }, [userId, showPersistenceError, toast, resetDraftState, clearDirtyIfClean, editsSinceAuthChange]);
 

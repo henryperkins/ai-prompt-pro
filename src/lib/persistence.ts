@@ -699,6 +699,19 @@ export async function deletePrompts(userId: string | null, ids: string[]): Promi
   ensureCloudPersistence("Cloud prompts");
 
   try {
+    if (normalizedIds.length === 1) {
+      const { data, error } = await neon
+        .from("saved_prompts")
+        .delete()
+        .eq("user_id", userId)
+        .eq("id", normalizedIds[0])
+        .select("id")
+        .maybeSingle();
+
+      if (error) throw mapPostgrestError(error, "Failed to delete prompts.");
+      return data ? [data.id] : [];
+    }
+
     const { data, error } = await neon
       .from("saved_prompts")
       .delete()
