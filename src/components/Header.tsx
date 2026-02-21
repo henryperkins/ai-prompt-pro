@@ -186,12 +186,12 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
             className="flex items-center gap-1.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:gap-2"
             aria-label={brandCopy.appName}
           >
-            <span className="interactive-chip flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-lg border border-primary/25 bg-primary/10">
+            <span className="interactive-chip flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-lg border border-primary/25 bg-primary/10">
               <img
                 src="/brand/pf-logo-symbol-primary-v3-tight.png"
                 alt=""
                 decoding="async"
-                className="h-4 w-4 object-contain sm:h-5 sm:w-5"
+                className="h-5 w-5 object-contain sm:h-6 sm:w-6"
                 aria-hidden="true"
               />
             </span>
@@ -199,7 +199,7 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
               src="/brand/pf-logo-wordmark-horizontal-v3-tight.png"
               alt=""
               decoding="async"
-              className="h-4 w-auto object-contain sm:h-5"
+              className="h-5 w-auto object-contain sm:h-6"
               aria-hidden="true"
             />
           </Link>
