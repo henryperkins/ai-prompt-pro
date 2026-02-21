@@ -50,3 +50,6 @@ product-spec.md
 # Playwright artifacts
 playwright-report/
 test-results/
+
+# Local GitHub Actions runner
+actions-runner/
