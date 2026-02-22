@@ -377,13 +377,13 @@ function normalizeRemoteInferenceResult(
 
   const inferredFields = Array.isArray(inferredFieldsRaw)
     ? inferredFieldsRaw.filter(
-        (field): field is "role" | "tone" | "lengthPreference" | "format" | "constraints" =>
-          field === "role" ||
-          field === "tone" ||
-          field === "lengthPreference" ||
-          field === "format" ||
-          field === "constraints",
-      )
+      (field): field is "role" | "tone" | "lengthPreference" | "format" | "constraints" =>
+        field === "role" ||
+        field === "tone" ||
+        field === "lengthPreference" ||
+        field === "format" ||
+        field === "constraints",
+    )
     : [];
   if (inferredFields.length === 0) {
     if (typeof inferredUpdates.role === "string") inferredFields.push("role");
@@ -395,89 +395,89 @@ function normalizeRemoteInferenceResult(
 
   const suggestionChips = Array.isArray(suggestionChipsRaw)
     ? suggestionChipsRaw
-        .map((chip): BuilderSuggestionChip | null => {
-          if (!chip || typeof chip !== "object") return null;
-          const id = typeof chip.id === "string" ? chip.id : null;
-          const label = typeof chip.label === "string" ? chip.label : null;
-          const description = typeof chip.description === "string" ? chip.description : "";
-          const action = chip.action;
-          if (!id || !label || !action || typeof action !== "object") return null;
+      .map((chip): BuilderSuggestionChip | null => {
+        if (!chip || typeof chip !== "object") return null;
+        const id = typeof chip.id === "string" ? chip.id : null;
+        const label = typeof chip.label === "string" ? chip.label : null;
+        const description = typeof chip.description === "string" ? chip.description : "";
+        const action = chip.action;
+        if (!id || !label || !action || typeof action !== "object") return null;
 
-          const actionType = action.type;
-          if (actionType === "append_prompt" && typeof action.text === "string") {
-            return {
-              id,
-              label,
-              description,
-              action: {
-                type: "append_prompt",
-                text: action.text,
-              },
-            };
-          }
+        const actionType = action.type;
+        if (actionType === "append_prompt" && typeof action.text === "string") {
+          return {
+            id,
+            label,
+            description,
+            action: {
+              type: "append_prompt",
+              text: action.text,
+            },
+          };
+        }
 
-          if (actionType === "set_fields" && action.updates && typeof action.updates === "object") {
-            const updates = action.updates as Record<string, unknown>;
-            const fields = Array.isArray(action.fields)
-              ? action.fields.filter(
-                  (field): field is "role" | "tone" | "lengthPreference" | "format" | "constraints" =>
-                    field === "role" ||
-                    field === "tone" ||
-                    field === "lengthPreference" ||
-                    field === "format" ||
-                    field === "constraints",
-                )
-              : [];
+        if (actionType === "set_fields" && action.updates && typeof action.updates === "object") {
+          const updates = action.updates as Record<string, unknown>;
+          const fields = Array.isArray(action.fields)
+            ? action.fields.filter(
+              (field): field is "role" | "tone" | "lengthPreference" | "format" | "constraints" =>
+                field === "role" ||
+                field === "tone" ||
+                field === "lengthPreference" ||
+                field === "format" ||
+                field === "constraints",
+            )
+            : [];
 
-            return {
-              id,
-              label,
-              description,
-              action: {
-                type: "set_fields",
-                updates: (() => {
-                  const normalizedUpdates: {
-                    role?: string;
-                    tone?: string;
-                    lengthPreference?: string;
-                    format?: string[];
-                    constraints?: string[];
-                    customRole?: string;
-                    customFormat?: string;
-                    customConstraint?: string;
-                  } = {};
-                  if (typeof updates.role === "string") {
-                    normalizedUpdates.role = updates.role;
-                    normalizedUpdates.customRole = "";
-                  }
-                  if (typeof updates.tone === "string") {
-                    normalizedUpdates.tone = updates.tone;
-                  }
-                  if (typeof updates.lengthPreference === "string") {
-                    normalizedUpdates.lengthPreference = updates.lengthPreference;
-                  }
-                  if (Array.isArray(updates.format)) {
-                    normalizedUpdates.format = updates.format.filter(
-                      (entry): entry is string => typeof entry === "string",
-                    );
-                    normalizedUpdates.customFormat = "";
-                  }
-                  if (Array.isArray(updates.constraints)) {
-                    normalizedUpdates.constraints = updates.constraints.filter(
-                      (entry): entry is string => typeof entry === "string",
-                    );
-                    normalizedUpdates.customConstraint = "";
-                  }
-                  return normalizedUpdates;
-                })(),
-                fields,
-              },
-            };
-          }
+          return {
+            id,
+            label,
+            description,
+            action: {
+              type: "set_fields",
+              updates: (() => {
+                const normalizedUpdates: {
+                  role?: string;
+                  tone?: string;
+                  lengthPreference?: string;
+                  format?: string[];
+                  constraints?: string[];
+                  customRole?: string;
+                  customFormat?: string;
+                  customConstraint?: string;
+                } = {};
+                if (typeof updates.role === "string") {
+                  normalizedUpdates.role = updates.role;
+                  normalizedUpdates.customRole = "";
+                }
+                if (typeof updates.tone === "string") {
+                  normalizedUpdates.tone = updates.tone;
+                }
+                if (typeof updates.lengthPreference === "string") {
+                  normalizedUpdates.lengthPreference = updates.lengthPreference;
+                }
+                if (Array.isArray(updates.format)) {
+                  normalizedUpdates.format = updates.format.filter(
+                    (entry): entry is string => typeof entry === "string",
+                  );
+                  normalizedUpdates.customFormat = "";
+                }
+                if (Array.isArray(updates.constraints)) {
+                  normalizedUpdates.constraints = updates.constraints.filter(
+                    (entry): entry is string => typeof entry === "string",
+                  );
+                  normalizedUpdates.customConstraint = "";
+                }
+                return normalizedUpdates;
+              })(),
+              fields,
+            },
+          };
+        }
 
-          return null;
-        })
-        .filter((chip): chip is BuilderSuggestionChip => chip !== null)
+        return null;
+      })
+      .filter((chip): chip is BuilderSuggestionChip => chip !== null)
     : [];
 
   return {
@@ -865,7 +865,7 @@ const Index = () => {
       const debugEventStore =
         debugEnhanceEvents && typeof window !== "undefined"
           ? ((window as typeof window & { __promptforgeEnhanceEvents?: EnhanceDebugEventSnapshot[] })
-              .__promptforgeEnhanceEvents ??= [])
+            .__promptforgeEnhanceEvents ??= [])
           : null;
       const outputFormats = [
         ...configForEnhance.format,
@@ -1406,348 +1406,353 @@ const Index = () => {
 
   return (
     <PageShell mainClassName="py-3 sm:py-6">
-        {isMobile && (
-          <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-            {enhanceLiveMessage}
-          </p>
-        )}
-        {/* Hero — compact on mobile */}
-        <div className="delight-hero-static text-center mb-4 sm:mb-8" data-testid="builder-hero">
-          <h1 className="text-xl sm:text-3xl md:text-4xl font-bold text-foreground mb-1 sm:mb-2 tracking-tight">
-            {heroCopy.headline}
-          </h1>
-          <p className="text-muted-foreground text-xs sm:text-sm md:text-base max-w-2xl mx-auto">
-            {heroCopy.subhead}
-          </p>
-          <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
-            {brandCopy.pillars.map((pillar) => (
-              <Badge key={pillar.title} variant="outline" className="text-2xs sm:text-xs">
-                {pillar.title}
-              </Badge>
-            ))}
-          </div>
+      {isMobile && (
+        <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+          {enhanceLiveMessage}
+        </p>
+      )}
+      {/* Hero — compact on mobile */}
+      <div className="delight-hero-static text-center mb-4 sm:mb-8" data-testid="builder-hero">
+        <h1 className="text-xl sm:text-3xl md:text-4xl font-bold text-foreground mb-1 sm:mb-2 tracking-tight">
+          {heroCopy.headline}
+        </h1>
+        <p className="text-muted-foreground text-xs sm:text-sm md:text-base max-w-2xl mx-auto">
+          {heroCopy.subhead}
+        </p>
+        <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
+          {brandCopy.pillars.map((pillar) => (
+            <Badge
+              key={pillar.title}
+              type="modern"
+              className="border border-border bg-background text-2xs text-foreground sm:text-xs"
+            >
+              {pillar.title}
+            </Badge>
+          ))}
         </div>
+      </div>
 
-        {remixContext && (
-          <Card className="mb-4 border-primary/30 bg-primary/5 p-3 sm:p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="space-y-1">
-                <p className="type-label-caps text-xs text-primary">Remix mode</p>
-                <p className="text-sm font-medium text-foreground">
-                  Remixing {remixContext.parentAuthor}’s “{remixContext.parentTitle}”
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Your changes will be attributed when you save or share.
-                </p>
-              </div>
-              <Button variant="ghost" size="sm" onClick={handleClearRemix} className="gap-1 text-sm sm:text-base">
-                <X className="h-3 w-3" />
-                Clear remix
-              </Button>
+      {remixContext && (
+        <Card className="mb-4 border-primary/30 bg-primary/5 p-3 sm:p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="space-y-1">
+              <p className="type-label-caps text-xs text-primary">Remix mode</p>
+              <p className="text-sm font-medium text-foreground">
+                Remixing {remixContext.parentAuthor}’s “{remixContext.parentTitle}”
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Your changes will be attributed when you save or share.
+              </p>
             </div>
-          </Card>
-        )}
-
-        {/* Split layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-          {/* Left: Input & Builder */}
-          <div className="space-y-3 sm:space-y-4">
-            {isBuilderRedesignPhase1 ? (
-              <>
-                <BuilderHeroInput
-                  value={config.originalPrompt}
-                  onChange={(value) => updateConfig({ originalPrompt: value })}
-                  onClear={clearOriginalPrompt}
-                  phase3Enabled={isBuilderRedesignPhase3}
-                  suggestionChips={suggestionChips}
-                  isInferringSuggestions={isInferringSuggestions}
-                  hasInferenceError={hasInferenceError}
-                  onApplySuggestion={handleApplySuggestionChip}
-                  onResetInferred={handleResetInferredDetails}
-                  canResetInferred={hasAiOwnedFields}
-                />
-
-                {showEnhanceFirstCard && (
-                  <Card className="border-border/70 bg-card/80 p-3">
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium text-foreground">Start in 3 steps</p>
-                      <ol className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-3">
-                        <li>1. Add your rough prompt</li>
-                        <li>2. Tap {primaryCtaLabel}</li>
-                        <li>3. Refine details</li>
-                      </ol>
-                      <p className="text-xs text-muted-foreground">
-                        Keep the first pass simple, then strengthen quality, context, and remix readiness.
-                      </p>
-                    </div>
-                  </Card>
-                )}
-
-                {showRefineSuggestions && (
-                  <Card className="border-primary/25 bg-primary/5 p-3">
-                    <p className="text-xs font-medium text-primary">Improve this result</p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {refineSuggestions.map((suggestion) => (
-                        <Button
-                          key={suggestion.id}
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          className="h-11 text-sm sm:h-9 sm:text-base"
-                          onClick={() => openAndFocusSection(suggestion.id)}
-                        >
-                          {suggestion.title}
-                        </Button>
-                      ))}
-                    </div>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      {refineSuggestions[0]?.description}
-                    </p>
-                  </Card>
-                )}
-
-                {!shouldShowAdvancedControls && (
-                  <Card className="border-border/70 bg-card/80 p-3">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-foreground">Need more control?</p>
-                        <p className="text-xs text-muted-foreground">
-                          Reveal advanced settings when you are ready to refine.
-                        </p>
-                      </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="h-11 text-sm sm:h-9 sm:text-base"
-                        onClick={() => persistedSetShowAdvancedControls(true)}
-                      >
-                        Show advanced controls
-                      </Button>
-                    </div>
-                  </Card>
-                )}
-
-                {shouldShowAdvancedControls && (
-                  <>
-                    <BuilderAdjustDetails
-                      config={config}
-                      isOpen={isAdjustDetailsOpen}
-                      onOpenChange={setIsAdjustDetailsOpen}
-                      onUpdate={handleAdjustDetailsUpdate}
-                    />
-
-                    <BuilderSourcesAdvanced
-                      contextConfig={config.contextConfig}
-                      isOpen={isSourcesAdvancedOpen}
-                      onOpenChange={setIsSourcesAdvancedOpen}
-                      onUpdateSources={updateContextSources}
-                      onUpdateDatabaseConnections={updateDatabaseConnections}
-                      onUpdateRag={updateRagParameters}
-                      onUpdateProjectNotes={updateProjectNotes}
-                      onToggleDelimiters={toggleDelimiters}
-                    />
-                  </>
-                )}
-              </>
-            ) : (
-              <>
-                <PromptInput
-                  value={config.originalPrompt}
-                  onChange={(v) => updateConfig({ originalPrompt: v })}
-                  onClear={clearOriginalPrompt}
-                />
-
-                {showEnhanceFirstCard && (
-                  <Card className="border-border/70 bg-card/80 p-3">
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium text-foreground">Start in 3 steps</p>
-                      <ol className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-3">
-                        <li>1. Add your rough prompt</li>
-                        <li>2. Tap {primaryCtaLabel}</li>
-                        <li>3. Refine details</li>
-                      </ol>
-                      <p className="text-xs text-muted-foreground">
-                        Keep the first pass simple, then strengthen quality, context, and remix readiness.
-                      </p>
-                    </div>
-                  </Card>
-                )}
-
-                {showRefineSuggestions && (
-                  <Card className="border-primary/25 bg-primary/5 p-3">
-                    <p className="text-xs font-medium text-primary">Improve this result</p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {refineSuggestions.map((suggestion) => (
-                        <Button
-                          key={suggestion.id}
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          className="h-11 text-sm sm:h-9 sm:text-base"
-                          onClick={() => openAndFocusSection(suggestion.id)}
-                        >
-                          {suggestion.title}
-                        </Button>
-                      ))}
-                    </div>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      {refineSuggestions[0]?.description}
-                    </p>
-                  </Card>
-                )}
-
-                <Accordion
-                  type="multiple"
-                  value={openSections}
-                  onValueChange={(value) => setOpenSections(value as BuilderSection[])}
-                  className="space-y-1"
-                >
-                  <AccordionItem id="accordion-builder" value="builder" className="border rounded-lg px-3">
-                    <AccordionTrigger className="py-3 text-sm hover:no-underline gap-2">
-                      <span className="flex items-center gap-2">
-                        <Target className="w-3.5 h-3.5 text-muted-foreground" />
-                        Builder
-                      </span>
-                      <span className="ml-auto mr-2 flex items-center gap-1.5">
-                        {selectedRole && (
-                          <Badge variant="secondary" className="max-w-[180px] text-xs">
-                            <span className="type-wrap-safe">{selectedRole}</span>
-                          </Badge>
-                        )}
-                        <SectionHealthBadge state={sectionHealth.builder} />
-                      </span>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <BuilderTabs config={config} onUpdate={updateConfig} />
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  <AccordionItem id="accordion-context" value="context" className="border rounded-lg px-3">
-                    <AccordionTrigger className="py-3 text-sm hover:no-underline gap-2">
-                      <span className="flex items-center gap-2">
-                        <LayoutIcon className="w-3.5 h-3.5 text-muted-foreground" />
-                        Context & Sources
-                      </span>
-                      <span className="ml-auto mr-2 flex items-center gap-1.5">
-                        {sourceCount > 0 && (
-                          <Badge variant="secondary" className="text-xs">
-                            {sourceCount} src
-                          </Badge>
-                        )}
-                        <SectionHealthBadge state={sectionHealth.context} />
-                      </span>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <ContextPanel
-                        contextConfig={config.contextConfig}
-                        onUpdateSources={updateContextSources}
-                        onUpdateDatabaseConnections={updateDatabaseConnections}
-                        onUpdateRag={updateRagParameters}
-                        onUpdateStructured={updateContextStructured}
-                        onUpdateInterview={updateContextInterview}
-                        onUpdateProjectNotes={updateProjectNotes}
-                        onToggleDelimiters={toggleDelimiters}
-                      />
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  <AccordionItem id="accordion-tone" value="tone" className="border rounded-lg px-3">
-                    <AccordionTrigger className="py-3 text-sm hover:no-underline gap-2">
-                      <span className="flex items-center gap-2">
-                        <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
-                        Tone & Style
-                      </span>
-                      <span className="ml-auto mr-2 flex items-center gap-1.5">
-                        {config.tone && (
-                          <Badge variant="secondary" className="text-xs">
-                            {config.tone}
-                          </Badge>
-                        )}
-                        <SectionHealthBadge state={sectionHealth.tone} />
-                      </span>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <ToneControls
-                        tone={config.tone}
-                        complexity={config.complexity}
-                        onUpdate={updateConfig}
-                      />
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  <AccordionItem id="accordion-quality" value="quality" className="border rounded-lg px-3">
-                    <AccordionTrigger className="py-3 text-sm hover:no-underline gap-2">
-                      <span className="flex items-center gap-2">
-                        <BarChart3 className="w-3.5 h-3.5 text-muted-foreground" />
-                        Quality Score
-                      </span>
-                      <span className="ml-auto mr-2 flex items-center gap-1.5">
-                        <Badge
-                          variant={score.total >= 75 ? "default" : "secondary"}
-                          className="text-xs"
-                        >
-                          {score.total}/100
-                        </Badge>
-                        <SectionHealthBadge state={sectionHealth.quality} />
-                      </span>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <QualityScore score={score} />
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-              </>
-            )}
+            <Button color="tertiary" size="sm" onClick={handleClearRemix} className="gap-1 text-sm sm:text-base">
+              <X className="h-3 w-3" />
+              Clear remix
+            </Button>
           </div>
+        </Card>
+      )}
 
-          {/* Right: Output — inline on desktop, drawer on mobile */}
-          {!isMobile && (
-            <div className="lg:sticky lg:top-20 lg:self-start">
-              {isBuilderRedesignPhase1 && (
-                <Card className="mb-3 border-border/70 bg-card/80 p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-medium text-foreground">Quality signal</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {score.tips[0]}
-                      </p>
-                    </div>
-                    <Badge variant={score.total >= 75 ? "default" : "secondary"} className="text-xs">
-                      {score.total}/100
-                    </Badge>
+      {/* Split layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        {/* Left: Input & Builder */}
+        <div className="space-y-3 sm:space-y-4">
+          {isBuilderRedesignPhase1 ? (
+            <>
+              <BuilderHeroInput
+                value={config.originalPrompt}
+                onChange={(value) => updateConfig({ originalPrompt: value })}
+                onClear={clearOriginalPrompt}
+                phase3Enabled={isBuilderRedesignPhase3}
+                suggestionChips={suggestionChips}
+                isInferringSuggestions={isInferringSuggestions}
+                hasInferenceError={hasInferenceError}
+                onApplySuggestion={handleApplySuggestionChip}
+                onResetInferred={handleResetInferredDetails}
+                canResetInferred={hasAiOwnedFields}
+              />
+
+              {showEnhanceFirstCard && (
+                <Card className="border-border/70 bg-card/80 p-3">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-foreground">Start in 3 steps</p>
+                    <ol className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-3">
+                      <li>1. Add your rough prompt</li>
+                      <li>2. Tap {primaryCtaLabel}</li>
+                      <li>3. Refine details</li>
+                    </ol>
+                    <p className="text-xs text-muted-foreground">
+                      Keep the first pass simple, then strengthen quality, context, and remix readiness.
+                    </p>
                   </div>
                 </Card>
               )}
-              <OutputPanel
-                builtPrompt={builtPrompt}
-                enhancedPrompt={enhancedPrompt}
-                reasoningSummary={reasoningSummary}
-                isEnhancing={isEnhancing}
-                enhancePhase={enhancePhase}
-                onEnhance={handleEnhance}
-                onSaveVersion={saveVersion}
-                onSavePrompt={handleSavePrompt}
-                onSaveAndSharePrompt={handleSaveAndSharePrompt}
-                canSavePrompt={canSavePrompt}
-                canSharePrompt={canSharePrompt}
-                phase2Enabled={isBuilderRedesignPhase2}
-                webSearchEnabled={webSearchEnabled}
-                onWebSearchToggle={persistedSetWebSearchEnabled}
-                webSearchSources={webSearchSources}
-                enhanceIdleLabel={primaryCtaLabel}
-                remixContext={
-                  remixContext
-                    ? { title: remixContext.parentTitle, authorName: remixContext.parentAuthor }
-                    : undefined
-                }
+
+              {showRefineSuggestions && (
+                <Card className="border-primary/25 bg-primary/5 p-3">
+                  <p className="text-xs font-medium text-primary">Improve this result</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {refineSuggestions.map((suggestion) => (
+                      <Button
+                        key={suggestion.id}
+                        type="button"
+                        size="sm"
+                        color="secondary"
+                        className="h-11 text-sm sm:h-9 sm:text-base"
+                        onClick={() => openAndFocusSection(suggestion.id)}
+                      >
+                        {suggestion.title}
+                      </Button>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {refineSuggestions[0]?.description}
+                  </p>
+                </Card>
+              )}
+
+              {!shouldShowAdvancedControls && (
+                <Card className="border-border/70 bg-card/80 p-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Need more control?</p>
+                      <p className="text-xs text-muted-foreground">
+                        Reveal advanced settings when you are ready to refine.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      color="secondary"
+                      className="h-11 text-sm sm:h-9 sm:text-base"
+                      onClick={() => persistedSetShowAdvancedControls(true)}
+                    >
+                      Show advanced controls
+                    </Button>
+                  </div>
+                </Card>
+              )}
+
+              {shouldShowAdvancedControls && (
+                <>
+                  <BuilderAdjustDetails
+                    config={config}
+                    isOpen={isAdjustDetailsOpen}
+                    onOpenChange={setIsAdjustDetailsOpen}
+                    onUpdate={handleAdjustDetailsUpdate}
+                  />
+
+                  <BuilderSourcesAdvanced
+                    contextConfig={config.contextConfig}
+                    isOpen={isSourcesAdvancedOpen}
+                    onOpenChange={setIsSourcesAdvancedOpen}
+                    onUpdateSources={updateContextSources}
+                    onUpdateDatabaseConnections={updateDatabaseConnections}
+                    onUpdateRag={updateRagParameters}
+                    onUpdateProjectNotes={updateProjectNotes}
+                    onToggleDelimiters={toggleDelimiters}
+                  />
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              <PromptInput
+                value={config.originalPrompt}
+                onChange={(v) => updateConfig({ originalPrompt: v })}
+                onClear={clearOriginalPrompt}
               />
-              <p className="text-xs text-muted-foreground text-center mt-3">
-                Press <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded border border-border font-mono">Ctrl+Enter</kbd> to enhance
-              </p>
-            </div>
+
+              {showEnhanceFirstCard && (
+                <Card className="border-border/70 bg-card/80 p-3">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-foreground">Start in 3 steps</p>
+                    <ol className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-3">
+                      <li>1. Add your rough prompt</li>
+                      <li>2. Tap {primaryCtaLabel}</li>
+                      <li>3. Refine details</li>
+                    </ol>
+                    <p className="text-xs text-muted-foreground">
+                      Keep the first pass simple, then strengthen quality, context, and remix readiness.
+                    </p>
+                  </div>
+                </Card>
+              )}
+
+              {showRefineSuggestions && (
+                <Card className="border-primary/25 bg-primary/5 p-3">
+                  <p className="text-xs font-medium text-primary">Improve this result</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {refineSuggestions.map((suggestion) => (
+                      <Button
+                        key={suggestion.id}
+                        type="button"
+                        size="sm"
+                        color="secondary"
+                        className="h-11 text-sm sm:h-9 sm:text-base"
+                        onClick={() => openAndFocusSection(suggestion.id)}
+                      >
+                        {suggestion.title}
+                      </Button>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {refineSuggestions[0]?.description}
+                  </p>
+                </Card>
+              )}
+
+              <Accordion
+                type="multiple"
+                value={openSections}
+                onValueChange={(value) => setOpenSections(value as BuilderSection[])}
+                className="space-y-1"
+              >
+                <AccordionItem id="accordion-builder" value="builder" className="border rounded-lg px-3">
+                  <AccordionTrigger className="py-3 text-sm hover:no-underline gap-2">
+                    <span className="flex items-center gap-2">
+                      <Target className="w-3.5 h-3.5 text-muted-foreground" />
+                      Builder
+                    </span>
+                    <span className="ml-auto mr-2 flex items-center gap-1.5">
+                      {selectedRole && (
+                        <Badge type="modern" className="max-w-45 text-xs">
+                          <span className="type-wrap-safe">{selectedRole}</span>
+                        </Badge>
+                      )}
+                      <SectionHealthBadge state={sectionHealth.builder} />
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <BuilderTabs config={config} onUpdate={updateConfig} />
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem id="accordion-context" value="context" className="border rounded-lg px-3">
+                  <AccordionTrigger className="py-3 text-sm hover:no-underline gap-2">
+                    <span className="flex items-center gap-2">
+                      <LayoutIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                      Context & Sources
+                    </span>
+                    <span className="ml-auto mr-2 flex items-center gap-1.5">
+                      {sourceCount > 0 && (
+                        <Badge type="modern" className="text-xs">
+                          {sourceCount} src
+                        </Badge>
+                      )}
+                      <SectionHealthBadge state={sectionHealth.context} />
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <ContextPanel
+                      contextConfig={config.contextConfig}
+                      onUpdateSources={updateContextSources}
+                      onUpdateDatabaseConnections={updateDatabaseConnections}
+                      onUpdateRag={updateRagParameters}
+                      onUpdateStructured={updateContextStructured}
+                      onUpdateInterview={updateContextInterview}
+                      onUpdateProjectNotes={updateProjectNotes}
+                      onToggleDelimiters={toggleDelimiters}
+                    />
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem id="accordion-tone" value="tone" className="border rounded-lg px-3">
+                  <AccordionTrigger className="py-3 text-sm hover:no-underline gap-2">
+                    <span className="flex items-center gap-2">
+                      <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
+                      Tone & Style
+                    </span>
+                    <span className="ml-auto mr-2 flex items-center gap-1.5">
+                      {config.tone && (
+                        <Badge type="modern" className="text-xs">
+                          {config.tone}
+                        </Badge>
+                      )}
+                      <SectionHealthBadge state={sectionHealth.tone} />
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <ToneControls
+                      tone={config.tone}
+                      complexity={config.complexity}
+                      onUpdate={updateConfig}
+                    />
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem id="accordion-quality" value="quality" className="border rounded-lg px-3">
+                  <AccordionTrigger className="py-3 text-sm hover:no-underline gap-2">
+                    <span className="flex items-center gap-2">
+                      <BarChart3 className="w-3.5 h-3.5 text-muted-foreground" />
+                      Quality Score
+                    </span>
+                    <span className="ml-auto mr-2 flex items-center gap-1.5">
+                      <Badge
+                        type="pill-color"
+                        color={score.total >= 75 ? "brand" : "gray"}
+                        className="text-xs"
+                      >
+                        {score.total}/100
+                      </Badge>
+                      <SectionHealthBadge state={sectionHealth.quality} />
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <QualityScore score={score} />
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </>
           )}
         </div>
+
+        {/* Right: Output — inline on desktop, drawer on mobile */}
+        {!isMobile && (
+          <div className="lg:sticky lg:top-20 lg:self-start">
+            {isBuilderRedesignPhase1 && (
+              <Card className="mb-3 border-border/70 bg-card/80 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-medium text-foreground">Quality signal</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {score.tips[0]}
+                    </p>
+                  </div>
+                  <Badge type="pill-color" color={score.total >= 75 ? "brand" : "gray"} className="text-xs">
+                    {score.total}/100
+                  </Badge>
+                </div>
+              </Card>
+            )}
+            <OutputPanel
+              builtPrompt={builtPrompt}
+              enhancedPrompt={enhancedPrompt}
+              reasoningSummary={reasoningSummary}
+              isEnhancing={isEnhancing}
+              enhancePhase={enhancePhase}
+              onEnhance={handleEnhance}
+              onSaveVersion={saveVersion}
+              onSavePrompt={handleSavePrompt}
+              onSaveAndSharePrompt={handleSaveAndSharePrompt}
+              canSavePrompt={canSavePrompt}
+              canSharePrompt={canSharePrompt}
+              phase2Enabled={isBuilderRedesignPhase2}
+              webSearchEnabled={webSearchEnabled}
+              onWebSearchToggle={persistedSetWebSearchEnabled}
+              webSearchSources={webSearchSources}
+              enhanceIdleLabel={primaryCtaLabel}
+              remixContext={
+                remixContext
+                  ? { title: remixContext.parentTitle, authorName: remixContext.parentAuthor }
+                  : undefined
+              }
+            />
+            <p className="text-xs text-muted-foreground text-center mt-3">
+              Press <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded border border-border font-mono">Ctrl+Enter</kbd> to enhance
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Mobile: sticky bottom bar */}
       {isMobile && (
@@ -1773,7 +1778,7 @@ const Index = () => {
 
           <div className="flex items-center gap-2">
             <label
-              className="flex min-h-11 min-w-[92px] items-center justify-center gap-2 rounded-md border border-border/70 bg-background/70 px-2 text-sm text-muted-foreground cursor-pointer select-none"
+              className="flex min-h-11 min-w-23 items-center justify-center gap-2 rounded-md border border-border/70 bg-background/70 px-2 text-sm text-muted-foreground cursor-pointer select-none"
               data-testid="builder-mobile-web-toggle"
             >
               <Switch
@@ -1786,14 +1791,15 @@ const Index = () => {
               <span>Web</span>
             </label>
             <Badge
-              variant={score.total >= 75 ? "default" : "secondary"}
-              className="h-11 min-w-[64px] justify-center rounded-md px-2 text-sm font-semibold sm:h-10 sm:text-base"
+              type="pill-color"
+              color={score.total >= 75 ? "brand" : "gray"}
+              className="h-11 min-w-16 justify-center rounded-md px-2 text-sm font-semibold sm:h-10 sm:text-base"
             >
               {score.total}/100
             </Badge>
             <Button
-              variant="glow"
-              size="default"
+              color="primary"
+              size="md"
               onClick={handleEnhance}
               disabled={isEnhancing || !builtPrompt}
               className="signature-enhance-button h-11 flex-1 gap-2 sm:h-10"

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { CommunityFeed } from "@/components/community/CommunityFeed";
 import { PageHero, PageShell } from "@/components/PageShell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitives/avatar";
@@ -60,6 +60,7 @@ function toParentTitleMap(posts: CommunityPost[]): Record<string, string> {
 
 const Profile = () => {
   const { userId: routeUserId } = useParams<{ userId: string }>();
+  const navigate = useNavigate();
   const profileUserId = routeUserId?.trim() || "";
   const requestToken = useRef(0);
   const voteInFlightByPost = useRef<Set<string>>(new Set());
@@ -455,18 +456,20 @@ const Profile = () => {
                 <div className="min-w-0 flex-1">
                   <p className="text-base font-semibold text-foreground">{profile.displayName}</p>
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <Badge variant="secondary">{profileStats.followersCount} followers</Badge>
-                    <Badge variant="secondary">{profileStats.followingCount} following</Badge>
-                    <Badge variant="outline">{posts.length} visible prompts</Badge>
+                    <Badge type="modern">{profileStats.followersCount} followers</Badge>
+                    <Badge type="modern">{profileStats.followingCount} following</Badge>
+                    <Badge type="modern" className="border border-border bg-background text-foreground">
+                      {posts.length} visible prompts
+                    </Badge>
                   </div>
                 </div>
                 {isOwnProfile ? (
-                  <Badge variant="outline">You</Badge>
+                  <Badge type="modern" className="border border-border bg-background text-foreground">You</Badge>
                 ) : (
                   <Button
                     type="button"
                     size="sm"
-                    variant={isFollowing ? "outline" : "default"}
+                    color={isFollowing ? "secondary" : "primary"}
                     className="h-11 sm:h-9"
                     onClick={() => void handleToggleFollow()}
                     disabled={followPending}
@@ -522,8 +525,14 @@ const Profile = () => {
         )}
 
         <div className="mt-4 flex justify-end">
-          <Button asChild variant="ghost" size="sm" className="h-11 sm:h-9">
-            <Link to="/community">Back to community</Link>
+          <Button
+            type="button"
+            color="tertiary"
+            size="sm"
+            className="h-11 sm:h-9"
+            onClick={() => navigate("/community")}
+          >
+            Back to community
           </Button>
         </div>
       </div>

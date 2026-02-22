@@ -24,10 +24,10 @@ function formatCreatedAt(value: string): string {
   }).format(date);
 }
 
-function statusBadgeVariant(status: ContactMessageStatus): "default" | "secondary" | "outline" {
-  if (status === "resolved") return "secondary";
-  if (status === "reviewing") return "default";
-  return "outline";
+function statusBadgeClassName(status: ContactMessageStatus): string {
+  if (status === "reviewing") return "bg-utility-brand-50 text-utility-brand-700 ring-utility-brand-200";
+  if (status === "resolved") return "bg-utility-success-50 text-utility-success-700 ring-utility-success-200";
+  return "border border-border bg-background text-foreground";
 }
 
 const SupportInbox = () => {
@@ -155,7 +155,7 @@ const SupportInbox = () => {
             </p>
             <Button
               type="button"
-              variant="outline"
+              color="secondary"
               size="sm"
               onClick={() => void loadMessages()}
               disabled={loadingMessages}
@@ -185,7 +185,7 @@ const SupportInbox = () => {
                     Submitted {formatCreatedAt(message.createdAt)}
                   </p>
                 </div>
-                <Badge variant={statusBadgeVariant(message.status)}>
+                <Badge type="modern" className={statusBadgeClassName(message.status)}>
                   {message.status}
                 </Badge>
               </div>
@@ -200,7 +200,7 @@ const SupportInbox = () => {
                     key={status}
                     type="button"
                     size="sm"
-                    variant={message.status === status ? "secondary" : "outline"}
+                    color={message.status === status ? "secondary" : "tertiary"}
                     disabled={statusBusyId === message.id || message.status === status}
                     onClick={() => void handleStatusChange(message.id, status)}
                   >

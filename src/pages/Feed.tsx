@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { CommunityFeed } from "@/components/community/CommunityFeed";
 import { CommunityReportDialog } from "@/components/community/CommunityReportDialog";
 import { PageHero, PageShell } from "@/components/PageShell";
@@ -57,6 +57,7 @@ function toParentTitleMap(posts: CommunityPost[]): Record<string, string> {
 const Feed = () => {
   const { toast } = useToast();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [authorById, setAuthorById] = useState<Record<string, CommunityProfile>>({});
   const [parentTitleById, setParentTitleById] = useState<Record<string, string>>({});
@@ -481,8 +482,14 @@ const Feed = () => {
         {user && (
           <>
             <div className="mb-4 flex items-center justify-end">
-              <Button asChild variant="outline" size="sm" className="h-11 sm:h-9">
-                <Link to="/community">Find creators to follow</Link>
+              <Button
+                type="button"
+                color="secondary"
+                size="sm"
+                className="h-11 sm:h-9"
+                onClick={() => navigate("/community")}
+              >
+                Find creators to follow
               </Button>
             </div>
 

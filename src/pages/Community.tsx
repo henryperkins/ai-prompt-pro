@@ -557,7 +557,7 @@ const Community = () => {
             {mobileEnhancementsEnabled && (
               <Button
                 type="button"
-                variant="outline"
+                color="secondary"
                 size="sm"
                 className="type-button-label mt-2 h-11 w-full items-center justify-between px-3"
                 onClick={() => {

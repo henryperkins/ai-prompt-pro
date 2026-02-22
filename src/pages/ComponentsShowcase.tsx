@@ -67,7 +67,7 @@ const ComponentsShowcase = () => {
             <div className="space-y-1">
               <h2 className="text-base font-semibold text-foreground">Progress Indicators</h2>
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="secondary">Linear + Circular</Badge>
+                <Badge type="modern">Linear + Circular</Badge>
                 <BadgeGroup addonText="Live value">{progressValue}%</BadgeGroup>
               </div>
             </div>

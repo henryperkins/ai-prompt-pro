@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { CommunityPostDetail } from "@/components/community/CommunityPostDetail";
 import { CommunityReportDialog } from "@/components/community/CommunityReportDialog";
 import { PageShell } from "@/components/PageShell";
@@ -57,6 +57,7 @@ interface CommunityReportTarget {
 
 const CommunityPost = () => {
   const { postId } = useParams<{ postId: string }>();
+  const navigate = useNavigate();
   const requestToken = useRef(0);
   const voteInFlightByPost = useRef<Set<string>>(new Set());
   const ratingInFlightByPost = useRef<Set<string>>(new Set());
@@ -439,11 +440,15 @@ const CommunityPost = () => {
     <PageShell>
       <div className="community-typography" data-density="comfortable">
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          <Button asChild variant="outline" size="sm" className="type-button-label h-11 px-4 sm:h-8 sm:px-3">
-            <Link to="/community">
-              <ArrowLeft className="h-3.5 w-3.5" />
-              Back to feed
-            </Link>
+          <Button
+            type="button"
+            color="secondary"
+            size="sm"
+            className="type-button-label h-11 px-4 sm:h-8 sm:px-3"
+            onClick={() => navigate("/community")}
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back to feed
           </Button>
         </div>
 

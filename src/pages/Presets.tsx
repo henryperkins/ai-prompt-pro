@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link, createSearchParams } from "react-router-dom";
+import { createSearchParams, useNavigate } from "react-router-dom";
 import { Search } from "lucide-react";
 import { PageHero, PageShell } from "@/components/PageShell";
 import { Badge } from "@/components/base/badges/badges";
@@ -31,6 +31,7 @@ const categoryIcons: Record<string, string> = {
 };
 
 function PresetCard({ template }: { template: PromptTemplate }) {
+  const navigate = useNavigate();
   const skin = promptCategorySkins[template.category] ?? promptCategorySkins.general;
   const presetSearch = createSearchParams({ preset: template.id }).toString();
   const fields = [
@@ -49,7 +50,7 @@ function PresetCard({ template }: { template: PromptTemplate }) {
               {categoryIcons[template.category] ?? categoryIcons.general}
             </span>
             <h3 className="font-semibold text-sm text-foreground">{template.name}</h3>
-            <Badge variant="outline" className={cn("text-xs capitalize", skin.badge)}>
+            <Badge type="modern" className={cn("border border-border bg-background text-foreground text-xs capitalize", skin.badge)}>
               {categoryLabels[template.category]}
             </Badge>
           </div>
@@ -63,18 +64,19 @@ function PresetCard({ template }: { template: PromptTemplate }) {
 
         <div className="flex flex-wrap gap-1">
           {fields.map((f) => (
-            <Badge key={f} variant="secondary" className="text-xs">{f}</Badge>
+            <Badge key={f} type="modern" className="text-xs">{f}</Badge>
           ))}
         </div>
 
         <div className="pt-1">
           <Button
-            asChild
-            variant="outline"
+            type="button"
+            color="secondary"
             size="sm"
             className={cn("h-11 gap-1.5 text-sm sm:h-9 sm:text-base", skin.action)}
+            onClick={() => navigate({ pathname: "/", search: `?${presetSearch}` })}
           >
-            <Link to={{ pathname: "/", search: `?${presetSearch}` }}>Use preset</Link>
+            Use preset
           </Button>
         </div>
       </div>
@@ -132,7 +134,7 @@ const Presets = () => {
           {categories.map((cat) => (
             <Button
               key={cat}
-              variant={activeCategory === cat ? "default" : "outline"}
+              color={activeCategory === cat ? "primary" : "secondary"}
               size="sm"
               onClick={() => setActiveCategory(cat)}
               aria-pressed={activeCategory === cat}
