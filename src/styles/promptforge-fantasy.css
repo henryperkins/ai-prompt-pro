@@ -121,6 +121,21 @@
   z-index: 1;
 }
 
+.pf-hero-surface .ui-section-label {
+  color: rgba(var(--pf-gold-rgb) / 0.95);
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.45);
+}
+
+.pf-hero-surface .page-hero-title {
+  color: rgba(var(--pf-parchment-rgb) / 0.97);
+  text-shadow: 0 3px 14px rgba(0, 0, 0, 0.52);
+}
+
+.pf-hero-surface .page-hero-subtitle {
+  color: rgba(var(--pf-parchment-rgb) / 0.84);
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.46);
+}
+
 .pf-panel {
   position: relative;
   border-radius: var(--pf-radius-lg);
@@ -139,6 +154,10 @@
   pointer-events: none;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(0, 0, 0, 0.16));
   box-shadow: var(--pf-inner-bevel);
+}
+
+.pf-panel-overflow-visible {
+  overflow: visible;
 }
 
 .pf-input {

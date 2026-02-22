@@ -523,7 +523,7 @@ const Community = () => {
         />
 
         <div
-          className="pf-panel relative mb-3 rounded-xl border border-border bg-card/85 shadow-sm focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
+          className="pf-panel pf-panel-overflow-visible relative mb-3 rounded-xl border border-border bg-card/85 shadow-sm focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
           data-testid="community-search-shell"
         >
           <div className="p-2 sm:p-0">
