@@ -9,7 +9,7 @@ The frontend calls this service directly for AI endpoints.
 ```bash
 npm install
 export AZURE_OPENAI_API_KEY="<your-azure-openai-api-key>"
-export CODEX_CONFIG_JSON='{"model_provider":"azure","model_providers":{"azure":{"name":"Azure OpenAI","base_url":"https://fifteenmodels.openai.azure.com/openai/v1","env_key":"AZURE_OPENAI_API_KEY","wire_api":"responses"}}}'
+export CODEX_CONFIG_JSON='{"model":"<your-azure-deployment-name>","model_provider":"azure","model_providers":{"azure":{"name":"Azure OpenAI","base_url":"https://fifteenmodels.openai.azure.com/openai/v1","env_key":"AZURE_OPENAI_API_KEY","wire_api":"responses"}}}'
 npm run agent:codex
 ```
 
@@ -102,7 +102,7 @@ npm run agent:codex
 |----------|-------------|
 | `AZURE_OPENAI_API_KEY` | Azure OpenAI API key (required when using Azure provider config) |
 | `OPENAI_API_KEY` or `CODEX_API_KEY` | Fallback OpenAI API key (used only when no provider config is resolved) |
-| `NEON_AUTH_URL` or `NEON_JWKS_URL` | Neon Auth URL (or direct JWKS URL) for JWT session validation (recommended in production) |
+| `NEON_AUTH_URL` or `NEON_JWKS_URL` | Neon Auth URL (or direct JWKS URL) for bearer-session validation (recommended in production) |
 
 ### Provider resolution order
 
@@ -134,7 +134,7 @@ Set `REQUIRE_PROVIDER_CONFIG=true` to disable step 3 and fail fast instead of fa
 | `MAX_URL_CHARS` | `2048` | Maximum extract-url input URL length |
 | `EXTRACT_FETCH_TIMEOUT_MS` | `15000` | Timeout for page/OpenAI extraction calls |
 | `EXTRACT_MAX_RESPONSE_BYTES` | `1048576` | Max downloaded page size (bytes) |
-| `EXTRACT_MODEL` | `gpt-4.1-mini` | OpenAI model for URL extraction summarization |
+| `EXTRACT_MODEL` | Inherits `CODEX_MODEL`/provider model (or `gpt-4.1-mini` for non-Azure) | OpenAI model for URL extraction summarization |
 
 ### Codex client options
 
@@ -150,7 +150,7 @@ Set `REQUIRE_PROVIDER_CONFIG=true` to disable step 3 and fail fast instead of fa
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `CODEX_MODEL` | `gpt-5.2` | Model name (e.g., `gpt-5.2`, `gpt-5.2-codex`) |
+| `CODEX_MODEL` | Provider model (`config.toml`), `AZURE_OPENAI_DEPLOYMENT`, or `gpt-5.2` (non-Azure fallback) | Model/deployment name (for Azure, set this to your deployment name) |
 | `CODEX_SANDBOX_MODE` | _(none)_ | `read-only` \| `workspace-write` \| `danger-full-access` |
 | `CODEX_WORKING_DIRECTORY` | _(none)_ | Working directory for the Codex agent |
 | `CODEX_SKIP_GIT_REPO_CHECK` | `false` | Skip git repo validation |

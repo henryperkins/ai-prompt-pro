@@ -13,8 +13,8 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 214 24% 12%;
 
-    --primary: 162 82% 31%;
-    --primary-foreground: 156 73% 97%;
+    --primary: 162 82% 29%;
+    --primary-foreground: 0 0% 100%;
 
     --secondary: 210 24% 93%;
     --secondary-foreground: 213 22% 25%;
@@ -25,8 +25,8 @@ All colors MUST be HSL.
     --accent: 162 55% 93%;
     --accent-foreground: 165 72% 25%;
 
-    --destructive: 0 72% 50%;
-    --destructive-foreground: 0 85% 97%;
+    --destructive: 0 72% 44%;
+    --destructive-foreground: 0 0% 100%;
 
     --border: 214 21% 86%;
     --input: 214 21% 86%;
@@ -136,8 +136,8 @@ All colors MUST be HSL.
     --accent: 166 34% 24%;
     --accent-foreground: 165 73% 80%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 85% 97%;
+    --destructive: 0 84% 44%;
+    --destructive-foreground: 0 0% 100%;
 
     --border: 217 14% 28%;
     --input: 217 14% 28%;
@@ -296,8 +296,7 @@ All colors MUST be HSL.
     }
   }
 
-  :where(
-    a,
+  :where(a,
     button,
     input,
     textarea,
@@ -305,28 +304,31 @@ All colors MUST be HSL.
     [role="button"],
     [role="tab"],
     [role="menuitem"],
-    [tabindex]
-  ):focus-visible {
+    [tabindex]):focus-visible {
     outline: 2px solid hsl(var(--ring) / 0.85);
     outline-offset: 2px;
   }
 }
 
 @keyframes delight-hero-drift {
+
   0%,
   100% {
     background-position: 0% 0%, 100% 0%;
   }
+
   50% {
     background-position: 6% 12%, 94% -8%;
   }
 }
 
 @keyframes delight-enhance-pulse {
+
   0%,
   100% {
     box-shadow: 0 0 0 0 hsl(var(--delight-glow) / 0.3), 0 16px 36px -24px hsl(var(--delight-glow) / 0.55);
   }
+
   50% {
     box-shadow: 0 0 0 8px hsl(var(--delight-glow) / 0), 0 20px 42px -22px hsl(var(--delight-glow) / 0.78);
   }
@@ -337,10 +339,12 @@ All colors MUST be HSL.
     transform: translateY(0) scale(0.995);
     box-shadow: 0 10px 24px -20px hsl(var(--delight-glow) / 0.38);
   }
+
   55% {
     transform: translateY(-1px) scale(1.016);
     box-shadow: 0 18px 38px -20px hsl(var(--delight-glow) / 0.86);
   }
+
   100% {
     transform: translateY(0) scale(1);
     box-shadow: 0 14px 30px -20px hsl(var(--delight-glow) / 0.65);
@@ -348,11 +352,13 @@ All colors MUST be HSL.
 }
 
 @keyframes delight-enhance-stream {
+
   0%,
   100% {
     transform: translateY(0);
     box-shadow: 0 13px 30px -22px hsl(var(--delight-glow) / 0.58);
   }
+
   50% {
     transform: translateY(-1px);
     box-shadow: 0 18px 36px -18px hsl(var(--delight-glow) / 0.82);
@@ -364,10 +370,12 @@ All colors MUST be HSL.
     transform: translateY(0) scale(1);
     box-shadow: 0 14px 30px -20px hsl(var(--delight-glow) / 0.68);
   }
+
   60% {
     transform: translateY(-1px) scale(1.01);
     box-shadow: 0 20px 38px -18px hsl(var(--delight-glow) / 0.85);
   }
+
   100% {
     transform: translateY(0) scale(1);
     box-shadow: 0 14px 30px -20px hsl(var(--delight-glow) / 0.62);
@@ -379,6 +387,7 @@ All colors MUST be HSL.
     transform: scale(0.5);
     opacity: 0.62;
   }
+
   to {
     transform: scale(1.55);
     opacity: 0;
@@ -389,6 +398,7 @@ All colors MUST be HSL.
   from {
     transform: translateX(-130%);
   }
+
   to {
     transform: translateX(130%);
   }
@@ -399,10 +409,12 @@ All colors MUST be HSL.
     transform: translateY(2px) scale(0.995);
     box-shadow: 0 0 0 0 hsl(var(--delight-glow) / 0);
   }
+
   60% {
     transform: translateY(-1px) scale(1.003);
     box-shadow: 0 0 0 6px hsl(var(--delight-glow) / 0.08);
   }
+
   100% {
     transform: translateY(0) scale(1);
     box-shadow: 0 10px 26px -18px hsl(var(--delight-glow) / 0.4);
@@ -414,6 +426,7 @@ All colors MUST be HSL.
     opacity: 0;
     transform: translateY(10px) scale(0.995);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -429,11 +442,9 @@ All colors MUST be HSL.
   }
 
   .brand-gradient-surface {
-    background-image: linear-gradient(
-      140deg,
-      hsl(var(--card)),
-      hsl(var(--delight-surface) / 0.72)
-    );
+    background-image: linear-gradient(140deg,
+        hsl(var(--card)),
+        hsl(var(--delight-surface) / 0.72));
   }
 
   .brand-border-gradient {
@@ -446,11 +457,9 @@ All colors MUST be HSL.
   .brand-input-surface {
     border: 1px solid transparent;
     background:
-      linear-gradient(
-        140deg,
+      linear-gradient(140deg,
         hsl(var(--card)),
-        hsl(var(--delight-surface) / 0.72)
-      ) padding-box,
+        hsl(var(--delight-surface) / 0.72)) padding-box,
       linear-gradient(120deg, hsl(var(--delight-cool) / 0.6), hsl(var(--delight-warm) / 0.7)) border-box;
   }
 
@@ -458,11 +467,9 @@ All colors MUST be HSL.
     border-style: solid;
     border-color: transparent;
     background:
-      linear-gradient(
-        140deg,
+      linear-gradient(140deg,
         hsl(var(--card)),
-        hsl(var(--delight-surface) / 0.72)
-      ) padding-box,
+        hsl(var(--delight-surface) / 0.72)) padding-box,
       linear-gradient(120deg, hsl(var(--delight-cool) / 0.6), hsl(var(--delight-warm) / 0.7)) border-box;
   }
 
@@ -483,6 +490,7 @@ All colors MUST be HSL.
   }
 
   @media (min-width: 768px) {
+
     .delight-hero::before,
     .delight-hero-static::before {
       content: "";
@@ -501,8 +509,8 @@ All colors MUST be HSL.
       background-image: url("/brand/pf-gradient-hero-dark.png");
     }
 
-    .delight-hero > *,
-    .delight-hero-static > * {
+    .delight-hero>*,
+    .delight-hero-static>* {
       position: relative;
       z-index: 1;
     }
@@ -666,12 +674,10 @@ All colors MUST be HSL.
     position: absolute;
     inset: -1px;
     z-index: -1;
-    background: linear-gradient(
-      110deg,
-      transparent 34%,
-      hsl(var(--delight-glow) / 0.12) 49%,
-      transparent 64%
-    );
+    background: linear-gradient(110deg,
+        transparent 34%,
+        hsl(var(--delight-glow) / 0.12) 49%,
+        transparent 64%);
     animation: delight-enhance-sheen 1700ms linear infinite;
     pointer-events: none;
   }
@@ -939,6 +945,7 @@ All colors MUST be HSL.
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .delight-hero,
   .community-feed-card,
   .enhance-output-streaming::after,

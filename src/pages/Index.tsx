@@ -77,6 +77,7 @@ import {
   X,
   Globe,
 } from "lucide-react";
+import { UI_STATUS_SURFACE_CLASSES } from "@/lib/ui-status";
 
 const healthBadgeStyles: Record<
   SectionHealthState,
@@ -89,12 +90,12 @@ const healthBadgeStyles: Record<
   },
   in_progress: {
     label: "In progress",
-    className: "border-primary/30 bg-primary/10 text-primary",
+    className: UI_STATUS_SURFACE_CLASSES.info,
     icon: Gauge,
   },
   complete: {
     label: "Complete",
-    className: "border-emerald-500/35 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+    className: UI_STATUS_SURFACE_CLASSES.success,
     icon: CheckCircle2,
   },
 };

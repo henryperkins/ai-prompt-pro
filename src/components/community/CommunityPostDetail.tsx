@@ -30,6 +30,7 @@ import { CommunityComments } from "@/components/community/CommunityComments";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/base/primitives/drawer";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { communityFeatureFlags } from "@/lib/feature-flags";
+import { UI_STATUS_ROW_CLASSES, UI_STATUS_SURFACE_CLASSES } from "@/lib/ui-status";
 
 interface CommunityPostDetailProps {
   post: CommunityPost;
@@ -292,13 +293,13 @@ export function CommunityPostDetail({
                     <div className="type-reply-label type-label-caps border-b border-border/70 px-3 py-1.5 text-muted-foreground">
                       {change.field}
                     </div>
-                    <div className="flex items-start gap-2 bg-red-500/10 px-3 py-1.5 text-red-700 dark:text-red-300">
+                    <div className={`flex items-start gap-2 px-3 py-1.5 ${UI_STATUS_ROW_CLASSES.danger}`}>
                       <span className="mt-0.5 w-3 shrink-0 text-center font-semibold">-</span>
-                      <span className="whitespace-pre-wrap break-words">{renderDiffValue(change.from)}</span>
+                      <span className="whitespace-pre-wrap wrap-break-word">{renderDiffValue(change.from)}</span>
                     </div>
-                    <div className="flex items-start gap-2 bg-emerald-500/10 px-3 py-1.5 text-emerald-700 dark:text-emerald-300">
+                    <div className={`flex items-start gap-2 px-3 py-1.5 ${UI_STATUS_ROW_CLASSES.success}`}>
                       <span className="mt-0.5 w-3 shrink-0 text-center font-semibold">+</span>
-                      <span className="whitespace-pre-wrap break-words">{renderDiffValue(change.to)}</span>
+                      <span className="whitespace-pre-wrap wrap-break-word">{renderDiffValue(change.to)}</span>
                     </div>
                   </div>
                 ))}
@@ -312,13 +313,13 @@ export function CommunityPostDetail({
               remixDiff.category_changed) && (
               <div className="grid gap-2 sm:grid-cols-2">
                 {remixDiff.added_tags.length > 0 && (
-                  <div className="type-meta rounded-md border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-emerald-700 dark:text-emerald-300">
+                  <div className={`type-meta rounded-md px-3 py-2 ${UI_STATUS_SURFACE_CLASSES.success}`}>
                     <span className="font-semibold">Added tags</span>
                     <p className="type-code mt-1 font-mono">{remixDiff.added_tags.join(", ")}</p>
                   </div>
                 )}
                 {remixDiff.removed_tags.length > 0 && (
-                  <div className="type-meta rounded-md border border-red-500/20 bg-red-500/10 px-3 py-2 text-red-700 dark:text-red-300">
+                  <div className={`type-meta rounded-md px-3 py-2 ${UI_STATUS_SURFACE_CLASSES.danger}`}>
                     <span className="font-semibold">Removed tags</span>
                     <p className="type-code mt-1 font-mono">{remixDiff.removed_tags.join(", ")}</p>
                   </div>

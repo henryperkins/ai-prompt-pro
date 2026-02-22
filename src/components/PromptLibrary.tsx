@@ -40,7 +40,12 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { PROMPT_CATEGORY_OPTIONS } from "@/lib/prompt-categories";
 import { cn } from "@/lib/utils";
-import { templates, categoryLabels, type PromptTemplate } from "@/lib/templates";
+import {
+  templates,
+  categoryLabels,
+  promptCategorySkins,
+  type PromptTemplate,
+} from "@/lib/templates";
 import type { PromptShareInput, PromptSummary } from "@/lib/persistence";
 import {
   Sparkles,
@@ -104,101 +109,6 @@ const categoryIcons: Record<string, React.ReactNode> = {
   api: <Cable className="w-4 h-4" />,
   automation: <Bot className="w-4 h-4" />,
   docs: <BookOpen className="w-4 h-4" />,
-};
-
-const categoryCardSkins: Record<
-  string,
-  {
-    card: string;
-    iconWrap: string;
-    badge: string;
-    action: string;
-  }
-> = {
-  general: {
-    card:
-      "border-primary/25 bg-gradient-to-br from-primary/10 via-card to-card hover:border-primary/45",
-    iconWrap: "bg-primary/15 text-primary",
-    badge: "border-transparent bg-primary/15 text-primary",
-    action: "border-primary/30 bg-primary/10 text-primary",
-  },
-  frontend: {
-    card:
-      "border-cyan-500/25 bg-gradient-to-br from-cyan-500/10 via-card to-card hover:border-cyan-500/45",
-    iconWrap: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300",
-    badge: "border-transparent bg-cyan-500/15 text-cyan-700 dark:text-cyan-300",
-    action: "border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
-  },
-  backend: {
-    card:
-      "border-emerald-500/25 bg-gradient-to-br from-emerald-500/10 via-card to-card hover:border-emerald-500/45",
-    iconWrap: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-    badge: "border-transparent bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-    action: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  },
-  fullstack: {
-    card:
-      "border-violet-500/25 bg-gradient-to-br from-violet-500/10 via-card to-card hover:border-violet-500/45",
-    iconWrap: "bg-violet-500/15 text-violet-700 dark:text-violet-300",
-    badge: "border-transparent bg-violet-500/15 text-violet-700 dark:text-violet-300",
-    action: "border-violet-500/30 bg-violet-500/10 text-violet-700 dark:text-violet-300",
-  },
-  devops: {
-    card:
-      "border-slate-500/25 bg-gradient-to-br from-slate-500/10 via-card to-card hover:border-slate-500/45",
-    iconWrap: "bg-slate-500/15 text-slate-700 dark:text-slate-300",
-    badge: "border-transparent bg-slate-500/15 text-slate-700 dark:text-slate-300",
-    action: "border-slate-500/30 bg-slate-500/10 text-slate-700 dark:text-slate-300",
-  },
-  data: {
-    card:
-      "border-amber-500/25 bg-gradient-to-br from-amber-500/10 via-card to-card hover:border-amber-500/45",
-    iconWrap: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-    badge: "border-transparent bg-amber-500/15 text-amber-700 dark:text-amber-300",
-    action: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
-  },
-  "ml-ai": {
-    card:
-      "border-fuchsia-500/25 bg-gradient-to-br from-fuchsia-500/10 via-card to-card hover:border-fuchsia-500/45",
-    iconWrap: "bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-300",
-    badge: "border-transparent bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-300",
-    action: "border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300",
-  },
-  security: {
-    card:
-      "border-red-500/25 bg-gradient-to-br from-red-500/10 via-card to-card hover:border-red-500/45",
-    iconWrap: "bg-red-500/15 text-red-700 dark:text-red-300",
-    badge: "border-transparent bg-red-500/15 text-red-700 dark:text-red-300",
-    action: "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300",
-  },
-  testing: {
-    card:
-      "border-lime-500/25 bg-gradient-to-br from-lime-500/10 via-card to-card hover:border-lime-500/45",
-    iconWrap: "bg-lime-500/15 text-lime-700 dark:text-lime-300",
-    badge: "border-transparent bg-lime-500/15 text-lime-700 dark:text-lime-300",
-    action: "border-lime-500/30 bg-lime-500/10 text-lime-700 dark:text-lime-300",
-  },
-  api: {
-    card:
-      "border-indigo-500/25 bg-gradient-to-br from-indigo-500/10 via-card to-card hover:border-indigo-500/45",
-    iconWrap: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300",
-    badge: "border-transparent bg-indigo-500/15 text-indigo-700 dark:text-indigo-300",
-    action: "border-indigo-500/30 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300",
-  },
-  automation: {
-    card:
-      "border-teal-500/25 bg-gradient-to-br from-teal-500/10 via-card to-card hover:border-teal-500/45",
-    iconWrap: "bg-teal-500/15 text-teal-700 dark:text-teal-300",
-    badge: "border-transparent bg-teal-500/15 text-teal-700 dark:text-teal-300",
-    action: "border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300",
-  },
-  docs: {
-    card:
-      "border-orange-500/25 bg-gradient-to-br from-orange-500/10 via-card to-card hover:border-orange-500/45",
-    iconWrap: "bg-orange-500/15 text-orange-700 dark:text-orange-300",
-    badge: "border-transparent bg-orange-500/15 text-orange-700 dark:text-orange-300",
-    action: "border-orange-500/30 bg-orange-500/10 text-orange-700 dark:text-orange-300",
-  },
 };
 
 function formatUpdatedAt(timestamp: number): string {
@@ -569,7 +479,7 @@ function PromptList({
             </Card>
           )}
           {filtered.map((template) => {
-            const skin = categoryCardSkins[template.category] ?? categoryCardSkins.general;
+            const skin = promptCategorySkins[template.category] ?? promptCategorySkins.general;
             return (
               <Card
                 key={template.id}
@@ -609,17 +519,17 @@ function PromptList({
                         <span className="font-medium text-foreground/80">Start:</span> {template.starterPrompt}
                       </p>
                       <div className="mt-1.5 flex gap-1">
-                        <Badge variant="secondary" className="text-[11px]">
+                        <Badge variant="secondary" className="text-2xs">
                           {template.tone}
                         </Badge>
-                        <Badge variant="secondary" className="text-[11px]">
+                        <Badge variant="secondary" className="text-2xs">
                           {template.complexity}
                         </Badge>
                       </div>
                     </div>
                     <span
                       className={cn(
-                        "hidden h-8 shrink-0 items-center rounded-md border px-2 text-[11px] font-medium uppercase tracking-wide opacity-70 transition-opacity group-hover:opacity-100 sm:inline-flex",
+                        "type-label-caps hidden h-8 shrink-0 items-center rounded-md border px-2 text-2xs font-medium opacity-70 transition-opacity group-hover:opacity-100 sm:inline-flex",
                         skin.action,
                       )}
                     >

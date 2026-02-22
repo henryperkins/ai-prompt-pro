@@ -33,6 +33,8 @@ const CODEX_CONFIG_SOURCE = CODEX_CONFIG_FROM_TOML
 const IS_AZURE_PROVIDER = isAzureProvider(CODEX_CONFIG);
 const RESOLVED_API_KEY = CODEX_CONFIG ? resolveApiKey(CODEX_CONFIG) : null;
 const REQUIRE_PROVIDER_CONFIG = normalizeBool(process.env.REQUIRE_PROVIDER_CONFIG, false);
+const RESOLVED_CODEX_MODEL = resolveConfiguredCodexModel();
+const HAS_MISSING_AZURE_MODEL = IS_AZURE_PROVIDER && !RESOLVED_CODEX_MODEL;
 
 if (CODEX_CONFIG) {
   console.log(JSON.stringify({
@@ -116,8 +118,9 @@ const ENHANCE_WS_MAX_CONNECTIONS_PER_IP = parsePositiveIntegerEnv(
 const OPENAI_API_BASE_URL = (CODEX_CONFIG?.baseUrl ? CODEX_CONFIG.baseUrl.replace(/\/+$/, "") : null)
   || process.env.OPENAI_BASE_URL?.trim()
   || "https://api.openai.com/v1";
-const EXTRACT_MODEL = process.env.EXTRACT_MODEL?.trim()
-  || (IS_AZURE_PROVIDER ? "gpt-5.2" : "gpt-4.1-mini");
+const EXTRACT_MODEL = normalizeEnvValue("EXTRACT_MODEL")
+  || RESOLVED_CODEX_MODEL
+  || (!IS_AZURE_PROVIDER ? "gpt-4.1-mini" : undefined);
 
 // ---------------------------------------------------------------------------
 // 429 retry configuration
@@ -158,6 +161,17 @@ const REASONING_SUMMARIES = new Set(["auto", "concise", "detailed"]);
 const WEB_SEARCH_MODES = new Set(["disabled", "cached", "live"]);
 const APPROVAL_POLICIES = new Set(["never", "on-request", "on-failure", "untrusted"]);
 const SERVICE_NAME = "ai-prompt-pro-codex-service";
+
+if (HAS_MISSING_AZURE_MODEL) {
+  logEvent("warn", "provider_model_not_set", {
+    error_code: "provider_model_not_set",
+    message:
+      "Azure provider is configured but no model deployment name was resolved. "
+      + "Set CODEX_MODEL (or AZURE_OPENAI_DEPLOYMENT) to a valid Azure deployment name.",
+    provider: CODEX_CONFIG?.provider,
+    config_source: CODEX_CONFIG_SOURCE,
+  });
+}
 
 function cleanLogFields(fields) {
   const entries = Object.entries(fields || {});
@@ -397,6 +411,80 @@ function parsePositiveIntegerEnv(name, defaultValue) {
   return parsed;
 }
 
+function resolveConfiguredCodexModel() {
+  const explicitModel = normalizeEnvValue("CODEX_MODEL")
+    || normalizeEnvValue("AZURE_OPENAI_DEPLOYMENT")
+    || normalizeEnvValue("AZURE_OPENAI_DEPLOYMENT_NAME");
+  if (explicitModel) return explicitModel;
+
+  const providerModel = typeof CODEX_CONFIG?.model === "string" ? CODEX_CONFIG.model.trim() : "";
+  if (providerModel) return providerModel;
+
+  // Use a default model only for non-Azure providers.
+  if (!IS_AZURE_PROVIDER) return "gpt-5.2";
+  return undefined;
+}
+
+function normalizeNeonAuthUrl(rawValue) {
+  const raw = typeof rawValue === "string" ? rawValue.trim() : "";
+  if (!raw) return undefined;
+
+  const trimmed = raw.replace(/\/+$/, "");
+  if (trimmed.endsWith("/auth/v1")) {
+    return trimmed.slice(0, -"/v1".length);
+  }
+  return trimmed;
+}
+
+function sanitizeCodexExecErrorMessage(message) {
+  if (typeof message !== "string") return "Unexpected error from Codex service.";
+  const trimmed = message.trim();
+  if (!trimmed) return "Unexpected error from Codex service.";
+  if (!trimmed.includes("Codex Exec exited with")) {
+    return trimmed;
+  }
+
+  const stderrSection = trimmed.split(":").slice(1).join(":").trim();
+  const lines = stderrSection
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const meaningfulLines = lines.filter((line) => {
+    if (/^reading prompt from stdin/i.test(line)) return false;
+    if (/^\{"type":/.test(line)) return false;
+    if (/^\d{4}-\d{2}-\d{2}t/i.test(line.toLowerCase())) return false;
+    return true;
+  });
+
+  const deploymentMissingLine = meaningfulLines.find((line) =>
+    /api deployment .* does not exist|deployment .* does not exist/i.test(line));
+  if (deploymentMissingLine) {
+    return (
+      "Codex CLI failed because the configured Azure model deployment was not found. "
+      + "Set CODEX_MODEL (or AZURE_OPENAI_DEPLOYMENT) to a valid deployment name."
+    );
+  }
+
+  const missingApiKeyLine = meaningfulLines.find((line) =>
+    /no api key|api key.+(missing|not set|invalid)/i.test(line));
+  if (missingApiKeyLine) {
+    return (
+      "Codex CLI failed because provider credentials are missing or invalid. "
+      + "Verify AZURE_OPENAI_API_KEY or OPENAI_API_KEY."
+    );
+  }
+
+  const fallbackLine = meaningfulLines[meaningfulLines.length - 1];
+  if (fallbackLine) {
+    return `Codex CLI failed: ${fallbackLine}`;
+  }
+
+  return (
+    "Codex CLI exited before producing a response. "
+    + "Verify CODEX_MODEL, provider endpoint, and API key configuration."
+  );
+}
+
 function normalizeStringRecord(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   const record = {};
@@ -445,22 +533,23 @@ const CORS_CONFIG = (() => {
 })();
 
 const AUTH_CONFIG = (() => {
-  const neonAuthUrlRaw = normalizeEnvValue("NEON_AUTH_URL");
-  const neonAuthUrl = neonAuthUrlRaw ? neonAuthUrlRaw.replace(/\/+$/, "") : undefined;
+  const neonAuthUrl = normalizeNeonAuthUrl(normalizeEnvValue("NEON_AUTH_URL"));
   const neonJwksUrl = normalizeEnvValue("NEON_JWKS_URL")
     || (neonAuthUrl ? `${neonAuthUrl}/.well-known/jwks.json` : undefined);
 
-  const configuredKeys = new Set(
-    [
-      normalizeEnvValue("FUNCTION_PUBLIC_API_KEY"),
-      normalizeEnvValue("NEON_PUBLISHABLE_KEY"),
-      normalizeEnvValue("VITE_NEON_PUBLISHABLE_KEY"),
-    ].filter((value) => typeof value === "string" && value.length > 0),
-  );
+  const configuredKeyValues = [
+    normalizeEnvValue("FUNCTION_PUBLIC_API_KEY"),
+    normalizeEnvValue("NEON_PUBLISHABLE_KEY"),
+    normalizeEnvValue("VITE_NEON_PUBLISHABLE_KEY"),
+  ].filter((value) => typeof value === "string" && value.length > 0);
+  const configuredKeys = new Set(configuredKeyValues);
+  const authValidationApiKey = configuredKeyValues[0];
 
   return {
     neonAuthUrl,
     neonJwksUrl,
+    neonAuthUserUrl: neonAuthUrl ? `${neonAuthUrl}/v1/user` : undefined,
+    authValidationApiKey,
     configuredKeys,
   };
 })();
@@ -860,20 +949,107 @@ async function verifyNeonJwt(token) {
   }
 }
 
+async function verifyNeonSessionWithAuthApi(token) {
+  if (!AUTH_CONFIG.neonAuthUserUrl || !AUTH_CONFIG.authValidationApiKey) {
+    return { ok: false, reason: "config" };
+  }
+
+  try {
+    const response = await fetch(AUTH_CONFIG.neonAuthUserUrl, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        apikey: AUTH_CONFIG.authValidationApiKey,
+      },
+    });
+
+    if (response.status === 401 || response.status === 403) {
+      return { ok: false, reason: "invalid" };
+    }
+    if (!response.ok) {
+      return { ok: false, reason: "unavailable" };
+    }
+
+    const data = await response.json().catch(() => null);
+    const userId = typeof data?.id === "string" ? data.id.trim() : "";
+    if (!userId) {
+      return { ok: false, reason: "invalid" };
+    }
+    return { ok: true, userId };
+  } catch {
+    return { ok: false, reason: "unavailable" };
+  }
+}
+
+function buildAuthenticatedUserResult(userId) {
+  return {
+    ok: true,
+    userId,
+    isPublicKey: false,
+    rateKey: userId,
+  };
+}
+
+function buildPublicApiKeyAuthResult(apiKey, clientIp) {
+  if (!isConfiguredPublicApiKey(apiKey)) return null;
+  return {
+    ok: true,
+    userId: null,
+    isPublicKey: true,
+    rateKey: `public:${clientIp}`,
+  };
+}
+
+function authConfigUnavailableResult(apiKey, clientIp, bearerToken) {
+  const publicApiResult = buildPublicApiKeyAuthResult(apiKey, clientIp);
+  if (publicApiResult) return publicApiResult;
+
+  const fallbackUser = tryDecodeUserFromJwtFallback(bearerToken, "missing_config");
+  if (fallbackUser) {
+    return buildAuthenticatedUserResult(fallbackUser.id);
+  }
+
+  if (!hasLoggedAuthConfigWarning) {
+    hasLoggedAuthConfigWarning = true;
+    logEvent("error", "auth_config_warning", {
+      error_code: "auth_config_missing",
+      message:
+        "NEON_AUTH_URL or NEON_JWKS_URL is required to validate bearer tokens. "
+        + "Set one of those env vars, provide FUNCTION_PUBLIC_API_KEY for anonymous fallback, "
+        + "or enable ALLOW_UNVERIFIED_JWT_FALLBACK for local development only.",
+    });
+  }
+
+  return {
+    ok: false,
+    status: 503,
+    error: "Authentication service is unavailable because Neon auth is not configured.",
+  };
+}
+
+function authTemporarilyUnavailableResult(apiKey, clientIp, bearerToken) {
+  const publicApiResult = buildPublicApiKeyAuthResult(apiKey, clientIp);
+  if (publicApiResult) return publicApiResult;
+
+  const fallbackUser = tryDecodeUserFromJwtFallback(bearerToken, "auth_unavailable");
+  if (fallbackUser) {
+    return buildAuthenticatedUserResult(fallbackUser.id);
+  }
+
+  return {
+    ok: false,
+    status: 503,
+    error: "Authentication service is temporarily unavailable. Please try again.",
+  };
+}
+
 async function requireAuthenticatedUser(req) {
   const bearerToken = parseBearerToken(req);
   const apiKey = (headerValue(req, "apikey") || "").trim();
   const clientIp = getClientIp(req);
 
   if (!bearerToken) {
-    if (isConfiguredPublicApiKey(apiKey)) {
-      return {
-        ok: true,
-        userId: null,
-        isPublicKey: true,
-        rateKey: `public:${clientIp}`,
-      };
-    }
+    const publicApiResult = buildPublicApiKeyAuthResult(apiKey, clientIp);
+    if (publicApiResult) return publicApiResult;
     return {
       ok: false,
       status: 401,
@@ -894,6 +1070,17 @@ async function requireAuthenticatedUser(req) {
   }
 
   if (!looksLikeJwt(bearerToken)) {
+    const authApiVerification = await verifyNeonSessionWithAuthApi(bearerToken);
+    if (authApiVerification.ok) {
+      return buildAuthenticatedUserResult(authApiVerification.userId);
+    }
+    if (authApiVerification.reason === "config") {
+      return authConfigUnavailableResult(apiKey, clientIp, bearerToken);
+    }
+    if (authApiVerification.reason === "unavailable") {
+      return authTemporarilyUnavailableResult(apiKey, clientIp, bearerToken);
+    }
+
     return {
       ok: false,
       status: 401,
@@ -903,77 +1090,28 @@ async function requireAuthenticatedUser(req) {
 
   const verified = await verifyNeonJwt(bearerToken);
   if (verified.ok) {
+    return buildAuthenticatedUserResult(verified.userId);
+  }
+
+  const authApiVerification = await verifyNeonSessionWithAuthApi(bearerToken);
+  if (authApiVerification.ok) {
+    return buildAuthenticatedUserResult(authApiVerification.userId);
+  }
+
+  if (verified.reason === "invalid" || authApiVerification.reason === "invalid") {
     return {
-      ok: true,
-      userId: verified.userId,
-      isPublicKey: false,
-      rateKey: verified.userId,
+      ok: false,
+      status: 401,
+      error: "Invalid or expired auth session.",
     };
   }
 
-  if (verified.reason === "config") {
-    if (isConfiguredPublicApiKey(apiKey)) {
-      return {
-        ok: true,
-        userId: null,
-        isPublicKey: true,
-        rateKey: `public:${clientIp}`,
-      };
-    }
-
-    const fallbackUser = tryDecodeUserFromJwtFallback(bearerToken, "missing_config");
-    if (fallbackUser) {
-      return {
-        ok: true,
-        userId: fallbackUser.id,
-        isPublicKey: false,
-        rateKey: fallbackUser.id,
-      };
-    }
-
-    if (!hasLoggedAuthConfigWarning) {
-      hasLoggedAuthConfigWarning = true;
-      logEvent("error", "auth_config_warning", {
-        error_code: "auth_config_missing",
-        message:
-          "NEON_AUTH_URL or NEON_JWKS_URL is required to validate bearer tokens. "
-          + "Set one of those env vars, provide FUNCTION_PUBLIC_API_KEY for anonymous fallback, "
-          + "or enable ALLOW_UNVERIFIED_JWT_FALLBACK for local development only.",
-      });
-    }
-
-    return {
-      ok: false,
-      status: 503,
-      error: "Authentication service is unavailable because Neon auth is not configured.",
-    };
+  if (verified.reason === "unavailable" || authApiVerification.reason === "unavailable") {
+    return authTemporarilyUnavailableResult(apiKey, clientIp, bearerToken);
   }
 
-  if (verified.reason === "unavailable") {
-    if (isConfiguredPublicApiKey(apiKey)) {
-      return {
-        ok: true,
-        userId: null,
-        isPublicKey: true,
-        rateKey: `public:${clientIp}`,
-      };
-    }
-
-    const fallbackUser = tryDecodeUserFromJwtFallback(bearerToken, "auth_unavailable");
-    if (fallbackUser) {
-      return {
-        ok: true,
-        userId: fallbackUser.id,
-        isPublicKey: false,
-        rateKey: fallbackUser.id,
-      };
-    }
-
-    return {
-      ok: false,
-      status: 503,
-      error: "Authentication service is temporarily unavailable. Please try again.",
-    };
+  if (verified.reason === "config" || authApiVerification.reason === "config") {
+    return authConfigUnavailableResult(apiKey, clientIp, bearerToken);
   }
 
   return {
@@ -1071,7 +1209,9 @@ function applyRateLimit(options) {
 
 const DEFAULT_THREAD_OPTIONS = (() => {
   const options = {};
-  options.model = normalizeEnvValue("CODEX_MODEL") || "gpt-5.2";
+  if (RESOLVED_CODEX_MODEL) {
+    options.model = RESOLVED_CODEX_MODEL;
+  }
 
   const sandboxMode = parseEnumEnv("CODEX_SANDBOX_MODE", SANDBOX_MODES);
   if (sandboxMode) options.sandboxMode = sandboxMode;
@@ -1270,8 +1410,11 @@ function toItemDoneEventType(itemType) {
 }
 
 function toErrorMessage(error) {
-  if (error instanceof Error && typeof error.message === "string") return error.message;
-  return String(error);
+  const rawMessage =
+    (error instanceof Error && typeof error.message === "string")
+      ? error.message
+      : String(error);
+  return sanitizeCodexExecErrorMessage(rawMessage);
 }
 
 function hasText(value) {
@@ -1698,6 +1841,12 @@ function extractTextFromOpenAiContent(content) {
 }
 
 async function summarizeExtractedText(plainText) {
+  if (!EXTRACT_MODEL) {
+    throw new Error(
+      "No extract model configured for Azure provider. Set EXTRACT_MODEL, CODEX_MODEL, or AZURE_OPENAI_DEPLOYMENT.",
+    );
+  }
+
   const apiKey = CODEX_CONFIG
     ? RESOLVED_API_KEY
     : (normalizeEnvValue("OPENAI_API_KEY") || normalizeEnvValue("CODEX_API_KEY"));

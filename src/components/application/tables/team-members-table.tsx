@@ -97,7 +97,7 @@ export function TeamMembersTableBlock() {
 
   const compact = size === "sm";
   const cellClassName = compact ? "py-2 text-xs" : "py-3 text-sm";
-  const headClassName = compact ? "h-10 py-2 text-[11px]" : "h-11 py-2 text-xs";
+  const headClassName = compact ? "h-10 py-2 text-2xs" : "h-11 py-2 text-xs";
 
   return (
     <Card className="overflow-hidden border-border/80 bg-card/90">

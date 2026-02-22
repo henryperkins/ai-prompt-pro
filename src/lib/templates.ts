@@ -29,6 +29,13 @@ export interface PromptTemplate {
   examples: string;
 }
 
+export interface PromptCategorySkin {
+  card: string;
+  iconWrap: string;
+  badge: string;
+  action: string;
+}
+
 export const templates: PromptTemplate[] = [
   {
     id: "blog-post",
@@ -207,17 +214,104 @@ export const categoryLabels: Record<PromptCategory, string> = {
   docs: "Docs",
 };
 
+export const promptCategorySkins: Record<PromptCategory, PromptCategorySkin> = {
+  general: {
+    card:
+      "border-primary/25 bg-gradient-to-br from-primary/10 via-card to-card hover:border-primary/45",
+    iconWrap: "bg-primary/15 text-primary",
+    badge: "border-transparent bg-primary/15 text-primary",
+    action: "border-primary/30 bg-primary/10 text-primary",
+  },
+  frontend: {
+    card:
+      "border-utility-blue-light-200 bg-gradient-to-br from-utility-blue-light-50 via-card to-card hover:border-utility-blue-light-300",
+    iconWrap: "bg-utility-blue-light-50 text-utility-blue-light-700",
+    badge: "border-transparent bg-utility-blue-light-50 text-utility-blue-light-700",
+    action: "border-utility-blue-light-200 bg-utility-blue-light-50 text-utility-blue-light-700",
+  },
+  backend: {
+    card:
+      "border-utility-success-200 bg-gradient-to-br from-utility-success-50 via-card to-card hover:border-utility-success-300",
+    iconWrap: "bg-utility-success-50 text-utility-success-700",
+    badge: "border-transparent bg-utility-success-50 text-utility-success-700",
+    action: "border-utility-success-200 bg-utility-success-50 text-utility-success-700",
+  },
+  fullstack: {
+    card:
+      "border-utility-purple-200 bg-gradient-to-br from-utility-purple-50 via-card to-card hover:border-utility-purple-300",
+    iconWrap: "bg-utility-purple-50 text-utility-purple-700",
+    badge: "border-transparent bg-utility-purple-50 text-utility-purple-700",
+    action: "border-utility-purple-200 bg-utility-purple-50 text-utility-purple-700",
+  },
+  devops: {
+    card:
+      "border-utility-gray-blue-200 bg-gradient-to-br from-utility-gray-blue-50 via-card to-card hover:border-utility-gray-blue-300",
+    iconWrap: "bg-utility-gray-blue-50 text-utility-gray-blue-700",
+    badge: "border-transparent bg-utility-gray-blue-50 text-utility-gray-blue-700",
+    action: "border-utility-gray-blue-200 bg-utility-gray-blue-50 text-utility-gray-blue-700",
+  },
+  data: {
+    card:
+      "border-utility-warning-200 bg-gradient-to-br from-utility-warning-50 via-card to-card hover:border-utility-warning-300",
+    iconWrap: "bg-utility-warning-50 text-utility-warning-700",
+    badge: "border-transparent bg-utility-warning-50 text-utility-warning-700",
+    action: "border-utility-warning-200 bg-utility-warning-50 text-utility-warning-700",
+  },
+  "ml-ai": {
+    card:
+      "border-utility-pink-200 bg-gradient-to-br from-utility-pink-50 via-card to-card hover:border-utility-pink-300",
+    iconWrap: "bg-utility-pink-50 text-utility-pink-700",
+    badge: "border-transparent bg-utility-pink-50 text-utility-pink-700",
+    action: "border-utility-pink-200 bg-utility-pink-50 text-utility-pink-700",
+  },
+  security: {
+    card:
+      "border-utility-error-200 bg-gradient-to-br from-utility-error-50 via-card to-card hover:border-utility-error-300",
+    iconWrap: "bg-utility-error-50 text-utility-error-700",
+    badge: "border-transparent bg-utility-error-50 text-utility-error-700",
+    action: "border-utility-error-200 bg-utility-error-50 text-utility-error-700",
+  },
+  testing: {
+    card:
+      "border-utility-blue-200 bg-gradient-to-br from-utility-blue-50 via-card to-card hover:border-utility-blue-300",
+    iconWrap: "bg-utility-blue-50 text-utility-blue-700",
+    badge: "border-transparent bg-utility-blue-50 text-utility-blue-700",
+    action: "border-utility-blue-200 bg-utility-blue-50 text-utility-blue-700",
+  },
+  api: {
+    card:
+      "border-utility-indigo-200 bg-gradient-to-br from-utility-indigo-50 via-card to-card hover:border-utility-indigo-300",
+    iconWrap: "bg-utility-indigo-50 text-utility-indigo-700",
+    badge: "border-transparent bg-utility-indigo-50 text-utility-indigo-700",
+    action: "border-utility-indigo-200 bg-utility-indigo-50 text-utility-indigo-700",
+  },
+  automation: {
+    card:
+      "border-utility-gray-200 bg-gradient-to-br from-utility-gray-50 via-card to-card hover:border-utility-gray-300",
+    iconWrap: "bg-utility-gray-50 text-utility-gray-700",
+    badge: "border-transparent bg-utility-gray-50 text-utility-gray-700",
+    action: "border-utility-gray-200 bg-utility-gray-50 text-utility-gray-700",
+  },
+  docs: {
+    card:
+      "border-utility-orange-200 bg-gradient-to-br from-utility-orange-50 via-card to-card hover:border-utility-orange-300",
+    iconWrap: "bg-utility-orange-50 text-utility-orange-700",
+    badge: "border-transparent bg-utility-orange-50 text-utility-orange-700",
+    action: "border-utility-orange-200 bg-utility-orange-50 text-utility-orange-700",
+  },
+};
+
 export const categoryColors: Record<PromptCategory, string> = {
-  general: "bg-primary/10 text-primary",
-  frontend: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
-  backend: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  fullstack: "bg-violet-500/10 text-violet-700 dark:text-violet-300",
-  devops: "bg-slate-500/10 text-slate-700 dark:text-slate-300",
-  data: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
-  "ml-ai": "bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300",
-  security: "bg-red-500/10 text-red-700 dark:text-red-300",
-  testing: "bg-lime-500/10 text-lime-700 dark:text-lime-300",
-  api: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300",
-  automation: "bg-teal-500/10 text-teal-700 dark:text-teal-300",
-  docs: "bg-orange-500/10 text-orange-700 dark:text-orange-300",
+  general: promptCategorySkins.general.badge,
+  frontend: promptCategorySkins.frontend.badge,
+  backend: promptCategorySkins.backend.badge,
+  fullstack: promptCategorySkins.fullstack.badge,
+  devops: promptCategorySkins.devops.badge,
+  data: promptCategorySkins.data.badge,
+  "ml-ai": promptCategorySkins["ml-ai"].badge,
+  security: promptCategorySkins.security.badge,
+  testing: promptCategorySkins.testing.badge,
+  api: promptCategorySkins.api.badge,
+  automation: promptCategorySkins.automation.badge,
+  docs: promptCategorySkins.docs.badge,
 };

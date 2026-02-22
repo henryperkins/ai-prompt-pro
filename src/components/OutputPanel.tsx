@@ -42,6 +42,11 @@ import {
 } from "@/lib/output-panel-validation";
 import { trackBuilderEvent } from "@/lib/telemetry";
 import { buildLineDiff, type DiffLine } from "@/lib/text-diff";
+import {
+  UI_STATUS_ROW_CLASSES,
+  UI_STATUS_SURFACE_CLASSES,
+  UI_STATUS_TEXT_CLASSES,
+} from "@/lib/ui-status";
 import { cn } from "@/lib/utils";
 import { normalizeHttpUrl } from "@/lib/url-utils";
 import { Checkbox } from "@/components/base/primitives/checkbox";
@@ -825,11 +830,12 @@ export function OutputPanel({
       {displayedReasoningSummary && (
         <Card
           className={cn(
-            "border-amber-500/30 bg-amber-500/5 p-3 transition-opacity duration-1000 ease-out",
+            "p-3 transition-opacity duration-1000 ease-out",
+            UI_STATUS_SURFACE_CLASSES.warning,
             isReasoningSummaryFading && "opacity-0",
           )}
         >
-          <p className="ui-section-label text-amber-700">
+          <p className={cn("ui-section-label", UI_STATUS_TEXT_CLASSES.warning)}>
             Reasoning summary
           </p>
           <div className="prose prose-sm mt-2 max-w-none whitespace-normal text-foreground/90 dark:prose-invert prose-headings:my-1 prose-p:my-1 prose-pre:my-1 prose-code:break-words prose-ul:my-1 prose-ol:my-1">
@@ -935,13 +941,13 @@ function DiffRow({ line }: { line: DiffLine }) {
   const marker = line.type === "add" ? "+" : line.type === "remove" ? "-" : " ";
   const rowClass =
     line.type === "add"
-      ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+      ? UI_STATUS_ROW_CLASSES.success
       : line.type === "remove"
-        ? "bg-red-500/10 text-red-700 dark:text-red-300"
+        ? UI_STATUS_ROW_CLASSES.danger
         : "text-foreground";
 
   return (
-    <div className={`px-3 whitespace-pre-wrap break-words ${rowClass}`}>
+    <div className={`px-3 whitespace-pre-wrap wrap-break-word ${rowClass}`}>
       <span className="inline-block w-4 select-none">{marker}</span>
       {line.value}
     </div>
