@@ -37,14 +37,14 @@ export function PageShell({ children, mainClassName }: PageShellProps) {
               src="/brand/pf-logo-monogram-badge-v2.png"
               alt=""
               decoding="async"
-              className="h-5 w-5 object-contain"
+              className="h-7 w-7 object-contain"
               aria-hidden="true"
             />
             <img
               src="/brand/pf-logo-wordmark-horizontal-v3-tight.png"
               alt=""
               decoding="async"
-              className="h-4 w-auto object-contain"
+              className="h-5 w-auto object-contain"
               aria-hidden="true"
             />
           </Link>

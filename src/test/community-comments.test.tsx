@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import type { CommunityComment, CommunityProfile } from "@/lib/community";
@@ -19,7 +19,7 @@ const mocks = vi.hoisted(() => ({
       display_name: string;
       avatar_url: string | null;
     };
-  },
+  } | null,
   toast: vi.fn(),
   loadComments: vi.fn(),
   loadProfilesByIds: vi.fn(),
@@ -60,6 +60,15 @@ describe("community comments", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    mocks.user = {
+      id: "user-1",
+      email: "user@example.com",
+      user_metadata: {
+        display_name: "Test User",
+        avatar_url: null,
+      },
+    };
+
     const comments = Array.from({ length: 8 }, (_, index) =>
       buildComment(`comment-${index + 1}`, `Comment ${index + 1}`),
     );
@@ -89,5 +98,27 @@ describe("community comments", () => {
     expect(commentsList.className).toContain("sm:max-h-[52vh]");
     expect(commentsList.className).not.toContain("sm:max-h-none");
     expect(screen.getByTestId("community-comment-submit")).toBeInTheDocument();
+  });
+
+  it("shows a sign-in action button when the user is signed out", async () => {
+    mocks.user = null;
+
+    render(
+      <MemoryRouter>
+        <CommunityComments postId="post-1" totalCount={8} />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("Comment 1");
+
+    const submitButton = screen.getByTestId("community-comment-submit");
+    expect(submitButton).toBeInTheDocument();
+    expect(submitButton).toHaveTextContent("Sign in to comment");
+    expect(submitButton).toBeEnabled();
+
+    fireEvent.click(submitButton);
+    expect(mocks.toast).toHaveBeenCalledWith(expect.objectContaining({
+      title: "Sign in required",
+    }));
   });
 });

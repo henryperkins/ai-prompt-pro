@@ -98,6 +98,14 @@ export function CommunityComments({
   }, [loadThread]);
 
   const handleSubmit = useCallback(async () => {
+    if (!user) {
+      toast({
+        title: "Sign in required",
+        description: "Sign in to post comments.",
+      });
+      return;
+    }
+
     const content = draft.trim();
     if (!content) return;
     setSubmitting(true);
@@ -166,6 +174,8 @@ export function CommunityComments({
 
   const canComment = Boolean(user);
   const hasCommentActions = Boolean(user?.id && (onReportComment || onBlockUser || onUnblockUser));
+  const submitDisabled = submitting || (canComment && !draft.trim());
+  const submitLabel = canComment ? "Post comment" : "Sign in to comment";
 
   function renderCommentRow(item: (typeof visibleCommentItems)[number]) {
     const canToggleBlock = Boolean(user?.id && user.id !== item.comment.userId);
@@ -329,6 +339,12 @@ export function CommunityComments({
         <Textarea
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+              event.preventDefault();
+              void handleSubmit();
+            }
+          }}
           placeholder={canComment ? "Write a comment..." : "Sign in to comment"}
           disabled={!canComment || submitting}
           className="type-input type-wrap-safe min-h-19 rounded-lg border-border/70 bg-background/95 sm:min-h-22"
@@ -337,14 +353,14 @@ export function CommunityComments({
           <Button
             type="button"
             size="sm"
-            variant="default"
+            variant={canComment ? "default" : "secondary"}
             onClick={handleSubmit}
-            disabled={!canComment || submitting || !draft.trim()}
+            disabled={submitDisabled}
             className="type-button-label h-11 gap-1.5 px-4 sm:h-9 sm:px-3"
             data-testid="community-comment-submit"
           >
             <Send className="h-3.5 w-3.5" />
-            Post comment
+            {submitLabel}
           </Button>
         </div>
       </div>
