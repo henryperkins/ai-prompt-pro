@@ -17,6 +17,7 @@ import { PromptPreviewPanel } from "@/components/community/PromptPreviewPanel";
 import { CommunityComments } from "@/components/community/CommunityComments";
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/base/primitives/drawer";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { getCommunityPostRarityClass } from "@/lib/community-rarity";
 import { communityFeatureFlags } from "@/lib/feature-flags";
 import { cn } from "@/lib/utils";
 
@@ -64,21 +65,6 @@ function estimateTokens(text: string): string {
   const tokens = Math.max(1, Math.round(words * 1.35));
   if (tokens >= 1000) return `${(tokens / 1000).toFixed(1)}k`;
   return String(tokens);
-}
-
-function getPostRarityClass(post: CommunityPost, isFeatured: boolean): string {
-  if (isFeatured) return "pf-rarity-legendary";
-
-  const signal =
-    post.upvoteCount +
-    post.verifiedCount * 2 +
-    post.remixCount * 2 +
-    Math.round(post.ratingAverage ?? 0);
-
-  if (signal >= 22) return "pf-rarity-legendary";
-  if (signal >= 12) return "pf-rarity-epic";
-  if (signal >= 6) return "pf-rarity-rare";
-  return "pf-rarity-common";
 }
 
 function CommunityPostCardComponent({
@@ -132,10 +118,13 @@ function CommunityPostCardComponent({
     <Card
       className={cn(
         "community-feed-card interactive-card pf-card overflow-hidden border-border/80 bg-card/85 p-3 sm:p-4",
-        getPostRarityClass(post, isFeatured),
-        isFeatured && "lg:col-span-2 border-primary/35 bg-linear-to-br from-primary/10 via-card/90 to-card/85",
+        getCommunityPostRarityClass(post, isFeatured),
+        isFeatured && "lg:col-span-2 bg-linear-to-br from-primary/10 via-card/90 to-card/85",
       )}
-      style={{ animationDelay: `${animationDelayMs}ms` }}
+      style={{
+        animationDelay: `${animationDelayMs}ms`,
+        ...(isFeatured ? { borderColor: "hsl(var(--primary) / 0.35)" } : {}),
+      }}
     >
       <div className={cn("space-y-3", isMobile && "space-y-2.5")}>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
@@ -288,7 +277,7 @@ function CommunityPostCardComponent({
             type="button"
             size="sm"
             color={voteState?.upvote ? "primary" : "secondary"}
-            className="type-button-label interactive-chip h-11 gap-1.5 px-3 sm:h-9 sm:gap-1 sm:px-2.5"
+            className="type-button-label interactive-chip h-11 min-w-11 gap-1.5 px-3 sm:h-9 sm:min-w-9 sm:gap-1 sm:px-2.5"
             disabled={!canVote}
             onClick={() => onToggleVote(post.id, "upvote")}
             data-testid="community-vote-upvote"
@@ -300,7 +289,7 @@ function CommunityPostCardComponent({
             type="button"
             size="sm"
             color={voteState?.verified ? "primary" : "secondary"}
-            className="type-button-label interactive-chip h-11 gap-1.5 px-3 sm:h-9 sm:gap-1 sm:px-2.5"
+            className="type-button-label interactive-chip h-11 min-w-11 gap-1.5 px-3 sm:h-9 sm:min-w-9 sm:gap-1 sm:px-2.5"
             disabled={!canVote}
             onClick={() => onToggleVote(post.id, "verified")}
             data-testid="community-vote-verified"

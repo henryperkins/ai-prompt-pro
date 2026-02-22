@@ -28,13 +28,14 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { usePromptBuilder } from "@/hooks/usePromptBuilder";
 import { useToast } from "@/hooks/use-toast";
 import { brandCopy } from "@/lib/brand-copy";
+import { getLibraryPromptRarity } from "@/lib/community-rarity";
 import {
   getInitials,
   getUserAvatarUrl,
   getUserDisplayName,
 } from "@/lib/library-pages";
 import * as persistence from "@/lib/persistence";
-import { PFTemplateCard, type PFRarity } from "@/components/fantasy/PFTemplateCard";
+import { PFTemplateCard } from "@/components/fantasy/PFTemplateCard";
 
 type SavedPromptSort = "recent" | "name" | "revision";
 const LIBRARY_VIRTUALIZATION_THRESHOLD = 50;
@@ -78,21 +79,6 @@ function loadSelectionFromSession(): string[] {
   } catch {
     return [];
   }
-}
-
-function rarityForPrompt(prompt: persistence.PromptSummary): PFRarity {
-  const weightedSignal =
-    prompt.revision +
-    prompt.sourceCount +
-    prompt.databaseCount +
-    Math.min(prompt.tags.length, 4) +
-    (prompt.isShared ? 2 : 0) +
-    (prompt.remixedFrom ? 1 : 0);
-
-  if (weightedSignal >= 12) return "legendary";
-  if (weightedSignal >= 8) return "epic";
-  if (weightedSignal >= 4) return "rare";
-  return "common";
 }
 
 const Library = () => {
@@ -701,7 +687,7 @@ const Library = () => {
                 key={`featured-${prompt.id}`}
                 title={`✦ ${prompt.name}`}
                 description={prompt.description || prompt.starterPrompt}
-                rarity={rarityForPrompt(prompt)}
+                rarity={getLibraryPromptRarity(prompt)}
                 author={prompt.isShared ? "Community Artifact" : ownerName}
                 tags={prompt.tags}
                 footerLeft={formatUpdatedAt(prompt.updatedAt)}

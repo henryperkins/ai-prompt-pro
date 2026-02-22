@@ -27,6 +27,8 @@ public/pf/
   promptforge-wordmark.png
 ```
 
+Note: large binary reference exports are intentionally not checked into `warcraft/`; use the canonical runtime assets in `public/pf/`.
+
 ### B) Add the CSS theme file
 Copy `styles/promptforge-fantasy.css` into your project and import it globally:
 

@@ -160,27 +160,22 @@ This reduces “one-off” typography and improves consistency in dense forms.
 
 ## 6.1 Logo System
 
-Canonical logo assets live in `public/brand/`:
+Canonical active product branding assets live in `public/pf/`:
 
-- `pf-logo-symbol-primary-v2.png` (primary mark)
-- `pf-logo-wordmark-horizontal-v2.png` (horizontal wordmark)
-- `pf-logo-monogram-badge-v2.png` (badge/compact identity)
+- `promptforge-wordmark.png` (default product/header/marketing wordmark)
 
-Legacy aliases remain available for compatibility:
+Legacy brand pack assets remain in `public/brand/` for compatibility and historical reference:
 
-- `pf-logo-symbol-primary.png`
-- `pf-logo-wordmark-horizontal.png`
-- `pf-logo-monogram-badge.png`
+- `pf-logo-symbol-primary-v2.png`
+- `pf-logo-wordmark-horizontal-v2.png`
+- `pf-logo-monogram-badge-v2.png`
 
 Usage contract:
 
-- Product chrome and compact surfaces: symbol mark.
-- Header, hero, and marketing mastheads: horizontal wordmark.
-- Social/avatar and tight square surfaces: monogram badge.
+- Header, hero, and product chrome: `promptforge-wordmark.png`.
+- New UI work should not introduce `pf-logo-monogram-badge*` usage.
 - Minimum rendered size:
-  - Symbol: `20px` width
   - Wordmark: `96px` width
-  - Badge: `24px` width
 - Clear space: preserve at least `0.5x` logo height on all sides.
 - Do not stretch logos, recolor outside semantic brand tokens, or apply heavy effects that reduce legibility.
 

@@ -29,6 +29,7 @@ import { PromptPreviewPanel } from "@/components/community/PromptPreviewPanel";
 import { CommunityComments } from "@/components/community/CommunityComments";
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/base/primitives/drawer";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { getCommunityPostRarityClass } from "@/lib/community-rarity";
 import { communityFeatureFlags } from "@/lib/feature-flags";
 import { UI_STATUS_ROW_CLASSES, UI_STATUS_SURFACE_CLASSES } from "@/lib/ui-status";
 import { cn } from "@/lib/utils";
@@ -139,19 +140,6 @@ function renderDiffValue(value: string | string[]): string {
   return normalized || "∅";
 }
 
-function getDetailRarityClass(post: CommunityPost): string {
-  const signal =
-    post.upvoteCount +
-    post.verifiedCount * 2 +
-    post.remixCount * 2 +
-    Math.round(post.ratingAverage ?? 0);
-
-  if (signal >= 22) return "pf-rarity-legendary";
-  if (signal >= 12) return "pf-rarity-epic";
-  if (signal >= 6) return "pf-rarity-rare";
-  return "pf-rarity-common";
-}
-
 export function CommunityPostDetail({
   post,
   authorName,
@@ -193,7 +181,7 @@ export function CommunityPostDetail({
 
   return (
     <div className="space-y-4">
-      <Card className={cn("pf-card space-y-4 border-border/80 bg-card/85 p-4 sm:p-5", getDetailRarityClass(post))}>
+      <Card className={cn("pf-card space-y-4 border-border/80 bg-card/85 p-4 sm:p-5", getCommunityPostRarityClass(post))}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
             <Avatar className="h-9 w-9 border border-border/60">
@@ -386,7 +374,7 @@ export function CommunityPostDetail({
             type="button"
             size="sm"
             color={voteState?.upvote ? "primary" : "secondary"}
-            className="type-button-label interactive-chip h-11 gap-1.5 px-3 sm:h-9 sm:gap-1 sm:px-2.5"
+            className="type-button-label interactive-chip h-11 min-w-11 gap-1.5 px-3 sm:h-9 sm:min-w-9 sm:gap-1 sm:px-2.5"
             disabled={!canVote}
             onClick={() => onToggleVote(post.id, "upvote")}
             data-testid="community-vote-upvote"
@@ -398,7 +386,7 @@ export function CommunityPostDetail({
             type="button"
             size="sm"
             color={voteState?.verified ? "primary" : "secondary"}
-            className="type-button-label interactive-chip h-11 gap-1.5 px-3 sm:h-9 sm:gap-1 sm:px-2.5"
+            className="type-button-label interactive-chip h-11 min-w-11 gap-1.5 px-3 sm:h-9 sm:min-w-9 sm:gap-1 sm:px-2.5"
             disabled={!canVote}
             onClick={() => onToggleVote(post.id, "verified")}
             data-testid="community-vote-verified"
