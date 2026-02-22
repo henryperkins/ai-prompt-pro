@@ -9,6 +9,7 @@ import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
 import { Label } from "@/components/base/primitives/label";
 import { useAuth, type AuthOAuthProvider } from "@/hooks/useAuth";
+import { brandCopy } from "@/lib/brand-copy";
 import { Loader2 } from "lucide-react";
 
 interface AuthDialogProps {
@@ -87,10 +88,29 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
       }}
     >
       <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>
+        <DialogHeader className="space-y-3">
+          <div className="mx-auto inline-flex items-center gap-2 rounded-md border border-primary/20 bg-primary/5 px-2.5 py-1.5">
+            <img
+              src="/brand/pf-logo-symbol-primary-v3-tight.png"
+              alt=""
+              decoding="async"
+              className="h-5 w-5 object-contain"
+              aria-hidden="true"
+            />
+            <img
+              src="/brand/pf-logo-wordmark-horizontal-v3-tight.png"
+              alt=""
+              decoding="async"
+              className="h-4 w-auto object-contain"
+              aria-hidden="true"
+            />
+          </div>
+          <DialogTitle className="text-center">
             {mode === "login" ? "Sign in" : "Create account"}
           </DialogTitle>
+          <p className="text-center text-xs text-muted-foreground">
+            {brandCopy.tagline}
+          </p>
         </DialogHeader>
 
         {confirmationSent ? (

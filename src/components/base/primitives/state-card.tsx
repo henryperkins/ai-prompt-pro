@@ -80,6 +80,17 @@ export function StateCard({
 }: StateCardProps) {
   const meta = variantMeta[variant];
   const Icon = meta.icon;
+  const resolvedIcon = icon ?? (
+    variant === "auth"
+      ? <img
+        src="/brand/pf-logo-monogram-badge-v2.png"
+        alt=""
+        decoding="async"
+        className="h-5 w-5 object-contain"
+        aria-hidden="true"
+      />
+      : <Icon className="h-4 w-4" />
+  );
 
   return (
     <Card className={cn("ui-density space-y-4 p-4 sm:p-5", meta.cardClassName, className)} data-density={density}>
@@ -90,7 +101,7 @@ export function StateCard({
             meta.iconClassName,
           )}
         >
-          {icon ?? <Icon className="h-4 w-4" />}
+          {resolvedIcon}
         </span>
         <div className="space-y-1">
           <p className="ui-state-card-title text-foreground">{title}</p>

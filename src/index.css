@@ -509,6 +509,25 @@ All colors MUST be HSL.
       background-image: url("/brand/pf-gradient-hero-dark.png");
     }
 
+    .delight-hero::after,
+    .delight-hero-static::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: url("/brand/pf-border-frame-thin-v2.png");
+      background-position: center;
+      background-repeat: no-repeat;
+      background-size: 100% 100%;
+      opacity: 0.16;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .dark .delight-hero::after,
+    .dark .delight-hero-static::after {
+      opacity: 0.24;
+    }
+
     .delight-hero>*,
     .delight-hero-static>* {
       position: relative;
