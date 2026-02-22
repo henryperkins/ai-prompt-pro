@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import {
   type Notification,
@@ -27,8 +27,16 @@ export function useNotifications(limit = DEFAULT_LIMIT): UseNotificationsResult 
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const reset = useCallback(() => {
+    if (!isMountedRef.current) return;
     setNotifications([]);
     setUnreadCount(0);
     setLoading(false);
@@ -41,19 +49,24 @@ export function useNotifications(limit = DEFAULT_LIMIT): UseNotificationsResult 
       return;
     }
 
+    if (!isMountedRef.current) return;
     setLoading(true);
     try {
       const [items, count] = await Promise.all([
         loadNotifications(limit, 0),
         getUnreadCount(),
       ]);
+      if (!isMountedRef.current) return;
       setNotifications(items);
       setUnreadCount(count);
       setError(null);
     } catch (nextError) {
+      if (!isMountedRef.current) return;
       setError(nextError instanceof Error ? nextError.message : "Failed to load notifications.");
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }, [limit, reset, user]);
 
@@ -63,6 +76,7 @@ export function useNotifications(limit = DEFAULT_LIMIT): UseNotificationsResult 
     try {
       const changed = await markNotificationAsRead(notificationId);
       if (!changed) return;
+      if (!isMountedRef.current) return;
 
       const markedAt = Date.now();
       setNotifications((previous) =>
@@ -75,6 +89,7 @@ export function useNotifications(limit = DEFAULT_LIMIT): UseNotificationsResult 
       setUnreadCount((previous) => Math.max(0, previous - 1));
       setError(null);
     } catch (nextError) {
+      if (!isMountedRef.current) return;
       setError(nextError instanceof Error ? nextError.message : "Failed to mark notification as read.");
     }
   }, [user]);
@@ -85,6 +100,7 @@ export function useNotifications(limit = DEFAULT_LIMIT): UseNotificationsResult 
     try {
       const changedCount = await markAllNotificationsAsRead();
       if (changedCount === 0) return;
+      if (!isMountedRef.current) return;
 
       const markedAt = Date.now();
       setNotifications((previous) =>
@@ -95,6 +111,7 @@ export function useNotifications(limit = DEFAULT_LIMIT): UseNotificationsResult 
       setUnreadCount(0);
       setError(null);
     } catch (nextError) {
+      if (!isMountedRef.current) return;
       setError(nextError instanceof Error ? nextError.message : "Failed to mark all notifications as read.");
     }
   }, [user]);
