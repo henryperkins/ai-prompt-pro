@@ -184,23 +184,14 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
         <div className="container mx-auto flex items-center justify-between h-12 sm:h-14 px-3 sm:px-4">
           <Link
             to="/"
-            className="flex items-center gap-1.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:gap-2"
+            className="flex items-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label={brandCopy.appName}
           >
-            <span className="interactive-chip flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-lg border border-primary/25 bg-primary/10">
-              <img
-                src="/brand/pf-logo-symbol-primary-v3-tight.png"
-                alt=""
-                decoding="async"
-                className="h-6 w-6 object-contain sm:h-7 sm:w-7"
-                aria-hidden="true"
-              />
-            </span>
             <img
-              src="/brand/pf-logo-wordmark-horizontal-v3-tight.png"
+              src="/pf/promptforge-wordmark.png"
               alt=""
               decoding="async"
-              className="h-6 w-auto object-contain sm:h-7"
+              className="h-8 w-auto object-contain sm:h-9"
               aria-hidden="true"
             />
           </Link>

@@ -89,19 +89,12 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
     >
       <DialogContent className="pf-dialog-surface sm:max-w-md">
         <DialogHeader className="space-y-3">
-          <div className="mx-auto inline-flex items-center gap-2 rounded-md border border-primary/20 bg-primary/5 px-2.5 py-1.5">
+          <div className="mx-auto inline-flex items-center rounded-md border border-primary/20 bg-primary/5 px-2.5 py-1.5">
             <img
-              src="/brand/pf-logo-symbol-primary-v3-tight.png"
+              src="/pf/promptforge-wordmark.png"
               alt=""
               decoding="async"
-              className="h-5 w-5 object-contain"
-              aria-hidden="true"
-            />
-            <img
-              src="/brand/pf-logo-wordmark-horizontal-v3-tight.png"
-              alt=""
-              decoding="async"
-              className="h-4 w-auto object-contain"
+              className="h-7 w-auto object-contain"
               aria-hidden="true"
             />
           </div>

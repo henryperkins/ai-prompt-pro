@@ -30,21 +30,14 @@ export function PageShell({ children, mainClassName }: PageShellProps) {
         <div className="container mx-auto flex flex-col items-center justify-between gap-2 px-4 py-2 sm:flex-row sm:gap-4">
           <Link
             to="/"
-            className="interactive-chip pf-nav-button inline-flex items-center gap-1.5 rounded-md px-1 py-0.5"
+            className="interactive-chip pf-nav-button inline-flex items-center rounded-md px-1 py-0.5"
             aria-label={brandCopy.appName}
           >
             <img
-              src="/brand/pf-logo-monogram-badge-v2.png"
+              src="/pf/promptforge-wordmark.png"
               alt=""
               decoding="async"
-              className="h-7 w-7 object-contain"
-              aria-hidden="true"
-            />
-            <img
-              src="/brand/pf-logo-wordmark-horizontal-v3-tight.png"
-              alt=""
-              decoding="async"
-              className="h-5 w-auto object-contain"
+              className="h-7 w-auto object-contain"
               aria-hidden="true"
             />
           </Link>
@@ -71,19 +64,12 @@ interface PageHeroProps {
 export function PageHero({ title, subtitle, eyebrow, className }: PageHeroProps) {
   return (
     <div className={cn("delight-hero mb-4 text-center sm:mb-6", className)}>
-      <div className="mb-2 flex items-center justify-center gap-2">
+      <div className="mb-2 flex items-center justify-center">
         <img
-          src="/brand/pf-logo-monogram-badge-v2.png"
+          src="/pf/promptforge-wordmark.png"
           alt=""
           decoding="async"
-          className="h-5 w-5 object-contain"
-          aria-hidden="true"
-        />
-        <img
-          src="/brand/pf-logo-wordmark-horizontal-v3-tight.png"
-          alt=""
-          decoding="async"
-          className="h-4 w-auto object-contain"
+          className="h-8 w-auto object-contain sm:h-9"
           aria-hidden="true"
         />
       </div>

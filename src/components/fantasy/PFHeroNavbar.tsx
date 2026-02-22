@@ -14,7 +14,7 @@ export type PFHeroNavbarProps = {
 };
 
 export function PFHeroNavbar({
-  logoSrc = "/brand/pf-logo-wordmark-horizontal-v3-tight.png",
+  logoSrc = "/pf/promptforge-wordmark.png",
   heroBgSrc = "/pf/promptforge-background-1920x1080.png",
   runeTileSrc = "/pf/promptforge-rune-texture-tile-1024.png",
   links = [
