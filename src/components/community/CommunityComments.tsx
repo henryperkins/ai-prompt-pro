@@ -199,8 +199,8 @@ export function CommunityComments({
                   <DropdownMenuTrigger asChild>
                     <Button
                       type="button"
-                      variant="ghost"
-                      size="icon"
+                      color="tertiary"
+                      size="sm"
                       className="ml-auto h-7 w-7"
                       aria-label="Open comment moderation actions"
                     >
@@ -260,7 +260,7 @@ export function CommunityComments({
           <MessageCircle className="h-3.5 w-3.5" />
           Comments
         </div>
-        <Badge variant="secondary" className="type-chip type-numeric h-5 min-w-5 px-1.5">
+        <Badge type="modern" className="type-chip type-numeric h-5 min-w-5 px-1.5">
           {totalCount}
         </Badge>
       </div>
@@ -353,7 +353,7 @@ export function CommunityComments({
           <Button
             type="button"
             size="sm"
-            variant={canComment ? "default" : "secondary"}
+            color={canComment ? "primary" : "secondary"}
             onClick={handleSubmit}
             disabled={submitDisabled}
             className="type-button-label h-11 gap-1.5 px-4 sm:h-9 sm:px-3"

@@ -1,7 +1,7 @@
 import { memo, useMemo, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { ArrowUp, CheckCircle2, Database, Flag, GitBranch, MessageCircle, MoreHorizontal, Star, UserCheck, UserX } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import type { CommunityPost, VoteState, VoteType } from "@/lib/community";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
@@ -91,6 +91,7 @@ function CommunityPostCardComponent({
   onBlockUser,
   onUnblockUser,
 }: CommunityPostCardProps) {
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const useMobileCommentsDrawer = isMobile && communityFeatureFlags.communityMobileEnhancements;
   const createdAgo = useMemo(
@@ -116,7 +117,7 @@ function CommunityPostCardComponent({
     <Card
       className={cn(
         "community-feed-card interactive-card overflow-hidden border-border/80 bg-card/85 p-3 sm:p-4",
-        isFeatured && "lg:col-span-2 border-primary/35 bg-gradient-to-br from-primary/10 via-card/90 to-card/85",
+        isFeatured && "lg:col-span-2 border-primary/35 bg-linear-to-br from-primary/10 via-card/90 to-card/85",
       )}
       style={{ animationDelay: `${animationDelayMs}ms` }}
     >
@@ -136,11 +137,14 @@ function CommunityPostCardComponent({
           </div>
           <div className="flex flex-wrap items-center gap-1 self-start sm:self-auto sm:justify-end">
             {post.targetModel && (
-              <Badge variant="secondary" className="type-chip h-6 px-2 font-mono sm:h-5 sm:px-1.5">
+              <Badge type="modern" className="type-chip h-6 px-2 font-mono sm:h-5 sm:px-1.5">
                 {post.targetModel}
               </Badge>
             )}
-            <Badge variant="outline" className="type-chip h-6 px-2 capitalize sm:h-5 sm:px-1.5">
+            <Badge
+              type="modern"
+              className="type-chip h-6 border border-border bg-background px-2 text-foreground capitalize sm:h-5 sm:px-1.5"
+            >
               {post.category}
             </Badge>
             {canModerate && (
@@ -148,8 +152,8 @@ function CommunityPostCardComponent({
                 <DropdownMenuTrigger asChild>
                   <Button
                     type="button"
-                    variant="ghost"
-                    size="icon"
+                    color="tertiary"
+                    size="sm"
                     className="h-8 w-8"
                     aria-label="Open moderation actions"
                   >
@@ -224,7 +228,11 @@ function CommunityPostCardComponent({
         {visibleTags.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5">
             {visibleTags.map((tag) => (
-              <Badge key={`${post.id}-${tag}`} variant="outline" className="type-chip">
+              <Badge
+                key={`${post.id}-${tag}`}
+                type="modern"
+                className="type-chip border border-border bg-background text-foreground"
+              >
                 #{tag}
               </Badge>
             ))}
@@ -243,13 +251,14 @@ function CommunityPostCardComponent({
             </span>
           </div>
           <Button
-            asChild
-            variant={isMobile || isFeatured ? "default" : "outline"}
+            type="button"
+            color={isMobile || isFeatured ? "primary" : "secondary"}
             size="sm"
             className="type-button-label h-11 px-4 sm:h-9 sm:px-3"
+            onClick={() => navigate(`/?remix=${post.id}`)}
             data-testid="community-remix-cta"
           >
-            <Link to={`/?remix=${post.id}`}>Remix</Link>
+            Remix
           </Button>
         </div>
 
@@ -262,7 +271,7 @@ function CommunityPostCardComponent({
           <Button
             type="button"
             size="sm"
-            variant={voteState?.upvote ? "soft" : "outline"}
+            color={voteState?.upvote ? "primary" : "secondary"}
             className="type-button-label interactive-chip h-11 gap-1.5 px-3 sm:h-9 sm:gap-1 sm:px-2.5"
             disabled={!canVote}
             onClick={() => onToggleVote(post.id, "upvote")}
@@ -274,7 +283,7 @@ function CommunityPostCardComponent({
           <Button
             type="button"
             size="sm"
-            variant={voteState?.verified ? "soft" : "outline"}
+            color={voteState?.verified ? "primary" : "secondary"}
             className="type-button-label interactive-chip h-11 gap-1.5 px-3 sm:h-9 sm:gap-1 sm:px-2.5"
             disabled={!canVote}
             onClick={() => onToggleVote(post.id, "verified")}
@@ -285,7 +294,7 @@ function CommunityPostCardComponent({
           </Button>
           <Button
             type="button"
-            variant="ghost"
+            color="tertiary"
             size="sm"
             className="type-button-label interactive-chip h-11 gap-1.5 px-3 sm:h-9 sm:px-2.5"
             aria-label={post.commentCount > 0 ? `${commentsLabel} ${post.commentCount}` : commentsLabel}
@@ -303,7 +312,7 @@ function CommunityPostCardComponent({
             {commentsLabel}
             {post.commentCount > 0 && (
               <Badge
-                variant="secondary"
+                type="modern"
                 className="type-reply-label type-numeric ml-0.5 h-4 min-w-4 px-1 leading-none"
                 aria-hidden="true"
               >
@@ -335,8 +344,8 @@ function CommunityPostCardComponent({
                   <Button
                     key={`${post.id}-rate-${value}`}
                     type="button"
-                    variant="ghost"
-                    size="icon"
+                    color="tertiary"
+                    size="sm"
                     className="h-7 w-7 rounded-full p-0 sm:h-7 sm:w-7"
                     aria-label={`Rate ${value} star${value === 1 ? "" : "s"}`}
                     onClick={() => onRatePrompt(post.id, ratingValue === value ? null : value)}

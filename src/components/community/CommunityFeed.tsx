@@ -160,11 +160,11 @@ export function CommunityFeed({
         ? "Sign in to access this community view"
         : errorType === "not_found"
           ? "Community content could not be found"
-        : errorType === "network"
-          ? "Couldn’t reach community feed"
-          : errorType === "backend_unconfigured"
-            ? "Community backend is not configured"
-            : "Couldn’t load community feed";
+          : errorType === "network"
+            ? "Couldn’t reach community feed"
+            : errorType === "backend_unconfigured"
+              ? "Community backend is not configured"
+              : "Couldn’t load community feed";
     const secondaryAction =
       errorType === "auth"
         ? { label: "Go to Builder and sign in", to: "/" }
@@ -202,7 +202,7 @@ export function CommunityFeed({
         <div className="flex justify-center pt-1 lg:col-span-2">
           <Button
             type="button"
-            variant="outline"
+            color="secondary"
             size="sm"
             onClick={onLoadMore}
             disabled={isLoadingMore}

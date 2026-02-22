@@ -113,7 +113,7 @@ function CommunityReportDialogContent({
       </div>
 
       <DialogFooter>
-        <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+        <Button color="secondary" onClick={() => onOpenChange(false)} disabled={submitting}>
           Cancel
         </Button>
         <Button onClick={() => void onSubmit({ reason, details: trimmedDetails })} disabled={!reason || submitting}>

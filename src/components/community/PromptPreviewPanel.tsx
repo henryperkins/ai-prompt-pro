@@ -26,7 +26,7 @@ export function PromptPreviewPanel({ text, mode = "compact", className, onCopy }
         {onCopy && (
           <Button
             type="button"
-            variant="outline"
+            color="secondary"
             size="sm"
             className="type-button-label absolute right-2 top-2 z-10 h-11 bg-background/85 px-3 backdrop-blur sm:h-9 sm:px-2"
             onClick={(event) => {
@@ -53,7 +53,7 @@ export function PromptPreviewPanel({ text, mode = "compact", className, onCopy }
         <div className="mt-2">
           <Button
             type="button"
-            variant="ghost"
+            color="tertiary"
             size="sm"
             className="type-button-label h-11 px-3 sm:h-9 sm:px-2"
             onClick={() => setExpandedFor((previous) => (previous === normalized ? null : normalized))}
