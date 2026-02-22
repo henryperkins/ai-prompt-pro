@@ -36,6 +36,8 @@ jobs:
           VITE_NEON_AUTH_URL: ${{ secrets.VITE_NEON_AUTH_URL }}
           VITE_NEON_PUBLISHABLE_KEY: ${{ secrets.VITE_NEON_PUBLISHABLE_KEY }}
           VITE_AGENT_SERVICE_URL: ${{ secrets.VITE_AGENT_SERVICE_URL }}
+          NEON_DATA_API_URL: ${{ secrets.VITE_NEON_DATA_API_URL }}
+          NEON_AUTH_URL: ${{ secrets.VITE_NEON_AUTH_URL }}
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_GENTLE_DUNE_075B4710F }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}

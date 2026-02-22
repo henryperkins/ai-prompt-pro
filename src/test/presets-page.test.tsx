@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
 const fixtures = vi.hoisted(() => ({
@@ -74,9 +74,25 @@ vi.mock("@/lib/templates", () => ({
 
 async function renderPresets() {
   const { default: Presets } = await import("@/pages/Presets");
+
+  function LocationProbe() {
+    const location = useLocation();
+    return <output data-testid="location">{`${location.pathname}${location.search}`}</output>;
+  }
+
   render(
-    <MemoryRouter>
-      <Presets />
+    <MemoryRouter initialEntries={["/presets"]}>
+      <Routes>
+        <Route
+          path="*"
+          element={(
+            <>
+              <Presets />
+              <LocationProbe />
+            </>
+          )}
+        />
+      </Routes>
     </MemoryRouter>,
   );
 }
@@ -100,12 +116,12 @@ describe("Presets page", () => {
     expect(allButton).toHaveAttribute("aria-pressed", "false");
   });
 
-  it("encodes preset ids when building use-preset links", async () => {
+  it("encodes preset ids when navigating to the builder", async () => {
     await renderPresets();
 
-    const usePresetLinks = screen.getAllByRole("link", { name: "Use preset" });
-    const encodedLink = usePresetLinks[1];
+    const usePresetButtons = screen.getAllByRole("button", { name: "Use preset" });
+    fireEvent.click(usePresetButtons[1]);
 
-    expect(encodedLink).toHaveAttribute("href", "/?preset=id+with%2Fslash+%26+space");
+    expect(screen.getByTestId("location")).toHaveTextContent("/?preset=id+with%2Fslash+%26+space");
   });
 });
