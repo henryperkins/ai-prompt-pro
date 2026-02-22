@@ -207,6 +207,28 @@ describe("community prompt preview fallback", () => {
     expect(updatedFiveStarIcon).toHaveClass("text-primary");
   });
 
+  it("emphasizes the aggregate rating star when ratings exist", () => {
+    const post = buildPost({ ratingAverage: 4.2, ratingCount: 8 });
+
+    render(
+      <MemoryRouter>
+        <CommunityPostCard
+          post={post}
+          authorName="Prompt Dev"
+          onCopyPrompt={vi.fn()}
+          onToggleVote={vi.fn()}
+          onCommentAdded={vi.fn()}
+          canVote
+        />
+      </MemoryRouter>,
+    );
+
+    const summary = screen.getByLabelText("Average rating 4.2 from 8 ratings");
+    const summaryIcon = summary.querySelector("svg");
+    expect(summaryIcon).toHaveClass("fill-primary");
+    expect(summaryIcon).toHaveClass("text-primary");
+  });
+
   it("renders starter prompt text in post detail when enhanced prompt is empty", () => {
     const post = buildPost();
 

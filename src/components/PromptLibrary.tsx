@@ -23,20 +23,14 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/base/primitives/drawer";
-import { Button } from "@/components/base/primitives/button";
-import { Badge } from "@/components/base/primitives/badge";
+import { Button } from "@/components/base/buttons/button";
+import { Badge } from "@/components/base/badges/badges";
 import { Card } from "@/components/base/primitives/card";
 import { Checkbox } from "@/components/base/primitives/checkbox";
-import { Input } from "@/components/base/primitives/input";
+import { Input } from "@/components/base/input/input";
 import { Label } from "@/components/base/primitives/label";
 import { Textarea } from "@/components/base/primitives/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/base/primitives/select";
+import { Select } from "@/components/base/select/select";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { PROMPT_CATEGORY_OPTIONS } from "@/lib/prompt-categories";
 import { cn } from "@/lib/utils";
@@ -69,7 +63,6 @@ import {
   MessageCircle,
   ExternalLink,
 } from "lucide-react";
-import { Link } from "react-router-dom";
 
 interface PromptLibraryProps {
   open: boolean;
@@ -273,22 +266,28 @@ function PromptList({
           <Input
             id="prompt-library-search"
             value={query}
-            onChange={(event) => onQueryChange(event.target.value)}
+            onChange={onQueryChange}
             placeholder="Search prompts by name, description, tags, or starter text"
-            className="h-11 bg-background pl-8 sm:h-9"
+            wrapperClassName="h-11 bg-background sm:h-9"
+            inputClassName="pl-8"
           />
         </div>
         <div className="flex items-center gap-1">
           <ArrowDownUp className="w-3.5 h-3.5 text-muted-foreground" />
-          <Select value={sortBy} onValueChange={(value: SavedPromptSort) => onSortByChange(value)}>
-            <SelectTrigger className="h-11 min-w-[138px] sm:h-9" aria-label="Sort saved prompts">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="recent">Most Recent</SelectItem>
-              <SelectItem value="name">Name (A-Z)</SelectItem>
-              <SelectItem value="revision">Revision (High)</SelectItem>
-            </SelectContent>
+          <Select
+            selectedKey={sortBy}
+            onSelectionChange={(value) => {
+              if (value !== null) {
+                onSortByChange(String(value) as SavedPromptSort);
+              }
+            }}
+            aria-label="Sort saved prompts"
+            className="min-w-[138px]"
+            size="md"
+          >
+            <Select.Item id="recent">Most Recent</Select.Item>
+            <Select.Item id="name">Name (A-Z)</Select.Item>
+            <Select.Item id="revision">Revision (High)</Select.Item>
           </Select>
         </div>
       </div>
@@ -297,7 +296,7 @@ function PromptList({
         <div className="flex items-center gap-2">
           <Database className="w-4 h-4 text-muted-foreground" />
           <h3 className="text-xs font-medium text-foreground">My Prompts</h3>
-          <Badge variant="secondary" className="text-xs">
+          <Badge type="modern" className="text-xs">
             {filteredSaved.length}
           </Badge>
         </div>
@@ -308,8 +307,8 @@ function PromptList({
               No saved prompts yet. Create one in the Builder, then save it to your library.
             </p>
             <div className="mt-2">
-              <Button asChild size="sm" className="h-11 text-sm sm:h-8 sm:text-sm" onClick={onClose}>
-                <Link to="/">Go to Builder</Link>
+              <Button size="sm" href="/" className="h-11 text-sm sm:h-8 sm:text-sm" onClick={onClose}>
+                Go to Builder
               </Button>
             </div>
           </Card>
@@ -336,22 +335,22 @@ function PromptList({
                   <h4 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
                     {prompt.name}
                   </h4>
-                  <Badge variant="outline" className="text-xs">
+                  <Badge type="modern" className="border border-border bg-background text-foreground text-xs">
                     r{prompt.revision}
                   </Badge>
                   {prompt.isShared ? (
-                    <Badge variant="secondary" className="text-xs gap-1">
+                    <Badge type="modern" className="text-xs gap-1">
                       <Share2 className="w-3 h-3" />
                       Shared
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="text-xs gap-1">
+                    <Badge type="modern" className="border border-border bg-background text-foreground text-xs gap-1">
                       <Lock className="w-3 h-3" />
                       Private
                     </Badge>
                   )}
                   {prompt.remixedFrom && (
-                    <Badge variant="secondary" className="text-xs gap-1">
+                    <Badge type="modern" className="text-xs gap-1">
                       <GitBranch className="w-3 h-3" />
                       Remixed
                     </Badge>
@@ -375,7 +374,7 @@ function PromptList({
                 {prompt.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {prompt.tags.slice(0, 4).map((tag) => (
-                      <Badge key={`${prompt.id}-${tag}`} variant="outline" className="text-xs">
+                      <Badge key={`${prompt.id}-${tag}`} type="modern" className="border border-border bg-background text-foreground text-xs">
                         #{tag}
                       </Badge>
                     ))}
@@ -396,20 +395,21 @@ function PromptList({
               <div className="flex shrink-0 flex-col gap-1 rounded-md border border-border/70 bg-background/70 p-1">
                 {prompt.isShared && prompt.communityPostId && (
                   <Button
-                    asChild
-                    variant="ghost"
+                    color="tertiary"
                     size="sm"
                     className={cn(savedPromptActionButtonClass, "gap-1.5 text-muted-foreground hover:text-foreground")}
+                    href={`/community/${prompt.communityPostId}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                    }}
                   >
-                    <Link to={`/community/${prompt.communityPostId}`}>
-                      Open
-                      <ExternalLink className="w-3 h-3" />
-                    </Link>
+                    Open
+                    <ExternalLink className="w-3 h-3" />
                   </Button>
                 )}
                 {prompt.isShared ? (
                   <Button
-                    variant="outline"
+                    color="secondary"
                     size="sm"
                     className={cn(savedPromptActionButtonClass, "border-border/70 bg-background/60")}
                     onClick={(event) => {
@@ -421,10 +421,10 @@ function PromptList({
                   </Button>
                 ) : (
                   <Button
-                    variant="outline"
+                    color="secondary"
                     size="sm"
                     className={cn(savedPromptActionButtonClass, "border-border/70 bg-background/60")}
-                    disabled={!canShareSavedPrompts}
+                    isDisabled={!canShareSavedPrompts}
                     onClick={(event) => {
                       event.stopPropagation();
                       handleOpenShareDialog(prompt);
@@ -435,8 +435,8 @@ function PromptList({
                   </Button>
                 )}
                 <Button
-                  variant="ghost"
-                  size="icon"
+                  color="tertiary"
+                  size="sm"
                   className={savedPromptIconButtonClass}
                   onClick={(event) => {
                     event.stopPropagation();
@@ -461,7 +461,7 @@ function PromptList({
           {categories.map((cat) => (
             <Button
               key={cat}
-              variant={activeCategory === cat ? "default" : "outline"}
+              color={activeCategory === cat ? "primary" : "secondary"}
               size="sm"
               onClick={() => setActiveCategory(cat)}
               className="interactive-chip h-10 gap-1.5 rounded-full px-3 text-xs font-medium capitalize tracking-tight sm:h-8 sm:px-2.5 sm:text-sm"
@@ -510,7 +510,10 @@ function PromptList({
                         <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
                           {template.name}
                         </h3>
-                        <Badge variant="outline" className={cn("text-xs capitalize", skin.badge)}>
+                        <Badge
+                          type="modern"
+                          className={cn("border border-border bg-background text-foreground text-xs capitalize", skin.badge)}
+                        >
                           {template.category}
                         </Badge>
                       </div>
@@ -519,10 +522,10 @@ function PromptList({
                         <span className="font-medium text-foreground/80">Start:</span> {template.starterPrompt}
                       </p>
                       <div className="mt-1.5 flex gap-1">
-                        <Badge variant="secondary" className="text-2xs">
+                        <Badge type="modern" className="text-2xs">
                           {template.tone}
                         </Badge>
-                        <Badge variant="secondary" className="text-2xs">
+                        <Badge type="modern" className="text-2xs">
                           {template.complexity}
                         </Badge>
                       </div>
@@ -586,21 +589,27 @@ function PromptList({
           <div className="space-y-3">
             <Input
               value={shareName}
-              onChange={(event) => setShareName(event.target.value)}
+              onChange={setShareName}
               placeholder="Prompt title"
-              className="bg-background"
+              wrapperClassName="bg-background"
+              inputClassName="text-base"
             />
-            <Select value={shareCategory} onValueChange={setShareCategory}>
-              <SelectTrigger className="bg-background">
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                {PROMPT_CATEGORY_OPTIONS.map((category) => (
-                  <SelectItem key={category.value} value={category.value}>
-                    {category.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
+            <Select
+              selectedKey={shareCategory}
+              onSelectionChange={(value) => {
+                if (value !== null) {
+                  setShareCategory(String(value));
+                }
+              }}
+              placeholder="Category"
+              className="bg-background"
+              aria-label="Category"
+            >
+              {PROMPT_CATEGORY_OPTIONS.map((category) => (
+                <Select.Item key={category.value} id={category.value}>
+                  {category.label}
+                </Select.Item>
+              ))}
             </Select>
             <Textarea
               value={shareDescription}
@@ -610,9 +619,10 @@ function PromptList({
             />
             <Input
               value={shareTags}
-              onChange={(event) => setShareTags(event.target.value)}
+              onChange={setShareTags}
               placeholder="Tags (comma-separated, optional)"
-              className="bg-background"
+              wrapperClassName="bg-background"
+              inputClassName="text-base"
             />
             <Textarea
               value={shareUseCase}
@@ -622,9 +632,10 @@ function PromptList({
             />
             <Input
               value={shareTargetModel}
-              onChange={(event) => setShareTargetModel(event.target.value)}
+              onChange={setShareTargetModel}
               placeholder="Target model (optional)"
-              className="bg-background"
+              wrapperClassName="bg-background"
+              inputClassName="text-base"
             />
             <div className="flex items-start gap-2">
               <Checkbox
@@ -642,12 +653,12 @@ function PromptList({
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={handleCloseShareDialog}>
+            <Button color="secondary" onClick={handleCloseShareDialog}>
               Cancel
             </Button>
             <Button
               onClick={() => void handleShareSavedPrompt()}
-              disabled={!shareName.trim() || !shareUseCase.trim() || !shareConfirmedSafe}
+              isDisabled={!shareName.trim() || !shareUseCase.trim() || !shareConfirmedSafe}
             >
               Share Prompt
             </Button>

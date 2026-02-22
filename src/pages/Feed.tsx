@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { CommunityFeed } from "@/components/community/CommunityFeed";
 import { CommunityReportDialog } from "@/components/community/CommunityReportDialog";
 import { PageHero, PageShell } from "@/components/PageShell";
-import { Button } from "@/components/base/primitives/button";
+import { Button } from "@/components/base/buttons/button";
 import { StateCard } from "@/components/base/primitives/state-card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";

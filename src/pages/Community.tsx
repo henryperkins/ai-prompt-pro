@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { CommunityFeed } from "@/components/community/CommunityFeed";
 import { CommunityReportDialog } from "@/components/community/CommunityReportDialog";
 import { PageHero, PageShell } from "@/components/PageShell";
-import { Button } from "@/components/base/primitives/button";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/base/primitives/drawer";
-import { Input } from "@/components/base/primitives/input";
+import { Button } from "@/components/base/buttons/button";
+import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/base/primitives/drawer";
+import { InputBase } from "@/components/base/input/input";
 import { ScrollArea } from "@/components/base/primitives/scroll-area";
 import { useCommunityMobileTelemetry } from "@/hooks/useCommunityMobileTelemetry";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -97,6 +97,7 @@ const Community = () => {
   const requestToken = useRef(0);
   const voteInFlightByPost = useRef<Set<string>>(new Set());
   const ratingInFlightByPost = useRef<Set<string>>(new Set());
+  const mobileFilterDescriptionId = useId();
   const { toast } = useToast();
   const { user } = useAuth();
   const isMobile = useIsMobile();
@@ -530,7 +531,7 @@ const Community = () => {
                 Search community posts
               </label>
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
+              <InputBase
                 id="community-feed-search"
                 value={queryInput}
                 onChange={(event) => setQueryInput(event.target.value)}
@@ -547,7 +548,8 @@ const Community = () => {
                   }
                 }}
                 placeholder="Search by title, use case, or context keyword"
-                className="type-input h-11 border-0 bg-transparent pl-9 shadow-none"
+                inputClassName="type-input h-11 border-0 bg-transparent pl-9 shadow-none"
+                wrapperClassName="bg-transparent shadow-none ring-0"
                 aria-expanded={showCategorySuggestions}
                 aria-controls={showCategorySuggestions ? categoryPanelId : undefined}
               />
@@ -576,7 +578,7 @@ const Community = () => {
             <div
               id={categoryPanelId}
               className="type-post-body absolute left-0 right-0 top-full z-20 mt-2 rounded-xl border border-border/70 bg-popover p-2 shadow-lg"
-              role="listbox"
+              role="group"
               aria-label="Category filters"
             >
               <div className="type-label-caps type-reply-label flex items-center justify-between px-2 py-1 text-muted-foreground">
@@ -590,8 +592,7 @@ const Community = () => {
                     <button
                       key={option.value}
                       type="button"
-                      role="option"
-                      aria-selected={isSelected}
+                      aria-pressed={isSelected}
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => setCategory(option.value)}
                       className={cn(
@@ -643,11 +644,14 @@ const Community = () => {
           <Drawer open={mobileCategorySheetOpen} onOpenChange={setMobileCategorySheetOpen}>
             <DrawerContent
               className="max-h-[80vh] pb-[max(0.75rem,env(safe-area-inset-bottom))]"
-              aria-describedby={undefined}
+              aria-describedby={mobileFilterDescriptionId}
               data-testid="community-filter-sheet"
             >
               <DrawerHeader className="pb-1">
                 <DrawerTitle className="type-post-title">Filter Categories</DrawerTitle>
+                <DrawerDescription id={mobileFilterDescriptionId} className="sr-only">
+                  Choose a community category to filter visible prompts.
+                </DrawerDescription>
               </DrawerHeader>
               <div className="px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
                 <p className="type-help mb-2 text-muted-foreground">

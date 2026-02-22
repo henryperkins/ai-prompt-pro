@@ -1,10 +1,10 @@
-import { Badge } from "@/components/base/primitives/badge";
-import { Button } from "@/components/base/primitives/button";
+import { Badge } from "@/components/base/badges/badges";
+import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/primitives/card";
 import { Checkbox } from "@/components/base/primitives/checkbox";
-import { Input } from "@/components/base/primitives/input";
+import { Input } from "@/components/base/input/input";
 import { Label } from "@/components/base/primitives/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/base/primitives/select";
+import { Select } from "@/components/base/select/select";
 import { Textarea } from "@/components/base/primitives/textarea";
 import {
   PromptConfig,
@@ -62,7 +62,7 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
           </div>
           <div className="flex items-center gap-2">
             {selectedRole && (
-              <Badge variant="secondary" className="max-w-[180px] text-xs">
+              <Badge type="modern" className="max-w-[180px] text-xs">
                 <span className="type-wrap-safe">{selectedRole}</span>
               </Badge>
             )}
@@ -82,23 +82,28 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label className="text-xs font-medium text-foreground">AI persona</Label>
-                <Select value={config.role} onValueChange={(value) => onUpdate({ role: value })}>
-                  <SelectTrigger className="bg-background" aria-label="Select role">
-                    <SelectValue placeholder="Select a role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {roles.map((role) => (
-                      <SelectItem key={role} value={role}>
-                        {role}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
+                <Select
+                  selectedKey={config.role || undefined}
+                  onSelectionChange={(value) => {
+                    if (value !== null) {
+                      onUpdate({ role: String(value) });
+                    }
+                  }}
+                  placeholder="Select a role"
+                  aria-label="Select role"
+                  className="bg-background"
+                >
+                  {roles.map((role) => (
+                    <Select.Item key={role} id={role}>
+                      {role}
+                    </Select.Item>
+                  ))}
                 </Select>
                 <Input
                   value={config.customRole}
-                  onChange={(e) => onUpdate({ customRole: e.target.value })}
+                  onChange={(value) => onUpdate({ customRole: value })}
                   placeholder="Or use a custom role"
-                  className="bg-background"
+                  wrapperClassName="bg-background"
                   aria-label="Custom role"
                 />
               </div>
@@ -111,7 +116,7 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
                       key={tone}
                       type="button"
                       size="sm"
-                      variant={config.tone === tone ? "default" : "outline"}
+                      color={config.tone === tone ? "primary" : "secondary"}
                       className="h-11 px-2 text-xs sm:h-9"
                       onClick={() => onUpdate({ tone })}
                       aria-pressed={config.tone === tone}
@@ -131,7 +136,7 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
                     key={format}
                     type="button"
                     size="sm"
-                    variant={config.format.includes(format) ? "default" : "outline"}
+                    color={config.format.includes(format) ? "primary" : "secondary"}
                     className="h-11 px-2 text-xs sm:h-9"
                     onClick={() => toggleFormat(format)}
                     aria-pressed={config.format.includes(format)}
@@ -142,9 +147,9 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
               </div>
               <Input
                 value={config.customFormat}
-                onChange={(e) => onUpdate({ customFormat: e.target.value })}
+                onChange={(value) => onUpdate({ customFormat: value })}
                 placeholder="Custom format"
-                className="bg-background"
+                wrapperClassName="bg-background"
                 aria-label="Custom format"
               />
             </div>
@@ -152,19 +157,20 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
             <div className="space-y-2">
               <Label className="text-xs font-medium text-foreground">Length</Label>
               <Select
-                value={config.lengthPreference}
-                onValueChange={(value) => onUpdate({ lengthPreference: value })}
+                selectedKey={config.lengthPreference || undefined}
+                onSelectionChange={(value) => {
+                  if (value !== null) {
+                    onUpdate({ lengthPreference: String(value) });
+                  }
+                }}
+                aria-label="Length preference"
+                className="bg-background"
               >
-                <SelectTrigger className="bg-background" aria-label="Length preference">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {lengthOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
+                {lengthOptions.map((option) => (
+                  <Select.Item key={option.value} id={option.value}>
+                    {option.label}
+                  </Select.Item>
+                ))}
               </Select>
             </div>
 
@@ -189,9 +195,9 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
               </div>
               <Input
                 value={config.customConstraint}
-                onChange={(e) => onUpdate({ customConstraint: e.target.value })}
+                onChange={(value) => onUpdate({ customConstraint: value })}
                 placeholder="Custom constraint"
-                className="bg-background"
+                wrapperClassName="bg-background"
                 aria-label="Custom constraint"
               />
             </div>

@@ -5,8 +5,8 @@ import { PanelLeft } from "lucide-react";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/base/primitives/button";
-import { Input } from "@/components/base/primitives/input";
+import { Button } from "@/components/base/buttons/button";
+import { Input } from "@/components/base/input/input";
 import { Separator } from "@/components/base/primitives/separator";
 import { Sheet, SheetContent } from "@/components/base/primitives/sheet";
 import { Skeleton } from "@/components/base/primitives/skeleton";

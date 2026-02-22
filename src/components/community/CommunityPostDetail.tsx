@@ -16,8 +16,8 @@ import {
 import { Link } from "react-router-dom";
 import type { CommunityPost, CommunityProfile, VoteState, VoteType } from "@/lib/community";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitives/avatar";
-import { Badge } from "@/components/base/primitives/badge";
-import { Button } from "@/components/base/primitives/button";
+import { Badge } from "@/components/base/badges/badges";
+import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/primitives/card";
 import {
   DropdownMenu,
@@ -27,10 +27,11 @@ import {
 } from "@/components/base/primitives/dropdown-menu";
 import { PromptPreviewPanel } from "@/components/community/PromptPreviewPanel";
 import { CommunityComments } from "@/components/community/CommunityComments";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/base/primitives/drawer";
+import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/base/primitives/drawer";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { communityFeatureFlags } from "@/lib/feature-flags";
 import { UI_STATUS_ROW_CLASSES, UI_STATUS_SURFACE_CLASSES } from "@/lib/ui-status";
+import { cn } from "@/lib/utils";
 
 interface CommunityPostDetailProps {
   post: CommunityPost;
@@ -173,6 +174,8 @@ export function CommunityPostDetail({
   const promptBody = (post.enhancedPrompt || post.starterPrompt || "").trim();
   const ratingAverage = post.ratingAverage ?? 0;
   const ratingCount = post.ratingCount ?? 0;
+  const ratingSummaryAriaLabel = `Average rating ${ratingAverage.toFixed(1)} from ${ratingCount} rating${ratingCount === 1 ? "" : "s"}`;
+  const commentsDescriptionId = `community-comments-description-${post.id}`;
 
   return (
     <div className="space-y-4">
@@ -311,27 +314,27 @@ export function CommunityPostDetail({
             {(remixDiff.added_tags.length > 0 ||
               remixDiff.removed_tags.length > 0 ||
               remixDiff.category_changed) && (
-              <div className="grid gap-2 sm:grid-cols-2">
-                {remixDiff.added_tags.length > 0 && (
-                  <div className={`type-meta rounded-md px-3 py-2 ${UI_STATUS_SURFACE_CLASSES.success}`}>
-                    <span className="font-semibold">Added tags</span>
-                    <p className="type-code mt-1 font-mono">{remixDiff.added_tags.join(", ")}</p>
-                  </div>
-                )}
-                {remixDiff.removed_tags.length > 0 && (
-                  <div className={`type-meta rounded-md px-3 py-2 ${UI_STATUS_SURFACE_CLASSES.danger}`}>
-                    <span className="font-semibold">Removed tags</span>
-                    <p className="type-code mt-1 font-mono">{remixDiff.removed_tags.join(", ")}</p>
-                  </div>
-                )}
-                {remixDiff.category_changed && (
-                  <div className="type-meta rounded-md border border-border/70 bg-background/60 px-3 py-2 text-muted-foreground sm:col-span-2">
-                    <span className="font-semibold text-foreground">Category changed</span>
-                    <p className="type-wrap-safe mt-1">This remix is published under a different category than the parent prompt.</p>
-                  </div>
-                )}
-              </div>
-            )}
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {remixDiff.added_tags.length > 0 && (
+                    <div className={`type-meta rounded-md px-3 py-2 ${UI_STATUS_SURFACE_CLASSES.success}`}>
+                      <span className="font-semibold">Added tags</span>
+                      <p className="type-code mt-1 font-mono">{remixDiff.added_tags.join(", ")}</p>
+                    </div>
+                  )}
+                  {remixDiff.removed_tags.length > 0 && (
+                    <div className={`type-meta rounded-md px-3 py-2 ${UI_STATUS_SURFACE_CLASSES.danger}`}>
+                      <span className="font-semibold">Removed tags</span>
+                      <p className="type-code mt-1 font-mono">{remixDiff.removed_tags.join(", ")}</p>
+                    </div>
+                  )}
+                  {remixDiff.category_changed && (
+                    <div className="type-meta rounded-md border border-border/70 bg-background/60 px-3 py-2 text-muted-foreground sm:col-span-2">
+                      <span className="font-semibold text-foreground">Category changed</span>
+                      <p className="type-wrap-safe mt-1">This remix is published under a different category than the parent prompt.</p>
+                    </div>
+                  )}
+                </div>
+              )}
           </div>
         )}
 
@@ -384,6 +387,7 @@ export function CommunityPostDetail({
               size="sm"
               variant="default"
               className="type-button-label h-11 gap-1.5 px-3 sm:h-9 sm:px-2.5"
+              aria-label={`Comments ${post.commentCount}`}
               onClick={() => {
                 setCommentsOpen(true);
                 onCommentThreadOpen?.(post.id);
@@ -392,7 +396,11 @@ export function CommunityPostDetail({
             >
               <MessageCircle className="h-3.5 w-3.5" />
               Comments
-              <Badge variant="secondary" className="type-reply-label type-numeric ml-0.5 h-4 min-w-4 px-1 leading-none">
+              <Badge
+                variant="secondary"
+                className="type-reply-label type-numeric ml-0.5 h-4 min-w-4 px-1 leading-none"
+                aria-hidden="true"
+              >
                 {post.commentCount}
               </Badge>
             </Button>
@@ -402,12 +410,21 @@ export function CommunityPostDetail({
               {post.commentCount}
             </span>
           )}
-          <span className="type-numeric inline-flex items-center gap-1">
-            <Star className="h-3.5 w-3.5" />
-            {ratingAverage.toFixed(1)} ({ratingCount})
+          <span
+            aria-label={ratingSummaryAriaLabel}
+            className="type-numeric inline-flex items-center gap-1.5 rounded-full border border-border/65 bg-background/65 px-2 py-1"
+          >
+            <Star
+              className={cn(
+                "h-3.5 w-3.5",
+                ratingCount > 0 ? "fill-primary text-primary" : "text-muted-foreground",
+              )}
+            />
+            {ratingAverage.toFixed(1)}
+            <span className="text-muted-foreground/80">({ratingCount})</span>
           </span>
           {canRate && onRatePrompt && (
-            <div className="inline-flex items-center gap-0.5">
+            <div className="inline-flex items-center gap-0.5 rounded-full border border-border/65 bg-background/65 p-0.5">
               {[1, 2, 3, 4, 5].map((value) => {
                 const isActive = (ratingValue ?? 0) >= value;
                 return (
@@ -416,12 +433,15 @@ export function CommunityPostDetail({
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8"
+                    className="h-7 w-7 rounded-full p-0 sm:h-7 sm:w-7"
                     aria-label={`Rate ${value} star${value === 1 ? "" : "s"}`}
                     onClick={() => onRatePrompt(post.id, ratingValue === value ? null : value)}
                   >
                     <Star
-                      className={isActive ? "h-4 w-4 fill-primary text-primary" : "h-4 w-4 text-muted-foreground"}
+                      className={cn(
+                        "h-4 w-4 transition-colors",
+                        isActive ? "fill-primary text-primary" : "text-muted-foreground",
+                      )}
                     />
                   </Button>
                 );
@@ -448,11 +468,14 @@ export function CommunityPostDetail({
         <Drawer open={commentsOpen} onOpenChange={setCommentsOpen}>
           <DrawerContent
             className="max-h-[86vh] gap-0 border-border/80 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
-            aria-describedby={undefined}
+            aria-describedby={commentsDescriptionId}
             data-testid="community-comments-sheet"
           >
             <DrawerHeader className="border-b border-border/60 px-4 pb-2 pt-2.5">
               <DrawerTitle className="type-post-title">Comments</DrawerTitle>
+              <DrawerDescription id={commentsDescriptionId} className="sr-only">
+                Read and add comments for this prompt.
+              </DrawerDescription>
             </DrawerHeader>
             <div className="px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-4">
               <CommunityComments

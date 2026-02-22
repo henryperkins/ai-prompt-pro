@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useId, useState, type FormEvent } from "react";
 import { Bell, Loader2, LogIn, LogOut, Menu, Moon, Shield, Sun, Trash2, User } from "lucide-react";
-import { Button } from "@/components/base/primitives/button";
+import { Button } from "@/components/base/buttons/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitives/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/base/primitives/dialog";
 import {
@@ -23,10 +23,10 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/base/primitives/dropdown-menu";
-import { Input } from "@/components/base/primitives/input";
+import { Input } from "@/components/base/input/input";
 import { Label } from "@/components/base/primitives/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/base/primitives/popover";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/base/primitives/drawer";
+import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/base/primitives/drawer";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -68,6 +68,7 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [deleteAccountConfirmText, setDeleteAccountConfirmText] = useState("");
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const mobileNotificationsDescriptionId = useId();
   const mobileNotificationsEnabled = communityFeatureFlags.communityMobileEnhancements;
   const canDeleteAccount = deleteAccountConfirmText.trim().toUpperCase() === "DELETE";
 
@@ -522,11 +523,14 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
         >
           <DrawerContent
             className="max-h-[82vh] pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:hidden"
-            aria-describedby={undefined}
+            aria-describedby={mobileNotificationsDescriptionId}
             data-testid="mobile-notifications-sheet"
           >
             <DrawerHeader className="pb-1">
               <DrawerTitle className="text-base">Notifications</DrawerTitle>
+              <DrawerDescription id={mobileNotificationsDescriptionId} className="sr-only">
+                Community activity updates including comments, upvotes, verifications, and remixes.
+              </DrawerDescription>
             </DrawerHeader>
             <div className="px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
               <NotificationPanel

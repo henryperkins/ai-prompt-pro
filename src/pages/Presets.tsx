@@ -2,10 +2,10 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Search } from "lucide-react";
 import { PageHero, PageShell } from "@/components/PageShell";
-import { Badge } from "@/components/base/primitives/badge";
-import { Button } from "@/components/base/primitives/button";
+import { Badge } from "@/components/base/badges/badges";
+import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/primitives/card";
-import { Input } from "@/components/base/primitives/input";
+import { Input } from "@/components/base/input/input";
 import {
   templates,
   categoryLabels,

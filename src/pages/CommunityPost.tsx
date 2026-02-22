@@ -4,7 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import { CommunityPostDetail } from "@/components/community/CommunityPostDetail";
 import { CommunityReportDialog } from "@/components/community/CommunityReportDialog";
 import { PageShell } from "@/components/PageShell";
-import { Button } from "@/components/base/primitives/button";
+import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/primitives/card";
 import { Skeleton } from "@/components/base/primitives/skeleton";
 import { StateCard } from "@/components/base/primitives/state-card";

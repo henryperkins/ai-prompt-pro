@@ -3,8 +3,8 @@ import { formatDistanceToNow } from "date-fns";
 import { ArrowUp, CheckCircle2, Database, Flag, GitBranch, MessageCircle, MoreHorizontal, Star, UserCheck, UserX } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { CommunityPost, VoteState, VoteType } from "@/lib/community";
-import { Badge } from "@/components/base/primitives/badge";
-import { Button } from "@/components/base/primitives/button";
+import { Badge } from "@/components/base/badges/badges";
+import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/primitives/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitives/avatar";
 import {
@@ -15,7 +15,7 @@ import {
 } from "@/components/base/primitives/dropdown-menu";
 import { PromptPreviewPanel } from "@/components/community/PromptPreviewPanel";
 import { CommunityComments } from "@/components/community/CommunityComments";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/base/primitives/drawer";
+import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/base/primitives/drawer";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { communityFeatureFlags } from "@/lib/feature-flags";
 import { cn } from "@/lib/utils";
@@ -102,6 +102,7 @@ function CommunityPostCardComponent({
   const tokenEstimate = useMemo(() => estimateTokens(promptBody), [promptBody]);
   const ratingAverage = post.ratingAverage ?? 0;
   const ratingCount = post.ratingCount ?? 0;
+  const ratingSummaryAriaLabel = `Average rating ${ratingAverage.toFixed(1)} from ${ratingCount} rating${ratingCount === 1 ? "" : "s"}`;
   const visibleTags = useMemo(() => {
     const mobileMax = 2;
     const desktopMax = isFeatured ? 6 : 4;
@@ -109,6 +110,7 @@ function CommunityPostCardComponent({
   }, [isFeatured, isMobile, post.tags]);
   const postPath = `/community/${post.id}`;
   const commentsLabel = useMobileCommentsDrawer ? "Comments" : commentsOpen ? "Hide comments" : "Comments";
+  const commentsDescriptionId = `community-comments-description-${post.id}`;
 
   return (
     <Card
@@ -286,6 +288,7 @@ function CommunityPostCardComponent({
             variant="ghost"
             size="sm"
             className="type-button-label interactive-chip h-11 gap-1.5 px-3 sm:h-9 sm:px-2.5"
+            aria-label={post.commentCount > 0 ? `${commentsLabel} ${post.commentCount}` : commentsLabel}
             onClick={() => {
               if (useMobileCommentsDrawer) {
                 setCommentsOpen(true);
@@ -302,6 +305,7 @@ function CommunityPostCardComponent({
               <Badge
                 variant="secondary"
                 className="type-reply-label type-numeric ml-0.5 h-4 min-w-4 px-1 leading-none"
+                aria-hidden="true"
               >
                 {post.commentCount}
               </Badge>
@@ -310,13 +314,21 @@ function CommunityPostCardComponent({
         </div>
 
         <div className="type-meta flex flex-wrap items-center gap-2 text-muted-foreground">
-          <span className="inline-flex items-center gap-1">
-            <Star className="h-3.5 w-3.5" />
+          <span
+            aria-label={ratingSummaryAriaLabel}
+            className="inline-flex items-center gap-1.5 rounded-full border border-border/65 bg-background/65 px-2 py-1"
+          >
+            <Star
+              className={cn(
+                "h-3.5 w-3.5",
+                ratingCount > 0 ? "fill-primary text-primary" : "text-muted-foreground",
+              )}
+            />
             <span className="type-numeric">{ratingAverage.toFixed(1)}</span>
-            <span>({ratingCount})</span>
+            <span className="type-numeric text-muted-foreground/80">({ratingCount})</span>
           </span>
           {canRate && onRatePrompt && (
-            <div className="inline-flex items-center gap-0.5">
+            <div className="inline-flex items-center gap-0.5 rounded-full border border-border/65 bg-background/65 p-0.5">
               {[1, 2, 3, 4, 5].map((value) => {
                 const isActive = (ratingValue ?? 0) >= value;
                 return (
@@ -325,13 +337,13 @@ function CommunityPostCardComponent({
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8"
+                    className="h-7 w-7 rounded-full p-0 sm:h-7 sm:w-7"
                     aria-label={`Rate ${value} star${value === 1 ? "" : "s"}`}
                     onClick={() => onRatePrompt(post.id, ratingValue === value ? null : value)}
                   >
                     <Star
                       className={cn(
-                        "h-4 w-4",
+                        "h-4 w-4 transition-colors",
                         isActive ? "fill-primary text-primary" : "text-muted-foreground",
                       )}
                     />
@@ -359,11 +371,14 @@ function CommunityPostCardComponent({
           <Drawer open={commentsOpen} onOpenChange={setCommentsOpen}>
             <DrawerContent
               className="max-h-[84vh] gap-0 border-border/80 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
-              aria-describedby={undefined}
+              aria-describedby={commentsDescriptionId}
               data-testid="community-comments-sheet"
             >
               <DrawerHeader className="border-b border-border/60 px-4 pb-2 pt-2.5">
                 <DrawerTitle className="type-post-title">Comments</DrawerTitle>
+                <DrawerDescription id={commentsDescriptionId} className="sr-only">
+                  Read and add comments for this prompt.
+                </DrawerDescription>
               </DrawerHeader>
               <div className="px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-4">
                 <CommunityComments

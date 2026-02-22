@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Badge } from "@/components/base/primitives/badge";
-import { Button } from "@/components/base/primitives/button";
-import { Input } from "@/components/base/primitives/input";
+import { Badge } from "@/components/base/badges/badges";
+import { Button } from "@/components/base/buttons/button";
+import { Input } from "@/components/base/input/input";
 import { Label } from "@/components/base/primitives/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/base/primitives/select";
+import { Select } from "@/components/base/select/select";
 import { Switch } from "@/components/base/primitives/switch";
 import type { DatabaseConnection, RagParameters } from "@/lib/context-types";
 import { Database, Plus, X } from "lucide-react";
@@ -84,7 +84,7 @@ export function ContextIntegrations({
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <Label className="text-sm font-medium text-foreground sm:text-base">Database connections</Label>
-          <Badge variant="secondary" className="text-xs">
+          <Badge type="modern" className="text-xs">
             {databaseConnections.length}
           </Badge>
         </div>
@@ -92,50 +92,49 @@ export function ContextIntegrations({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <Input
             value={draft.label}
-            onChange={(e) => setDraft((prev) => ({ ...prev, label: e.target.value }))}
+            onChange={(value) => setDraft((prev) => ({ ...prev, label: value }))}
             placeholder="Label (optional)"
-            className="h-11 sm:h-10"
+            wrapperClassName="h-11 sm:h-10"
           />
           <Select
-            value={draft.provider}
-            onValueChange={(provider: DatabaseConnection["provider"]) =>
-              setDraft((prev) => ({ ...prev, provider }))
-            }
+            selectedKey={draft.provider}
+            onSelectionChange={(provider) => {
+              if (provider !== null) {
+                setDraft((prev) => ({ ...prev, provider: String(provider) as DatabaseConnection["provider"] }));
+              }
+            }}
+            className="capitalize"
+            size="md"
           >
-            <SelectTrigger className="h-11 bg-background sm:h-10">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PROVIDER_OPTIONS.map((provider) => (
-                <SelectItem key={provider} value={provider} className="capitalize">
-                  {provider}
-                </SelectItem>
-              ))}
-            </SelectContent>
+            {PROVIDER_OPTIONS.map((provider) => (
+              <Select.Item key={provider} id={provider} className="capitalize">
+                {provider}
+              </Select.Item>
+            ))}
           </Select>
           <Input
             value={draft.connectionRef}
-            onChange={(e) => setDraft((prev) => ({ ...prev, connectionRef: e.target.value }))}
+            onChange={(value) => setDraft((prev) => ({ ...prev, connectionRef: value }))}
             placeholder="Connection ID (secret)"
-            className="h-11 sm:h-10"
+            wrapperClassName="h-11 sm:h-10"
           />
           <Input
             value={draft.database}
-            onChange={(e) => setDraft((prev) => ({ ...prev, database: e.target.value }))}
+            onChange={(value) => setDraft((prev) => ({ ...prev, database: value }))}
             placeholder="Database name"
-            className="h-11 sm:h-10"
+            wrapperClassName="h-11 sm:h-10"
           />
           <Input
             value={draft.schema}
-            onChange={(e) => setDraft((prev) => ({ ...prev, schema: e.target.value }))}
+            onChange={(value) => setDraft((prev) => ({ ...prev, schema: value }))}
             placeholder="Schema (optional)"
-            className="h-11 sm:h-10"
+            wrapperClassName="h-11 sm:h-10"
           />
           <Input
             value={draft.tables}
-            onChange={(e) => setDraft((prev) => ({ ...prev, tables: e.target.value }))}
+            onChange={(value) => setDraft((prev) => ({ ...prev, tables: value }))}
             placeholder="Tables (comma-separated, optional)"
-            className="h-11 sm:h-10"
+            wrapperClassName="h-11 sm:h-10"
           />
         </div>
 
@@ -156,7 +155,7 @@ export function ContextIntegrations({
         {databaseConnections.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {databaseConnections.map((db) => (
-              <Badge key={db.id} variant="secondary" className="gap-1.5 text-xs">
+              <Badge key={db.id} type="modern" className="gap-1.5 text-xs">
                 <Database className="w-3 h-3" />
                 {db.label}
                 <button
@@ -184,75 +183,67 @@ export function ContextIntegrations({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <Input
             value={rag.vectorStoreRef}
-            onChange={(e) => onUpdateRag({ vectorStoreRef: e.target.value })}
+            onChange={(value) => onUpdateRag({ vectorStoreRef: value })}
             placeholder="Vector store ID"
-            className="h-11 sm:h-10"
-            disabled={!rag.enabled}
+            wrapperClassName="h-11 sm:h-10"
+            isDisabled={!rag.enabled}
           />
           <Input
             value={rag.namespace}
-            onChange={(e) => onUpdateRag({ namespace: e.target.value })}
+            onChange={(value) => onUpdateRag({ namespace: value })}
             placeholder="Namespace"
-            className="h-11 sm:h-10"
-            disabled={!rag.enabled}
+            wrapperClassName="h-11 sm:h-10"
+            isDisabled={!rag.enabled}
           />
           <Select
-            value={rag.retrievalStrategy}
-            onValueChange={(retrievalStrategy: RagParameters["retrievalStrategy"]) =>
-              onUpdateRag({ retrievalStrategy })
-            }
-            disabled={!rag.enabled}
+            selectedKey={rag.retrievalStrategy}
+            onSelectionChange={(retrievalStrategy) => {
+              if (retrievalStrategy !== null) {
+                onUpdateRag({ retrievalStrategy: String(retrievalStrategy) as RagParameters["retrievalStrategy"] });
+              }
+            }}
+            isDisabled={!rag.enabled}
+            size="md"
           >
-            <SelectTrigger className="h-11 bg-background sm:h-10">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="hybrid">
-                Hybrid
-              </SelectItem>
-              <SelectItem value="semantic">
-                Semantic
-              </SelectItem>
-              <SelectItem value="keyword">
-                Keyword
-              </SelectItem>
-            </SelectContent>
+            <Select.Item id="hybrid">Hybrid</Select.Item>
+            <Select.Item id="semantic">Semantic</Select.Item>
+            <Select.Item id="keyword">Keyword</Select.Item>
           </Select>
           <Input
             value={String(rag.topK)}
-            onChange={(e) => onUpdateRag({ topK: Number(e.target.value) || 0 })}
+            onChange={(value) => onUpdateRag({ topK: Number(value) || 0 })}
             placeholder="Top results (topK)"
-            className="h-11 sm:h-10"
-            disabled={!rag.enabled}
+            wrapperClassName="h-11 sm:h-10"
+            isDisabled={!rag.enabled}
           />
           <Input
             value={String(rag.minScore)}
-            onChange={(e) => onUpdateRag({ minScore: Number(e.target.value) || 0 })}
+            onChange={(value) => onUpdateRag({ minScore: Number(value) || 0 })}
             placeholder="Minimum score (0-1)"
-            className="h-11 sm:h-10"
-            disabled={!rag.enabled}
+            wrapperClassName="h-11 sm:h-10"
+            isDisabled={!rag.enabled}
           />
           <Input
             value={String(rag.chunkWindow)}
-            onChange={(e) => onUpdateRag({ chunkWindow: Number(e.target.value) || 0 })}
+            onChange={(value) => onUpdateRag({ chunkWindow: Number(value) || 0 })}
             placeholder="Context window (chunks)"
-            className="h-11 sm:h-10"
-            disabled={!rag.enabled}
+            wrapperClassName="h-11 sm:h-10"
+            isDisabled={!rag.enabled}
           />
         </div>
         <Input
           value={rag.documentRefs.join(", ")}
-          onChange={(e) =>
+          onChange={(value) =>
             onUpdateRag({
-              documentRefs: e.target.value
+              documentRefs: value
                 .split(",")
                 .map((ref) => ref.trim())
                 .filter(Boolean),
             })
           }
           placeholder="Document IDs (comma-separated)"
-          className="h-11 sm:h-10"
-          disabled={!rag.enabled}
+          wrapperClassName="h-11 sm:h-10"
+          isDisabled={!rag.enabled}
         />
       </div>
     </div>

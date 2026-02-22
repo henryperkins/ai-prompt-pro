@@ -107,7 +107,7 @@ describe("OutputPanel phase 2 save flow", () => {
     expect(screen.getByLabelText("Prompt title")).toHaveClass("text-base");
     expect(screen.getByLabelText("Description")).toHaveClass("text-base");
     expect(screen.getByLabelText("Tags")).toHaveClass("text-base");
-    expect(screen.getByRole("combobox", { name: "Category" })).toHaveClass("text-base");
+    expect(screen.getByRole("button", { name: /category/i })).toHaveClass("text-base");
 
     fireEvent.click(screen.getByRole("switch", { name: "Share to community" }));
 

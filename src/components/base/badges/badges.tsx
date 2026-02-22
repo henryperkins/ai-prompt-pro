@@ -1,9 +1,27 @@
-import type { MouseEventHandler, ReactNode } from "react";
+import type { HTMLAttributes, MouseEventHandler, ReactNode } from "react";
+import { cva, type VariantProps } from "class-variance-authority";
 import { X as CloseX } from "@untitledui/icons";
 import { Dot } from "@/components/foundations/dot-icon";
 import { cx } from "@/lib/utils/cx";
 import type { BadgeColors, BadgeTypeToColorMap, BadgeTypes, FlagTypes, IconComponentType, Sizes } from "./badge-types";
 import { badgeTypes } from "./badge-types";
+
+export const badgeVariants = cva(
+    "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition duration-100 ease-linear focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+    {
+        variants: {
+            variant: {
+                default: "border-primary/30 bg-primary/10 text-primary",
+                secondary: "border-secondary bg-secondary text-secondary-foreground shadow-xs",
+                destructive: "border-destructive/35 bg-destructive/10 text-destructive",
+                outline: "border-border bg-background text-foreground",
+            },
+        },
+        defaultVariants: {
+            variant: "default",
+        },
+    },
+);
 
 export const filledColors: Record<BadgeColors, { root: string; addon: string; addonButton: string }> = {
     gray: {
@@ -110,17 +128,27 @@ const withBadgeTypes = {
 };
 
 export type BadgeColor<T extends BadgeTypes> = BadgeTypeToColorMap<typeof withPillTypes>[T];
+type LegacyBadgeVariant = NonNullable<VariantProps<typeof badgeVariants>["variant"]>;
 
-interface BadgeProps<T extends BadgeTypes> {
+interface BadgeProps<T extends BadgeTypes> extends HTMLAttributes<HTMLSpanElement> {
     type?: T;
     size?: Sizes;
     color?: BadgeColor<T>;
     children: ReactNode;
-    className?: string;
+    variant?: LegacyBadgeVariant;
 }
 
 export const Badge = <T extends BadgeTypes>(props: BadgeProps<T>) => {
-    const { type = "pill-color", size = "md", color = "gray", children } = props;
+    const { type = "pill-color", size = "md", color = "gray", children, variant, className, ...rest } = props;
+
+    if (variant) {
+        return (
+            <span className={cx(badgeVariants({ variant }), className)} {...rest}>
+                {children}
+            </span>
+        );
+    }
+
     const colors = withPillTypes[type];
 
     const pillSizes = {
@@ -140,7 +168,11 @@ export const Badge = <T extends BadgeTypes>(props: BadgeProps<T>) => {
         [badgeTypes.badgeModern]: badgeSizes,
     };
 
-    return <span className={cx(colors.common, sizes[type][size], colors.styles[color].root, props.className)}>{children}</span>;
+    return (
+        <span className={cx(colors.common, sizes[type][size], colors.styles[color].root, className)} {...rest}>
+            {children}
+        </span>
+    );
 };
 
 interface BadgeWithDotProps<T extends BadgeTypes> {

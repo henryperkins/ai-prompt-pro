@@ -1,4 +1,4 @@
-import { Button } from "@/components/base/primitives/button";
+import { Button } from "@/components/base/buttons/button";
 import { toneOptions, complexityOptions } from "@/lib/prompt-builder";
 
 interface ToneControlsProps {

@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @config "../../tailwind.config.ts";
 @import "./typography.css";
+@import "./untitled-compat.css";
 @import "../index.css";
 
 /* Explicit source registration keeps class detection stable for non-standard paths. */

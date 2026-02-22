@@ -1,8 +1,8 @@
 import { useState, useCallback } from "react";
-import { Button } from "@/components/base/primitives/button";
-import { Input } from "@/components/base/primitives/input";
+import { Button } from "@/components/base/buttons/button";
+import { Input } from "@/components/base/input/input";
 import { Textarea } from "@/components/base/primitives/textarea";
-import { Badge } from "@/components/base/primitives/badge";
+import { Badge } from "@/components/base/badges/badges";
 import {
   Dialog,
   DialogContent,

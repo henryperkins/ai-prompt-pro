@@ -4,7 +4,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/base/primitives/sheet";
-import { Button } from "@/components/base/primitives/button";
+import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/primitives/card";
 import { RotateCcw } from "lucide-react";
 import { StateCard } from "@/components/base/primitives/state-card";

@@ -2,7 +2,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ArrowUp, Bell, CheckCircle2, GitBranch, MessageCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitives/avatar";
-import { Button } from "@/components/base/primitives/button";
+import { Button } from "@/components/base/buttons/button";
 import { ScrollArea } from "@/components/base/primitives/scroll-area";
 import { Skeleton } from "@/components/base/primitives/skeleton";
 import type { Notification } from "@/lib/notifications";
@@ -94,7 +94,7 @@ export function NotificationPanel({
       )}
 
       {!loading && notifications.length === 0 && (
-        <div className="px-3 py-8 text-center text-xs text-muted-foreground">
+        <div className="px-3 py-8 text-center text-sm text-muted-foreground">
           No notifications yet.
         </div>
       )}
@@ -121,12 +121,12 @@ export function NotificationPanel({
                     </span>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs text-foreground">
+                    <p className="text-sm leading-5 text-foreground">
                       <span className="font-medium">{notification.actorDisplayName}</span>{" "}
                       {getTypeLabel(notification.type)}
                     </p>
-                    <p className="type-wrap-safe line-clamp-2 text-xs text-muted-foreground">{notification.postTitle}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{createdAgo}</p>
+                    <p className="type-wrap-safe line-clamp-2 text-sm text-muted-foreground">{notification.postTitle}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{createdAgo}</p>
                   </div>
                 </div>
               );

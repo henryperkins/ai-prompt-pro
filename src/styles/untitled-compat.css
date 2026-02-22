@@ -1,0 +1,255 @@
+/*
+ * Transitional compatibility layer for Untitled UI utility class tokens.
+ * Keep this file narrow and delete aliases as call sites migrate to semantic tokens.
+ */
+
+@theme {
+  /* Legacy text size token used by Untitled components. */
+  --text-md: var(--type-base-size);
+  --text-md--line-height: var(--type-base-line);
+
+  /* Legacy semantic color aliases mapped to the active semantic token set. */
+  --color-brand: hsl(var(--primary));
+  --color-brand-solid: hsl(var(--primary));
+  --color-brand-solid_hover: color-mix(in srgb, hsl(var(--primary)) 88%, black);
+  --color-brand-primary: hsl(var(--primary));
+  --color-brand-primary_alt: hsl(var(--primary));
+  --color-brand-secondary: hsl(var(--primary));
+  --color-brand-secondary_hover: color-mix(in srgb, hsl(var(--primary)) 88%, black);
+  --color-brand-tertiary: hsl(var(--accent-foreground));
+  --color-primary-solid: hsl(var(--primary));
+  --color-primary_hover: color-mix(in srgb, hsl(var(--primary)) 90%, black);
+  --color-secondary_hover: color-mix(in srgb, hsl(var(--secondary)) 85%, black);
+  --color-tertiary: hsl(var(--muted));
+  --color-quaternary: hsl(var(--muted));
+  --color-disabled: hsl(var(--muted));
+  --color-disabled_subtle: hsl(var(--muted));
+  --color-error: hsl(var(--destructive));
+  --color-error-primary: hsl(var(--destructive));
+  --color-error-primary_hover: color-mix(in srgb, hsl(var(--destructive)) 88%, black);
+  --color-error-solid: hsl(var(--destructive));
+  --color-error-solid_hover: color-mix(in srgb, hsl(var(--destructive)) 88%, black);
+  --color-error_subtle: color-mix(in srgb, hsl(var(--destructive)) 24%, hsl(var(--background)));
+  --color-focus-ring: hsl(var(--ring));
+  --color-bg-brand-solid: var(--color-brand-solid);
+  --color-border-brand: hsl(var(--primary));
+  --color-border-primary: hsl(var(--border));
+  --color-border-disabled: hsl(var(--border));
+  --color-border-error_subtle: var(--color-error_subtle);
+  --color-fg-brand-primary: hsl(var(--primary));
+  --color-fg-brand-secondary_alt: hsl(var(--primary));
+  --color-fg-brand-secondary_hover: color-mix(in srgb, hsl(var(--primary)) 88%, black);
+  --color-fg-disabled: hsl(var(--muted-foreground));
+  --color-fg-disabled_subtle: color-mix(in srgb, hsl(var(--muted-foreground)) 70%, hsl(var(--muted)));
+  --color-fg-error-primary: hsl(var(--destructive));
+  --color-fg-error-secondary: color-mix(in srgb, hsl(var(--destructive)) 70%, hsl(var(--muted-foreground)));
+  --color-fg-quaternary: hsl(var(--muted-foreground));
+  --color-fg-quaternary_hover: hsl(var(--foreground));
+  --color-fg-success-secondary: rgb(23 178 106);
+  --color-fg-white: hsl(var(--primary-foreground));
+  --color-placeholder: hsl(var(--muted-foreground));
+  --color-text-placeholder_subtle: color-mix(in srgb, hsl(var(--muted-foreground)) 70%, hsl(var(--background)));
+  --color-text-secondary_hover: hsl(var(--foreground));
+  --color-text-tertiary: hsl(var(--muted-foreground));
+  --color-text-tertiary_hover: hsl(var(--foreground));
+  --color-tooltip-supporting-text: hsl(var(--muted-foreground));
+  --color-button-primary-icon: hsl(var(--primary-foreground));
+  --color-button-primary-icon_hover: hsl(var(--primary-foreground));
+  --color-button-destructive-primary-icon: hsl(var(--destructive-foreground));
+  --color-button-destructive-primary-icon_hover: hsl(var(--destructive-foreground));
+  --shadow-xs-skeumorphic: var(--shadow-xs), inset 0 -1px 0 0 hsl(0 0% 0% / 0.08);
+
+  /* Untitled base palette values used by utility-* aliases. */
+  --color-brand-50: rgb(249 245 255);
+  --color-brand-100: rgb(244 235 255);
+  --color-brand-200: rgb(233 215 254);
+  --color-brand-300: rgb(214 187 251);
+  --color-brand-400: rgb(182 146 246);
+  --color-brand-500: rgb(158 119 237);
+  --color-brand-700: rgb(105 65 198);
+
+  --color-error-50: rgb(254 243 242);
+  --color-error-100: rgb(254 228 226);
+  --color-error-200: rgb(254 205 202);
+  --color-error-300: rgb(253 162 155);
+  --color-error-400: rgb(249 112 102);
+  --color-error-500: rgb(240 68 56);
+  --color-error-700: rgb(180 35 24);
+
+  --color-warning-50: rgb(255 250 235);
+  --color-warning-100: rgb(254 240 199);
+  --color-warning-200: rgb(254 223 137);
+  --color-warning-300: rgb(254 200 75);
+  --color-warning-400: rgb(253 176 34);
+  --color-warning-500: rgb(247 144 9);
+  --color-warning-700: rgb(181 71 8);
+
+  --color-success-50: rgb(236 253 243);
+  --color-success-100: rgb(220 250 230);
+  --color-success-200: rgb(171 239 198);
+  --color-success-300: rgb(117 224 167);
+  --color-success-400: rgb(71 205 137);
+  --color-success-500: rgb(23 178 106);
+  --color-success-700: rgb(6 118 71);
+
+  --color-gray-50: rgb(250 250 250);
+  --color-gray-100: rgb(245 245 245);
+  --color-gray-200: rgb(233 234 235);
+  --color-gray-300: rgb(213 215 218);
+  --color-gray-400: rgb(164 167 174);
+  --color-gray-500: rgb(113 118 128);
+  --color-gray-700: rgb(65 70 81);
+
+  --color-gray-blue-50: rgb(248 249 252);
+  --color-gray-blue-100: rgb(234 236 245);
+  --color-gray-blue-200: rgb(213 217 235);
+  --color-gray-blue-300: rgb(179 184 219);
+  --color-gray-blue-400: rgb(113 123 188);
+  --color-gray-blue-500: rgb(78 91 166);
+  --color-gray-blue-700: rgb(54 63 114);
+
+  --color-blue-light-50: rgb(240 249 255);
+  --color-blue-light-100: rgb(224 242 254);
+  --color-blue-light-200: rgb(185 230 254);
+  --color-blue-light-300: rgb(124 212 253);
+  --color-blue-light-400: rgb(54 191 250);
+  --color-blue-light-500: rgb(11 165 236);
+  --color-blue-light-700: rgb(2 106 162);
+
+  --color-blue-50: rgb(239 248 255);
+  --color-blue-100: rgb(209 233 255);
+  --color-blue-200: rgb(178 221 255);
+  --color-blue-300: rgb(132 202 255);
+  --color-blue-400: rgb(83 177 253);
+  --color-blue-500: rgb(46 144 250);
+  --color-blue-700: rgb(23 92 211);
+
+  --color-indigo-50: rgb(238 244 255);
+  --color-indigo-100: rgb(224 234 255);
+  --color-indigo-200: rgb(199 215 254);
+  --color-indigo-300: rgb(164 188 253);
+  --color-indigo-400: rgb(128 152 249);
+  --color-indigo-500: rgb(97 114 243);
+  --color-indigo-700: rgb(53 56 205);
+
+  --color-purple-50: rgb(244 243 255);
+  --color-purple-100: rgb(235 233 254);
+  --color-purple-200: rgb(217 214 254);
+  --color-purple-300: rgb(189 180 254);
+  --color-purple-400: rgb(155 138 251);
+  --color-purple-500: rgb(122 90 248);
+  --color-purple-700: rgb(89 37 220);
+
+  --color-pink-50: rgb(253 242 250);
+  --color-pink-100: rgb(252 231 246);
+  --color-pink-200: rgb(252 206 238);
+  --color-pink-300: rgb(250 167 224);
+  --color-pink-400: rgb(246 112 199);
+  --color-pink-500: rgb(238 70 188);
+  --color-pink-700: rgb(193 21 116);
+
+  --color-orange-50: rgb(254 246 238);
+  --color-orange-100: rgb(253 234 215);
+  --color-orange-200: rgb(249 219 175);
+  --color-orange-300: rgb(247 178 122);
+  --color-orange-400: rgb(243 135 68);
+  --color-orange-500: rgb(239 104 32);
+  --color-orange-700: rgb(185 56 21);
+
+  /* Utility aliases used by Untitled components. */
+  --color-utility-brand-50: var(--color-brand-50);
+  --color-utility-brand-100: var(--color-brand-100);
+  --color-utility-brand-200: var(--color-brand-200);
+  --color-utility-brand-300: var(--color-brand-300);
+  --color-utility-brand-400: var(--color-brand-400);
+  --color-utility-brand-500: var(--color-brand-500);
+  --color-utility-brand-700: var(--color-brand-700);
+
+  --color-utility-error-50: var(--color-error-50);
+  --color-utility-error-100: var(--color-error-100);
+  --color-utility-error-200: var(--color-error-200);
+  --color-utility-error-300: var(--color-error-300);
+  --color-utility-error-400: var(--color-error-400);
+  --color-utility-error-500: var(--color-error-500);
+  --color-utility-error-700: var(--color-error-700);
+
+  --color-utility-warning-50: var(--color-warning-50);
+  --color-utility-warning-100: var(--color-warning-100);
+  --color-utility-warning-200: var(--color-warning-200);
+  --color-utility-warning-300: var(--color-warning-300);
+  --color-utility-warning-400: var(--color-warning-400);
+  --color-utility-warning-500: var(--color-warning-500);
+  --color-utility-warning-700: var(--color-warning-700);
+
+  --color-utility-success-50: var(--color-success-50);
+  --color-utility-success-100: var(--color-success-100);
+  --color-utility-success-200: var(--color-success-200);
+  --color-utility-success-300: var(--color-success-300);
+  --color-utility-success-400: var(--color-success-400);
+  --color-utility-success-500: var(--color-success-500);
+  --color-utility-success-700: var(--color-success-700);
+
+  --color-utility-gray-50: var(--color-gray-50);
+  --color-utility-gray-100: var(--color-gray-100);
+  --color-utility-gray-200: var(--color-gray-200);
+  --color-utility-gray-300: var(--color-gray-300);
+  --color-utility-gray-400: var(--color-gray-400);
+  --color-utility-gray-500: var(--color-gray-500);
+  --color-utility-gray-700: var(--color-gray-700);
+
+  --color-utility-gray-blue-50: var(--color-gray-blue-50);
+  --color-utility-gray-blue-100: var(--color-gray-blue-100);
+  --color-utility-gray-blue-200: var(--color-gray-blue-200);
+  --color-utility-gray-blue-300: var(--color-gray-blue-300);
+  --color-utility-gray-blue-400: var(--color-gray-blue-400);
+  --color-utility-gray-blue-500: var(--color-gray-blue-500);
+  --color-utility-gray-blue-700: var(--color-gray-blue-700);
+
+  --color-utility-blue-light-50: var(--color-blue-light-50);
+  --color-utility-blue-light-100: var(--color-blue-light-100);
+  --color-utility-blue-light-200: var(--color-blue-light-200);
+  --color-utility-blue-light-300: var(--color-blue-light-300);
+  --color-utility-blue-light-400: var(--color-blue-light-400);
+  --color-utility-blue-light-500: var(--color-blue-light-500);
+  --color-utility-blue-light-700: var(--color-blue-light-700);
+
+  --color-utility-blue-50: var(--color-blue-50);
+  --color-utility-blue-100: var(--color-blue-100);
+  --color-utility-blue-200: var(--color-blue-200);
+  --color-utility-blue-300: var(--color-blue-300);
+  --color-utility-blue-400: var(--color-blue-400);
+  --color-utility-blue-500: var(--color-blue-500);
+  --color-utility-blue-700: var(--color-blue-700);
+
+  --color-utility-indigo-50: var(--color-indigo-50);
+  --color-utility-indigo-100: var(--color-indigo-100);
+  --color-utility-indigo-200: var(--color-indigo-200);
+  --color-utility-indigo-300: var(--color-indigo-300);
+  --color-utility-indigo-400: var(--color-indigo-400);
+  --color-utility-indigo-500: var(--color-indigo-500);
+  --color-utility-indigo-700: var(--color-indigo-700);
+
+  --color-utility-purple-50: var(--color-purple-50);
+  --color-utility-purple-100: var(--color-purple-100);
+  --color-utility-purple-200: var(--color-purple-200);
+  --color-utility-purple-300: var(--color-purple-300);
+  --color-utility-purple-400: var(--color-purple-400);
+  --color-utility-purple-500: var(--color-purple-500);
+  --color-utility-purple-700: var(--color-purple-700);
+
+  --color-utility-pink-50: var(--color-pink-50);
+  --color-utility-pink-100: var(--color-pink-100);
+  --color-utility-pink-200: var(--color-pink-200);
+  --color-utility-pink-300: var(--color-pink-300);
+  --color-utility-pink-400: var(--color-pink-400);
+  --color-utility-pink-500: var(--color-pink-500);
+  --color-utility-pink-700: var(--color-pink-700);
+
+  --color-utility-orange-50: var(--color-orange-50);
+  --color-utility-orange-100: var(--color-orange-100);
+  --color-utility-orange-200: var(--color-orange-200);
+  --color-utility-orange-300: var(--color-orange-300);
+  --color-utility-orange-400: var(--color-orange-400);
+  --color-utility-orange-500: var(--color-orange-500);
+  --color-utility-orange-700: var(--color-orange-700);
+}

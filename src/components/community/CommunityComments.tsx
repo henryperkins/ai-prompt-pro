@@ -7,8 +7,8 @@ import type { CommunityComment, CommunityProfile } from "@/lib/community";
 import { addComment, loadComments, loadProfilesByIds } from "@/lib/community";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { Badge } from "@/components/base/primitives/badge";
-import { Button } from "@/components/base/primitives/button";
+import { Badge } from "@/components/base/badges/badges";
+import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/primitives/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitives/avatar";
 import {
@@ -300,9 +300,10 @@ export function CommunityComments({
             </div>
           ) : (
             <div
+              data-testid="community-comments-list"
               className={cn(
                 "space-y-1.5 sm:space-y-2",
-                !compact && "max-h-[42vh] overflow-y-auto pr-1 sm:max-h-none sm:overflow-visible sm:pr-0",
+                !compact && "max-h-[42vh] overflow-y-auto pr-1 sm:max-h-[52vh] sm:pr-1",
               )}
             >
               {visibleCommentItems.map((item) => (
@@ -330,7 +331,7 @@ export function CommunityComments({
           onChange={(event) => setDraft(event.target.value)}
           placeholder={canComment ? "Write a comment..." : "Sign in to comment"}
           disabled={!canComment || submitting}
-          className="type-input type-wrap-safe min-h-[76px] rounded-lg border-border/70 bg-background/95 sm:min-h-[88px]"
+          className="type-input type-wrap-safe min-h-19 rounded-lg border-border/70 bg-background/95 sm:min-h-22"
         />
         <div className="flex justify-end">
           <Button
@@ -340,6 +341,7 @@ export function CommunityComments({
             onClick={handleSubmit}
             disabled={!canComment || submitting || !draft.trim()}
             className="type-button-label h-11 gap-1.5 px-4 sm:h-9 sm:px-3"
+            data-testid="community-comment-submit"
           >
             <Send className="h-3.5 w-3.5" />
             Post comment

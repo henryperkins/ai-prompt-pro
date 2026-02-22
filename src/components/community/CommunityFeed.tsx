@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { CommunityPost, CommunityProfile, VoteState, VoteType } from "@/lib/community";
-import { Button } from "@/components/base/primitives/button";
+import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/primitives/card";
 import { Skeleton } from "@/components/base/primitives/skeleton";
 import { CommunityPostCard } from "@/components/community/CommunityPostCard";

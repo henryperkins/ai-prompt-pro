@@ -74,6 +74,6 @@ describe("PromptLibrary delete confirmation", () => {
     expect(screen.getByPlaceholderText("Tags (comma-separated, optional)")).toHaveClass("text-base");
     expect(screen.getByPlaceholderText("Use case (required)")).toHaveClass("text-base");
     expect(screen.getByPlaceholderText("Target model (optional)")).toHaveClass("text-base");
-    expect(screen.getByRole("combobox")).toHaveClass("text-base");
+    expect(screen.getByRole("button", { name: /category/i })).toHaveClass("text-base");
   });
 });

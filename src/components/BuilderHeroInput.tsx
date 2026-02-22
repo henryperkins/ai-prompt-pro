@@ -1,4 +1,4 @@
-import { Button } from "@/components/base/primitives/button";
+import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/primitives/card";
 import { Textarea } from "@/components/base/primitives/textarea";
 import type { BuilderSuggestionChip } from "@/lib/builder-inference";

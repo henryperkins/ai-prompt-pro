@@ -1,10 +1,9 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/base/primitives/tabs";
-import { Input } from "@/components/base/primitives/input";
+import { Input } from "@/components/base/input/input";
 import { Textarea } from "@/components/base/primitives/textarea";
 import { Checkbox } from "@/components/base/primitives/checkbox";
 import { Label } from "@/components/base/primitives/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/base/primitives/select";
-import { badgeVariants } from "@/components/base/primitives/badge";
+import { Select } from "@/components/base/select/select";
 import { User, Target, Layout, Lightbulb, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toConstraintInputId } from "@/lib/builder-tabs";
@@ -68,23 +67,28 @@ export function BuilderTabs({ config, onUpdate }: BuilderTabsProps) {
 
       <TabsContent value="role" className="space-y-3 mt-4">
         <p className="text-xs text-muted-foreground">Who should the AI be?</p>
-        <Select value={config.role} onValueChange={(v) => onUpdate({ role: v })}>
-          <SelectTrigger className="bg-background" aria-label="Select role">
-            <SelectValue placeholder="Select a role..." />
-          </SelectTrigger>
-          <SelectContent>
-            {roles.map((role) => (
-              <SelectItem key={role} value={role}>
-                {role}
-              </SelectItem>
-            ))}
-          </SelectContent>
+        <Select
+          selectedKey={config.role || undefined}
+          onSelectionChange={(value) => {
+            if (value !== null) {
+              onUpdate({ role: String(value) });
+            }
+          }}
+          placeholder="Select a role..."
+          aria-label="Select role"
+          className="bg-background"
+        >
+          {roles.map((role) => (
+            <Select.Item key={role} id={role}>
+              {role}
+            </Select.Item>
+          ))}
         </Select>
         <Input
           placeholder="Or type a custom role..."
           value={config.customRole}
-          onChange={(e) => onUpdate({ customRole: e.target.value })}
-          className="bg-background"
+          onChange={(value) => onUpdate({ customRole: value })}
+          wrapperClassName="bg-background"
           aria-label="Custom role input"
         />
       </TabsContent>
@@ -108,9 +112,10 @@ export function BuilderTabs({ config, onUpdate }: BuilderTabsProps) {
               type="button"
               key={format}
               className={cn(
-                badgeVariants({
-                  variant: config.format.includes(format) ? "default" : "outline",
-                }),
+                "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition duration-100 ease-linear focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                config.format.includes(format)
+                  ? "border-primary/30 bg-primary/10 text-primary"
+                  : "border-border bg-background text-foreground",
                 "interactive-chip cursor-pointer select-none"
               )}
               onClick={() => toggleFormat(format)}
@@ -123,23 +128,27 @@ export function BuilderTabs({ config, onUpdate }: BuilderTabsProps) {
         <Input
           placeholder="Custom format..."
           value={config.customFormat}
-          onChange={(e) => onUpdate({ customFormat: e.target.value })}
-          className="bg-background"
+          onChange={(value) => onUpdate({ customFormat: value })}
+          wrapperClassName="bg-background"
           aria-label="Custom format"
         />
         <div className="space-y-2">
           <Label className="text-xs text-muted-foreground">Length</Label>
-          <Select value={config.lengthPreference} onValueChange={(v) => onUpdate({ lengthPreference: v })}>
-            <SelectTrigger className="bg-background" aria-label="Length preference">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {lengthOptions.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
+          <Select
+            selectedKey={config.lengthPreference || undefined}
+            onSelectionChange={(value) => {
+              if (value !== null) {
+                onUpdate({ lengthPreference: String(value) });
+              }
+            }}
+            aria-label="Length preference"
+            className="bg-background"
+          >
+            {lengthOptions.map((opt) => (
+              <Select.Item key={opt.value} id={opt.value}>
+                {opt.label}
+              </Select.Item>
+            ))}
           </Select>
         </div>
       </TabsContent>
@@ -177,8 +186,8 @@ export function BuilderTabs({ config, onUpdate }: BuilderTabsProps) {
         <Input
           placeholder="Add custom constraint..."
           value={config.customConstraint}
-          onChange={(e) => onUpdate({ customConstraint: e.target.value })}
-          className="bg-background"
+          onChange={(value) => onUpdate({ customConstraint: value })}
+          wrapperClassName="bg-background"
           aria-label="Custom constraint"
         />
       </TabsContent>

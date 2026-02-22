@@ -14,20 +14,14 @@ import {
 } from "lucide-react";
 import { PageHero, PageShell } from "@/components/PageShell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitives/avatar";
-import { Badge } from "@/components/base/primitives/badge";
-import { Button } from "@/components/base/primitives/button";
+import { Badge } from "@/components/base/badges/badges";
+import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/primitives/card";
 import { Checkbox } from "@/components/base/primitives/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/base/primitives/dropdown-menu";
-import { Input } from "@/components/base/primitives/input";
+import { Input } from "@/components/base/input/input";
 import { StateCard } from "@/components/base/primitives/state-card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/base/primitives/select";
+import { Select } from "@/components/base/select/select";
 import { ToastAction } from "@/components/base/primitives/toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -451,22 +445,22 @@ const Library = () => {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="type-wrap-safe text-sm font-medium text-foreground">{prompt.name}</h3>
-                    <Badge variant="outline" className="text-xs">
+                    <Badge type="modern" className="border border-border bg-background text-foreground text-xs">
                       r{prompt.revision}
                     </Badge>
                     {prompt.isShared ? (
-                      <Badge variant="secondary" className="text-xs gap-1">
+                      <Badge type="modern" className="text-xs gap-1">
                         <Share2 className="h-3 w-3" />
                         Shared
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="text-xs gap-1">
+                      <Badge type="modern" className="border border-border bg-background text-foreground text-xs gap-1">
                         <Lock className="h-3 w-3" />
                         Private
                       </Badge>
                     )}
                     {!isSelectionMode && prompt.remixedFrom && (
-                      <Badge variant="secondary" className="text-xs gap-1">
+                      <Badge type="modern" className="text-xs gap-1">
                         <GitBranch className="h-3 w-3" />
                         Remixed
                       </Badge>
@@ -505,7 +499,7 @@ const Library = () => {
                   {prompt.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1">
                       {prompt.tags.slice(0, 5).map((tag) => (
-                        <Badge key={`${prompt.id}-${tag}`} variant="outline" className="text-xs">
+                        <Badge key={`${prompt.id}-${tag}`} type="modern" className="border border-border bg-background text-foreground text-xs">
                           #{tag}
                         </Badge>
                       ))}
@@ -519,7 +513,7 @@ const Library = () => {
               <div className="flex shrink-0 flex-col items-end gap-1">
                 <Button
                   type="button"
-                  variant="default"
+                  color="primary"
                   size="sm"
                   className="h-11 px-2.5 text-sm sm:h-9 sm:text-base"
                   onClick={() => void handleSelectSaved(prompt.id)}
@@ -527,17 +521,20 @@ const Library = () => {
                   Load
                 </Button>
                 {prompt.isShared && prompt.communityPostId && (
-                  <Button asChild variant="ghost" size="sm" className="h-11 px-2.5 text-sm sm:h-9 sm:text-base">
-                    <Link to={`/community/${prompt.communityPostId}`}>
-                      Open
-                      <ExternalLink className="h-3 w-3" />
-                    </Link>
+                  <Button
+                    color="tertiary"
+                    size="sm"
+                    className="h-11 px-2.5 text-sm sm:h-9 sm:text-base"
+                    onClick={() => navigate(`/community/${prompt.communityPostId}`)}
+                  >
+                    Open
+                    <ExternalLink className="h-3 w-3" />
                   </Button>
                 )}
                 {prompt.isShared ? (
                   <Button
                     type="button"
-                    variant="outline"
+                    color="secondary"
                     size="sm"
                     className="h-11 px-2.5 text-sm sm:h-9 sm:text-base"
                     onClick={() => void handleUnshareSaved(prompt.id)}
@@ -547,10 +544,10 @@ const Library = () => {
                 ) : (
                   <Button
                     type="button"
-                    variant="outline"
+                    color="secondary"
                     size="sm"
                     className="h-11 px-2.5 text-sm sm:h-9 sm:text-base"
-                    disabled={Boolean(shareDisabledReason)}
+                    isDisabled={Boolean(shareDisabledReason)}
                     onClick={() => void handleShareSaved(prompt)}
                   >
                     Share
@@ -563,7 +560,7 @@ const Library = () => {
                 )}
                 <Button
                   type="button"
-                  variant="ghost"
+                  color="tertiary"
                   size="sm"
                   className="h-11 px-2.5 text-sm text-destructive hover:text-destructive sm:h-9 sm:text-base"
                   onClick={() => void handleDeleteSaved(prompt.id)}
@@ -581,7 +578,7 @@ const Library = () => {
               )}
               <Button
                 type="button"
-                variant="default"
+                color="primary"
                 size="sm"
                 className="h-11 px-3 text-sm"
                 onClick={() => void handleSelectSaved(prompt.id)}
@@ -592,7 +589,7 @@ const Library = () => {
                 <DropdownMenuTrigger asChild>
                   <Button
                     type="button"
-                    variant="outline"
+                    color="secondary"
                     size="sm"
                     className="h-11 px-3 text-sm"
                     aria-label={`More actions for ${prompt.name}`}
@@ -667,11 +664,9 @@ const Library = () => {
                 Keep your saved prompts production-ready without changing baseline templates.
               </p>
             </div>
-            <Button asChild variant="outline" size="sm" className="h-11 gap-1 text-sm sm:h-9 sm:text-base">
-              <Link to="/">
-                <Sparkles className="h-3.5 w-3.5" />
-                Open Builder
-              </Link>
+            <Button color="secondary" size="sm" className="h-11 gap-1 text-sm sm:h-9 sm:text-base" onClick={() => navigate("/")}>
+              <Sparkles className="h-3.5 w-3.5" />
+              Open Builder
             </Button>
           </div>
         </Card>
@@ -686,36 +681,47 @@ const Library = () => {
               <Input
                 id="library-page-search"
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={setQuery}
                 placeholder="Search by name, tag, context, or remix note"
-                className="h-11 bg-background pl-8 sm:h-10"
+                wrapperClassName="h-11 bg-background sm:h-10"
+                inputClassName="pl-8"
               />
             </div>
 
-            <Select value={activeCategory} onValueChange={setActiveCategory}>
-              <SelectTrigger className="h-11 min-w-[140px] capitalize sm:h-10" aria-label="Filter category">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((category) => (
-                  <SelectItem key={category} value={category} className="capitalize">
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
+            <Select
+              selectedKey={activeCategory}
+              onSelectionChange={(value) => {
+                if (value !== null) {
+                  setActiveCategory(String(value));
+                }
+              }}
+              className="min-w-[140px] capitalize"
+              aria-label="Filter category"
+              size="md"
+            >
+              {categories.map((category) => (
+                <Select.Item key={category} id={category} className="capitalize">
+                  {category}
+                </Select.Item>
+              ))}
             </Select>
 
             <div className="flex items-center gap-1.5">
               <ArrowDownUp className="h-3.5 w-3.5 text-muted-foreground" />
-              <Select value={sortBy} onValueChange={(value: SavedPromptSort) => setSortBy(value)}>
-                <SelectTrigger className="h-11 min-w-[138px] sm:h-10" aria-label="Sort saved prompts">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="recent">Most Recent</SelectItem>
-                  <SelectItem value="name">Name (A-Z)</SelectItem>
-                  <SelectItem value="revision">Revision (High)</SelectItem>
-                </SelectContent>
+              <Select
+                selectedKey={sortBy}
+                onSelectionChange={(value) => {
+                  if (value !== null) {
+                    setSortBy(String(value) as SavedPromptSort);
+                  }
+                }}
+                className="min-w-[138px]"
+                aria-label="Sort saved prompts"
+                size="md"
+              >
+                <Select.Item id="recent">Most Recent</Select.Item>
+                <Select.Item id="name">Name (A-Z)</Select.Item>
+                <Select.Item id="revision">Revision (High)</Select.Item>
               </Select>
             </div>
           </div>
@@ -730,11 +736,11 @@ const Library = () => {
                     aria-label="Select all filtered prompts"
                   />
                   <span>{selectedCount} selected</span>
-                  <Badge variant="secondary" className="text-xs">
+                  <Badge type="modern" className="text-xs">
                     {visibleSaved.length} shown
                   </Badge>
                   {showSelectedOnly && (
-                    <Badge variant="outline" className="text-xs">
+                    <Badge type="modern" className="border border-border bg-background text-foreground text-xs">
                       Selected only
                     </Badge>
                   )}
@@ -742,10 +748,10 @@ const Library = () => {
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   <Button
                     type="button"
-                    variant={showSelectedOnly ? "secondary" : "outline"}
+                    color="secondary"
                     size="sm"
                     className="h-11 text-sm sm:h-9 sm:text-base"
-                    disabled={selectedCount === 0 && !showSelectedOnly}
+                    isDisabled={selectedCount === 0 && !showSelectedOnly}
                     onClick={() => setShowSelectedOnly((prev) => !prev)}
                   >
                     Selected only
@@ -754,7 +760,7 @@ const Library = () => {
                     <>
                       <Button
                         type="button"
-                        variant="default"
+                        color="primary"
                         size="sm"
                         className="h-11 text-sm sm:h-9 sm:text-base"
                         onClick={handleLoadFirstSelected}
@@ -763,27 +769,27 @@ const Library = () => {
                       </Button>
                       <Button
                         type="button"
-                        variant="outline"
+                        color="secondary"
                         size="sm"
                         className="h-11 text-sm sm:h-9 sm:text-base"
-                        disabled={isBulkUnsharing}
+                        isDisabled={isBulkUnsharing}
                         onClick={() => void handleBulkSetPrivate()}
                       >
                         {isBulkUnsharing ? "Setting private..." : "Set private"}
                       </Button>
                       <Button
                         type="button"
-                        variant="outline"
+                        color="secondary"
                         size="sm"
                         className="h-11 border-destructive/40 text-sm text-destructive hover:text-destructive sm:h-9 sm:text-base"
-                        disabled={isBulkDeleting}
+                        isDisabled={isBulkDeleting}
                         onClick={() => void handleBulkDelete()}
                       >
                         {isBulkDeleting ? "Deleting..." : "Delete selected"}
                       </Button>
                       <Button
                         type="button"
-                        variant="ghost"
+                        color="tertiary"
                         size="sm"
                         className="h-11 text-sm sm:h-9 sm:text-base"
                         onClick={() => {

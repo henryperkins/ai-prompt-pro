@@ -7,15 +7,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/base/primitives/dialog";
-import { Button } from "@/components/base/primitives/button";
+import { Button } from "@/components/base/buttons/button";
 import { Label } from "@/components/base/primitives/label";
 import {
   Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/base/primitives/select";
+} from "@/components/base/select/select";
 import { Textarea } from "@/components/base/primitives/textarea";
 
 const REPORT_REASON_OPTIONS = [
@@ -84,18 +80,22 @@ function CommunityReportDialogContent({
 
       <div className="space-y-3">
         <div className="space-y-1.5">
-          <Label htmlFor="community-report-reason">Reason</Label>
-          <Select value={reason} onValueChange={setReason}>
-            <SelectTrigger id="community-report-reason">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {REPORT_REASON_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
+          <Label>Reason</Label>
+          <Select
+            selectedKey={reason}
+            onSelectionChange={(value) => {
+              if (value !== null) {
+                setReason(String(value));
+              }
+            }}
+            placeholder="Select a reason"
+            aria-label="Report reason"
+          >
+            {REPORT_REASON_OPTIONS.map((option) => (
+              <Select.Item key={option.value} id={option.value}>
+                {option.label}
+              </Select.Item>
+            ))}
           </Select>
         </div>
 

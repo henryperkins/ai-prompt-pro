@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { AlertTriangle, Lock, SearchX, type LucideIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/base/primitives/card";
-import { Button } from "@/components/base/primitives/button";
+import { Button } from "@/components/base/buttons/button";
 import { DEFAULT_UI_DENSITY, type UIDensity } from "@/lib/ui-density";
 import { cn } from "@/lib/utils";
 

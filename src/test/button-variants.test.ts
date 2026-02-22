@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buttonVariants } from "@/components/base/primitives/button";
+import { buttonVariants } from "@/components/base/buttons/button";
 
 describe("buttonVariants", () => {
   it("does not force global min-height classes", () => {

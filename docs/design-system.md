@@ -12,15 +12,24 @@ Primary source files:
 
 - `src/index.css`
 - `src/styles/globals.css`
+- `src/styles/untitled-compat.css` (transitional legacy token aliases)
 - `src/styles/typography.css`
 - `tailwind.config.ts`
-- `src/components/base/primitives/*` (Radix/shadcn primitives)
-- `src/components/base/*` (Untitled UI components)
+- `src/components/base/*` (canonical Untitled UI React components)
+- `src/components/base/primitives/*` (legacy wrappers for non-targeted primitives)
 - `docs/launch-messaging-pack.md`
 
 Legacy note:
 
 - `src/styles/theme.css` is retained for reference but is not imported at runtime.
+
+Phase 3 status (completed February 22, 2026):
+
+- Canonical component APIs for shared primitives are `@/components/base/buttons/button`, `@/components/base/input/input`, `@/components/base/badges/badges`, and `@/components/base/select/select`.
+- Imports or test mocks targeting `@/components/base/primitives/button|input|badge|select` are prohibited.
+- CI enforces this in strict mode via:
+  - `scripts/check-token-runtime-drift.mjs`
+  - `scripts/check-no-primitive-ds-imports.mjs`
 
 ---
 
@@ -300,7 +309,7 @@ When evolving the design system, use this order:
 1. **Token values**: `src/index.css`
 2. **Brand assets**: `public/brand/*`
 3. **Tailwind mapping**: `tailwind.config.ts`
-4. **Primitive contracts**: `src/components/base/primitives/*`
+4. **Canonical component contracts**: `src/components/base/*`
 5. **Feature-specific semantic classes**: e.g., community type roles in `src/index.css`
 
 Avoid direct hardcoded `px` typography values and avoid bypassing primitives unless strictly necessary.

@@ -64,7 +64,7 @@ vi.mock("@/components/base/primitives/drawer", () => ({
   DrawerDescription: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
-vi.mock("@/components/base/primitives/button", () => ({
+vi.mock("@/components/base/buttons/button", () => ({
   Button: ({ children, ...props }: { children: ReactNode } & Record<string, unknown>) => (
     <button type="button" {...props}>
       {children}
@@ -72,7 +72,7 @@ vi.mock("@/components/base/primitives/button", () => ({
   ),
 }));
 
-vi.mock("@/components/base/primitives/badge", () => ({
+vi.mock("@/components/base/badges/badges", () => ({
   Badge: ({ children }: { children: ReactNode }) => <span>{children}</span>,
 }));
 

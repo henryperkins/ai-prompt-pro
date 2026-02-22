@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Card } from "@/components/base/primitives/card";
-import { Button } from "@/components/base/primitives/button";
+import { Button } from "@/components/base/buttons/button";
 import { Copy, Check, Sparkles, Save, Loader2, MoreHorizontal, Globe } from "lucide-react";
-import { Input } from "@/components/base/primitives/input";
+import { Input } from "@/components/base/input/input";
 import { Label } from "@/components/base/primitives/label";
 import { Textarea } from "@/components/base/primitives/textarea";
 import {
@@ -15,13 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/base/primitives/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/base/primitives/select";
+import { Select } from "@/components/base/select/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -520,7 +514,7 @@ export function OutputPanel({
           {hasCompare && (
             <Button
               type="button"
-              variant="outline"
+              color="secondary"
               size="sm"
               className="ui-toolbar-button px-2"
               onClick={() => setCompareDialogOpen(true)}
@@ -531,10 +525,10 @@ export function OutputPanel({
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
           <Button
-            variant="default"
+            color="primary"
             size="sm"
             onClick={handleCopy}
-            disabled={!displayPrompt}
+            isDisabled={!displayPrompt}
             className="ui-toolbar-button gap-1.5 font-semibold min-w-[96px] shadow-md"
           >
             {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
@@ -543,7 +537,7 @@ export function OutputPanel({
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="brandSecondary" size="sm" disabled={!canUseSaveMenu} className="ui-toolbar-button gap-1.5">
+              <Button color="secondary" size="sm" isDisabled={!canUseSaveMenu} className="ui-toolbar-button gap-1.5">
                 <Save className="w-3 h-3" />
                 Save
               </Button>
@@ -580,7 +574,7 @@ export function OutputPanel({
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="ui-toolbar-button gap-1.5">
+              <Button color="tertiary" size="sm" className="ui-toolbar-button gap-1.5">
                 <MoreHorizontal className="w-3 h-3" />
                 More
               </Button>
@@ -632,7 +626,7 @@ export function OutputPanel({
       </Dialog>
 
       <Dialog open={saveDialogOpen} onOpenChange={handleSaveDialogOpenChange}>
-          <DialogContent className="sm:max-w-md max-h-[85vh] overflow-auto">
+        <DialogContent className="sm:max-w-md max-h-[85vh] overflow-auto">
           <DialogHeader>
             <DialogTitle>{shareEnabledForUi ? "Save & Share Prompt" : "Save Prompt"}</DialogTitle>
             <DialogDescription>
@@ -654,10 +648,11 @@ export function OutputPanel({
               <Input
                 id="save-dialog-name"
                 value={saveName}
-                onChange={(event) => setSaveName(event.target.value)}
+                onChange={setSaveName}
                 onBlur={() => setSaveNameTouched(true)}
                 placeholder="Prompt title"
-                className="bg-background"
+                wrapperClassName="bg-background"
+                inputClassName="text-base"
                 aria-invalid={showSaveNameError}
                 aria-describedby="save-dialog-name-help"
               />
@@ -669,20 +664,25 @@ export function OutputPanel({
               </p>
             </div>
             <div className="space-y-1">
-              <Label htmlFor="save-dialog-category" className="text-xs font-medium">
+              <Label className="text-xs font-medium">
                 Category
               </Label>
-              <Select value={saveCategory} onValueChange={setSaveCategory}>
-                <SelectTrigger id="save-dialog-category" className="bg-background">
-                  <SelectValue placeholder="Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {PROMPT_CATEGORY_OPTIONS.map((category) => (
-                    <SelectItem key={category.value} value={category.value}>
-                      {category.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
+              <Select
+                selectedKey={saveCategory}
+                onSelectionChange={(value) => {
+                  if (value !== null) {
+                    setSaveCategory(String(value));
+                  }
+                }}
+                placeholder="Category"
+                className="bg-background"
+                aria-label="Category"
+              >
+                {PROMPT_CATEGORY_OPTIONS.map((category) => (
+                  <Select.Item key={category.value} id={category.value}>
+                    {category.label}
+                  </Select.Item>
+                ))}
               </Select>
             </div>
             <div className="space-y-1">
@@ -704,9 +704,10 @@ export function OutputPanel({
               <Input
                 id="save-dialog-tags"
                 value={saveTags}
-                onChange={(event) => setSaveTags(event.target.value)}
+                onChange={setSaveTags}
                 placeholder="Tags (comma-separated, optional)"
-                className="bg-background"
+                wrapperClassName="bg-background"
+                inputClassName="text-base"
               />
             </div>
             {remixContext && (
@@ -780,9 +781,10 @@ export function OutputPanel({
                   <Input
                     id="save-dialog-target-model"
                     value={saveTargetModel}
-                    onChange={(event) => setSaveTargetModel(event.target.value)}
+                    onChange={setSaveTargetModel}
                     placeholder="Target model (optional)"
-                    className="bg-background"
+                    wrapperClassName="bg-background"
+                    inputClassName="text-base"
                   />
                 </div>
                 <div className="flex items-start gap-2">
@@ -817,10 +819,10 @@ export function OutputPanel({
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => handleSaveDialogOpenChange(false)}>
+            <Button color="secondary" onClick={() => handleSaveDialogOpenChange(false)}>
               Cancel
             </Button>
-            <Button variant="brandPrimary" onClick={handleSaveSubmit}>
+            <Button color="primary" onClick={handleSaveSubmit}>
               {shareEnabledForUi ? "Save & Share" : "Save Prompt"}
             </Button>
           </DialogFooter>
@@ -912,10 +914,10 @@ export function OutputPanel({
             </div>
           )}
           <Button
-            variant="brandPrimary"
+            color="primary"
             size="lg"
             onClick={onEnhance}
-            disabled={isEnhancing || !builtPrompt}
+            isDisabled={isEnhancing || !builtPrompt}
             className="signature-enhance-button w-full gap-2"
             data-phase={enhancePhase}
           >

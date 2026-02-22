@@ -143,6 +143,9 @@ describe("community mobile UX", () => {
 
     const sheet = await screen.findByTestId("community-filter-sheet");
     expect(sheet).toBeVisible();
+    const filterDescriptionId = sheet.getAttribute("aria-describedby");
+    expect(filterDescriptionId).toBeTruthy();
+    expect(document.getElementById(filterDescriptionId || "")).toHaveTextContent("Choose a community category");
 
     fireEvent.click(within(sheet).getByRole("button", { name: /^Backend/ }));
 
@@ -171,6 +174,17 @@ describe("community mobile UX", () => {
     expect(screen.queryByTestId("community-filter-trigger")).toBeNull();
   });
 
+  it("uses pressed-state semantics for category suggestions on desktop", async () => {
+    mocks.isMobile = false;
+    await renderCommunityPage(true);
+
+    const searchInput = await screen.findByPlaceholderText("Search by title, use case, or context keyword");
+    fireEvent.focus(searchInput);
+
+    const backendOption = await screen.findByRole("button", { name: /^Backend/ });
+    expect(backendOption).toHaveAttribute("aria-pressed", "false");
+  });
+
   it("opens comments drawer from CommunityPostCard on mobile", async () => {
     const { CommunityPostCard } = await importCardAndDetail(true);
     const post = createPost({ id: "card-post-1" });
@@ -191,7 +205,11 @@ describe("community mobile UX", () => {
 
     fireEvent.click(screen.getByTestId("community-comment-toggle"));
 
-    expect(await screen.findByTestId("community-comments-sheet")).toBeVisible();
+    const commentsSheet = await screen.findByTestId("community-comments-sheet");
+    expect(commentsSheet).toBeVisible();
+    const commentsDescriptionId = commentsSheet.getAttribute("aria-describedby");
+    expect(commentsDescriptionId).toBeTruthy();
+    expect(document.getElementById(commentsDescriptionId || "")).toHaveTextContent("Read and add comments");
     expect(screen.getByTestId("community-comments-card-post-1")).toBeInTheDocument();
   });
 
@@ -220,7 +238,11 @@ describe("community mobile UX", () => {
 
     fireEvent.click(screen.getByTestId("community-comments-thread-trigger"));
 
-    expect(await screen.findByTestId("community-comments-sheet")).toBeVisible();
+    const commentsSheet = await screen.findByTestId("community-comments-sheet");
+    expect(commentsSheet).toBeVisible();
+    const commentsDescriptionId = commentsSheet.getAttribute("aria-describedby");
+    expect(commentsDescriptionId).toBeTruthy();
+    expect(document.getElementById(commentsDescriptionId || "")).toHaveTextContent("Read and add comments");
     expect(screen.getByTestId("community-comments-detail-post-1")).toBeInTheDocument();
   });
 });

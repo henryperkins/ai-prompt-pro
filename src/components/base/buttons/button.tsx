@@ -1,9 +1,46 @@
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes, DetailedHTMLProps, FC, ReactNode } from "react";
 import React, { isValidElement } from "react";
+import { Slot } from "@radix-ui/react-slot";
+import { cva, type VariantProps } from "class-variance-authority";
 import type { ButtonProps as AriaButtonProps, LinkProps as AriaLinkProps } from "react-aria-components";
 import { Button as AriaButton, Link as AriaLink } from "react-aria-components";
 import { cx, sortCx } from "@/lib/utils/cx";
 import { isReactComponent } from "@/lib/utils/is-react-component";
+
+const legacyButtonVariants = cva(
+    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium outline-ring transition duration-100 ease-linear focus-visible:outline-2 focus-visible:outline-offset-2 disabled:pointer-events-none disabled:opacity-50 sm:text-base [&_svg]:pointer-events-none [&_svg]:h-[1em] [&_svg]:w-[1em] [&_svg]:shrink-0",
+    {
+        variants: {
+            variant: {
+                default: "bg-primary text-primary-foreground shadow-xs hover:brightness-95",
+                destructive: "bg-destructive text-destructive-foreground shadow-xs hover:brightness-95",
+                brandPrimary:
+                    "border border-primary/30 text-primary-foreground bg-[linear-gradient(135deg,hsl(var(--delight-warm)),hsl(var(--delight-cool)))] shadow-[0_14px_30px_-20px_hsl(var(--delight-glow)/0.72)] hover:brightness-105",
+                brandSecondary: "border border-secondary bg-primary text-secondary shadow-xs hover:brightness-95",
+                brandDestructive:
+                    "border border-destructive/30 text-destructive-foreground bg-[linear-gradient(135deg,hsl(var(--destructive)),hsl(0_70%_42%))] shadow-[0_12px_24px_-18px_hsl(var(--destructive)/0.8)] hover:brightness-105",
+                outline: "border border-secondary bg-primary text-secondary shadow-xs hover:brightness-95",
+                secondary: "bg-secondary text-secondary-foreground shadow-xs hover:brightness-95",
+                ghost: "text-muted-foreground hover:bg-muted hover:text-foreground",
+                link: "justify-start rounded p-0 text-primary underline-offset-4 hover:text-primary/90 hover:underline",
+                glow: "bg-primary text-primary-foreground shadow-[0_0_20px_hsl(var(--primary)/0.3)] hover:brightness-95 hover:shadow-[0_0_30px_hsl(var(--primary)/0.5)] motion-safe:hover:-translate-y-[1px] motion-safe:active:translate-y-0 motion-safe:active:scale-[0.98]",
+                soft: "border border-primary/20 bg-secondary text-secondary-foreground hover:brightness-95",
+            },
+            size: {
+                default: "h-11 px-4 py-2 sm:h-10",
+                sm: "h-11 rounded-md px-3 sm:h-9",
+                lg: "h-12 rounded-md px-8 sm:h-11",
+                icon: "h-11 w-11 sm:h-10 sm:w-10",
+            },
+        },
+        defaultVariants: {
+            variant: "default",
+            size: "default",
+        },
+    },
+);
+
+export const buttonVariants = legacyButtonVariants;
 
 export const styles = sortCx({
     common: {
@@ -130,6 +167,11 @@ export const styles = sortCx({
     },
 });
 
+type LegacyButtonVariant = NonNullable<VariantProps<typeof buttonVariants>["variant"]>;
+type LegacyButtonSize = NonNullable<VariantProps<typeof buttonVariants>["size"]>;
+type ModernButtonSize = keyof typeof styles.sizes;
+type ButtonSize = ModernButtonSize | LegacyButtonSize;
+
 /**
  * Common props shared between button and anchor variants
  */
@@ -139,9 +181,13 @@ export interface CommonProps {
     /** Shows a loading spinner and disables the button */
     isLoading?: boolean;
     /** The size variant of the button */
-    size?: keyof typeof styles.sizes;
+    size?: ButtonSize;
     /** The color variant of the button */
     color?: keyof typeof styles.colors;
+    /** Compatibility variant for legacy primitive call-sites. */
+    variant?: LegacyButtonVariant;
+    /** Legacy primitive slot mode. */
+    asChild?: boolean;
     /** Icon component or element to show before the text */
     iconLeading?: FC<{ className?: string }> | ReactNode;
     /** Icon component or element to show after the text */
@@ -174,6 +220,8 @@ export type Props = ButtonProps | LinkProps;
 export const Button = ({
     size = "sm",
     color = "primary",
+    variant,
+    asChild = false,
     children,
     className,
     noTextPadding,
@@ -184,11 +232,69 @@ export const Button = ({
     showTextWhileLoading,
     ...otherProps
 }: Props) => {
+    const hasLegacyOnlySize = size === "default" || size === "icon";
+    const useLegacyContract = asChild || hasLegacyOnlySize || Boolean(variant);
+
+    if (useLegacyContract) {
+        const legacySize: LegacyButtonSize = hasLegacyOnlySize ? size : size === "lg" ? "lg" : "sm";
+        const disabledState = Boolean(disabled || ("disabled" in otherProps && otherProps.disabled));
+
+        const classes = cx(
+            buttonVariants({
+                variant: variant ?? "default",
+                size: legacySize,
+            }),
+            loading && "pointer-events-none",
+            loading && !showTextWhileLoading && "[&>*:not([data-icon=loading])]:invisible",
+            className,
+        );
+
+        if (asChild) {
+            return (
+                <Slot
+                    data-loading={loading ? true : undefined}
+                    className={classes}
+                    aria-disabled={disabledState || loading ? true : undefined}
+                    {...otherProps}
+                >
+                    {children}
+                </Slot>
+            );
+        }
+
+        return (
+            <button
+                data-loading={loading ? true : undefined}
+                className={classes}
+                disabled={disabledState || loading}
+                {...(otherProps as ButtonHTMLAttributes<HTMLButtonElement>)}
+            >
+                {loading && (
+                    <svg fill="none" data-icon="loading" viewBox="0 0 20 20" className={cx("size-5", !showTextWhileLoading && "absolute")}>
+                        <circle className="stroke-current opacity-30" cx="10" cy="10" r="8" fill="none" strokeWidth="2" />
+                        <circle
+                            className="origin-center animate-spin stroke-current"
+                            cx="10"
+                            cy="10"
+                            r="8"
+                            fill="none"
+                            strokeWidth="2"
+                            strokeDasharray="12.5 50"
+                            strokeLinecap="round"
+                        />
+                    </svg>
+                )}
+                {children}
+            </button>
+        );
+    }
+
     const href = "href" in otherProps ? otherProps.href : undefined;
     const Component = href ? AriaLink : AriaButton;
 
     const isIcon = (IconLeading || IconTrailing) && !children;
     const isLinkType = ["link-gray", "link-color", "link-destructive"].includes(color);
+    const disabledState = Boolean(disabled || ("disabled" in otherProps && otherProps.disabled));
 
     noTextPadding = isLinkType || noTextPadding;
 
@@ -197,14 +303,12 @@ export const Button = ({
     if (href) {
         props = {
             ...otherProps,
-
-            href: disabled ? undefined : href,
+            href: disabledState ? undefined : href,
         };
     } else {
         props = {
             ...otherProps,
-
-            type: otherProps.type || "button",
+            type: (otherProps as ButtonHTMLAttributes<HTMLButtonElement>).type || "button",
             isPending: loading,
         };
     }
@@ -214,13 +318,13 @@ export const Button = ({
             data-loading={loading ? true : undefined}
             data-icon-only={isIcon ? true : undefined}
             {...props}
-            isDisabled={disabled}
+            isDisabled={disabledState}
             className={cx(
                 styles.common.root,
-                styles.sizes[size].root,
+                styles.sizes[size as ModernButtonSize].root,
                 styles.colors[color].root,
-                isLinkType && styles.sizes[size].linkRoot,
-                (loading || (href && (disabled || loading))) && "pointer-events-none",
+                isLinkType && styles.sizes[size as ModernButtonSize].linkRoot,
+                (loading || (href && (disabledState || loading))) && "pointer-events-none",
                 // If in `loading` state, hide everything except the loading icon (and text if `showTextWhileLoading` is true).
                 loading && (showTextWhileLoading ? "[&>*:not([data-icon=loading]):not([data-text])]:hidden" : "[&>*:not([data-icon=loading])]:invisible"),
                 className,

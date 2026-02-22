@@ -56,8 +56,8 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/base/primitives/drawer";
-import { Button } from "@/components/base/primitives/button";
-import { Badge } from "@/components/base/primitives/badge";
+import { Button } from "@/components/base/buttons/button";
+import { Badge } from "@/components/base/badges/badges";
 import { Card } from "@/components/base/primitives/card";
 import { ToastAction } from "@/components/base/primitives/toast";
 import { Switch } from "@/components/base/primitives/switch";
