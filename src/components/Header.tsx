@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useState, type FormEvent } from "react";
-import { Bell, Loader2, LogIn, LogOut, Menu, Moon, Shield, Sun, Trash2, User } from "lucide-react";
+import { Bell, Loader2, LogIn, LogOut, Menu, Moon, Sun, Trash2, User } from "lucide-react";
 import { Button } from "@/components/base/buttons/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitives/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/base/primitives/dialog";
@@ -298,31 +298,6 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
                       Edit display name
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      onSelect={(event) => {
-                        event.preventDefault();
-                        navigate("/privacy");
-                      }}
-                    >
-                      <Shield className="w-4 h-4 mr-2" />
-                      Privacy Policy
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onSelect={(event) => {
-                        event.preventDefault();
-                        navigate("/terms");
-                      }}
-                    >
-                      Terms of Use
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onSelect={(event) => {
-                        event.preventDefault();
-                        navigate("/contact");
-                      }}
-                    >
-                      Contact Support
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
                       className="text-destructive focus:text-destructive"
                       onSelect={(event) => {
                         event.preventDefault();
@@ -471,16 +446,6 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={openDisplayNameDialog}>
                     Edit display name
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate("/privacy")}>
-                    <Shield className="w-4 h-4 mr-2" />
-                    Privacy Policy
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate("/terms")}>
-                    Terms of Use
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate("/contact")}>
-                    Contact Support
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"

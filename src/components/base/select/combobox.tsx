@@ -42,7 +42,7 @@ const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, ...othe
             {...otherProps}
             className={({ isFocusWithin, isDisabled }) =>
                 cx(
-                    "relative flex w-full items-center gap-2 rounded-lg bg-primary shadow-xs ring-1 ring-primary outline-hidden transition-shadow duration-100 ease-linear ring-inset",
+                    "relative flex w-full items-center gap-2 rounded-lg bg-background shadow-xs ring-1 ring-border outline-hidden transition-shadow duration-100 ease-linear ring-inset",
                     isDisabled && "cursor-not-allowed bg-disabled_subtle",
                     isFocusWithin && "ring-2 ring-brand",
                     sizes[size].root,
@@ -56,21 +56,21 @@ const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, ...othe
                     <div className="relative flex w-full items-center gap-2">
                         {inputValue && (
                             <span className="absolute top-1/2 z-0 inline-flex w-full -translate-y-1/2 gap-2 truncate" aria-hidden="true">
-                                <p className={cx("text-md font-medium text-primary", isDisabled && "text-disabled")}>{first}</p>
+                                <p className={cx("text-md font-medium text-foreground", isDisabled && "text-disabled")}>{first}</p>
                                 {last && <p className={cx("-ml-0.75 text-md text-tertiary", isDisabled && "text-disabled")}>{last}</p>}
                             </span>
                         )}
 
                         <AriaInput
                             placeholder={placeholder}
-                            className="z-10 w-full appearance-none bg-transparent text-md text-transparent caret-alpha-black/90 placeholder:text-placeholder focus:outline-hidden disabled:cursor-not-allowed disabled:text-disabled disabled:placeholder:text-disabled"
+                            className="z-10 w-full appearance-none bg-transparent text-md text-transparent caret-foreground placeholder:text-placeholder focus:outline-hidden disabled:cursor-not-allowed disabled:text-disabled disabled:placeholder:text-disabled"
                         />
                     </div>
 
                     {shortcut && (
                         <div
                             className={cx(
-                                "absolute inset-y-0.5 right-0.5 z-10 flex items-center rounded-r-[inherit] bg-linear-to-r from-transparent to-bg-primary to-40% pl-8",
+                                "absolute inset-y-0.5 right-0.5 z-10 flex items-center rounded-r-[inherit] bg-linear-to-r from-transparent to-background to-40% pl-8",
                                 isDisabled && "to-bg-disabled_subtle",
                                 sizes[size].shortcut,
                                 shortcutClassName,

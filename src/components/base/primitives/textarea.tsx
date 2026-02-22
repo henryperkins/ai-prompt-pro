@@ -17,7 +17,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         disabled={disabledState}
         aria-invalid={invalid ? "true" : ariaInvalid}
         className={cn(
-          "min-h-[96px] w-full rounded-md bg-primary px-3 py-2 text-base text-primary shadow-xs ring-1 ring-primary ring-inset transition duration-100 ease-linear placeholder:text-placeholder autofill:rounded-md autofill:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:bg-disabled_subtle disabled:text-disabled disabled:ring-disabled sm:min-h-[88px]",
+          "min-h-[96px] w-full rounded-md bg-background px-3 py-2 text-base text-foreground shadow-xs ring-1 ring-border ring-inset transition duration-100 ease-linear placeholder:text-muted-foreground autofill:rounded-md autofill:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:bg-disabled_subtle disabled:text-disabled disabled:ring-disabled sm:min-h-[88px]",
           invalid && "ring-error_subtle focus-visible:ring-error",
           className,
         )}

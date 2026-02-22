@@ -97,7 +97,7 @@ export const InputGroup = ({ size = "sm", prefix, leadingAddon, trailingAddon, l
                     <div
                         data-input-size={size}
                         className={cx(
-                            "group relative flex h-max w-full flex-row justify-center rounded-lg bg-primary transition-all duration-100 ease-linear",
+                            "group relative flex h-max w-full flex-row justify-center rounded-lg bg-background transition-all duration-100 ease-linear",
 
                             // Only apply focus ring when child is select and input is focused
                             "has-[&>select]:shadow-xs has-[&>select]:ring-1 has-[&>select]:ring-border-primary has-[&>select]:ring-inset has-[&>select]:has-[input:focus]:ring-2 has-[&>select]:has-[input:focus]:ring-border-brand",
