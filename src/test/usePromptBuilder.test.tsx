@@ -369,6 +369,7 @@ describe("usePromptBuilder", () => {
     // Simulate preset loaded while still a guest.
     act(() => {
       result.current.loadTemplate({
+        starterPrompt: "Preset starter prompt",
         role: "Preset Role",
         task: "Preset Task",
         context: "Preset context",
@@ -383,6 +384,7 @@ describe("usePromptBuilder", () => {
 
     expect(result.current.config.role).toBe("Preset Role");
     expect(result.current.config.task).toBe("Preset Task");
+    expect(result.current.config.originalPrompt).toBe("Preset starter prompt");
 
     // Auth resolves — userId changes from null → "user_a".
     mocks.authUser.current = { id: "user_a" };
@@ -398,6 +400,7 @@ describe("usePromptBuilder", () => {
     // Preset config must survive auth hydration.
     expect(result.current.config.role).toBe("Preset Role");
     expect(result.current.config.task).toBe("Preset Task");
+    expect(result.current.config.originalPrompt).toBe("Preset starter prompt");
   });
 
   it("rejects save-and-share for signed-out users before any save attempt", async () => {

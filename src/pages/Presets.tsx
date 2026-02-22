@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, createSearchParams } from "react-router-dom";
 import { Search } from "lucide-react";
 import { PageHero, PageShell } from "@/components/PageShell";
 import { Badge } from "@/components/base/badges/badges";
@@ -32,6 +32,7 @@ const categoryIcons: Record<string, string> = {
 
 function PresetCard({ template }: { template: PromptTemplate }) {
   const skin = promptCategorySkins[template.category] ?? promptCategorySkins.general;
+  const presetSearch = createSearchParams({ preset: template.id }).toString();
   const fields = [
     template.role && `Role: ${template.role}`,
     template.tone && `Tone: ${template.tone}`,
@@ -73,7 +74,7 @@ function PresetCard({ template }: { template: PromptTemplate }) {
             size="sm"
             className={cn("h-11 gap-1.5 text-sm sm:h-9 sm:text-base", skin.action)}
           >
-            <Link to={`/?preset=${template.id}`}>Use preset</Link>
+            <Link to={{ pathname: "/", search: `?${presetSearch}` }}>Use preset</Link>
           </Button>
         </div>
       </div>
@@ -122,17 +123,19 @@ const Presets = () => {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search presets..."
+            aria-label="Search presets"
             className="h-11 pl-9 sm:h-10"
           />
         </div>
 
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter presets by category">
           {categories.map((cat) => (
             <Button
               key={cat}
               variant={activeCategory === cat ? "default" : "outline"}
               size="sm"
               onClick={() => setActiveCategory(cat)}
+              aria-pressed={activeCategory === cat}
               className="interactive-chip h-11 gap-1.5 text-sm capitalize sm:h-9 sm:text-base"
             >
               {cat !== "all" && (

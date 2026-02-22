@@ -308,6 +308,7 @@ export function usePromptBuilder() {
 
   const loadTemplate = useCallback(
     (template: {
+      starterPrompt?: string;
       role: string;
       task: string;
       context: string;
@@ -320,6 +321,7 @@ export function usePromptBuilder() {
     }) => {
       setConfig({
         ...defaultConfig,
+        originalPrompt: (template.starterPrompt || template.task).trim(),
         role: template.role,
         task: template.task,
         context: template.context,
