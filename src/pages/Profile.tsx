@@ -428,11 +428,12 @@ const Profile = () => {
 
   return (
     <PageShell>
-      <div className="community-typography" data-density="comfortable">
+      <div className="community-typography pf-community-page" data-density="comfortable">
         <PageHero
           eyebrow={brandCopy.brandLine}
           title={profile ? `${profile.displayName}` : "Profile"}
           subtitle={subtitle}
+          className="pf-gilded-frame pf-hero-surface"
         />
 
         {!loading && errorState && (
@@ -447,7 +448,7 @@ const Profile = () => {
 
         {!errorState && profile && (
           <>
-            <Card className="mb-4 border-border/80 bg-card/85 p-4">
+            <Card className="pf-card mb-4 border-border/80 bg-card/85 p-4">
               <div className="flex flex-wrap items-center gap-3">
                 <Avatar className="h-12 w-12 border border-border/60">
                   <AvatarImage src={profile.avatarUrl ?? undefined} alt={profile.displayName} />

@@ -139,6 +139,19 @@ function renderDiffValue(value: string | string[]): string {
   return normalized || "∅";
 }
 
+function getDetailRarityClass(post: CommunityPost): string {
+  const signal =
+    post.upvoteCount +
+    post.verifiedCount * 2 +
+    post.remixCount * 2 +
+    Math.round(post.ratingAverage ?? 0);
+
+  if (signal >= 22) return "pf-rarity-legendary";
+  if (signal >= 12) return "pf-rarity-epic";
+  if (signal >= 6) return "pf-rarity-rare";
+  return "pf-rarity-common";
+}
+
 export function CommunityPostDetail({
   post,
   authorName,
@@ -180,7 +193,7 @@ export function CommunityPostDetail({
 
   return (
     <div className="space-y-4">
-      <Card className="space-y-4 border-border/80 bg-card/85 p-4 sm:p-5">
+      <Card className={cn("pf-card space-y-4 border-border/80 bg-card/85 p-4 sm:p-5", getDetailRarityClass(post))}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
             <Avatar className="h-9 w-9 border border-border/60">
@@ -361,7 +374,12 @@ export function CommunityPostDetail({
           ))}
         </div>
 
-        <PromptPreviewPanel text={promptBody} mode="full" onCopy={() => onCopyPrompt(post)} />
+        <PromptPreviewPanel
+          text={promptBody}
+          mode="full"
+          className="pf-community-preview"
+          onCopy={() => onCopyPrompt(post)}
+        />
 
         <div className="type-meta flex flex-wrap items-center gap-2 text-muted-foreground">
           <Button
@@ -504,7 +522,7 @@ export function CommunityPostDetail({
         </Drawer>
       )}
 
-      <Card className="space-y-3 border-border/80 bg-card/85 p-4 sm:p-5">
+      <Card className="pf-card space-y-3 border-border/80 bg-card/85 p-4 sm:p-5">
         <div className="flex items-center justify-between gap-2">
           <h2 className="type-tab-label text-foreground">Remixes</h2>
           <Badge type="modern" className="type-chip type-numeric">{remixes.length}</Badge>

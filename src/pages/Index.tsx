@@ -78,6 +78,7 @@ import {
   Globe,
 } from "lucide-react";
 import { UI_STATUS_SURFACE_CLASSES } from "@/lib/ui-status";
+import { PFQualityGauge } from "@/components/fantasy/PFQualityGauge";
 
 const healthBadgeStyles: Record<
   SectionHealthState,
@@ -1412,11 +1413,14 @@ const Index = () => {
         </p>
       )}
       {/* Hero — compact on mobile */}
-      <div className="delight-hero-static text-center mb-4 sm:mb-8" data-testid="builder-hero">
-        <h1 className="text-xl sm:text-3xl md:text-4xl font-bold text-foreground mb-1 sm:mb-2 tracking-tight">
+      <div
+        className="pf-gilded-frame pf-hero-surface mb-4 px-4 py-5 text-center sm:mb-8 sm:px-6 sm:py-7"
+        data-testid="builder-hero"
+      >
+        <h1 className="pf-text-display mb-1 text-xl font-bold tracking-tight text-[rgba(230,225,213,.95)] sm:mb-2 sm:text-3xl md:text-4xl">
           {heroCopy.headline}
         </h1>
-        <p className="text-muted-foreground text-xs sm:text-sm md:text-base max-w-2xl mx-auto">
+        <p className="mx-auto max-w-2xl text-xs text-[rgba(230,225,213,.82)] sm:text-sm md:text-base">
           {heroCopy.subhead}
         </p>
         <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
@@ -1424,12 +1428,13 @@ const Index = () => {
             <Badge
               key={pillar.title}
               type="modern"
-              className="border border-border bg-background text-2xs text-foreground sm:text-xs"
+              className="border border-[rgba(214,166,64,.35)] bg-black/35 text-2xs text-[rgba(230,225,213,.9)] sm:text-xs"
             >
               {pillar.title}
             </Badge>
           ))}
         </div>
+        <div className="mx-auto mt-3 w-44 pf-divider" />
       </div>
 
       {remixContext && (
@@ -1710,17 +1715,25 @@ const Index = () => {
         {!isMobile && (
           <div className="lg:sticky lg:top-20 lg:self-start">
             {isBuilderRedesignPhase1 && (
-              <Card className="mb-3 border-border/70 bg-card/80 p-3">
+              <Card className="pf-panel mb-3 border-[rgba(214,166,64,.32)] bg-card/80 p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs font-medium text-foreground">Quality signal</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
+                    <p className="text-xs font-medium text-[rgba(230,225,213,.92)]">Quality signal</p>
+                    <p className="mt-0.5 text-xs text-[rgba(230,225,213,.72)]">
                       {score.tips[0]}
                     </p>
                   </div>
-                  <Badge type="pill-color" color={score.total >= 75 ? "brand" : "gray"} className="text-xs">
-                    {score.total}/100
-                  </Badge>
+                  <div className="flex flex-col items-end gap-1">
+                    <Badge type="pill-color" color={score.total >= 75 ? "brand" : "gray"} className="text-xs">
+                      {score.total}/100
+                    </Badge>
+                    <span className="text-[11px] text-[rgba(230,225,213,.72)]">
+                      {score.total >= 90 ? "Legendary" : score.total >= 70 ? "Epic" : score.total >= 40 ? "Rare" : "Common"}
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-3 rounded-2xl border border-white/10 bg-black/20 p-2">
+                  <PFQualityGauge value={score.total} size={92} showLabel={false} />
                 </div>
               </Card>
             )}

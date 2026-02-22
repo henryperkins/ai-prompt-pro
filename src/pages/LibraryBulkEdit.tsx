@@ -22,6 +22,7 @@ const LibraryBulkEdit = () => {
       <PageHero
         title="Bulk edit moved"
         subtitle="Redirecting to Library where bulk actions are now inline."
+        className="pf-gilded-frame pf-hero-surface"
       />
     </PageShell>
   );

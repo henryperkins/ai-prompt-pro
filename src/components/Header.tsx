@@ -104,13 +104,13 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
   const initialsSource = metadataDisplayName || metadataFullName || user?.email || "";
   const initials = initialsSource
     ? initialsSource
-        .split(" ")
-        .map((value) => value.trim())
-        .filter(Boolean)
-        .map((value) => value[0] || "")
-        .join("")
-        .slice(0, 2)
-        .toUpperCase() || initialsSource[0]?.toUpperCase() || "?"
+      .split(" ")
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .map((value) => value[0] || "")
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || initialsSource[0]?.toUpperCase() || "?"
     : "?";
 
   const openDisplayNameDialog = () => {
@@ -180,7 +180,7 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
 
   return (
     <>
-      <header className="border-b border-border/80 bg-card/75 backdrop-blur-md sticky top-0 z-50">
+      <header className="pf-nav-header border-b border-border/80 bg-card/75 backdrop-blur-md sticky top-0 z-50">
         <div className="container mx-auto flex items-center justify-between h-12 sm:h-14 px-3 sm:px-4">
           <Link
             to="/"
@@ -361,7 +361,7 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
                 asChild
                 variant={isRouteActive(location.pathname, to) ? "outline" : "ghost"}
                 size="sm"
-                className="interactive-chip hidden sm:inline-flex gap-1.5 sm:gap-2 h-11 sm:h-9 px-2 sm:px-3"
+                className="pf-nav-button interactive-chip hidden sm:inline-flex gap-1.5 sm:gap-2 h-11 sm:h-9 px-2 sm:px-3"
               >
                 <Link to={to} aria-label={ariaLabel}>
                   <Icon className="w-4 h-4" />
@@ -466,7 +466,7 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
                 size="sm"
                 onClick={() => setAuthOpen(true)}
                 aria-label="Sign in"
-                className="interactive-chip hidden sm:inline-flex gap-1.5 sm:gap-2 h-11 sm:h-9 px-2 sm:px-3"
+                className="pf-nav-button interactive-chip hidden sm:inline-flex gap-1.5 sm:gap-2 h-11 sm:h-9 px-2 sm:px-3"
               >
                 <LogIn className="w-4 h-4" />
                 <span className="sr-only sm:not-sr-only sm:inline text-sm">Sign in</span>

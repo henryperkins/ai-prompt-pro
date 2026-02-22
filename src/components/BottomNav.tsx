@@ -7,7 +7,7 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 flex items-end justify-around border-t border-border bg-background/95 px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1 backdrop-blur sm:hidden"
+      className="pf-mobile-nav fixed inset-x-0 bottom-0 z-40 flex items-end justify-around border-t border-border bg-background/95 px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1 backdrop-blur sm:hidden"
       aria-label="Mobile navigation"
     >
       {BOTTOM_NAV_ITEMS.map(({ to, label, icon: Icon }) => {

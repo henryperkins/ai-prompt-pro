@@ -42,7 +42,7 @@ function PresetCard({ template }: { template: PromptTemplate }) {
   ].filter(Boolean) as string[];
 
   return (
-    <Card className={cn("interactive-card group overflow-hidden border", skin.card)}>
+    <Card className={cn("interactive-card pf-card group overflow-hidden border", skin.card)}>
       <div className="p-3 sm:p-4 space-y-2">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 flex-wrap min-w-0">
@@ -116,6 +116,7 @@ const Presets = () => {
       <PageHero
         title="Presets"
         subtitle="Starter templates that auto-populate the builder. Pick one and start enhancing."
+        className="pf-gilded-frame pf-hero-surface"
       />
 
       <div className="mx-auto max-w-4xl space-y-4">
@@ -149,7 +150,7 @@ const Presets = () => {
         </div>
 
         {filtered.length === 0 ? (
-          <Card className="p-6 text-center border-dashed">
+          <Card className="pf-card border-dashed p-6 text-center">
             <p className="text-sm text-muted-foreground">No presets match.</p>
           </Card>
         ) : (

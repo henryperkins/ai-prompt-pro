@@ -1,0 +1,52 @@
+/* PromptForge - Fantasy Forge theme (drop-in CSS variables) */
+:root{
+  --pf-arcane-teal: #12C8B5;
+  --pf-deep-teal: #0A6A64;
+  --pf-forge-gold: #D6A640;
+  --pf-antique-gold: #B8872B;
+  --pf-ember-orange: #FF7A18;
+  --pf-ember-dark: #5A1F0A;
+
+  --pf-coal: #0B0F14;
+  --pf-midnight: #1D2630;
+  --pf-slate: #2E3A46;
+
+  --pf-parchment: #E6E1D5;
+  --pf-ash: #B7B0A5;
+
+  --pf-radius-sm: 12px;
+  --pf-radius-md: 18px;
+  --pf-radius-lg: 26px;
+  --pf-radius-xl: 32px;
+
+  --pf-shadow-card: 0 18px 40px rgba(0,0,0,.45);
+  --pf-shadow-elevated: 0 26px 70px rgba(0,0,0,.55);
+  --pf-inner-bevel: inset 0 1px 0 rgba(230,225,213,.12), inset 0 -1px 0 rgba(0,0,0,.35);
+
+  --pf-glow-arcane: 0 0 24px rgba(18,200,181,.28);
+  --pf-glow-ember: 0 0 28px rgba(255,122,24,.22);
+
+  --pf-ease: cubic-bezier(.2,.8,.2,1);
+  --pf-fast: 140ms;
+  --pf-base: 220ms;
+  --pf-slow: 360ms;
+}
+
+/* Example component primitives */
+.pf-panel{
+  background: linear-gradient(180deg, rgba(18,24,32,.92), rgba(11,15,20,.92));
+  border: 2px solid rgba(214,166,64,.55);
+  border-radius: var(--pf-radius-lg);
+  box-shadow: var(--pf-shadow-card);
+}
+
+.pf-button-primary{
+  background: linear-gradient(180deg, rgba(18,200,181,.22), rgba(10,106,100,1));
+  border: 2px solid rgba(214,166,64,.9);
+  border-radius: var(--pf-radius-md);
+  box-shadow: var(--pf-glow-arcane), var(--pf-inner-bevel);
+  color: var(--pf-parchment);
+  transition: transform var(--pf-fast) var(--pf-ease), box-shadow var(--pf-fast) var(--pf-ease);
+}
+.pf-button-primary:hover{ transform: translateY(-1px); box-shadow: 0 0 34px rgba(18,200,181,.32), var(--pf-inner-bevel); }
+.pf-button-primary:active{ transform: translateY(0px); }

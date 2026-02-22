@@ -1,0 +1,81 @@
+{
+  "name": "PromptForge Fantasy Forge",
+  "colors": {
+    "arcaneTeal": "#12C8B5",
+    "deepTeal": "#0A6A64",
+    "forgeGold": "#D6A640",
+    "antiqueGold": "#B8872B",
+    "emberOrange": "#FF7A18",
+    "emberDark": "#5A1F0A",
+    "coal": "#0B0F14",
+    "midnight": "#1D2630",
+    "slate": "#2E3A46",
+    "parchment": "#E6E1D5",
+    "ash": "#B7B0A5"
+  },
+  "gradients": {
+    "arcane": [
+      "#12C8B5",
+      "#0A6A64"
+    ],
+    "gilded": [
+      "#D6A640",
+      "#B8872B"
+    ],
+    "ember": [
+      "#FF7A18",
+      "#D63A00"
+    ],
+    "storm": [
+      "#1D2630",
+      "#0B0F14"
+    ]
+  },
+  "radii": {
+    "sm": 12,
+    "md": 18,
+    "lg": 26,
+    "xl": 32
+  },
+  "strokes": {
+    "thin": 1,
+    "base": 2,
+    "bold": 4
+  },
+  "effects": {
+    "shadowCard": "0 18px 40px rgba(0,0,0,0.45)",
+    "shadowElevated": "0 26px 70px rgba(0,0,0,0.55)",
+    "innerBevel": "inset 0 1px 0 rgba(230,225,213,0.12), inset 0 -1px 0 rgba(0,0,0,0.35)",
+    "glowArcane": "0 0 24px rgba(18,200,181,0.28)",
+    "glowEmber": "0 0 28px rgba(255,122,24,0.22)"
+  },
+  "typography": {
+    "display": {
+      "family": "Cinzel, 'Trajan Pro', 'Times New Roman', serif",
+      "weight": 700,
+      "tracking": -0.02
+    },
+    "body": {
+      "family": "Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
+      "weight": 400,
+      "tracking": 0
+    },
+    "scalePx": {
+      "xs": 12,
+      "sm": 14,
+      "base": 16,
+      "lg": 18,
+      "xl": 22,
+      "2xl": 28,
+      "3xl": 36,
+      "4xl": 48,
+      "5xl": 64
+    }
+  },
+  "motion": {
+    "fast": "140ms",
+    "base": "220ms",
+    "slow": "360ms",
+    "easing": "cubic-bezier(.2,.8,.2,1)"
+  }
+}

@@ -1,0 +1,215 @@
+/* PromptForge — Fantasy Forge UI (screen templates)
+   High-fantasy MMORPG / forged-metal vibe: arcane teal glow + gilded trim + ember accents.
+*/
+
+/* -------------------------------------------------------------------------- */
+/* Tokens                                                                      */
+/* -------------------------------------------------------------------------- */
+:root{
+  --pf-arcane-teal: #12C8B5;
+  --pf-deep-teal: #0A6A64;
+  --pf-forge-gold: #D6A640;
+  --pf-antique-gold: #B8872B;
+  --pf-ember-orange: #FF7A18;
+  --pf-ember-dark: #5A1F0A;
+
+  --pf-coal: #0B0F14;
+  --pf-midnight: #1D2630;
+  --pf-slate: #2E3A46;
+
+  --pf-parchment: #E6E1D5;
+  --pf-ash: #B7B0A5;
+
+  /* RGB variants for Tailwind opacity support: rgb(var(--pf-*-rgb) / <alpha-value>) */
+  --pf-arcane-rgb: 18 200 181;
+  --pf-deep-rgb: 10 106 100;
+  --pf-gold-rgb: 214 166 64;
+  --pf-ember-rgb: 255 122 24;
+  --pf-coal-rgb: 11 15 20;
+  --pf-midnight-rgb: 29 38 48;
+  --pf-slate-rgb: 46 58 70;
+  --pf-parchment-rgb: 230 225 213;
+
+  --pf-radius-sm: 12px;
+  --pf-radius-md: 18px;
+  --pf-radius-lg: 26px;
+  --pf-radius-xl: 32px;
+
+  --pf-shadow-card: 0 18px 40px rgba(0,0,0,.45);
+  --pf-shadow-elevated: 0 26px 70px rgba(0,0,0,.55);
+  --pf-inner-bevel: inset 0 1px 0 rgba(230,225,213,.12), inset 0 -1px 0 rgba(0,0,0,.35);
+
+  --pf-glow-arcane: 0 0 24px rgba(18,200,181,.28);
+  --pf-glow-ember: 0 0 28px rgba(255,122,24,.22);
+  --pf-glow-gold: 0 0 28px rgba(214,166,64,.18);
+
+  --pf-ease: cubic-bezier(.2,.8,.2,1);
+  --pf-fast: 140ms;
+  --pf-base: 220ms;
+  --pf-slow: 360ms;
+
+  /* Fonts (load Cinzel + Inter in your app) */
+  --pf-font-display: Cinzel, "Trajan Pro", "Times New Roman", serif;
+  --pf-font-body: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+html, body{
+  background: var(--pf-coal);
+  color: var(--pf-parchment);
+  font-family: var(--pf-font-body);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Utility primitives                                                          */
+/* -------------------------------------------------------------------------- */
+
+.pf-text-display{ font-family: var(--pf-font-display); letter-spacing: -0.02em; }
+.pf-text-muted{ color: rgba(var(--pf-parchment-rgb) / 0.72); }
+
+.pf-divider{
+  height: 1px;
+  background: linear-gradient(90deg,
+    rgba(var(--pf-gold-rgb) / 0),
+    rgba(var(--pf-gold-rgb) / 0.7),
+    rgba(var(--pf-arcane-rgb) / 0.55),
+    rgba(var(--pf-gold-rgb) / 0.7),
+    rgba(var(--pf-gold-rgb) / 0)
+  );
+  filter: drop-shadow(0 0 10px rgba(var(--pf-arcane-rgb) / 0.18));
+}
+
+/* Gilded frame for hero / premium panels */
+.pf-gilded-frame{
+  position: relative;
+  border-radius: var(--pf-radius-lg);
+  border: 1px solid rgba(var(--pf-gold-rgb) / 0.55);
+  box-shadow: var(--pf-shadow-card);
+  background: linear-gradient(180deg, rgba(18,24,32,.92), rgba(11,15,20,.92));
+  overflow: hidden;
+}
+.pf-gilded-frame::before{
+  content:"";
+  position:absolute; inset: 0;
+  background:
+    radial-gradient(600px 260px at 25% 20%, rgba(var(--pf-arcane-rgb) / 0.16), transparent 60%),
+    radial-gradient(700px 340px at 80% 0%, rgba(var(--pf-gold-rgb) / 0.11), transparent 62%),
+    linear-gradient(180deg, rgba(255,255,255,.04), rgba(0,0,0,.14));
+  pointer-events:none;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Surfaces                                                                    */
+/* -------------------------------------------------------------------------- */
+
+.pf-panel{
+  position: relative;
+  border-radius: var(--pf-radius-lg);
+  border: 2px solid rgba(var(--pf-gold-rgb) / 0.40);
+  box-shadow: var(--pf-shadow-card);
+  background:
+    radial-gradient(700px 250px at 25% 0%, rgba(var(--pf-arcane-rgb) / 0.10), transparent 65%),
+    linear-gradient(180deg, rgba(18,24,32,.94), rgba(11,15,20,.94));
+  overflow: hidden;
+}
+.pf-panel::after{
+  content:"";
+  position:absolute; inset:0;
+  background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(0,0,0,.16));
+  box-shadow: var(--pf-inner-bevel);
+  pointer-events:none;
+}
+
+.pf-input{
+  border-radius: var(--pf-radius-md);
+  border: 2px solid rgba(var(--pf-slate-rgb) / 0.85);
+  background: rgba(var(--pf-coal-rgb) / 0.92);
+  color: var(--pf-parchment);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+  transition: border-color var(--pf-fast) var(--pf-ease), box-shadow var(--pf-fast) var(--pf-ease);
+}
+.pf-input:focus{
+  outline: none;
+  border-color: rgba(var(--pf-arcane-rgb) / 0.9);
+  box-shadow: 0 0 0 4px rgba(var(--pf-arcane-rgb) / 0.12), inset 0 1px 0 rgba(255,255,255,.05);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Buttons                                                                     */
+/* -------------------------------------------------------------------------- */
+.pf-button{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap: .55rem;
+  padding: .72rem 1.0rem;
+  border-radius: var(--pf-radius-md);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  transition: transform var(--pf-fast) var(--pf-ease), box-shadow var(--pf-fast) var(--pf-ease), filter var(--pf-fast) var(--pf-ease);
+  user-select:none;
+  -webkit-tap-highlight-color: transparent;
+}
+.pf-button:active{ transform: translateY(0px); }
+
+.pf-button-primary{
+  background: linear-gradient(180deg, rgba(var(--pf-arcane-rgb) / .22), rgba(var(--pf-deep-rgb) / 1));
+  border: 2px solid rgba(var(--pf-gold-rgb) / .88);
+  color: var(--pf-parchment);
+  box-shadow: var(--pf-glow-arcane), var(--pf-inner-bevel);
+}
+.pf-button-primary:hover{ transform: translateY(-1px); box-shadow: 0 0 34px rgba(var(--pf-arcane-rgb) / .32), var(--pf-inner-bevel); }
+
+.pf-button-secondary{
+  background: linear-gradient(180deg, rgba(var(--pf-midnight-rgb) / .9), rgba(var(--pf-coal-rgb) / .95));
+  border: 2px solid rgba(var(--pf-arcane-rgb) / .70);
+  color: var(--pf-parchment);
+  box-shadow: 0 0 18px rgba(var(--pf-arcane-rgb) / .14), var(--pf-inner-bevel);
+}
+.pf-button-secondary:hover{ transform: translateY(-1px); box-shadow: 0 0 26px rgba(var(--pf-arcane-rgb) / .22), var(--pf-inner-bevel); }
+
+.pf-button-ghost{
+  background: rgba(var(--pf-coal-rgb) / 0.35);
+  border: 1px solid rgba(var(--pf-gold-rgb) / 0.35);
+  color: rgba(var(--pf-parchment-rgb) / 0.9);
+}
+.pf-button-ghost:hover{ filter: brightness(1.08); transform: translateY(-1px); }
+
+/* -------------------------------------------------------------------------- */
+/* Navbar links                                                                */
+/* -------------------------------------------------------------------------- */
+.pf-nav-link{
+  position: relative;
+  color: rgba(var(--pf-parchment-rgb) / .84);
+  transition: color var(--pf-fast) var(--pf-ease);
+}
+.pf-nav-link:hover{ color: rgba(var(--pf-parchment-rgb) / 1); }
+.pf-nav-link::after{
+  content:"";
+  position:absolute;
+  left:0; right:0;
+  bottom:-8px;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(var(--pf-gold-rgb) / 0), rgba(var(--pf-gold-rgb) / .85), rgba(var(--pf-arcane-rgb) / .75), rgba(var(--pf-gold-rgb) / 0));
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity var(--pf-fast) var(--pf-ease), transform var(--pf-fast) var(--pf-ease);
+}
+.pf-nav-link:hover::after{ opacity: 1; transform: translateY(0px); }
+
+/* -------------------------------------------------------------------------- */
+/* Rarity tiers (for Template Cards / Community Cards)                         */
+/* -------------------------------------------------------------------------- */
+.pf-card{
+  border-radius: var(--pf-radius-lg);
+  background: linear-gradient(180deg, rgba(18,24,32,.92), rgba(11,15,20,.94));
+  box-shadow: var(--pf-shadow-card);
+  border: 2px solid rgba(var(--pf-slate-rgb) / .9);
+  transition: transform var(--pf-fast) var(--pf-ease), box-shadow var(--pf-fast) var(--pf-ease), border-color var(--pf-fast) var(--pf-ease);
+  overflow:hidden;
+}
+.pf-card:hover{ transform: translateY(-2px); box-shadow: var(--pf-shadow-elevated); }
+
+.pf-rarity-common{ border-color: rgba(var(--pf-slate-rgb) / .95); }
+.pf-rarity-rare{ border-color: rgba(var(--pf-arcane-rgb) / .88); box-shadow: var(--pf-shadow-card), 0 0 22px rgba(var(--pf-arcane-rgb) / .14); }
+.pf-rarity-epic{ border-color: rgba(var(--pf-ember-rgb) / .85); box-shadow: var(--pf-shadow-card), 0 0 22px rgba(var(--pf-ember-rgb) / .12); }
+.pf-rarity-legendary{ border-color: rgba(var(--pf-gold-rgb) / .92); box-shadow: var(--pf-shadow-card), 0 0 26px rgba(var(--pf-gold-rgb) / .14); }

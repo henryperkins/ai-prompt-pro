@@ -34,6 +34,7 @@ import {
   getUserDisplayName,
 } from "@/lib/library-pages";
 import * as persistence from "@/lib/persistence";
+import { PFTemplateCard, type PFRarity } from "@/components/fantasy/PFTemplateCard";
 
 type SavedPromptSort = "recent" | "name" | "revision";
 const LIBRARY_VIRTUALIZATION_THRESHOLD = 50;
@@ -77,6 +78,21 @@ function loadSelectionFromSession(): string[] {
   } catch {
     return [];
   }
+}
+
+function rarityForPrompt(prompt: persistence.PromptSummary): PFRarity {
+  const weightedSignal =
+    prompt.revision +
+    prompt.sourceCount +
+    prompt.databaseCount +
+    Math.min(prompt.tags.length, 4) +
+    (prompt.isShared ? 2 : 0) +
+    (prompt.remixedFrom ? 1 : 0);
+
+  if (weightedSignal >= 12) return "legendary";
+  if (weightedSignal >= 8) return "epic";
+  if (weightedSignal >= 4) return "rare";
+  return "common";
 }
 
 const Library = () => {
@@ -147,6 +163,10 @@ const Library = () => {
     if (!showSelectedOnly) return filteredSaved;
     return filteredSaved.filter((prompt) => selectedSet.has(prompt.id));
   }, [filteredSaved, selectedSet, showSelectedOnly]);
+  const featuredPrompts = useMemo(
+    () => [...templateSummaries].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 3),
+    [templateSummaries],
+  );
 
   const promptById = useMemo(() => new Map(templateSummaries.map((prompt) => [prompt.id, prompt])), [templateSummaries]);
   const selectedPrompts = useMemo(
@@ -425,9 +445,8 @@ const Library = () => {
       return (
         <Card
           key={prompt.id}
-          className={`interactive-card p-3 transition-colors ${
-            isSelected ? "border-primary/45 bg-primary/5" : "hover:border-primary/40"
-          }`}
+          className={`interactive-card p-3 transition-colors ${isSelected ? "border-primary/45 bg-primary/5" : "hover:border-primary/40"
+            }`}
         >
           <div className="flex items-start gap-3">
             <Checkbox
@@ -554,7 +573,7 @@ const Library = () => {
                   </Button>
                 )}
                 {shareDisabledReason && !prompt.isShared && (
-                  <p className="max-w-[160px] text-right text-xs text-muted-foreground">
+                  <p className="max-w-40 text-right text-xs text-muted-foreground">
                     {shareDisabledReason}
                   </p>
                 )}
@@ -653,7 +672,48 @@ const Library = () => {
         eyebrow={brandCopy.brandLine}
         title="Prompt Library"
         subtitle="Track quality, context sources, and remix history for every saved prompt."
+        className="pf-gilded-frame pf-hero-surface"
       />
+
+      {featuredPrompts.length > 0 && (
+        <Card className="pf-panel mb-4 border-[rgba(214,166,64,.32)] p-3 sm:p-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="pf-text-display text-xl text-[rgba(230,225,213,.95)]">Featured Artifacts</p>
+              <p className="text-sm text-[rgba(230,225,213,.72)]">
+                Latest prompt builds mapped to Fantasy Forge rarity frames.
+              </p>
+            </div>
+            <Button
+              color="secondary"
+              size="sm"
+              className="h-11 text-sm sm:h-9 sm:text-base"
+              onClick={() => navigate("/")}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Forge new prompt
+            </Button>
+          </div>
+
+          <div className="mt-3 grid gap-3 md:grid-cols-3">
+            {featuredPrompts.map((prompt) => (
+              <PFTemplateCard
+                key={`featured-${prompt.id}`}
+                title={`✦ ${prompt.name}`}
+                description={prompt.description || prompt.starterPrompt}
+                rarity={rarityForPrompt(prompt)}
+                author={prompt.isShared ? "Community Artifact" : ownerName}
+                tags={prompt.tags}
+                footerLeft={formatUpdatedAt(prompt.updatedAt)}
+                footerRight={`r${prompt.revision}`}
+                onClick={() => {
+                  void handleSelectSaved(prompt.id);
+                }}
+              />
+            ))}
+          </div>
+        </Card>
+      )}
 
       <div className="ui-density space-y-4" data-density="comfortable">
         <Card className="border-border/80 bg-card/85 p-3 sm:p-4">
@@ -695,7 +755,7 @@ const Library = () => {
                   setActiveCategory(String(value));
                 }
               }}
-              className="min-w-[140px] capitalize"
+              className="min-w-35 capitalize"
               aria-label="Filter category"
               size="md"
             >
@@ -715,7 +775,7 @@ const Library = () => {
                     setSortBy(String(value) as SavedPromptSort);
                   }
                 }}
-                className="min-w-[138px]"
+                className="min-w-34.5"
                 aria-label="Sort saved prompts"
                 size="md"
               >

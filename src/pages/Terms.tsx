@@ -10,10 +10,11 @@ const Terms = () => {
         eyebrow={brandCopy.brandLine}
         title="Terms of Use"
         subtitle="Basic rules for using PromptForge and community features."
+        className="pf-gilded-frame pf-hero-surface"
       />
 
       <div className="mx-auto max-w-3xl space-y-4">
-        <Card className="space-y-4 border-border/80 bg-card/90 p-4 sm:p-6">
+        <Card className="pf-card space-y-4 border-border/80 bg-card/90 p-4 sm:p-6">
           <p className="text-sm text-muted-foreground">Last updated: February 20, 2026</p>
 
           <article className="prose prose-sm max-w-none text-foreground dark:prose-invert prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-strong:text-foreground">
@@ -37,7 +38,7 @@ const Terms = () => {
           </article>
         </Card>
 
-        <Card className="space-y-2 border-border/80 bg-card/90 p-4 sm:p-5">
+        <Card className="pf-card space-y-2 border-border/80 bg-card/90 p-4 sm:p-5">
           <h2 className="text-base font-semibold text-foreground">Need help?</h2>
           <p className="text-sm text-muted-foreground">
             Visit <Link to="/contact" className="underline">Contact Support</Link> for account, moderation, or policy

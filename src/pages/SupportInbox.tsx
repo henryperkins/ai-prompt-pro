@@ -127,22 +127,23 @@ const SupportInbox = () => {
       <PageHero
         title="Support Inbox"
         subtitle="Review and triage contact form submissions."
+        className="pf-gilded-frame pf-hero-surface"
       />
 
       {access === "loading" && (
-        <Card className="border-border/80 bg-card/85 p-4 text-sm text-muted-foreground">
+        <Card className="pf-card border-border/80 bg-card/85 p-4 text-sm text-muted-foreground">
           Verifying access...
         </Card>
       )}
 
       {access === "signed_out" && (
-        <Card className="border-border/80 bg-card/85 p-4 text-sm text-muted-foreground">
+        <Card className="pf-card border-border/80 bg-card/85 p-4 text-sm text-muted-foreground">
           Sign in with a support reviewer account to access this inbox.
         </Card>
       )}
 
       {access === "forbidden" && (
-        <Card className="border-border/80 bg-card/85 p-4 text-sm text-muted-foreground">
+        <Card className="pf-card border-border/80 bg-card/85 p-4 text-sm text-muted-foreground">
           This account does not have support inbox access.
         </Card>
       )}
@@ -165,13 +166,13 @@ const SupportInbox = () => {
           </div>
 
           {messages.length === 0 && (
-            <Card className="border-border/80 bg-card/85 p-4 text-sm text-muted-foreground">
+            <Card className="pf-card border-border/80 bg-card/85 p-4 text-sm text-muted-foreground">
               {emptyState}
             </Card>
           )}
 
           {messages.map((message) => (
-            <Card key={message.id} className="space-y-3 border-border/80 bg-card/85 p-4">
+            <Card key={message.id} className="pf-card space-y-3 border-border/80 bg-card/85 p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <p className="text-sm font-semibold text-foreground">

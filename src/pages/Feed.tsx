@@ -462,11 +462,12 @@ const Feed = () => {
 
   return (
     <PageShell>
-      <div className="community-typography" data-density="comfortable">
+      <div className="community-typography pf-community-page" data-density="comfortable">
         <PageHero
           eyebrow={brandCopy.brandLine}
           title="Personal Feed"
           subtitle="Latest shared prompts from people you follow."
+          className="pf-gilded-frame pf-hero-surface"
         />
 
         {!user && (

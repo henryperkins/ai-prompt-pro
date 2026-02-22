@@ -34,9 +34,10 @@ const History = () => {
         <PageHero
           title="Version History"
           subtitle="Restore a saved version to Builder."
+          className="pf-gilded-frame pf-hero-surface"
         />
 
-        <Card className="border-border/80 bg-card/85 p-3 sm:max-h-[calc(100vh-220px)] sm:overflow-hidden sm:p-4">
+        <Card className="pf-card border-border/80 bg-card/85 p-3 sm:max-h-[calc(100vh-220px)] sm:overflow-hidden sm:p-4">
           <VersionHistoryContent
             versions={versions}
             onRestore={handleRestore}

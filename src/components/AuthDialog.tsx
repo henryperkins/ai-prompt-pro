@@ -87,7 +87,7 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
         if (!v) resetForm();
       }}
     >
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="pf-dialog-surface sm:max-w-md">
         <DialogHeader className="space-y-3">
           <div className="mx-auto inline-flex items-center gap-2 rounded-md border border-primary/20 bg-primary/5 px-2.5 py-1.5">
             <img

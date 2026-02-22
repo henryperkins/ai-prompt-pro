@@ -11,7 +11,7 @@ const NotFound = () => {
   }, [location.pathname]);
 
   return (
-    <PageShell mainClassName="py-10 flex items-center justify-center">
+    <PageShell mainClassName="pf-community-page flex items-center justify-center py-10">
       <div className="w-full max-w-lg">
         <StateCard
           variant="error"
@@ -19,7 +19,7 @@ const NotFound = () => {
           description={`This page (${location.pathname}) does not exist or has moved.`}
           primaryAction={{ label: "Back to Builder", to: "/" }}
           secondaryAction={{ label: "Open Community", to: "/community" }}
-          className="p-6"
+          className="pf-card p-6"
         />
       </div>
     </PageShell>

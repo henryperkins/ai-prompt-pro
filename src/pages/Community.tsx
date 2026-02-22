@@ -514,15 +514,16 @@ const Community = () => {
 
   return (
     <PageShell>
-      <div className="community-typography" data-density="comfortable">
+      <div className="community-typography pf-community-page" data-density="comfortable">
         <PageHero
           eyebrow={brandCopy.brandLine}
           title="Community Remix Feed"
           subtitle="Browse proven prompts, review context, and remix with clear attribution."
+          className="pf-gilded-frame pf-hero-surface"
         />
 
         <div
-          className="relative mb-3 rounded-xl border border-border bg-card/85 shadow-sm focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
+          className="pf-panel relative mb-3 rounded-xl border border-border bg-card/85 shadow-sm focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
           data-testid="community-search-shell"
         >
           <div className="p-2 sm:p-0">
@@ -577,7 +578,7 @@ const Community = () => {
           {showCategorySuggestions && (
             <div
               id={categoryPanelId}
-              className="type-post-body absolute left-0 right-0 top-full z-20 mt-2 rounded-xl border border-border/70 bg-popover p-2 shadow-lg"
+              className="pf-community-popover type-post-body absolute left-0 right-0 top-full z-20 mt-2 rounded-xl border border-border/70 bg-popover p-2 shadow-lg"
               role="group"
               aria-label="Category filters"
             >
@@ -617,7 +618,7 @@ const Community = () => {
           )}
         </div>
 
-        <div className="mb-4 grid grid-cols-2 gap-2 sm:flex sm:rounded-lg sm:bg-muted sm:p-1">
+        <div className="pf-community-toolbar mb-4 grid grid-cols-2 gap-2 sm:flex sm:rounded-lg sm:bg-muted sm:p-1">
           {SORT_OPTIONS.map((option) => (
             <button
               key={option.value}
@@ -643,7 +644,7 @@ const Community = () => {
         {mobileEnhancementsEnabled && (
           <Drawer open={mobileCategorySheetOpen} onOpenChange={setMobileCategorySheetOpen}>
             <DrawerContent
-              className="max-h-[80vh] pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+              className="pf-dialog-surface max-h-[80vh] pb-[max(0.75rem,env(safe-area-inset-bottom))]"
               aria-describedby={mobileFilterDescriptionId}
               data-testid="community-filter-sheet"
             >

@@ -16,21 +16,21 @@ export function PageShell({ children, mainClassName }: PageShellProps) {
 
   return (
     <div
-      className="min-h-screen bg-background flex flex-col pb-[calc(4.375rem+env(safe-area-inset-bottom))] sm:pb-0"
+      className="pf-shell-backdrop flex min-h-screen flex-col bg-background pb-[calc(4.375rem+env(safe-area-inset-bottom))] sm:pb-0"
       data-testid="page-shell"
     >
       <Header isDark={isDark} onToggleTheme={toggleTheme} />
       <main
-        className={cn("flex-1 container mx-auto px-4 py-4 sm:py-6", mainClassName)}
+        className={cn("pf-shell-main container mx-auto flex-1 px-4 py-4 sm:py-6", mainClassName)}
         data-testid="page-shell-main"
       >
         {children}
       </main>
-      <footer className="border-t border-border/70 bg-card/55">
+      <footer className="pf-shell-footer border-t border-border/70 bg-card/55">
         <div className="container mx-auto flex flex-col items-center justify-between gap-2 px-4 py-2 sm:flex-row sm:gap-4">
           <Link
             to="/"
-            className="interactive-chip inline-flex items-center gap-1.5 rounded-md px-1 py-0.5"
+            className="interactive-chip pf-nav-button inline-flex items-center gap-1.5 rounded-md px-1 py-0.5"
             aria-label={brandCopy.appName}
           >
             <img
@@ -50,9 +50,9 @@ export function PageShell({ children, mainClassName }: PageShellProps) {
           </Link>
 
           <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
-            <Link to="/privacy" className="hover:text-foreground">Privacy</Link>
-            <Link to="/terms" className="hover:text-foreground">Terms</Link>
-            <Link to="/contact" className="hover:text-foreground">Contact</Link>
+            <Link to="/privacy" className="pf-shell-footer-link hover:text-foreground">Privacy</Link>
+            <Link to="/terms" className="pf-shell-footer-link hover:text-foreground">Terms</Link>
+            <Link to="/contact" className="pf-shell-footer-link hover:text-foreground">Contact</Link>
           </div>
         </div>
       </footer>

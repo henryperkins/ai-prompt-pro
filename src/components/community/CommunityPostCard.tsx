@@ -66,6 +66,21 @@ function estimateTokens(text: string): string {
   return String(tokens);
 }
 
+function getPostRarityClass(post: CommunityPost, isFeatured: boolean): string {
+  if (isFeatured) return "pf-rarity-legendary";
+
+  const signal =
+    post.upvoteCount +
+    post.verifiedCount * 2 +
+    post.remixCount * 2 +
+    Math.round(post.ratingAverage ?? 0);
+
+  if (signal >= 22) return "pf-rarity-legendary";
+  if (signal >= 12) return "pf-rarity-epic";
+  if (signal >= 6) return "pf-rarity-rare";
+  return "pf-rarity-common";
+}
+
 function CommunityPostCardComponent({
   post,
   isFeatured = false,
@@ -116,7 +131,8 @@ function CommunityPostCardComponent({
   return (
     <Card
       className={cn(
-        "community-feed-card interactive-card overflow-hidden border-border/80 bg-card/85 p-3 sm:p-4",
+        "community-feed-card interactive-card pf-card overflow-hidden border-border/80 bg-card/85 p-3 sm:p-4",
+        getPostRarityClass(post, isFeatured),
         isFeatured && "lg:col-span-2 border-primary/35 bg-linear-to-br from-primary/10 via-card/90 to-card/85",
       )}
       style={{ animationDelay: `${animationDelayMs}ms` }}
@@ -221,7 +237,7 @@ function CommunityPostCardComponent({
         <PromptPreviewPanel
           text={promptBody}
           mode="compact"
-          className={cn("bg-background/65", isFeatured && "border-primary/25")}
+          className={cn("pf-community-preview bg-background/65", isFeatured && "border-primary/25")}
           onCopy={() => onCopyPrompt(post)}
         />
 

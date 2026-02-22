@@ -38,7 +38,7 @@ interface CommunityFeedProps {
 
 function LoadingCard() {
   return (
-    <Card className="p-4 space-y-3 border-border/80 bg-card/85">
+    <Card className="pf-card space-y-3 border-border/80 bg-card/85 p-4">
       <div className="flex items-center gap-2">
         <Skeleton className="h-8 w-8 rounded-full" />
         <div className="space-y-1">
