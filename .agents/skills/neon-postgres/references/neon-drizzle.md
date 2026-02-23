@@ -2,11 +2,7 @@
 
 Integration patterns, configurations, and optimizations for using **Drizzle ORM** with **Neon** Postgres.
 
-For official documentation:
-
-```bash
-curl -H "Accept: text/markdown" https://neon.com/docs/guides/drizzle
-```
+See the [official Drizzle guide](https://neon.com/docs/guides/drizzle.md) for complete details.
 
 ## Choosing the Right Driver
 
@@ -240,6 +236,6 @@ export async function safeNeonOperation<T>(
 ## Best Practices
 
 1. **Connection Management** - See `connection-methods.md` for platform-specific guidance
-2. **Neon Features** - Utilize branching for development/testing (see `features.md`)
+2. **Neon Features** - Utilize branching for development/testing
 3. **Query Optimization** - Batch operations, use prepared statements
 4. **Schema Design** - Leverage Postgres-specific features, use appropriate indexes

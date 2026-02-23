@@ -1,16 +1,10 @@
 # What is Neon
 
-Neon is a serverless Postgres platform designed to help you build reliable and scalable applications faster. It separates compute and storage to offer modern developer features such as autoscaling, branching, instant restore, and scale-to-zero.
+Neon is a serverless Postgres platform that separates compute and storage to offer autoscaling, branching, instant restore, and scale-to-zero.
 
-For the full introduction, fetch the official docs:
-
-```bash
-curl -H "Accept: text/markdown" https://neon.com/docs/introduction
-```
+See the [official introduction](https://neon.com/docs/introduction.md) for complete details.
 
 ## Core Concepts
-
-Understanding Neon's resource hierarchy is essential for working with the platform effectively.
 
 | Concept          | Description                                                           | Key Relationship          |
 | ---------------- | --------------------------------------------------------------------- | ------------------------- |
@@ -29,29 +23,18 @@ Understanding Neon's resource hierarchy is essential for working with the platfo
 3. **Separation of Compute and Storage**: Pay for compute only when active
 4. **Postgres Compatible**: Works with any Postgres driver, ORM, or tool
 
-## Documentation Resources
-
-| Topic                  | Documentation URL                                         |
-| ---------------------- | --------------------------------------------------------- |
-| Introduction           | https://neon.com/docs/introduction                       |
-| Architecture           | https://neon.com/docs/introduction/architecture-overview |
-| Plans & Billing        | https://neon.com/docs/introduction/about-billing         |
-| Regions                | https://neon.com/docs/introduction/regions               |
-| Postgres Compatibility | https://neon.com/docs/reference/compatibility            |
-
-```bash
-# Fetch architecture docs
-curl -H "Accept: text/markdown" https://neon.com/docs/introduction/architecture-overview
-
-# Fetch plans and billing
-curl -H "Accept: text/markdown" https://neon.com/docs/introduction/about-billing
-```
-
 ## When to Use Neon
-
-Neon is ideal for:
 
 - **Serverless applications**: Functions that need database access without managing connections
 - **Development workflows**: Branch databases like code for isolated testing
 - **Variable workloads**: Auto-scale during traffic spikes, scale to zero when idle
 - **Cost optimization**: Pay only for active compute time and storage used
+
+## Further Reading
+
+| Topic                  | URL                                                         |
+| ---------------------- | ----------------------------------------------------------- |
+| Architecture           | https://neon.com/docs/introduction/architecture-overview.md |
+| Plans & Billing        | https://neon.com/docs/introduction/about-billing.md         |
+| Regions                | https://neon.com/docs/introduction/regions.md               |
+| Postgres Compatibility | https://neon.com/docs/reference/compatibility.md            |

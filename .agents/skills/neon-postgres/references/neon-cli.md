@@ -39,11 +39,11 @@ Get your API key from: https://console.neon.tech/app/settings/api-keys
 ### Project Management
 
 ```bash
-# List all projects
-neonctl projects list
+# List all projects (org-scoped)
+neonctl projects list --org-id <org-id>
 
 # Create a new project
-neonctl projects create --name my-project
+neonctl projects create --name my-project --org-id <org-id>
 
 # Get project details
 neonctl projects get <project-id>
@@ -142,17 +142,13 @@ Example GitHub Actions workflow:
 
 ## Documentation Resources
 
-| Topic          | URL                                                    |
-| -------------- | ------------------------------------------------------ |
-| CLI Reference  | https://neon.com/docs/reference/neon-cli              |
-| CLI Install    | https://neon.com/docs/reference/cli-install           |
-| CLI Auth       | https://neon.com/docs/reference/cli-auth              |
-| CLI Projects   | https://neon.com/docs/reference/cli-projects          |
-| CLI Branches   | https://neon.com/docs/reference/cli-branches          |
-| CLI Connection | https://neon.com/docs/reference/cli-connection-string |
+| Topic          | URL                                                      |
+| -------------- | -------------------------------------------------------- |
+| CLI Reference  | https://neon.com/docs/reference/neon-cli.md              |
+| CLI Install    | https://neon.com/docs/reference/cli-install.md           |
+| CLI Auth       | https://neon.com/docs/reference/cli-auth.md              |
+| CLI Projects   | https://neon.com/docs/reference/cli-projects.md          |
+| CLI Branches   | https://neon.com/docs/reference/cli-branches.md          |
+| CLI Connection | https://neon.com/docs/reference/cli-connection-string.md |
 
-Fetch CLI documentation:
-
-```bash
-curl -H "Accept: text/markdown" https://neon.com/docs/reference/neon-cli
-```
+See the [full CLI docs](https://neon.com/docs/reference/neon-cli.md) for the complete command reference.

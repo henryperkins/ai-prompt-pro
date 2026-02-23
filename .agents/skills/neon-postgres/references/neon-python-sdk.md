@@ -1,14 +1,10 @@
 # Neon Python SDK
 
-The `neon-api` Python SDK is a Pythonic wrapper around the Neon REST API. It provides methods for managing all Neon resources, including projects, branches, endpoints, roles, and databases.
+The `neon-api` Python SDK is a Pythonic wrapper around the Neon REST API for managing Neon resources programmatically.
 
 For core concepts (Organization, Project, Branch, Endpoint, etc.), see `what-is-neon.md`.
 
-## Documentation
-
-```bash
-curl -H "Accept: text/markdown" https://neon.com/docs/reference/python-sdk
-```
+See the [official Python SDK docs](https://neon.com/docs/reference/python-sdk.md) for complete details.
 
 ## Installation
 
@@ -22,240 +18,84 @@ pip install neon-api
 import os
 from neon_api import NeonAPI
 
-api_key = os.getenv("NEON_API_KEY")
-if not api_key:
-    raise ValueError("NEON_API_KEY environment variable is not set.")
-
-neon = NeonAPI(api_key=api_key)
+neon = NeonAPI(api_key=os.environ["NEON_API_KEY"])
 ```
 
-## Projects
+## Org-Aware Workflow
 
-### List Projects
+All Neon accounts are organization-based. Discover the user's org first, then pass `org_id` to project operations:
 
 ```python
-all_projects = neon.projects()
+# 1. Get the user's organizations
+orgs = neon.current_user_organizations()
+org_id = orgs[0].id
+
+# 2. List projects within the org
+projects = neon.projects(org_id=org_id)
 ```
 
-### Create Project
+## Method Quick Reference
 
-```python
-new_project = neon.project_create(
-    project={
-        'name': 'my-new-project',
-        'pg_version': 17
-    }
-)
-```
+### Projects
 
-### Get Project Details
+| Operation          | Method                                                                          |
+| ------------------ | ------------------------------------------------------------------------------- |
+| List projects      | `neon.projects(org_id=...)`                                                     |
+| Create project     | `neon.project_create(project={ 'name': ..., 'pg_version': 17, 'org_id': ... })` |
+| Get project        | `neon.project(project_id=...)`                                                  |
+| Update project     | `neon.project_update(project_id=..., project={...})`                            |
+| Delete project     | `neon.project_delete(project_id=...)`                                           |
+| Get connection URI | `neon.connection_uri(project_id=..., database_name=..., role_name=...)`         |
 
-```python
-project = neon.project(project_id='your-project-id')
-```
+### Branches
 
-### Update Project
+| Operation     | Method                                                              |
+| ------------- | ------------------------------------------------------------------- |
+| Create branch | `neon.branch_create(project_id=..., branch={...}, endpoints=[...])` |
+| List branches | `neon.branches(project_id=...)`                                     |
+| Get branch    | `neon.branch(project_id=..., branch_id=...)`                        |
+| Update branch | `neon.branch_update(project_id=..., branch_id=..., branch={...})`   |
+| Delete branch | `neon.branch_delete(project_id=..., branch_id=...)`                 |
 
-```python
-neon.project_update(
-    project_id='your-project-id',
-    project={
-        'name': 'renamed-project',
-        'default_endpoint_settings': {
-            'autoscaling_limit_min_cu': 1,
-            'autoscaling_limit_max_cu': 2,
-        }
-    }
-)
-```
+### Databases
 
-### Delete Project
+| Operation       | Method                                                                 |
+| --------------- | ---------------------------------------------------------------------- |
+| Create database | `neon.database_create(project_id=..., branch_id=..., database={...})`  |
+| List databases  | `neon.databases(project_id=..., branch_id=...)`                        |
+| Delete database | `neon.database_delete(project_id=..., branch_id=..., database_id=...)` |
 
-```python
-neon.project_delete(project_id='project-to-delete')
-```
+### Roles
 
-### Get Connection URI
+| Operation   | Method                                                           |
+| ----------- | ---------------------------------------------------------------- |
+| Create role | `neon.role_create(project_id=..., branch_id=..., role_name=...)` |
+| List roles  | `neon.roles(project_id=..., branch_id=...)`                      |
+| Delete role | `neon.role_delete(project_id=..., branch_id=..., role_name=...)` |
 
-```python
-uri = neon.connection_uri(
-    project_id='your-project-id',
-    database_name='neondb',
-    role_name='neondb_owner'
-)
-print(f"Connection URI: {uri.uri}")
-```
+### Endpoints
 
-## Branches
+| Operation        | Method                                                                  |
+| ---------------- | ----------------------------------------------------------------------- |
+| Create endpoint  | `neon.endpoint_create(project_id=..., endpoint={...})`                  |
+| Start endpoint   | `neon.endpoint_start(project_id=..., endpoint_id=...)`                  |
+| Suspend endpoint | `neon.endpoint_suspend(project_id=..., endpoint_id=...)`                |
+| Update endpoint  | `neon.endpoint_update(project_id=..., endpoint_id=..., endpoint={...})` |
+| Delete endpoint  | `neon.endpoint_delete(project_id=..., endpoint_id=...)`                 |
 
-### Create Branch
+### Organizations
 
-```python
-new_branch = neon.branch_create(
-    project_id='your-project-id',
-    branch={'name': 'feature-branch'},
-    endpoints=[
-        {'type': 'read_write', 'autoscaling_limit_max_cu': 1}
-    ]
-)
-```
+| Operation      | Method                              |
+| -------------- | ----------------------------------- |
+| List user orgs | `neon.current_user_organizations()` |
+| Get org        | `neon.organization(org_id=...)`     |
 
-### List Branches
+### API Keys & Operations
 
-```python
-branches = neon.branches(project_id='your-project-id')
-```
-
-### Get Branch Details
-
-```python
-branch = neon.branch(project_id='your-project-id', branch_id='br-xxx')
-```
-
-### Update Branch
-
-```python
-neon.branch_update(
-    project_id='your-project-id',
-    branch_id='br-xxx',
-    branch={'name': 'updated-branch-name'}
-)
-```
-
-### Delete Branch
-
-```python
-neon.branch_delete(project_id='your-project-id', branch_id='br-xxx')
-```
-
-## Databases
-
-### Create Database
-
-```python
-neon.database_create(
-    project_id='your-project-id',
-    branch_id='br-xxx',
-    database={'name': 'my-app-db', 'owner_name': 'neondb_owner'}
-)
-```
-
-### List Databases
-
-```python
-databases = neon.databases(project_id='your-project-id', branch_id='br-xxx')
-```
-
-### Delete Database
-
-```python
-neon.database_delete(
-    project_id='your-project-id',
-    branch_id='br-xxx',
-    database_id='my-app-db'
-)
-```
-
-## Roles
-
-### Create Role
-
-```python
-new_role = neon.role_create(
-    project_id='your-project-id',
-    branch_id='br-xxx',
-    role_name='app_user'
-)
-print(f"Password: {new_role.role.password}")
-```
-
-### List Roles
-
-```python
-roles = neon.roles(project_id='your-project-id', branch_id='br-xxx')
-```
-
-### Delete Role
-
-```python
-neon.role_delete(
-    project_id='your-project-id',
-    branch_id='br-xxx',
-    role_name='app_user'
-)
-```
-
-## Endpoints
-
-### Create Endpoint
-
-```python
-neon.endpoint_create(
-    project_id='your-project-id',
-    endpoint={
-        'branch_id': 'br-xxx',
-        'type': 'read_only'
-    }
-)
-```
-
-### Start/Suspend Endpoint
-
-```python
-# Start
-neon.endpoint_start(project_id='your-project-id', endpoint_id='ep-xxx')
-
-# Suspend
-neon.endpoint_suspend(project_id='your-project-id', endpoint_id='ep-xxx')
-```
-
-### Update Endpoint
-
-```python
-neon.endpoint_update(
-    project_id='your-project-id',
-    endpoint_id='ep-xxx',
-    endpoint={'autoscaling_limit_max_cu': 2}
-)
-```
-
-### Delete Endpoint
-
-```python
-neon.endpoint_delete(project_id='your-project-id', endpoint_id='ep-xxx')
-```
-
-## API Keys
-
-### List API Keys
-
-```python
-api_keys = neon.api_keys()
-```
-
-### Create API Key
-
-```python
-new_key = neon.api_key_create(key_name='my-script-key')
-print(f"Key (store securely!): {new_key.key}")
-```
-
-### Revoke API Key
-
-```python
-neon.api_key_revoke(1234)  # key ID
-```
-
-## Operations
-
-### List Operations
-
-```python
-ops = neon.operations(project_id='your-project-id')
-```
-
-### Get Operation Details
-
-```python
-op = neon.operation(project_id='your-project-id', operation_id='op-xxx')
-```
+| Operation       | Method                                             |
+| --------------- | -------------------------------------------------- |
+| List API keys   | `neon.api_keys()`                                  |
+| Create API key  | `neon.api_key_create(key_name=...)`                |
+| Revoke API key  | `neon.api_key_revoke(key_id)`                      |
+| List operations | `neon.operations(project_id=...)`                  |
+| Get operation   | `neon.operation(project_id=..., operation_id=...)` |

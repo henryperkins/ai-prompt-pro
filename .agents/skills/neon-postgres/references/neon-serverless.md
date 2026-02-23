@@ -2,11 +2,7 @@
 
 Patterns and best practices for connecting to Neon databases in serverless environments using the `@neondatabase/serverless` driver. The driver connects over **HTTP** for fast, single queries or **WebSockets** for `node-postgres` compatibility and interactive transactions.
 
-For official documentation:
-
-```bash
-curl -H "Accept: text/markdown" https://neon.com/docs/serverless/serverless-driver
-```
+See the [official serverless driver docs](https://neon.com/docs/serverless/serverless-driver.md) for complete details.
 
 ## Installation
 
