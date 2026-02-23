@@ -97,7 +97,7 @@ export function BuilderSourcesAdvanced({
                 type="button"
                 size="sm"
                 color={showAdvanced ? "primary" : "secondary"}
-                className="h-11 gap-1.5 text-sm sm:h-9 sm:text-base"
+                className="h-11 gap-1.5 text-sm sm:h-9 sm:text-sm"
                 onClick={() =>
                   setAdvancedVisibility((previous) => {
                     const previousShown = previous === "auto" ? hasAdvancedConfig : previous === "shown";

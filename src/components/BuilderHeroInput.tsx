@@ -50,7 +50,7 @@ export function BuilderHeroInput({
                 size="sm"
                 onClick={onClear}
                 aria-label="Clear prompt text"
-                className="interactive-chip h-11 gap-1 px-3 text-sm sm:h-9 sm:px-2 sm:text-base"
+                className="interactive-chip h-11 gap-1 px-3 text-sm sm:h-9 sm:px-2 sm:text-sm"
               >
                 <RotateCcw className="w-3 h-3" />
                 Clear
@@ -79,7 +79,7 @@ export function BuilderHeroInput({
                 type="button"
                 color="tertiary"
                 size="sm"
-                className="h-11 px-3 text-sm sm:h-9 sm:px-2 sm:text-base"
+                className="h-11 px-3 text-sm sm:h-9 sm:px-2 sm:text-sm"
                 onClick={onResetInferred}
               >
                 Reset AI details
@@ -110,7 +110,7 @@ export function BuilderHeroInput({
                       type="button"
                       color="secondary"
                       size="sm"
-                      className="h-11 px-2 text-sm sm:h-9 sm:text-base"
+                      className="h-11 px-2 text-sm sm:h-9 sm:text-sm"
                       onClick={() => onApplySuggestion?.(chip)}
                     >
                       {chip.label}

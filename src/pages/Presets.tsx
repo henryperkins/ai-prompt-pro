@@ -73,7 +73,7 @@ function PresetCard({ template }: { template: PromptTemplate }) {
             type="button"
             color="secondary"
             size="sm"
-            className={cn("h-11 gap-1.5 text-sm sm:h-9 sm:text-base", skin.action)}
+            className={cn("h-11 gap-1.5 text-sm sm:h-9 sm:text-sm", skin.action)}
             onClick={() => navigate({ pathname: "/", search: `?${presetSearch}` })}
           >
             Use preset
@@ -139,7 +139,7 @@ const Presets = () => {
               size="sm"
               onClick={() => setActiveCategory(cat)}
               aria-pressed={activeCategory === cat}
-              className="interactive-chip h-11 gap-1.5 text-sm capitalize sm:h-9 sm:text-base"
+              className="interactive-chip h-11 gap-1.5 text-sm capitalize sm:h-9 sm:text-sm"
             >
               {cat !== "all" && (
                 <span className="text-sm">{categoryIcons[cat as PromptCategory] ?? ""}</span>

@@ -66,7 +66,7 @@ export function NotificationPanel({
               type="button"
               size="sm"
               color="tertiary"
-              className="h-11 px-3 text-sm sm:h-9 sm:px-2 sm:text-base"
+              className="h-11 px-3 text-sm sm:h-9 sm:px-2 sm:text-sm"
               onClick={onRefresh}
             >
               Refresh
@@ -76,7 +76,7 @@ export function NotificationPanel({
             type="button"
             size="sm"
             color="tertiary"
-            className="h-11 px-3 text-sm sm:h-9 sm:px-2 sm:text-base"
+            className="h-11 px-3 text-sm sm:h-9 sm:px-2 sm:text-sm"
             onClick={() => void onMarkAllAsRead()}
             disabled={unreadCount === 0 || loading}
           >

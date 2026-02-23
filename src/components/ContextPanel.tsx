@@ -67,16 +67,16 @@ export function ContextPanel({
 
       <Tabs defaultValue="structured" className="w-full">
         <TabsList className="h-auto w-full grid grid-cols-2 gap-1 bg-muted/30 p-1 sm:grid-cols-4">
-          <TabsTrigger value="structured" aria-label="Structured context tab" className="interactive-chip h-11 px-2 text-sm sm:h-10 sm:text-base">
+          <TabsTrigger value="structured" aria-label="Structured context tab" className="interactive-chip h-11 px-2 text-sm sm:h-10 sm:text-sm">
             Structured{structuredCount > 0 ? ` (${structuredCount})` : ""}
           </TabsTrigger>
-          <TabsTrigger value="integrations" aria-label="Integrations tab" className="interactive-chip h-11 px-2 text-sm sm:h-10 sm:text-base">
+          <TabsTrigger value="integrations" aria-label="Integrations tab" className="interactive-chip h-11 px-2 text-sm sm:h-10 sm:text-sm">
             Integrations{integrationCount > 0 ? ` (${integrationCount})` : ""}
           </TabsTrigger>
-          <TabsTrigger value="interview" aria-label="Context interview tab" className="interactive-chip h-11 px-2 text-sm sm:h-10 sm:text-base">
+          <TabsTrigger value="interview" aria-label="Context interview tab" className="interactive-chip h-11 px-2 text-sm sm:h-10 sm:text-sm">
             Interview{interviewCount > 0 ? ` (${interviewCount})` : ""}
           </TabsTrigger>
-          <TabsTrigger value="notes" aria-label="Project notes tab" className="interactive-chip h-11 px-2 text-sm sm:h-10 sm:text-base">
+          <TabsTrigger value="notes" aria-label="Project notes tab" className="interactive-chip h-11 px-2 text-sm sm:h-10 sm:text-sm">
             Notes{hasNotes ? " (1)" : ""}
           </TabsTrigger>
         </TabsList>

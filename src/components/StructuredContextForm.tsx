@@ -23,7 +23,7 @@ export function StructuredContextForm({ values, onUpdate }: StructuredContextFor
             <Button
               color="tertiary"
               size="sm"
-              className="h-11 gap-0.5 px-2 text-sm text-muted-foreground sm:h-9 sm:text-base"
+              className="h-11 gap-0.5 px-2 text-sm text-muted-foreground sm:h-9 sm:text-sm"
               onClick={() =>
                 setShowExamples(showExamples === field.key ? null : field.key)
               }

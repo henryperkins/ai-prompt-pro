@@ -1558,7 +1558,7 @@ const Index = () => {
                         type="button"
                         size="sm"
                         color="secondary"
-                        className="h-11 text-sm sm:h-9 sm:text-base"
+                        className="h-11 text-sm sm:h-9 sm:text-sm"
                         onClick={() => openAndFocusSection(suggestion.id)}
                       >
                         {suggestion.title}
@@ -1584,7 +1584,7 @@ const Index = () => {
                       type="button"
                       size="sm"
                       color="secondary"
-                      className="h-11 text-sm sm:h-9 sm:text-base"
+                      className="h-11 text-sm sm:h-9 sm:text-sm"
                       onClick={() => persistedSetShowAdvancedControls(true)}
                     >
                       Show advanced controls
@@ -1649,7 +1649,7 @@ const Index = () => {
                         type="button"
                         size="sm"
                         color="secondary"
-                        className="h-11 text-sm sm:h-9 sm:text-base"
+                        className="h-11 text-sm sm:h-9 sm:text-sm"
                         onClick={() => openAndFocusSection(suggestion.id)}
                       >
                         {suggestion.title}

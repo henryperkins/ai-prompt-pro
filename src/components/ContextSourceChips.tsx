@@ -220,7 +220,7 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
         <label className="text-sm font-medium text-foreground sm:text-base">Sources</label>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button color="secondary" size="sm" className="h-11 gap-1 text-sm sm:h-9 sm:text-base">
+            <Button color="secondary" size="sm" className="h-11 gap-1 text-sm sm:h-9 sm:text-sm">
               <Plus className="w-3 h-3" />
               Add
             </Button>

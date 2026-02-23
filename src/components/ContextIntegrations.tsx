@@ -146,7 +146,7 @@ export function ContextIntegrations({
             />
             <Label className="text-sm text-muted-foreground sm:text-base">Read-only</Label>
           </div>
-          <Button size="sm" className="h-11 gap-1.5 text-sm sm:h-9 sm:text-base" onClick={addDatabase}>
+          <Button size="sm" className="h-11 gap-1.5 text-sm sm:h-9 sm:text-sm" onClick={addDatabase}>
             <Plus className="w-3 h-3" />
             Add connection
           </Button>

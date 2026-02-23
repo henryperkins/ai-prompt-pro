@@ -19,7 +19,7 @@ export function ToneControls({ tone, complexity, onUpdate }: ToneControlsProps) 
               color={tone === t ? "primary" : "secondary"}
               size="sm"
               onClick={() => onUpdate({ tone: t })}
-              className="h-11 px-2 text-sm sm:h-9 sm:px-3 sm:text-base"
+              className="h-11 px-2 text-sm sm:h-9 sm:px-3 sm:text-sm"
             >
               {t}
             </Button>
@@ -35,7 +35,7 @@ export function ToneControls({ tone, complexity, onUpdate }: ToneControlsProps) 
               color={complexity === c ? "primary" : "secondary"}
               size="sm"
               onClick={() => onUpdate({ complexity: c })}
-              className="h-11 px-2 text-sm sm:h-9 sm:px-3 sm:text-base"
+              className="h-11 px-2 text-sm sm:h-9 sm:px-3 sm:text-sm"
             >
               {c}
             </Button>

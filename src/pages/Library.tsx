@@ -520,7 +520,7 @@ const Library = () => {
                   type="button"
                   color="primary"
                   size="sm"
-                  className="h-11 px-2.5 text-sm sm:h-9 sm:text-base"
+                  className="h-11 px-2.5 text-sm sm:h-9 sm:text-sm"
                   onClick={() => void handleSelectSaved(prompt.id)}
                 >
                   Load
@@ -529,7 +529,7 @@ const Library = () => {
                   <Button
                     color="tertiary"
                     size="sm"
-                    className="h-11 px-2.5 text-sm sm:h-9 sm:text-base"
+                    className="h-11 px-2.5 text-sm sm:h-9 sm:text-sm"
                     onClick={() => navigate(`/community/${prompt.communityPostId}`)}
                   >
                     Open
@@ -541,7 +541,7 @@ const Library = () => {
                     type="button"
                     color="secondary"
                     size="sm"
-                    className="h-11 px-2.5 text-sm sm:h-9 sm:text-base"
+                    className="h-11 px-2.5 text-sm sm:h-9 sm:text-sm"
                     onClick={() => void handleUnshareSaved(prompt.id)}
                   >
                     Unshare
@@ -551,7 +551,7 @@ const Library = () => {
                     type="button"
                     color="secondary"
                     size="sm"
-                    className="h-11 px-2.5 text-sm sm:h-9 sm:text-base"
+                    className="h-11 px-2.5 text-sm sm:h-9 sm:text-sm"
                     isDisabled={Boolean(shareDisabledReason)}
                     onClick={() => void handleShareSaved(prompt)}
                   >
@@ -567,7 +567,7 @@ const Library = () => {
                   type="button"
                   color="tertiary"
                   size="sm"
-                  className="h-11 px-2.5 text-sm text-destructive hover:text-destructive sm:h-9 sm:text-base"
+                  className="h-11 px-2.5 text-sm text-destructive hover:text-destructive sm:h-9 sm:text-sm"
                   onClick={() => void handleDeleteSaved(prompt.id)}
                 >
                   Delete
@@ -673,7 +673,7 @@ const Library = () => {
             <Button
               color="secondary"
               size="sm"
-              className="h-11 text-sm sm:h-9 sm:text-base"
+              className="h-11 text-sm sm:h-9 sm:text-sm"
               onClick={() => navigate("/")}
             >
               <Sparkles className="h-3.5 w-3.5" />
@@ -710,7 +710,7 @@ const Library = () => {
                 Keep your saved prompts production-ready without changing baseline templates.
               </p>
             </div>
-            <Button color="secondary" size="sm" className="h-11 gap-1 text-sm sm:h-9 sm:text-base" onClick={() => navigate("/")}>
+            <Button color="secondary" size="sm" className="h-11 gap-1 text-sm sm:h-9 sm:text-sm" onClick={() => navigate("/")}>
               <Sparkles className="h-3.5 w-3.5" />
               Open Builder
             </Button>
@@ -796,7 +796,7 @@ const Library = () => {
                     type="button"
                     color="secondary"
                     size="sm"
-                    className="h-11 text-sm sm:h-9 sm:text-base"
+                    className="h-11 text-sm sm:h-9 sm:text-sm"
                     isDisabled={selectedCount === 0 && !showSelectedOnly}
                     onClick={() => setShowSelectedOnly((prev) => !prev)}
                   >
@@ -808,7 +808,7 @@ const Library = () => {
                         type="button"
                         color="primary"
                         size="sm"
-                        className="h-11 text-sm sm:h-9 sm:text-base"
+                        className="h-11 text-sm sm:h-9 sm:text-sm"
                         onClick={handleLoadFirstSelected}
                       >
                         Load first
@@ -817,7 +817,7 @@ const Library = () => {
                         type="button"
                         color="secondary"
                         size="sm"
-                        className="h-11 text-sm sm:h-9 sm:text-base"
+                        className="h-11 text-sm sm:h-9 sm:text-sm"
                         isDisabled={isBulkUnsharing}
                         onClick={() => void handleBulkSetPrivate()}
                       >
@@ -827,7 +827,7 @@ const Library = () => {
                         type="button"
                         color="secondary"
                         size="sm"
-                        className="h-11 border-destructive/40 text-sm text-destructive hover:text-destructive sm:h-9 sm:text-base"
+                        className="h-11 border-destructive/40 text-sm text-destructive hover:text-destructive sm:h-9 sm:text-sm"
                         isDisabled={isBulkDeleting}
                         onClick={() => void handleBulkDelete()}
                       >
@@ -837,7 +837,7 @@ const Library = () => {
                         type="button"
                         color="tertiary"
                         size="sm"
-                        className="h-11 text-sm sm:h-9 sm:text-base"
+                        className="h-11 text-sm sm:h-9 sm:text-sm"
                         onClick={() => {
                           applySelection([]);
                           setShowSelectedOnly(false);
