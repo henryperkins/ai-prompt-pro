@@ -266,7 +266,7 @@ export function TeamMembersTableBlock() {
         </p>
         <div className="flex items-center gap-2">
           <Button
-            variant="outline"
+            color="secondary"
             size="sm"
             className="h-8 px-2.5 text-xs"
             onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
@@ -276,7 +276,7 @@ export function TeamMembersTableBlock() {
             Previous
           </Button>
           <Button
-            variant="outline"
+            color="secondary"
             size="sm"
             className="h-8 px-2.5 text-xs"
             onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}

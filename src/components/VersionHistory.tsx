@@ -75,7 +75,7 @@ export function VersionHistoryContent({
                 </p>
               </div>
               <Button
-                variant="ghost"
+                color="tertiary"
                 size="sm"
                 className="shrink-0 gap-1 text-xs"
                 onClick={() => onRestore(version.prompt)}

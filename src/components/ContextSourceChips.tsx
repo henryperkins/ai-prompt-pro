@@ -6,6 +6,7 @@ import { Badge } from "@/components/base/badges/badges";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -219,7 +220,7 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
         <label className="text-sm font-medium text-foreground sm:text-base">Sources</label>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button variant="outline" size="sm" className="h-11 gap-1 text-sm sm:h-9 sm:text-base">
+            <Button color="secondary" size="sm" className="h-11 gap-1 text-sm sm:h-9 sm:text-base">
               <Plus className="w-3 h-3" />
               Add
             </Button>
@@ -227,12 +228,15 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Add source material</DialogTitle>
+              <DialogDescription>
+                Paste text, fetch a public URL, or upload a file to provide context for prompt enhancement.
+              </DialogDescription>
             </DialogHeader>
 
             {!mode ? (
               <div className="grid grid-cols-2 gap-3 py-4">
                 <Button
-                  variant="outline"
+                  color="secondary"
                   className="h-20 flex-col gap-2"
                   onClick={() => setMode("text")}
                 >
@@ -240,7 +244,7 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
                   <span className="text-sm sm:text-base">Paste text</span>
                 </Button>
                 <Button
-                  variant="outline"
+                  color="secondary"
                   className="h-20 flex-col gap-2"
                   onClick={() => setMode("url")}
                 >
@@ -260,7 +264,7 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
                     />
                     <Button
                       size="sm"
-                      variant="secondary"
+                      color="secondary"
                       onClick={handleFetchUrl}
                       disabled={!urlInput.trim() || isFetching}
                       className="shrink-0 gap-1.5"
@@ -295,7 +299,7 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
                 </p>
                 <div className="flex gap-2 justify-end">
                   <Button
-                    variant="ghost"
+                    color="tertiary"
                     size="sm"
                     onClick={() => {
                       setMode(null);
@@ -321,7 +325,7 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
           {sources.map((source) => (
             <Badge
               key={source.id}
-              variant="secondary"
+              type="modern"
               className="gap-1 sm:gap-1.5 pr-1 max-w-[180px] sm:max-w-[200px] group cursor-default"
               title={`${source.title}\n${source.summary}`}
             >

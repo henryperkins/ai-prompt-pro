@@ -564,3 +564,47 @@ test("runs mobile smoke flow for feed, filter, post open, and comments", async (
   await expect(page.getByTestId("community-comments-sheet")).toBeVisible();
   await expect(page.getByText("Use transactions for reliability.")).toBeVisible();
 });
+
+test("supports mobile community in dark mode", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    localStorage.setItem("promptforge-user-prefs", JSON.stringify({
+      theme: "dark",
+      webSearchEnabled: false,
+      showAdvancedControls: false,
+    }));
+  });
+
+  await page.goto("/community");
+  await expect(page.getByRole("heading", { name: "Community Remix Feed" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open Backend migration helper" })).toBeVisible();
+
+  const darkMetrics = await page.evaluate(() => {
+    const rootHasDarkClass = document.documentElement.classList.contains("dark");
+    const card = document.querySelector<HTMLElement>(".community-feed-card");
+    const cardBackground = card ? window.getComputedStyle(card).backgroundColor : null;
+    return { rootHasDarkClass, cardBackground };
+  });
+
+  expect(darkMetrics.rootHasDarkClass).toBeTruthy();
+  expect(darkMetrics.cardBackground).not.toBeNull();
+});
+
+test("respects reduced-motion mode on community mobile surfaces", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+
+  await page.goto("/community");
+  await expect(page.getByRole("heading", { name: "Community Remix Feed" })).toBeVisible();
+
+  const reducedMotionMetrics = await page.evaluate(() => {
+    const card = document.querySelector<HTMLElement>(".community-feed-card");
+    return {
+      prefersReducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+      cardAnimationName: card ? window.getComputedStyle(card).animationName : null,
+    };
+  });
+
+  expect(reducedMotionMetrics.prefersReducedMotion).toBeTruthy();
+  expect(reducedMotionMetrics.cardAnimationName).toBe("none");
+});

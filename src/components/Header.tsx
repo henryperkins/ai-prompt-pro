@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Bell, Loader2, LogIn, LogOut, Menu, Moon, Sun, Trash2, User } from "lucide-react";
 import { Button } from "@/components/base/buttons/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitives/avatar";
@@ -68,7 +68,6 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [deleteAccountConfirmText, setDeleteAccountConfirmText] = useState("");
   const [deletingAccount, setDeletingAccount] = useState(false);
-  const mobileNotificationsDescriptionId = useId();
   const mobileNotificationsEnabled = communityFeatureFlags.communityMobileEnhancements;
   const canDeleteAccount = deleteAccountConfirmText.trim().toUpperCase() === "DELETE";
 
@@ -199,7 +198,7 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
           <nav className="flex items-center gap-0.5 sm:gap-1">
             {user && mobileNotificationsEnabled && (
               <Button
-                variant="ghost"
+                color="tertiary"
                 size="icon"
                 aria-label="Open notifications"
                 className="interactive-chip relative w-11 h-11 sm:hidden"
@@ -217,7 +216,7 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
-                  variant="ghost"
+                  color="tertiary"
                   size="icon"
                   aria-label="Open utilities menu"
                   className="interactive-chip w-11 h-11 sm:hidden"
@@ -349,15 +348,15 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
             {APP_ROUTE_NAV_ITEMS.map(({ to, label, icon: Icon, ariaLabel }) => (
               <Button
                 key={to}
-                asChild
-                variant={isRouteActive(location.pathname, to) ? "outline" : "ghost"}
+                type="button"
+                color={isRouteActive(location.pathname, to) ? "secondary" : "tertiary"}
                 size="sm"
                 className="pf-nav-button interactive-chip hidden sm:inline-flex gap-1.5 sm:gap-2 h-11 sm:h-9 px-2 sm:px-3"
+                aria-label={ariaLabel}
+                onClick={() => navigate(to)}
               >
-                <Link to={to} aria-label={ariaLabel}>
-                  <Icon className="w-4 h-4" />
-                  <span className="hidden sm:inline text-sm">{label}</span>
-                </Link>
+                <Icon className="w-4 h-4" />
+                <span className="hidden sm:inline text-sm">{label}</span>
               </Button>
             ))}
             {user && (
@@ -372,7 +371,7 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
               >
                 <PopoverTrigger asChild>
                   <Button
-                    variant="ghost"
+                    color="tertiary"
                     size="icon"
                     aria-label="Open notifications"
                     className="interactive-chip hidden sm:inline-flex relative w-11 h-11 sm:w-9 sm:h-9"
@@ -403,7 +402,7 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
               </Popover>
             )}
             <Button
-              variant="ghost"
+              color="tertiary"
               size="icon"
               onClick={onToggleTheme}
               aria-label="Toggle theme"
@@ -416,7 +415,7 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
-                    variant="ghost"
+                    color="tertiary"
                     size="icon"
                     aria-label="Open account menu"
                     className="interactive-chip hidden sm:inline-flex w-11 h-11 sm:w-9 sm:h-9 rounded-full p-0"
@@ -453,7 +452,7 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
               </DropdownMenu>
             ) : (
               <Button
-                variant="ghost"
+                color="tertiary"
                 size="sm"
                 onClick={() => setAuthOpen(true)}
                 aria-label="Sign in"
@@ -479,12 +478,11 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
         >
           <DrawerContent
             className="max-h-[82vh] pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:hidden"
-            aria-describedby={mobileNotificationsDescriptionId}
             data-testid="mobile-notifications-sheet"
           >
             <DrawerHeader className="pb-1">
               <DrawerTitle className="text-base">Notifications</DrawerTitle>
-              <DrawerDescription id={mobileNotificationsDescriptionId} className="sr-only">
+              <DrawerDescription className="sr-only">
                 Community activity updates including comments, upvotes, verifications, and remixes.
               </DrawerDescription>
             </DrawerHeader>
@@ -548,7 +546,7 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
             <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
               <Button
                 type="button"
-                variant="outline"
+                color="secondary"
                 onClick={() => setDisplayNameOpen(false)}
                 disabled={savingDisplayName}
               >

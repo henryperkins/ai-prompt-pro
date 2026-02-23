@@ -59,7 +59,7 @@ const SelectValue = ({ isOpen, isFocused, isDisabled, size, placeholder, placeho
             className={cx(
                 "relative flex w-full cursor-pointer items-center rounded-lg bg-background text-base shadow-xs ring-1 ring-border outline-hidden transition duration-100 ease-linear ring-inset",
                 (isFocused || isOpen) && "ring-2 ring-brand",
-                isDisabled && "cursor-not-allowed bg-disabled_subtle text-disabled",
+                isDisabled && "cursor-not-allowed bg-muted text-muted-foreground",
             )}
         >
             <AriaSelectValue<SelectItemType>
@@ -67,7 +67,7 @@ const SelectValue = ({ isOpen, isFocused, isDisabled, size, placeholder, placeho
                     "flex h-max w-full items-center justify-start gap-2 truncate text-left align-middle",
 
                     // Icon styles
-                    "*:data-icon:size-5 *:data-icon:shrink-0 *:data-icon:text-fg-quaternary in-disabled:*:data-icon:text-fg-disabled",
+                    "*:data-icon:size-5 *:data-icon:shrink-0 *:data-icon:text-muted-foreground in-disabled:*:data-icon:text-muted-foreground/70",
 
                     sizes[size].root,
                 )}
@@ -86,16 +86,16 @@ const SelectValue = ({ isOpen, isFocused, isDisabled, size, placeholder, placeho
 
                             {state.selectedItem ? (
                                 <section className="flex w-full gap-2 truncate">
-                                    <p className="truncate text-md font-medium text-foreground">{state.selectedItem?.label}</p>
-                                    {state.selectedItem?.supportingText && <p className="text-md text-tertiary">{state.selectedItem?.supportingText}</p>}
+                                    <p className="truncate text-base font-medium text-foreground">{state.selectedItem?.label}</p>
+                                    {state.selectedItem?.supportingText && <p className="text-base text-muted-foreground">{state.selectedItem?.supportingText}</p>}
                                 </section>
                             ) : (
-                                <p className={cx("text-md text-placeholder", isDisabled && "text-disabled")}>{placeholder}</p>
+                                <p className={cx("text-base text-muted-foreground", isDisabled && "text-muted-foreground")}>{placeholder}</p>
                             )}
 
                             <ChevronDown
                                 aria-hidden="true"
-                                className={cx("ml-auto shrink-0 text-fg-quaternary", size === "sm" ? "size-4 stroke-[2.5px]" : "size-5")}
+                                className={cx("ml-auto shrink-0 text-muted-foreground", size === "sm" ? "size-4 stroke-[2.5px]" : "size-5")}
                             />
                         </>
                     );

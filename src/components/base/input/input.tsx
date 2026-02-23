@@ -86,12 +86,12 @@ export const InputBase = ({
                     isFocusWithin && !isDisabled && "ring-2 ring-brand",
 
                     // Disabled state styles
-                    isDisabled && "cursor-not-allowed bg-disabled_subtle ring-disabled",
-                    "group-disabled:cursor-not-allowed group-disabled:bg-disabled_subtle group-disabled:ring-disabled",
+                    isDisabled && "cursor-not-allowed bg-muted ring-border",
+                    "group-disabled:cursor-not-allowed group-disabled:bg-muted group-disabled:ring-border",
 
                     // Invalid state styles
-                    isInvalid && "ring-error_subtle",
-                    "group-invalid:ring-error_subtle",
+                    isInvalid && "ring-destructive/35",
+                    "group-invalid:ring-destructive/35",
 
                     // Invalid state with focus-within styles
                     isInvalid && isFocusWithin && "ring-2 ring-error",
@@ -106,8 +106,8 @@ export const InputBase = ({
             {Icon && (
                 <Icon
                     className={cx(
-                        "pointer-events-none absolute size-5 text-fg-quaternary",
-                        isDisabled && "text-fg-disabled",
+                        "pointer-events-none absolute size-5 text-muted-foreground",
+                        isDisabled && "text-muted-foreground/70",
                         sizes[inputSize].iconLeading,
                         context?.iconClassName,
                         iconClassName,
@@ -121,8 +121,8 @@ export const InputBase = ({
                 ref={ref}
                 placeholder={placeholder}
                 className={cx(
-                    "m-0 w-full bg-transparent text-md text-foreground ring-0 outline-hidden placeholder:text-placeholder autofill:rounded-lg autofill:text-foreground",
-                    isDisabled && "cursor-not-allowed text-disabled",
+                    "m-0 w-full bg-transparent text-base text-foreground ring-0 outline-hidden placeholder:text-muted-foreground autofill:rounded-lg autofill:text-foreground",
+                    isDisabled && "cursor-not-allowed text-muted-foreground",
                     sizes[inputSize].root,
                     context?.inputClassName,
                     inputClassName,
@@ -134,7 +134,7 @@ export const InputBase = ({
                 <Tooltip title={tooltip} placement="top">
                     <TooltipTrigger
                         className={cx(
-                            "absolute cursor-pointer text-fg-quaternary transition duration-200 hover:text-fg-quaternary_hover focus:text-fg-quaternary_hover",
+                            "absolute cursor-pointer text-muted-foreground transition duration-200 hover:text-foreground focus:text-foreground",
                             sizes[inputSize].iconTrailing,
                             context?.tooltipClassName,
                             tooltipClassName,
@@ -149,7 +149,7 @@ export const InputBase = ({
             {isInvalid && (
                 <InfoCircle
                     className={cx(
-                        "pointer-events-none absolute size-4 text-fg-error-secondary",
+                        "pointer-events-none absolute size-4 text-destructive",
                         sizes[inputSize].iconTrailing,
                         context?.tooltipClassName,
                         tooltipClassName,
@@ -167,8 +167,8 @@ export const InputBase = ({
                 >
                     <span
                         className={cx(
-                            "pointer-events-none rounded px-1 py-px text-xs font-medium text-quaternary ring-1 ring-secondary select-none ring-inset",
-                            isDisabled && "bg-transparent text-disabled",
+                            "pointer-events-none rounded px-1 py-px text-xs font-medium text-muted-foreground ring-1 ring-border select-none ring-inset",
+                            isDisabled && "bg-transparent text-muted-foreground",
                         )}
                         aria-hidden="true"
                     >

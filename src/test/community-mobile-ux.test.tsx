@@ -1,9 +1,14 @@
 import type { ReactNode } from "react";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import type { CommunityPost, CommunityProfile } from "@/lib/community";
 import { defaultConfig } from "@/lib/prompt-builder";
+
+const memoryRouterFuture = {
+  v7_startTransition: true,
+  v7_relativeSplatPath: true,
+} as const;
 
 const mocks = vi.hoisted(() => ({
   isMobile: true,
@@ -98,11 +103,19 @@ async function renderCommunityPage(flagEnabled = true) {
   vi.stubEnv("VITE_COMMUNITY_MOBILE_ENHANCEMENTS", flagEnabled ? "true" : "false");
 
   const { default: Community } = await import("@/pages/Community");
-  render(
-    <MemoryRouter>
-      <Community />
-    </MemoryRouter>,
-  );
+  await act(async () => {
+    render(
+      <MemoryRouter future={memoryRouterFuture}>
+        <Community />
+      </MemoryRouter>,
+    );
+  });
+  await waitFor(() => {
+    expect(mocks.loadFeed).toHaveBeenCalled();
+    expect(mocks.loadProfilesByIds).toHaveBeenCalled();
+    expect(mocks.loadPostsByIds).toHaveBeenCalled();
+    expect(mocks.loadMyVotes).toHaveBeenCalled();
+  });
 }
 
 async function importCardAndDetail(flagEnabled = true) {
@@ -137,15 +150,14 @@ describe("community mobile UX", () => {
 
   it("supports mobile filter drawer open/select semantics in Community", async () => {
     await renderCommunityPage(true);
+    await screen.findByText("Mobile test post");
 
     const trigger = await screen.findByTestId("community-filter-trigger");
     fireEvent.click(trigger);
 
     const sheet = await screen.findByTestId("community-filter-sheet");
     expect(sheet).toBeVisible();
-    const filterDescriptionId = sheet.getAttribute("aria-describedby");
-    expect(filterDescriptionId).toBeTruthy();
-    expect(document.getElementById(filterDescriptionId || "")).toHaveTextContent("Choose a community category");
+    expect(screen.getByText("Choose a community category to filter visible prompts.")).toBeInTheDocument();
 
     fireEvent.click(within(sheet).getByRole("button", { name: /^Backend/ }));
 
@@ -167,6 +179,7 @@ describe("community mobile UX", () => {
   it("hides mobile filter drawer trigger when the rollout flag is off", async () => {
     await renderCommunityPage(false);
 
+    await screen.findByText("Mobile test post");
     await waitFor(() => {
       expect(mocks.loadFeed).toHaveBeenCalled();
     });
@@ -177,6 +190,7 @@ describe("community mobile UX", () => {
   it("uses pressed-state semantics for category suggestions on desktop", async () => {
     mocks.isMobile = false;
     await renderCommunityPage(true);
+    await screen.findByText("Mobile test post");
 
     const searchInput = await screen.findByPlaceholderText("Search by title, use case, or context keyword");
     fireEvent.focus(searchInput);
@@ -190,7 +204,7 @@ describe("community mobile UX", () => {
     const post = createPost({ id: "card-post-1" });
 
     render(
-      <MemoryRouter>
+      <MemoryRouter future={memoryRouterFuture}>
         <CommunityPostCard
           post={post}
           authorName="Prompt Dev"
@@ -207,9 +221,7 @@ describe("community mobile UX", () => {
 
     const commentsSheet = await screen.findByTestId("community-comments-sheet");
     expect(commentsSheet).toBeVisible();
-    const commentsDescriptionId = commentsSheet.getAttribute("aria-describedby");
-    expect(commentsDescriptionId).toBeTruthy();
-    expect(document.getElementById(commentsDescriptionId || "")).toHaveTextContent("Read and add comments");
+    expect(screen.getByText("Read and add comments for this prompt.")).toBeInTheDocument();
     expect(screen.getByTestId("community-comments-card-post-1")).toBeInTheDocument();
   });
 
@@ -218,7 +230,7 @@ describe("community mobile UX", () => {
     const post = createPost({ id: "detail-post-1" });
 
     render(
-      <MemoryRouter>
+      <MemoryRouter future={memoryRouterFuture}>
         <CommunityPostDetail
           post={post}
           authorName="Prompt Dev"
@@ -240,9 +252,7 @@ describe("community mobile UX", () => {
 
     const commentsSheet = await screen.findByTestId("community-comments-sheet");
     expect(commentsSheet).toBeVisible();
-    const commentsDescriptionId = commentsSheet.getAttribute("aria-describedby");
-    expect(commentsDescriptionId).toBeTruthy();
-    expect(document.getElementById(commentsDescriptionId || "")).toHaveTextContent("Read and add comments");
+    expect(screen.getByText("Read and add comments for this prompt.")).toBeInTheDocument();
     expect(screen.getByTestId("community-comments-detail-post-1")).toBeInTheDocument();
   });
 });

@@ -1,8 +1,13 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import type { ReactNode } from "react";
 import type { Notification } from "@/lib/notifications";
+
+const memoryRouterFuture = {
+  v7_startTransition: true,
+  v7_relativeSplatPath: true,
+} as const;
 
 const mocks = vi.hoisted(() => ({
   user: null as Record<string, unknown> | null,
@@ -103,11 +108,16 @@ async function renderHeader(flagEnabled = true) {
 
   const { Header } = await import("@/components/Header");
 
-  render(
-    <MemoryRouter>
-      <Header isDark={false} onToggleTheme={vi.fn()} />
-    </MemoryRouter>,
-  );
+  await act(async () => {
+    render(
+      <MemoryRouter future={memoryRouterFuture}>
+        <Header isDark={false} onToggleTheme={vi.fn()} />
+      </MemoryRouter>,
+    );
+  });
+  await waitFor(() => {
+    expect(mocks.refreshNotifications).toHaveBeenCalledTimes(0);
+  });
 }
 
 describe("Header mobile notifications", () => {

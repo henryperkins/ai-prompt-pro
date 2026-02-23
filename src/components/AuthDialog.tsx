@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/base/primitives/dialog";
@@ -101,6 +102,9 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
           <DialogTitle className="text-center">
             {mode === "login" ? "Sign in" : "Create account"}
           </DialogTitle>
+          <DialogDescription className="text-center text-xs text-muted-foreground">
+            Sign in or create an account to save, remix, and share prompts.
+          </DialogDescription>
           <p className="text-center text-xs text-muted-foreground">
             {brandCopy.tagline}
           </p>
@@ -111,7 +115,7 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
             <p className="text-sm text-muted-foreground">
               Check your email, confirm your account, then sign in.
             </p>
-            <Button variant="outline" onClick={() => { setMode("login"); setConfirmationSent(false); }}>
+            <Button color="secondary" onClick={() => { setMode("login"); setConfirmationSent(false); }}>
               Back to sign in
             </Button>
           </div>
@@ -119,15 +123,15 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
           <div className="space-y-4">
             {/* OAuth buttons */}
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              <Button variant="outline" onClick={() => handleOAuth("apple")}>
+              <Button color="secondary" onClick={() => handleOAuth("apple")}>
                 <AppleIcon className="w-4 h-4 mr-2" />
                 Apple
               </Button>
-              <Button variant="outline" onClick={() => handleOAuth("github")}>
+              <Button color="secondary" onClick={() => handleOAuth("github")}>
                 <GitHubIcon className="w-4 h-4 mr-2" />
                 GitHub
               </Button>
-              <Button variant="outline" onClick={() => handleOAuth("google")}>
+              <Button color="secondary" onClick={() => handleOAuth("google")}>
                 <GoogleIcon className="w-4 h-4 mr-2" />
                 Google
               </Button>

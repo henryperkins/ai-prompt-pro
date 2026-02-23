@@ -21,7 +21,7 @@ export function StructuredContextForm({ values, onUpdate }: StructuredContextFor
           <div className="flex items-center justify-between">
             <label className="text-sm text-muted-foreground sm:text-base">{field.label}</label>
             <Button
-              variant="ghost"
+              color="tertiary"
               size="sm"
               className="h-11 gap-0.5 px-2 text-sm text-muted-foreground sm:h-9 sm:text-base"
               onClick={() =>

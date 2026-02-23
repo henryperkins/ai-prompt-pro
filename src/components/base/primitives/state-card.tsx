@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { AlertTriangle, Lock, SearchX, type LucideIcon } from "lucide-react";
-import { Link } from "react-router-dom";
 import { Card } from "@/components/base/primitives/card";
 import { Button } from "@/components/base/buttons/button";
 import { DEFAULT_UI_DENSITY, type UIDensity } from "@/lib/ui-density";
@@ -50,19 +49,22 @@ const variantMeta: Record<
 function renderAction(action: StateCardAction, fallbackVariant: StateCardAction["variant"]) {
   const variant = action.variant ?? fallbackVariant;
   const isPrimary = variant === "default";
+  const color = variant === "default"
+    ? "primary"
+    : variant === "ghost"
+      ? "tertiary"
+      : "secondary";
   const actionClassName = isPrimary
     ? "ui-toolbar-button font-semibold shadow-sm"
     : "ui-toolbar-button font-medium";
   if (action.to) {
     return (
-      <Button asChild size="sm" variant={variant} className={actionClassName}>
-        <Link to={action.to}>{action.label}</Link>
-      </Button>
+      <Button href={action.to} size="sm" color={color} className={actionClassName}>{action.label}</Button>
     );
   }
 
   return (
-    <Button type="button" size="sm" variant={variant} className={actionClassName} onClick={action.onClick}>
+    <Button type="button" size="sm" color={color} className={actionClassName} onClick={action.onClick}>
       {action.label}
     </Button>
   );

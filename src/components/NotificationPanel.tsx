@@ -65,7 +65,7 @@ export function NotificationPanel({
             <Button
               type="button"
               size="sm"
-              variant="ghost"
+              color="tertiary"
               className="h-11 px-3 text-sm sm:h-9 sm:px-2 sm:text-base"
               onClick={onRefresh}
             >
@@ -75,7 +75,7 @@ export function NotificationPanel({
           <Button
             type="button"
             size="sm"
-            variant="ghost"
+            color="tertiary"
             className="h-11 px-3 text-sm sm:h-9 sm:px-2 sm:text-base"
             onClick={() => void onMarkAllAsRead()}
             disabled={unreadCount === 0 || loading}

@@ -46,7 +46,7 @@ export function BuilderHeroInput({
             {value && (
               <Button
                 type="button"
-                variant="ghost"
+                color="tertiary"
                 size="sm"
                 onClick={onClear}
                 aria-label="Clear prompt text"
@@ -77,7 +77,7 @@ export function BuilderHeroInput({
             {phase3Enabled && canResetInferred && onResetInferred && (
               <Button
                 type="button"
-                variant="ghost"
+                color="tertiary"
                 size="sm"
                 className="h-11 px-3 text-sm sm:h-9 sm:px-2 sm:text-base"
                 onClick={onResetInferred}
@@ -108,7 +108,7 @@ export function BuilderHeroInput({
                     <Button
                       key={chip.id}
                       type="button"
-                      variant="outline"
+                      color="secondary"
                       size="sm"
                       className="h-11 px-2 text-sm sm:h-9 sm:text-base"
                       onClick={() => onApplySuggestion?.(chip)}

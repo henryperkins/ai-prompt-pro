@@ -1,5 +1,5 @@
 import type { HTMLAttributes, MouseEventHandler, ReactNode } from "react";
-import { cva, type VariantProps } from "class-variance-authority";
+import { cva } from "class-variance-authority";
 import { X as CloseX } from "@untitledui/icons";
 import { Dot } from "@/components/foundations/dot-icon";
 import { cx } from "@/lib/utils/cx";
@@ -25,64 +25,64 @@ export const badgeVariants = cva(
 
 export const filledColors: Record<BadgeColors, { root: string; addon: string; addonButton: string }> = {
     gray: {
-        root: "bg-utility-gray-50 text-utility-gray-700 ring-utility-gray-200",
-        addon: "text-utility-gray-500",
-        addonButton: "hover:bg-utility-gray-100 text-utility-gray-400 hover:text-utility-gray-500",
+        root: "bg-muted text-foreground ring-border",
+        addon: "text-muted-foreground",
+        addonButton: "text-muted-foreground hover:bg-muted/80 hover:text-foreground",
     },
     brand: {
-        root: "bg-utility-brand-50 text-utility-brand-700 ring-utility-brand-200",
-        addon: "text-utility-brand-500",
-        addonButton: "hover:bg-utility-brand-100 text-utility-brand-400 hover:text-utility-brand-500",
+        root: "bg-primary/10 text-primary ring-primary/30",
+        addon: "text-primary/80",
+        addonButton: "text-primary/70 hover:bg-primary/15 hover:text-primary",
     },
     error: {
-        root: "bg-utility-error-50 text-utility-error-700 ring-utility-error-200",
-        addon: "text-utility-error-500",
-        addonButton: "hover:bg-utility-error-100 text-utility-error-400 hover:text-utility-error-500",
+        root: "bg-destructive/10 text-destructive ring-destructive/30",
+        addon: "text-destructive/80",
+        addonButton: "text-destructive/70 hover:bg-destructive/15 hover:text-destructive",
     },
     warning: {
-        root: "bg-utility-warning-50 text-utility-warning-700 ring-utility-warning-200",
-        addon: "text-utility-warning-500",
-        addonButton: "hover:bg-utility-warning-100 text-utility-warning-400 hover:text-utility-warning-500",
+        root: "bg-accent/25 text-accent-foreground ring-accent/35",
+        addon: "text-accent-foreground/80",
+        addonButton: "text-accent-foreground/70 hover:bg-accent/35 hover:text-accent-foreground",
     },
     success: {
-        root: "bg-utility-success-50 text-utility-success-700 ring-utility-success-200",
-        addon: "text-utility-success-500",
-        addonButton: "hover:bg-utility-success-100 text-utility-success-400 hover:text-utility-success-500",
+        root: "bg-primary/10 text-primary ring-primary/30",
+        addon: "text-primary/80",
+        addonButton: "text-primary/70 hover:bg-primary/15 hover:text-primary",
     },
     "gray-blue": {
-        root: "bg-utility-gray-blue-50 text-utility-gray-blue-700 ring-utility-gray-blue-200",
-        addon: "text-utility-gray-blue-500",
-        addonButton: "hover:bg-utility-gray-blue-100 text-utility-gray-blue-400 hover:text-utility-gray-blue-500",
+        root: "bg-secondary text-secondary-foreground ring-border",
+        addon: "text-muted-foreground",
+        addonButton: "text-muted-foreground hover:bg-secondary/85 hover:text-foreground",
     },
     "blue-light": {
-        root: "bg-utility-blue-light-50 text-utility-blue-light-700 ring-utility-blue-light-200",
-        addon: "text-utility-blue-light-500",
-        addonButton: "hover:bg-utility-blue-light-100 text-utility-blue-light-400 hover:text-utility-blue-light-500",
+        root: "bg-primary/10 text-primary ring-primary/30",
+        addon: "text-primary/80",
+        addonButton: "text-primary/70 hover:bg-primary/15 hover:text-primary",
     },
     blue: {
-        root: "bg-utility-blue-50 text-utility-blue-700 ring-utility-blue-200",
-        addon: "text-utility-blue-500",
-        addonButton: "hover:bg-utility-blue-100 text-utility-blue-400 hover:text-utility-blue-500",
+        root: "bg-primary/10 text-primary ring-primary/30",
+        addon: "text-primary/80",
+        addonButton: "text-primary/70 hover:bg-primary/15 hover:text-primary",
     },
     indigo: {
-        root: "bg-utility-indigo-50 text-utility-indigo-700 ring-utility-indigo-200",
-        addon: "text-utility-indigo-500",
-        addonButton: "hover:bg-utility-indigo-100 text-utility-indigo-400 hover:text-utility-indigo-500",
+        root: "bg-secondary text-secondary-foreground ring-border",
+        addon: "text-muted-foreground",
+        addonButton: "text-muted-foreground hover:bg-secondary/85 hover:text-foreground",
     },
     purple: {
-        root: "bg-utility-purple-50 text-utility-purple-700 ring-utility-purple-200",
-        addon: "text-utility-purple-500",
-        addonButton: "hover:bg-utility-purple-100 text-utility-purple-400 hover:text-utility-purple-500",
+        root: "bg-secondary text-secondary-foreground ring-border",
+        addon: "text-muted-foreground",
+        addonButton: "text-muted-foreground hover:bg-secondary/85 hover:text-foreground",
     },
     pink: {
-        root: "bg-utility-pink-50 text-utility-pink-700 ring-utility-pink-200",
-        addon: "text-utility-pink-500",
-        addonButton: "hover:bg-utility-pink-100 text-utility-pink-400 hover:text-utility-pink-500",
+        root: "bg-destructive/10 text-destructive ring-destructive/30",
+        addon: "text-destructive/80",
+        addonButton: "text-destructive/70 hover:bg-destructive/15 hover:text-destructive",
     },
     orange: {
-        root: "bg-utility-orange-50 text-utility-orange-700 ring-utility-orange-200",
-        addon: "text-utility-orange-500",
-        addonButton: "hover:bg-utility-orange-100 text-utility-orange-400 hover:text-utility-orange-500",
+        root: "bg-accent/25 text-accent-foreground ring-accent/35",
+        addon: "text-accent-foreground/80",
+        addonButton: "text-accent-foreground/70 hover:bg-accent/35 hover:text-accent-foreground",
     },
 };
 
@@ -105,8 +105,8 @@ const withPillTypes = {
         styles: {
             gray: {
                 root: "bg-primary text-secondary ring-primary",
-                addon: "text-utility-gray-500",
-                addonButton: "hover:bg-utility-gray-100 text-utility-gray-400 hover:text-utility-gray-500",
+                addon: "text-muted-foreground",
+                addonButton: "text-muted-foreground hover:bg-secondary/85 hover:text-foreground",
             },
         },
     },
@@ -128,26 +128,16 @@ const withBadgeTypes = {
 };
 
 export type BadgeColor<T extends BadgeTypes> = BadgeTypeToColorMap<typeof withPillTypes>[T];
-type LegacyBadgeVariant = NonNullable<VariantProps<typeof badgeVariants>["variant"]>;
 
 interface BadgeProps<T extends BadgeTypes> extends HTMLAttributes<HTMLSpanElement> {
     type?: T;
     size?: Sizes;
     color?: BadgeColor<T>;
     children: ReactNode;
-    variant?: LegacyBadgeVariant;
 }
 
 export const Badge = <T extends BadgeTypes>(props: BadgeProps<T>) => {
-    const { type = "pill-color", size = "md", color = "gray", children, variant, className, ...rest } = props;
-
-    if (variant) {
-        return (
-            <span className={cx(badgeVariants({ variant }), className)} {...rest}>
-                {children}
-            </span>
-        );
-    }
+    const { type = "pill-color", size = "md", color = "gray", children, className, ...rest } = props;
 
     const colors = withPillTypes[type];
 

@@ -20,6 +20,7 @@ import {
 import {
   Drawer,
   DrawerContent,
+  DrawerDescription,
   DrawerHeader,
   DrawerTitle,
 } from "@/components/base/primitives/drawer";
@@ -688,6 +689,9 @@ export function PromptLibrary({
         <DrawerContent className="max-h-[85vh]">
           <DrawerHeader>
             <DrawerTitle>Prompt Library</DrawerTitle>
+            <DrawerDescription className="sr-only">
+              Browse templates and saved prompts, then load one into the builder.
+            </DrawerDescription>
           </DrawerHeader>
           <div className="px-4 pb-4 overflow-auto flex-1 flex flex-col">
             <PromptLibraryContent
@@ -711,6 +715,9 @@ export function PromptLibrary({
       <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="text-foreground">Prompt Library</DialogTitle>
+          <DialogDescription>
+            Browse templates and saved prompts, then load one into the builder.
+          </DialogDescription>
         </DialogHeader>
         <PromptLibraryContent
           savedPrompts={savedPrompts}

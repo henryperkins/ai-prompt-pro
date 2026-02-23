@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { CommunityFeed } from "@/components/community/CommunityFeed";
 import { CommunityReportDialog } from "@/components/community/CommunityReportDialog";
@@ -97,7 +97,6 @@ const Community = () => {
   const requestToken = useRef(0);
   const voteInFlightByPost = useRef<Set<string>>(new Set());
   const ratingInFlightByPost = useRef<Set<string>>(new Set());
-  const mobileFilterDescriptionId = useId();
   const { toast } = useToast();
   const { user } = useAuth();
   const isMobile = useIsMobile();
@@ -645,12 +644,11 @@ const Community = () => {
           <Drawer open={mobileCategorySheetOpen} onOpenChange={setMobileCategorySheetOpen}>
             <DrawerContent
               className="pf-dialog-surface max-h-[80vh] pb-[max(0.75rem,env(safe-area-inset-bottom))]"
-              aria-describedby={mobileFilterDescriptionId}
               data-testid="community-filter-sheet"
             >
               <DrawerHeader className="pb-1">
                 <DrawerTitle className="type-post-title">Filter Categories</DrawerTitle>
-                <DrawerDescription id={mobileFilterDescriptionId} className="sr-only">
+                <DrawerDescription className="sr-only">
                   Choose a community category to filter visible prompts.
                 </DrawerDescription>
               </DrawerHeader>

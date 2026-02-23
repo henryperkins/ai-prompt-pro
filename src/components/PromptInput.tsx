@@ -24,7 +24,7 @@ export function PromptInput({ value, onChange, onClear }: PromptInputProps) {
           </span>
           {value && (
             <Button
-              variant="ghost"
+              color="tertiary"
               size="sm"
               onClick={onClear}
               aria-label="Clear prompt text"

@@ -177,7 +177,6 @@ export function CommunityPostDetail({
   const ratingAverage = post.ratingAverage ?? 0;
   const ratingCount = post.ratingCount ?? 0;
   const ratingSummaryAriaLabel = `Average rating ${ratingAverage.toFixed(1)} from ${ratingCount} rating${ratingCount === 1 ? "" : "s"}`;
-  const commentsDescriptionId = `community-comments-description-${post.id}`;
 
   return (
     <div className="space-y-4">
@@ -485,12 +484,11 @@ export function CommunityPostDetail({
         <Drawer open={commentsOpen} onOpenChange={setCommentsOpen}>
           <DrawerContent
             className="max-h-[86vh] gap-0 border-border/80 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
-            aria-describedby={commentsDescriptionId}
             data-testid="community-comments-sheet"
           >
             <DrawerHeader className="border-b border-border/60 px-4 pb-2 pt-2.5">
               <DrawerTitle className="type-post-title">Comments</DrawerTitle>
-              <DrawerDescription id={commentsDescriptionId} className="sr-only">
+              <DrawerDescription className="sr-only">
                 Read and add comments for this prompt.
               </DrawerDescription>
             </DrawerHeader>

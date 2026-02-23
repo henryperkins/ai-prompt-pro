@@ -70,7 +70,7 @@ export function BuilderSourcesAdvanced({
           </div>
           <div className="flex items-center gap-2">
             {sourceCount > 0 && (
-              <Badge variant="secondary" className="text-xs">
+              <Badge type="modern" className="text-xs">
                 {sourceCount} source{sourceCount === 1 ? "" : "s"}
               </Badge>
             )}
@@ -96,7 +96,7 @@ export function BuilderSourcesAdvanced({
               <Button
                 type="button"
                 size="sm"
-                variant={showAdvanced ? "secondary" : "outline"}
+                color={showAdvanced ? "primary" : "secondary"}
                 className="h-11 gap-1.5 text-sm sm:h-9 sm:text-base"
                 onClick={() =>
                   setAdvancedVisibility((previous) => {

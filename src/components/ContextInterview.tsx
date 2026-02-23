@@ -30,7 +30,7 @@ export function ContextInterview({ answers, onUpdate }: ContextInterviewProps) {
     return (
       <div className="space-y-2">
         <Button
-          variant="outline"
+          color="secondary"
           size="sm"
           className="interactive-chip w-full gap-2 text-xs justify-between"
           onClick={() => setExpanded(true)}
@@ -40,7 +40,7 @@ export function ContextInterview({ answers, onUpdate }: ContextInterviewProps) {
             Ask me for missing context
           </span>
           {answeredCount > 0 && (
-            <Badge variant="secondary" className="text-xs">
+            <Badge type="modern" className="text-xs">
               {answeredCount}/{interviewQuestions.length}
             </Badge>
           )}
@@ -59,7 +59,7 @@ export function ContextInterview({ answers, onUpdate }: ContextInterviewProps) {
           </span>
         </div>
         <Button
-          variant="ghost"
+          color="tertiary"
           size="sm"
           className="interactive-chip h-11 text-xs sm:h-9"
           onClick={() => setExpanded(false)}
@@ -102,7 +102,7 @@ export function ContextInterview({ answers, onUpdate }: ContextInterviewProps) {
 
       <div className="flex justify-between pt-1">
         <Button
-          variant="ghost"
+          color="tertiary"
           size="sm"
           className="interactive-chip text-xs"
           disabled={currentStep === 0}
@@ -112,7 +112,7 @@ export function ContextInterview({ answers, onUpdate }: ContextInterviewProps) {
         </Button>
         {currentStep < interviewQuestions.length - 1 ? (
           <Button
-            variant="outline"
+            color="secondary"
             size="sm"
             className="interactive-chip text-xs gap-1"
             onClick={() => setCurrentStep((s) => s + 1)}
