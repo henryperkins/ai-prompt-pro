@@ -1379,12 +1379,28 @@ function typeFromItem(item) {
   return typeof item.type === "string" ? item.type : undefined;
 }
 
+function normalizeItemType(itemType) {
+  return typeof itemType === "string" ? itemType.trim().toLowerCase() : "";
+}
+
+function isReasoningItemType(itemType) {
+  const normalized = normalizeItemType(itemType);
+  if (!normalized) return false;
+  return normalized === "reasoning" || /(^|[./_-])reasoning([./_-]|$)/.test(normalized);
+}
+
+function isAgentMessageItemType(itemType) {
+  const normalized = normalizeItemType(itemType);
+  if (!normalized) return false;
+  return normalized === "agent_message" || normalized === "assistant_message";
+}
+
 function isStreamedTextItemType(itemType) {
-  return itemType === "agent_message" || itemType === "reasoning";
+  return isAgentMessageItemType(itemType) || isReasoningItemType(itemType);
 }
 
 function toItemDeltaEventType(itemType) {
-  if (itemType === "reasoning") {
+  if (isReasoningItemType(itemType)) {
     return {
       event: "item/reasoning/delta",
       type: "response.reasoning_summary_text.delta",
@@ -1397,7 +1413,7 @@ function toItemDeltaEventType(itemType) {
 }
 
 function toItemDoneEventType(itemType) {
-  if (itemType === "reasoning") {
+  if (isReasoningItemType(itemType)) {
     return {
       event: "item/completed",
       type: "response.reasoning_summary_text.done",
@@ -2187,13 +2203,12 @@ async function runEnhanceTurnStream(requestData, options) {
             stateByItemId.set(itemId, currentText);
           }
 
-          if (itemType === "agent_message") {
+          if (isAgentMessageItemType(itemType)) {
             const agentItemKey = itemId || "__agent_message__";
             if (!agentMessageByItemId.has(agentItemKey)) {
               agentMessageItemOrder.push(agentItemKey);
             }
             agentMessageByItemId.set(agentItemKey, currentText);
-            continue;
           }
 
           if (delta) {
@@ -2206,7 +2221,7 @@ async function runEnhanceTurnStream(requestData, options) {
               item_id: itemId,
               item_type: itemType,
               delta,
-              ...(itemType === "agent_message" ? { choices: [{ delta: { content: delta } }] } : {}),
+              ...(isAgentMessageItemType(itemType) ? { choices: [{ delta: { content: delta } }] } : {}),
               item: event.item,
             });
           }
@@ -2235,13 +2250,12 @@ async function runEnhanceTurnStream(requestData, options) {
             stateByItemId.set(itemId, text);
           }
 
-          if (itemType === "agent_message") {
+          if (isAgentMessageItemType(itemType)) {
             const agentItemKey = itemId || "__agent_message__";
             if (!agentMessageByItemId.has(agentItemKey)) {
               agentMessageItemOrder.push(agentItemKey);
             }
             agentMessageByItemId.set(agentItemKey, text);
-            continue;
           }
 
           const eventShape = toItemDoneEventType(itemType);
