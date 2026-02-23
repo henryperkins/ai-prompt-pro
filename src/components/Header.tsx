@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Bell, Loader2, LogIn, LogOut, Menu, Moon, Newspaper, Sun, Trash2, User } from "lucide-react";
+import { Bell, Loader2, LogIn, LogOut, Menu, Moon, Sun, Trash2, User, Users } from "lucide-react";
 import { Button } from "@/components/base/buttons/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitives/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/base/dialog";
@@ -237,11 +237,11 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
                 <DropdownMenuItem
                   onSelect={(event) => {
                     event.preventDefault();
-                    navigate("/feed");
+                    navigate("/community?tab=following");
                   }}
                 >
-                  <Newspaper className="w-4 h-4 mr-2" />
-                  Feed
+                  <Users className="w-4 h-4 mr-2" />
+                  Following
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {user ? (

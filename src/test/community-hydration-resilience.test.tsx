@@ -59,10 +59,14 @@ vi.mock("@/hooks/use-toast", () => ({
 
 vi.mock("@/lib/community", () => ({
   loadFeed: (...args: unknown[]) => mocks.loadFeed(...args),
+  loadPersonalFeed: vi.fn().mockResolvedValue([]),
   loadProfilesByIds: (...args: unknown[]) => mocks.loadProfilesByIds(...args),
   loadPostsByIds: (...args: unknown[]) => mocks.loadPostsByIds(...args),
   loadMyVotes: (...args: unknown[]) => mocks.loadMyVotes(...args),
   loadMyRatings: (...args: unknown[]) => mocks.loadMyRatings(...args),
+  loadFollowingUserIds: vi.fn().mockResolvedValue([]),
+  followCommunityUser: vi.fn().mockResolvedValue(true),
+  unfollowCommunityUser: vi.fn().mockResolvedValue(true),
   toggleVote: (...args: unknown[]) => mocks.toggleVote(...args),
   setPromptRating: (...args: unknown[]) => mocks.setPromptRating(...args),
   computeNextPromptRatingSummary: (...args: unknown[]) => mocks.computeNextPromptRatingSummary(...args),

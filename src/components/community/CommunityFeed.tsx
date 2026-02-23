@@ -1,12 +1,14 @@
 import { useMemo } from "react";
 import type { CommunityPost, CommunityProfile, VoteState, VoteType } from "@/lib/community";
-import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/primitives/card";
 import { Skeleton } from "@/components/base/primitives/skeleton";
 import { CommunityPostCard } from "@/components/community/CommunityPostCard";
 import { StateCard } from "@/components/base/primitives/state-card";
+import { Button } from "@/components/base/buttons/button";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useIntersectionAutoLoad } from "@/hooks/useIntersectionAutoLoad";
 import type { CommunityErrorKind } from "@/lib/community-errors";
+import { Loader2 } from "lucide-react";
 
 interface CommunityFeedProps {
   posts: CommunityPost[];
@@ -20,6 +22,10 @@ interface CommunityFeedProps {
   voteStateByPost: Record<string, VoteState>;
   onCommentAdded: (postId: string) => void;
   onCommentThreadOpen?: (postId: string) => void;
+  onSharePost?: (post: CommunityPost) => void;
+  onSaveToLibrary?: (postId: string) => void;
+  followingUserIds?: Set<string>;
+  onToggleFollow?: (userId: string, isFollowing: boolean) => void;
   canVote: boolean;
   canRate?: boolean;
   ratingByPost?: Record<string, number | null>;
@@ -69,6 +75,10 @@ export function CommunityFeed({
   voteStateByPost,
   onCommentAdded,
   onCommentThreadOpen,
+  onSharePost,
+  onSaveToLibrary,
+  followingUserIds,
+  onToggleFollow,
   canVote,
   canRate = false,
   ratingByPost = {},
@@ -106,6 +116,11 @@ export function CommunityFeed({
             voteState={voteStateByPost[post.id]}
             onCommentAdded={onCommentAdded}
             onCommentThreadOpen={onCommentThreadOpen}
+            onSharePost={onSharePost}
+            onSaveToLibrary={onSaveToLibrary}
+            followingUserIds={followingUserIds}
+            currentUserId={currentUserId}
+            onToggleFollow={onToggleFollow}
             canVote={canVote}
             canRate={canRate}
             ratingValue={ratingByPost[post.id] ?? null}
@@ -130,6 +145,10 @@ export function CommunityFeed({
       voteStateByPost,
       onCommentAdded,
       onCommentThreadOpen,
+      onSharePost,
+      onSaveToLibrary,
+      followingUserIds,
+      onToggleFollow,
       canVote,
       canRate,
       ratingByPost,
@@ -143,6 +162,12 @@ export function CommunityFeed({
       isMobile,
     ],
   );
+
+  const sentinelRef = useIntersectionAutoLoad({
+    hasMore,
+    isLoading: isLoadingMore,
+    onLoadMore: onLoadMore ?? (() => {}),
+  });
 
   if (loading) {
     return (
@@ -198,18 +223,25 @@ export function CommunityFeed({
   return (
     <div className="community-feed-grid grid grid-cols-1 gap-3 lg:grid-cols-2">
       {renderedPosts}
-      {hasMore && onLoadMore && (
-        <div className="flex justify-center pt-1 lg:col-span-2">
-          <Button
-            type="button"
-            color="secondary"
-            size="sm"
-            onClick={onLoadMore}
-            disabled={isLoadingMore}
-            className="type-button-label h-11 px-4 sm:h-9 sm:px-3"
-          >
-            {isLoadingMore ? "Loading more..." : "Load more"}
-          </Button>
+      {hasMore && (
+        <div className="space-y-2 py-2 lg:col-span-2">
+          <div ref={sentinelRef} className="flex justify-center py-2" aria-hidden="true">
+            {isLoadingMore && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
+          </div>
+          {onLoadMore && (
+            <div className="flex justify-center">
+              <Button
+                type="button"
+                color="secondary"
+                size="sm"
+                className="type-button-label h-11 px-4 sm:h-9 sm:px-3"
+                onClick={onLoadMore}
+                disabled={isLoadingMore}
+              >
+                {isLoadingMore ? "Loading…" : "Load more"}
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

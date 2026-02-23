@@ -27,6 +27,7 @@ interface CommunityCommentsProps {
   postId: string;
   totalCount: number;
   compact?: boolean;
+  autoFocusComposer?: boolean;
   onCommentAdded?: (postId: string) => void;
   blockedUserIds?: string[];
   onReportComment?: (commentId: string, userId: string, postId: string) => void;
@@ -56,6 +57,7 @@ export function CommunityComments({
   postId,
   totalCount,
   compact = false,
+  autoFocusComposer = false,
   onCommentAdded,
   blockedUserIds = [],
   onReportComment,
@@ -70,6 +72,7 @@ export function CommunityComments({
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [draft, setDraft] = useState("");
+  const composerRef = useRef<HTMLTextAreaElement | null>(null);
 
   const limit = compact ? 2 : 120;
   const commentsScrollRef = useRef<HTMLDivElement | null>(null);
@@ -96,6 +99,13 @@ export function CommunityComments({
   useEffect(() => {
     void loadThread();
   }, [loadThread]);
+
+  useEffect(() => {
+    if (autoFocusComposer && composerRef.current) {
+      const timer = setTimeout(() => composerRef.current?.focus(), 150);
+      return () => clearTimeout(timer);
+    }
+  }, [autoFocusComposer]);
 
   const handleSubmit = useCallback(async () => {
     if (!user) {
@@ -337,6 +347,7 @@ export function CommunityComments({
 
       <div className="space-y-1.5 sm:space-y-2">
         <Textarea
+          ref={composerRef}
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {
@@ -348,8 +359,11 @@ export function CommunityComments({
           placeholder={canComment ? "Write a comment..." : "Sign in to comment"}
           disabled={!canComment || submitting}
           className="type-input type-wrap-safe min-h-19 rounded-lg border-border/70 bg-background/95 sm:min-h-22"
+          enterKeyHint="send"
+          maxLength={2000}
         />
-        <div className="flex justify-end">
+        <div className="flex items-center justify-between">
+          <span className="type-meta text-muted-foreground">{draft.length}/2000</span>
           <Button
             type="button"
             size="sm"

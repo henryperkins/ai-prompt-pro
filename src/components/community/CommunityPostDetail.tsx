@@ -449,13 +449,13 @@ export function CommunityPostDetail({
                     type="button"
                     color="tertiary"
                     size="sm"
-                    className="h-7 w-7 rounded-full p-0 sm:h-7 sm:w-7"
+                    className="h-10 w-10 rounded-full p-0 sm:h-7 sm:w-7"
                     aria-label={`Rate ${value} star${value === 1 ? "" : "s"}`}
                     onClick={() => onRatePrompt(post.id, ratingValue === value ? null : value)}
                   >
                     <Star
                       className={cn(
-                        "h-4 w-4 transition-colors",
+                        "h-5 w-5 transition-colors sm:h-4 sm:w-4",
                         isActive ? "fill-primary text-primary" : "text-muted-foreground",
                       )}
                     />
@@ -497,6 +497,7 @@ export function CommunityPostDetail({
                 postId={post.id}
                 totalCount={post.commentCount}
                 onCommentAdded={onCommentAdded}
+                autoFocusComposer
                 blockedUserIds={blockedUserIds}
                 onReportComment={onReportComment}
                 onBlockUser={onBlockUser}

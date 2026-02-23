@@ -75,6 +75,10 @@ npx vitest run src/test/persistence.test.ts
 - `VITE_BUILDER_REDESIGN_PHASE{1..4}` - builder redesign phases
 - Feature flag implementation in `src/lib/feature-flags.ts`
 
+## Agent Preferences
+
+- When using the Task tool for codebase exploration, always use `subagent_type: "explore-sonnet"` instead of `"Explore"`.
+
 ## Coding Conventions
 
 - Use `@/` path alias for all `src/` imports (configured in Vite, Vitest, and tsconfig)

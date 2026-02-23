@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Search } from "lucide-react";
 import { CommunityFeed } from "@/components/community/CommunityFeed";
 import { CommunityReportDialog } from "@/components/community/CommunityReportDialog";
@@ -9,6 +10,7 @@ import { InputBase } from "@/components/base/input/input";
 import { ScrollArea } from "@/components/base/primitives/scroll-area";
 import { useCommunityMobileTelemetry } from "@/hooks/useCommunityMobileTelemetry";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useNewPostsIndicator } from "@/hooks/useNewPostsIndicator";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { brandCopy } from "@/lib/brand-copy";
@@ -19,18 +21,24 @@ import {
   type VoteState,
   type VoteType,
   computeNextPromptRatingSummary,
+  followCommunityUser,
   loadFeed,
+  loadFollowingUserIds,
   loadMyRatings,
   loadMyVotes,
+  loadPersonalFeed,
   loadPostsByIds,
   loadProfilesByIds,
+  remixToLibrary,
   setPromptRating,
   toggleVote,
+  unfollowCommunityUser,
 } from "@/lib/community";
 import { communityFeatureFlags } from "@/lib/feature-flags";
 import { toCommunityErrorState, type CommunityErrorState } from "@/lib/community-errors";
 import { PROMPT_CATEGORY_OPTIONS } from "@/lib/prompt-categories";
 import { copyTextToClipboard } from "@/lib/clipboard";
+import { sharePost } from "@/lib/community-share";
 import {
   blockCommunityUser,
   loadBlockedUserIds,
@@ -74,6 +82,23 @@ function toParentTitleMap(posts: CommunityPost[]): Record<string, string> {
 }
 
 const Community = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const feedMode = (searchParams.get("tab") === "following" ? "following" : "for_you") as "for_you" | "following";
+  const isFollowingMode = feedMode === "following";
+  const setFeedMode = useCallback(
+    (mode: "for_you" | "following") => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (mode === "following") {
+          next.set("tab", "following");
+        } else {
+          next.delete("tab");
+        }
+        return next;
+      }, { replace: true });
+    },
+    [setSearchParams],
+  );
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [authorById, setAuthorById] = useState<Record<string, CommunityProfile>>({});
   const [parentTitleById, setParentTitleById] = useState<Record<string, string>>({});
@@ -83,6 +108,9 @@ const Community = () => {
   const [category, setCategory] = useState("all");
   const [queryInput, setQueryInput] = useState("");
   const [query, setQuery] = useState("");
+  const activeSort: CommunitySort = isFollowingMode ? "new" : sort;
+  const activeCategory = isFollowingMode ? "all" : category;
+  const activeQuery = isFollowingMode ? "" : query;
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [mobileCategorySheetOpen, setMobileCategorySheetOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -92,6 +120,7 @@ const Community = () => {
   const [errorState, setErrorState] = useState<CommunityErrorState | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
   const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
+  const [followingUserIds, setFollowingUserIds] = useState<Set<string>>(new Set());
   const [reportTarget, setReportTarget] = useState<CommunityReportTarget | null>(null);
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const requestToken = useRef(0);
@@ -101,7 +130,7 @@ const Community = () => {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const mobileEnhancementsEnabled = isMobile && communityFeatureFlags.communityMobileEnhancements;
-  const showCategorySuggestions = isSearchFocused && (!isMobile || !mobileEnhancementsEnabled);
+  const showCategorySuggestions = !isFollowingMode && isSearchFocused && (!isMobile || !mobileEnhancementsEnabled);
   const { trackFirstMeaningfulAction, trackInteraction } = useCommunityMobileTelemetry({
     enabled: mobileEnhancementsEnabled,
     surface: "community_feed",
@@ -110,12 +139,22 @@ const Community = () => {
   const selectedCategoryLabel =
     CATEGORY_OPTIONS.find((option) => option.value === category)?.label ?? "All";
 
+  const { newCount: newPostCount, dismiss: dismissNewPosts } = useNewPostsIndicator({
+    enabled: Boolean(user) && !isFollowingMode,
+  });
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setQuery(queryInput.trim());
     }, 250);
     return () => window.clearTimeout(timer);
   }, [queryInput]);
+
+  useEffect(() => {
+    if (!isFollowingMode) return;
+    setIsSearchFocused(false);
+    setMobileCategorySheetOpen(false);
+  }, [isFollowingMode]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -133,6 +172,18 @@ const Community = () => {
       .catch((error) => {
         if (!cancelled) {
           console.error("Failed to load blocked users:", error);
+        }
+      });
+
+    void loadFollowingUserIds()
+      .then((ids) => {
+        if (!cancelled) {
+          setFollowingUserIds(new Set(ids));
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.error("Failed to load following users:", error);
         }
       });
 
@@ -191,13 +242,15 @@ const Community = () => {
 
     void (async () => {
       try {
-        const firstPage = await loadFeed({
-          sort,
-          category,
-          search: query || undefined,
-          limit: FEED_PAGE_SIZE,
-          page: 0,
-        });
+        const firstPage = feedMode === "following"
+          ? await loadPersonalFeed({ limit: FEED_PAGE_SIZE, page: 0 })
+          : await loadFeed({
+              sort: activeSort,
+              category: activeCategory,
+              search: activeQuery || undefined,
+              limit: FEED_PAGE_SIZE,
+              page: 0,
+            });
         if (token !== requestToken.current) return;
 
         setPosts(firstPage);
@@ -220,7 +273,7 @@ const Community = () => {
         }
       }
     })();
-  }, [sort, category, query, user?.id, hydrateFeedContext, retryNonce]);
+  }, [activeCategory, activeQuery, activeSort, feedMode, user?.id, hydrateFeedContext, retryNonce]);
 
   const handleLoadMore = useCallback(() => {
     if (loading || isLoadingMore || !hasMore) return;
@@ -230,13 +283,15 @@ const Community = () => {
 
     void (async () => {
       try {
-        const nextPagePosts = await loadFeed({
-          sort,
-          category,
-          search: query || undefined,
-          limit: FEED_PAGE_SIZE,
-          page: nextPage,
-        });
+        const nextPagePosts = feedMode === "following"
+          ? await loadPersonalFeed({ limit: FEED_PAGE_SIZE, page: nextPage })
+          : await loadFeed({
+              sort: activeSort,
+              category: activeCategory,
+              search: activeQuery || undefined,
+              limit: FEED_PAGE_SIZE,
+              page: nextPage,
+            });
         if (token !== requestToken.current) return;
 
         const seenIds = new Set(posts.map((post) => post.id));
@@ -270,9 +325,10 @@ const Community = () => {
     isLoadingMore,
     hasMore,
     page,
-    sort,
-    category,
-    query,
+    activeSort,
+    activeCategory,
+    activeQuery,
+    feedMode,
     posts,
     hydrateFeedContext,
     toast,
@@ -295,6 +351,75 @@ const Community = () => {
       }
     },
     [toast],
+  );
+
+  const handleSharePost = useCallback(
+    async (post: CommunityPost) => {
+      const result = await sharePost(post);
+      if (result === "clipboard") {
+        toast({ title: "Link copied", description: "Post link copied to clipboard." });
+      } else if (result === "failed") {
+        toast({ title: "Share failed", description: "Could not share this post.", variant: "destructive" });
+      }
+      trackInteraction("share", result);
+    },
+    [toast, trackInteraction],
+  );
+
+  const handleSaveToLibrary = useCallback(
+    async (postId: string) => {
+      if (!user) {
+        toast({ title: "Sign in required", description: "Create an account to save prompts." });
+        return;
+      }
+      try {
+        await remixToLibrary(postId);
+        toast({ title: "Saved to Library", description: "Prompt saved to your library." });
+        trackInteraction("save", "library");
+      } catch {
+        toast({ title: "Save failed", description: "Could not save this prompt.", variant: "destructive" });
+      }
+    },
+    [user, toast, trackInteraction],
+  );
+
+  const handleToggleFollow = useCallback(
+    async (targetUserId: string, isFollowing: boolean) => {
+      if (!user) {
+        toast({ title: "Sign in required", description: "Create an account to follow users." });
+        return;
+      }
+      // Optimistic update
+      setFollowingUserIds((prev) => {
+        const next = new Set(prev);
+        if (isFollowing) {
+          next.delete(targetUserId);
+        } else {
+          next.add(targetUserId);
+        }
+        return next;
+      });
+      try {
+        if (isFollowing) {
+          await unfollowCommunityUser(targetUserId);
+        } else {
+          await followCommunityUser(targetUserId);
+        }
+      } catch {
+        // Revert
+        setFollowingUserIds((prev) => {
+          const next = new Set(prev);
+          if (isFollowing) {
+            next.add(targetUserId);
+          } else {
+            next.delete(targetUserId);
+          }
+          return next;
+        });
+        toast({ title: "Action failed", description: "Could not update follow status.", variant: "destructive" });
+      }
+    },
+    [user, toast],
   );
 
   const handleToggleVote = useCallback(
@@ -547,14 +672,19 @@ const Community = () => {
                     (event.target as HTMLInputElement).blur();
                   }
                 }}
-                placeholder="Search by title, use case, or context keyword"
+                placeholder={
+                  isFollowingMode
+                    ? "Search is available in the For You tab"
+                    : "Search by title, use case, or context keyword"
+                }
                 inputClassName="type-input h-11 border-0 bg-transparent pl-9 shadow-none"
                 wrapperClassName="bg-transparent shadow-none ring-0"
+                isDisabled={isFollowingMode}
                 aria-expanded={showCategorySuggestions}
                 aria-controls={showCategorySuggestions ? categoryPanelId : undefined}
               />
             </div>
-            {mobileEnhancementsEnabled && (
+            {mobileEnhancementsEnabled && !isFollowingMode && (
               <Button
                 type="button"
                 color="secondary"
@@ -617,11 +747,46 @@ const Community = () => {
           )}
         </div>
 
+        <div className="mb-3 flex rounded-lg bg-muted p-1">
+          <button
+            type="button"
+            onClick={() => setFeedMode("for_you")}
+            aria-pressed={feedMode === "for_you"}
+            className={cn(
+              "type-tab-label flex-1 rounded-md px-3 py-2 transition-all",
+              feedMode === "for_you"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            For You
+          </button>
+          <button
+            type="button"
+            onClick={() => setFeedMode("following")}
+            aria-pressed={feedMode === "following"}
+            className={cn(
+              "type-tab-label flex-1 rounded-md px-3 py-2 transition-all",
+              feedMode === "following"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Following
+          </button>
+        </div>
+        {isFollowingMode && (
+          <p className="type-help mb-3 text-muted-foreground">
+            Search, sort, and category filters apply to the For You tab.
+          </p>
+        )}
+
         <div className="pf-community-toolbar mb-4 grid grid-cols-2 gap-2 sm:flex sm:rounded-lg sm:bg-muted sm:p-1">
           {SORT_OPTIONS.map((option) => (
             <button
               key={option.value}
               type="button"
+              disabled={isFollowingMode}
               onClick={() => {
                 setSort(option.value);
                 trackFirstMeaningfulAction("sort_changed", { sort: option.value });
@@ -630,6 +795,7 @@ const Community = () => {
               data-testid="community-sort-button"
               className={cn(
                 "type-tab-label h-11 rounded-md px-3 transition-all sm:h-10 sm:flex-1 sm:px-2",
+                isFollowingMode && "cursor-not-allowed opacity-60",
                 sort === option.value
                   ? "bg-background text-foreground shadow-sm"
                   : "bg-muted text-muted-foreground hover:text-foreground sm:bg-transparent",
@@ -640,7 +806,7 @@ const Community = () => {
           ))}
         </div>
 
-        {mobileEnhancementsEnabled && (
+        {mobileEnhancementsEnabled && !isFollowingMode && (
           <Drawer open={mobileCategorySheetOpen} onOpenChange={setMobileCategorySheetOpen}>
             <DrawerContent
               className="pf-dialog-surface max-h-[80vh] pb-[max(0.75rem,env(safe-area-inset-bottom))]"
@@ -690,6 +856,23 @@ const Community = () => {
           </Drawer>
         )}
 
+        {!isFollowingMode && newPostCount > 0 && (
+          <div className="sticky top-16 z-30 flex justify-center py-2">
+            <button
+              type="button"
+              className="animate-in slide-in-from-top-2 rounded-full bg-brand-solid px-4 py-1.5 text-sm font-medium text-white shadow-md transition-transform hover:scale-105"
+              onClick={() => {
+                dismissNewPosts();
+                setPage(0);
+                setRetryNonce((n) => n + 1);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+            >
+              ↑ {newPostCount} new {newPostCount === 1 ? "post" : "posts"}
+            </button>
+          </div>
+        )}
+
         <CommunityFeed
           posts={visiblePosts}
           loading={loading}
@@ -702,6 +885,10 @@ const Community = () => {
           voteStateByPost={voteStateByPost}
           onCommentAdded={handleCommentAdded}
           onCommentThreadOpen={handleCommentThreadOpen}
+          onSharePost={handleSharePost}
+          onSaveToLibrary={handleSaveToLibrary}
+          followingUserIds={followingUserIds}
+          onToggleFollow={handleToggleFollow}
           canVote={Boolean(user)}
           canRate={Boolean(user)}
           ratingByPost={ratingByPost}

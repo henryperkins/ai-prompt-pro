@@ -1,6 +1,6 @@
 import { memo, useMemo, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { ArrowUp, CheckCircle2, Database, Flag, GitBranch, MessageCircle, MoreHorizontal, Star, UserCheck, UserX } from "lucide-react";
+import { ArrowUp, BookmarkPlus, CheckCircle2, Database, Flag, GitBranch, MessageCircle, MoreHorizontal, Share2, Star, UserCheck, UserX } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import type { CommunityPost, VoteState, VoteType } from "@/lib/community";
 import { Badge } from "@/components/base/badges/badges";
@@ -33,6 +33,11 @@ interface CommunityPostCardProps {
   voteState?: VoteState;
   onCommentAdded: (postId: string) => void;
   onCommentThreadOpen?: (postId: string) => void;
+  onSharePost?: (post: CommunityPost) => void;
+  onSaveToLibrary?: (postId: string) => void;
+  followingUserIds?: Set<string>;
+  currentUserId?: string | null;
+  onToggleFollow?: (userId: string, isFollowing: boolean) => void;
   canVote: boolean;
   canRate?: boolean;
   ratingValue?: number | null;
@@ -79,6 +84,11 @@ function CommunityPostCardComponent({
   voteState,
   onCommentAdded,
   onCommentThreadOpen,
+  onSharePost,
+  onSaveToLibrary,
+  followingUserIds,
+  currentUserId,
+  onToggleFollow,
   canVote,
   canRate = false,
   ratingValue = null,
@@ -133,9 +143,22 @@ function CommunityPostCardComponent({
               <AvatarFallback className="type-reply-label">{getInitials(authorName)}</AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <Link to={`/profile/${post.authorId}`} className="type-author type-link-inline type-wrap-inline text-foreground">
-                {authorName}
-              </Link>
+              <div className="flex items-center gap-1.5">
+                <Link to={`/profile/${post.authorId}`} className="type-author type-link-inline type-wrap-inline text-foreground">
+                  {authorName}
+                </Link>
+                {onToggleFollow && currentUserId && post.authorId !== currentUserId && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    color={followingUserIds?.has(post.authorId) ? "secondary" : "primary"}
+                    className="type-button-label h-6 px-2 text-xs leading-none sm:h-5"
+                    onClick={() => onToggleFollow(post.authorId, followingUserIds?.has(post.authorId) ?? false)}
+                  >
+                    {followingUserIds?.has(post.authorId) ? "Following" : "Follow"}
+                  </Button>
+                )}
+              </div>
               <p className="type-timestamp text-muted-foreground">{createdAgo}</p>
             </div>
           </div>
@@ -254,22 +277,37 @@ function CommunityPostCardComponent({
               {post.remixCount}
             </span>
           </div>
-          <Button
-            type="button"
-            color={isMobile || isFeatured ? "primary" : "secondary"}
-            size="sm"
-            className="type-button-label utility-action-button min-w-[84px]"
-            onClick={() => navigate(`/?remix=${post.id}`)}
-            data-testid="community-remix-cta"
-          >
-            Remix
-          </Button>
+          <div className="flex items-center gap-1.5">
+            {onSaveToLibrary && currentUserId && (
+              <Button
+                type="button"
+                color="secondary"
+                size="sm"
+                className="type-button-label utility-action-button"
+                onClick={() => onSaveToLibrary(post.id)}
+                data-testid="community-save-cta"
+              >
+                <BookmarkPlus className="h-3.5 w-3.5" />
+                Save
+              </Button>
+            )}
+            <Button
+              type="button"
+              color={isMobile || isFeatured ? "primary" : "secondary"}
+              size="sm"
+              className="type-button-label utility-action-button min-w-[84px]"
+              onClick={() => navigate(`/?remix=${post.id}`)}
+              data-testid="community-remix-cta"
+            >
+              Remix
+            </Button>
+          </div>
         </div>
 
         <div
           className={cn(
             "type-meta gap-2 text-muted-foreground",
-            isMobile ? "grid grid-cols-3" : "flex flex-wrap items-center",
+            isMobile ? "grid grid-cols-4" : "flex flex-wrap items-center",
           )}
         >
           <Button
@@ -324,6 +362,19 @@ function CommunityPostCardComponent({
               </Badge>
             )}
           </Button>
+          {onSharePost && (
+            <Button
+              type="button"
+              color="tertiary"
+              size="sm"
+              className="type-button-label interactive-chip h-11 min-w-11 gap-1.5 px-3 sm:h-9 sm:min-w-9 sm:gap-1 sm:px-2.5"
+              aria-label="Share post"
+              onClick={() => onSharePost(post)}
+              data-testid="community-share"
+            >
+              <Share2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
         </div>
 
         <div className="type-meta flex flex-wrap items-center gap-2 text-muted-foreground">
@@ -350,13 +401,13 @@ function CommunityPostCardComponent({
                     type="button"
                     color="tertiary"
                     size="sm"
-                    className="h-7 w-7 rounded-full p-0 sm:h-7 sm:w-7"
+                    className="h-10 w-10 rounded-full p-0 sm:h-7 sm:w-7"
                     aria-label={`Rate ${value} star${value === 1 ? "" : "s"}`}
                     onClick={() => onRatePrompt(post.id, ratingValue === value ? null : value)}
                   >
                     <Star
                       className={cn(
-                        "h-4 w-4 transition-colors",
+                        "h-5 w-5 transition-colors sm:h-4 sm:w-4",
                         isActive ? "fill-primary text-primary" : "text-muted-foreground",
                       )}
                     />
@@ -397,6 +448,7 @@ function CommunityPostCardComponent({
                   postId={post.id}
                   totalCount={post.commentCount}
                   onCommentAdded={onCommentAdded}
+                  autoFocusComposer
                   blockedUserIds={blockedUserIds}
                   onReportComment={onReportComment}
                   onBlockUser={onBlockUser}
@@ -433,6 +485,11 @@ function arePropsEqual(previous: CommunityPostCardProps, next: CommunityPostCard
     previous.onToggleVote === next.onToggleVote &&
     previous.onCommentAdded === next.onCommentAdded &&
     previous.onCommentThreadOpen === next.onCommentThreadOpen &&
+    previous.onSharePost === next.onSharePost &&
+    previous.onSaveToLibrary === next.onSaveToLibrary &&
+    previous.followingUserIds === next.followingUserIds &&
+    previous.currentUserId === next.currentUserId &&
+    previous.onToggleFollow === next.onToggleFollow &&
     previous.canVote === next.canVote &&
     previous.canRate === next.canRate &&
     areRatingsEqual(previous.ratingValue, next.ratingValue) &&
