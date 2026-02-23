@@ -125,6 +125,7 @@ const ENHANCE_THREAD_OPTIONS_BASE: Omit<EnhanceThreadOptions, "webSearchEnabled"
 const DEBUG_ENHANCE_EVENTS_KEY = "promptforge:debug-enhance-events";
 const DEBUG_ENHANCE_EVENTS_MAX = 200;
 const DEBUG_ENHANCE_PAYLOAD_PREVIEW_CHARS = 1200;
+const ENHANCED_PROMPT_SOURCES_SEPARATOR = /\n---\n\s*Sources:\s*\n/i;
 const REASONING_ITEM_TYPES = new Set([
   "reasoning",
   "reasoning_summary",
@@ -299,6 +300,49 @@ function extractReasoningSummaryChunk(
   const eventToken = `${meta.eventType ?? ""} ${meta.responseType ?? ""}`.toLowerCase();
   const isDelta = eventToken.includes("delta");
   return { text: directText, isDelta, itemId: meta.itemId };
+}
+
+function splitEnhancedPromptAndSources(input: string): { promptText: string; sources: string[] } {
+  const separatorIdx = input.search(ENHANCED_PROMPT_SOURCES_SEPARATOR);
+  if (separatorIdx === -1) {
+    return {
+      promptText: input,
+      sources: [],
+    };
+  }
+
+  const promptText = input.slice(0, separatorIdx).trimEnd();
+  const sourcesBlock = input.slice(separatorIdx);
+  const sources = sourcesBlock
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("- "))
+    .map((line) => line.slice(2));
+
+  return {
+    promptText,
+    sources,
+  };
+}
+
+function extractEnhancedPromptFromMetadataEvent(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const data = payload as {
+    event?: unknown;
+    type?: unknown;
+    payload?: unknown;
+  };
+  const eventType = normalizeEventToken(typeof data.event === "string" ? data.event : null);
+  const responseType = normalizeEventToken(typeof data.type === "string" ? data.type : null);
+  if (eventType !== "enhance/metadata" && responseType !== "enhance.metadata") return null;
+
+  const metadata = data.payload;
+  if (!metadata || typeof metadata !== "object") return null;
+
+  const enhancedPrompt = (metadata as { enhanced_prompt?: unknown }).enhanced_prompt;
+  if (typeof enhancedPrompt !== "string") return null;
+  const normalized = enhancedPrompt.trim();
+  return normalized || null;
 }
 
 function previewEnhancePayload(payload: unknown): string {
@@ -884,6 +928,19 @@ const Index = () => {
         configForEnhance.tone ? `Tone: ${configForEnhance.tone}` : "",
         configForEnhance.complexity ? `Complexity: ${configForEnhance.complexity}` : "",
       ].filter((value) => value.length > 0);
+      const applyEnhancedOutput = (nextOutput: string, clearSourcesWhenMissing = false) => {
+        const { promptText, sources } = splitEnhancedPromptAndSources(nextOutput);
+        if (sources.length > 0) {
+          setEnhancedPrompt(promptText);
+          setWebSearchSources(sources);
+          return;
+        }
+
+        setEnhancedPrompt(nextOutput);
+        if (clearSourcesWhenMissing) {
+          setWebSearchSources([]);
+        }
+      };
       streamEnhance({
         prompt: promptForEnhance,
         threadOptions: { ...ENHANCE_THREAD_OPTIONS_BASE, webSearchEnabled },
@@ -903,20 +960,7 @@ const Index = () => {
             setEnhancePhase("streaming");
           }
           accumulated += text;
-
-          // Split sources block from enhanced prompt so sources render outside the copy area
-          const separatorIdx = accumulated.search(/\n---\n\s*Sources:\s*\n/i);
-          if (separatorIdx !== -1) {
-            setEnhancedPrompt(accumulated.slice(0, separatorIdx).trimEnd());
-            const sourcesBlock = accumulated.slice(separatorIdx);
-            const sourceLines = sourcesBlock
-              .split("\n")
-              .map((l) => l.trim())
-              .filter((l) => l.startsWith("- "));
-            setWebSearchSources(sourceLines.map((l) => l.slice(2)));
-          } else {
-            setEnhancedPrompt(accumulated);
-          }
+          applyEnhancedOutput(accumulated);
         },
         onEvent: (event) => {
           if (streamToken !== enhanceStreamToken.current) return;
@@ -925,6 +969,13 @@ const Index = () => {
             if (debugEventStore.length > DEBUG_ENHANCE_EVENTS_MAX) {
               debugEventStore.splice(0, debugEventStore.length - DEBUG_ENHANCE_EVENTS_MAX);
             }
+          }
+
+          const metadataPrompt = extractEnhancedPromptFromMetadataEvent(event.payload);
+          if (metadataPrompt) {
+            accumulated = metadataPrompt;
+            applyEnhancedOutput(metadataPrompt, true);
+            return;
           }
 
           const chunk = extractReasoningSummaryChunk(event, event.payload);
