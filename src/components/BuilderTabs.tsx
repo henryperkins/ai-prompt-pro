@@ -38,27 +38,27 @@ export function BuilderTabs({ config, onUpdate }: BuilderTabsProps) {
   return (
     <Tabs defaultValue="role" className="w-full">
       <TabsList className="w-full grid grid-cols-5 h-auto gap-1 bg-muted/30 p-1">
-        <TabsTrigger value="role" aria-label="Role tab" className="interactive-chip gap-1 text-xs px-2">
+        <TabsTrigger value="role" aria-label="Role tab" className="interactive-chip gap-1 px-2 text-xs sm:text-sm">
           <User className="w-3 h-3" />
           <span className="sm:hidden">Role</span>
           <span className="hidden sm:inline">Role</span>
         </TabsTrigger>
-        <TabsTrigger value="task" aria-label="Task tab" className="interactive-chip gap-1 text-xs px-2">
+        <TabsTrigger value="task" aria-label="Task tab" className="interactive-chip gap-1 px-2 text-xs sm:text-sm">
           <Target className="w-3 h-3" />
           <span className="sm:hidden">Task</span>
           <span className="hidden sm:inline">Task</span>
         </TabsTrigger>
-        <TabsTrigger value="format" aria-label="Format tab" className="interactive-chip gap-1 text-xs px-2">
+        <TabsTrigger value="format" aria-label="Format tab" className="interactive-chip gap-1 px-2 text-xs sm:text-sm">
           <Layout className="w-3 h-3" />
           <span className="sm:hidden">Fmt</span>
           <span className="hidden sm:inline">Format</span>
         </TabsTrigger>
-        <TabsTrigger value="examples" aria-label="Examples tab" className="interactive-chip gap-1 text-xs px-2">
+        <TabsTrigger value="examples" aria-label="Examples tab" className="interactive-chip gap-1 px-2 text-xs sm:text-sm">
           <Lightbulb className="w-3 h-3" />
           <span className="sm:hidden">Ex</span>
           <span className="hidden sm:inline">Examples</span>
         </TabsTrigger>
-        <TabsTrigger value="constraints" aria-label="Rules tab" className="interactive-chip gap-1 text-xs px-2">
+        <TabsTrigger value="constraints" aria-label="Rules tab" className="interactive-chip gap-1 px-2 text-xs sm:text-sm">
           <Shield className="w-3 h-3" />
           <span className="sm:hidden">Rules</span>
           <span className="hidden sm:inline">Rules</span>
@@ -66,7 +66,7 @@ export function BuilderTabs({ config, onUpdate }: BuilderTabsProps) {
       </TabsList>
 
       <TabsContent value="role" className="space-y-3 mt-4">
-        <p className="text-xs text-muted-foreground">Who should the AI be?</p>
+        <p className="text-sm text-muted-foreground">Who should the AI be?</p>
         <Select
           selectedKey={config.role || undefined}
           onSelectionChange={(value) => {
@@ -94,7 +94,7 @@ export function BuilderTabs({ config, onUpdate }: BuilderTabsProps) {
       </TabsContent>
 
       <TabsContent value="task" className="space-y-3 mt-4">
-        <p className="text-xs text-muted-foreground">What exactly do you want done?</p>
+        <p className="text-sm text-muted-foreground">What exactly do you want done?</p>
         <Textarea
           placeholder="Define the task clearly..."
           value={config.task}
@@ -105,14 +105,14 @@ export function BuilderTabs({ config, onUpdate }: BuilderTabsProps) {
       </TabsContent>
 
       <TabsContent value="format" className="space-y-4 mt-4">
-        <p className="text-xs text-muted-foreground">How should the answer be structured?</p>
+        <p className="text-sm text-muted-foreground">How should the answer be structured?</p>
         <div className="flex flex-wrap gap-2">
           {formatOptions.map((format) => (
             <button
               type="button"
               key={format}
               className={cn(
-                "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition duration-100 ease-linear focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                "inline-flex items-center rounded-full border px-2.5 py-0.5 text-sm font-semibold transition duration-100 ease-linear focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                 config.format.includes(format)
                   ? "border-primary/30 bg-primary/10 text-primary"
                   : "border-border bg-background text-foreground",
@@ -133,7 +133,7 @@ export function BuilderTabs({ config, onUpdate }: BuilderTabsProps) {
           aria-label="Custom format"
         />
         <div className="space-y-2">
-          <Label className="text-xs text-muted-foreground">Length</Label>
+          <Label className="text-sm text-muted-foreground">Length</Label>
           <Select
             selectedKey={config.lengthPreference || undefined}
             onSelectionChange={(value) => {
@@ -154,7 +154,7 @@ export function BuilderTabs({ config, onUpdate }: BuilderTabsProps) {
       </TabsContent>
 
       <TabsContent value="examples" className="space-y-3 mt-4">
-        <p className="text-xs text-muted-foreground">Show, don't just tell — provide example inputs/outputs</p>
+        <p className="text-sm text-muted-foreground">Show, don't just tell — provide example inputs/outputs</p>
         <Textarea
           placeholder="Add example inputs and outputs to guide the AI..."
           value={config.examples}
@@ -165,7 +165,7 @@ export function BuilderTabs({ config, onUpdate }: BuilderTabsProps) {
       </TabsContent>
 
       <TabsContent value="constraints" className="space-y-4 mt-4">
-        <p className="text-xs text-muted-foreground">Set boundaries to improve quality</p>
+        <p className="text-sm text-muted-foreground">Set boundaries to improve quality</p>
         <div className="space-y-3">
           {constraintOptions.map((constraint) => {
             const constraintInputId = toConstraintInputId(constraint);

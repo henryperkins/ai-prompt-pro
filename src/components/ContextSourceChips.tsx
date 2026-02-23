@@ -210,7 +210,7 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
             : "border-muted-foreground/20 hover:border-muted-foreground/40"
         }`}
       >
-        <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+        <div className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
           <Upload className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
           <span>Drop files ({ALLOWED_EXTENSIONS.slice(0, 4).join(", ")}…)</span>
         </div>
@@ -294,7 +294,7 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
                   onChange={(e) => setContent(e.target.value)}
                   className="min-h-24 bg-background sm:min-h-28"
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   Long content will be auto-summarized into compact bullet points.
                 </p>
                 <div className="flex gap-2 justify-end">
@@ -344,7 +344,7 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
       )}
 
       {sources.length === 0 && (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           No sources yet. Add text, fetch URLs, or drop files.
         </p>
       )}

@@ -44,7 +44,7 @@ export function StructuredContextForm({ values, onUpdate }: StructuredContextFor
           />
           {showExamples === field.key && (
             <div className="rounded-md border border-border bg-muted/30 p-2 space-y-1">
-              <p className="type-label-caps text-xs font-medium text-muted-foreground">
+              <p className="type-label-caps text-sm font-medium text-muted-foreground">
                 Good examples
               </p>
               {field.examples.map((ex, i) => (

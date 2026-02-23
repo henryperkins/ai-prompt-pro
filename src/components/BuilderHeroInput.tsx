@@ -70,7 +70,7 @@ export function BuilderHeroInput({
 
         <div className="rounded-md border border-dashed border-primary/40 bg-primary/5 px-3 py-2">
           <div className="flex items-center justify-between gap-2">
-            <p className="flex items-center gap-1.5 text-xs font-medium text-primary">
+            <p className="flex items-center gap-1.5 text-sm font-medium text-primary">
               <Sparkles className="h-3.5 w-3.5" />
               Smart suggestions
             </p>
@@ -88,7 +88,7 @@ export function BuilderHeroInput({
           </div>
 
           {!phase3Enabled && (
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-1 text-sm text-muted-foreground">
               AI suggestion chips will appear here in Phase 3. For now, continue by adjusting details below.
             </p>
           )}
@@ -96,7 +96,7 @@ export function BuilderHeroInput({
           {phase3Enabled && (
             <div className="mt-2 space-y-2">
               {isInferringSuggestions && (
-                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   Generating suggestions...
                 </p>
@@ -120,13 +120,13 @@ export function BuilderHeroInput({
               )}
 
               {!isInferringSuggestions && suggestionChips.length === 0 && (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   Keep typing to get AI-generated detail suggestions.
                 </p>
               )}
 
               {hasInferenceError && (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   AI suggestions are temporarily unavailable. Local hints are shown when possible.
                 </p>
               )}

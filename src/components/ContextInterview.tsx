@@ -32,7 +32,7 @@ export function ContextInterview({ answers, onUpdate }: ContextInterviewProps) {
         <Button
           color="secondary"
           size="sm"
-          className="interactive-chip w-full gap-2 text-xs justify-between"
+          className="interactive-chip w-full justify-between gap-2 text-sm"
           onClick={() => setExpanded(true)}
         >
           <span className="flex items-center gap-2">
@@ -54,14 +54,14 @@ export function ContextInterview({ answers, onUpdate }: ContextInterviewProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <MessageSquareText className="w-4 h-4 text-primary" />
-          <span className="text-xs font-medium text-foreground">
+          <span className="text-sm font-medium text-foreground">
             Context interview ({currentStep + 1}/{interviewQuestions.length})
           </span>
         </div>
         <Button
           color="tertiary"
           size="sm"
-          className="interactive-chip h-11 text-xs sm:h-9"
+          className="interactive-chip h-11 text-sm sm:h-9"
           onClick={() => setExpanded(false)}
         >
           Minimize
@@ -104,7 +104,7 @@ export function ContextInterview({ answers, onUpdate }: ContextInterviewProps) {
         <Button
           color="tertiary"
           size="sm"
-          className="interactive-chip text-xs"
+          className="interactive-chip text-sm"
           disabled={currentStep === 0}
           onClick={() => setCurrentStep((s) => s - 1)}
         >
@@ -114,7 +114,7 @@ export function ContextInterview({ answers, onUpdate }: ContextInterviewProps) {
           <Button
             color="secondary"
             size="sm"
-            className="interactive-chip text-xs gap-1"
+            className="interactive-chip gap-1 text-sm"
             onClick={() => setCurrentStep((s) => s + 1)}
           >
             Next
@@ -123,7 +123,7 @@ export function ContextInterview({ answers, onUpdate }: ContextInterviewProps) {
         ) : (
           <Button
             size="sm"
-            className="interactive-chip text-xs gap-1"
+            className="interactive-chip gap-1 text-sm"
             onClick={() => setExpanded(false)}
           >
             <Check className="w-3 h-3" />

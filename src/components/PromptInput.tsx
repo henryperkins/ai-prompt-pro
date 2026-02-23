@@ -19,7 +19,7 @@ export function PromptInput({ value, onChange, onClear }: PromptInputProps) {
           Your Prompt
         </label>
         <div className="flex items-center gap-2">
-          <span id={promptInputMetaId} className="text-xs text-muted-foreground">
+          <span id={promptInputMetaId} className="text-sm text-muted-foreground">
             {value.length} chars
           </span>
           {value && (
@@ -28,7 +28,7 @@ export function PromptInput({ value, onChange, onClear }: PromptInputProps) {
               size="sm"
               onClick={onClear}
               aria-label="Clear prompt text"
-              className="interactive-chip h-11 px-2 text-xs gap-1 sm:h-9"
+              className="interactive-chip h-11 gap-1 px-2 text-sm sm:h-9"
             >
               <RotateCcw className="w-3 h-3" />
               Clear Prompt

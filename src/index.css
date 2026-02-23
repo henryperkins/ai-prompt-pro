@@ -599,21 +599,21 @@ All colors MUST be HSL.
   }
 
   .ui-density[data-density="compact"] {
-    --ui-density-section-label-size: var(--type-2xs-size);
-    --ui-density-section-label-line: var(--type-2xs-line);
-    --ui-density-toolbar-size: var(--type-2xs-size);
-    --ui-density-toolbar-line: var(--type-2xs-line);
+    --ui-density-section-label-size: var(--type-xs-size);
+    --ui-density-section-label-line: var(--type-xs-line);
+    --ui-density-toolbar-size: var(--type-xs-size);
+    --ui-density-toolbar-line: var(--type-xs-line);
     --ui-density-toolbar-height-mobile: 2.5rem;
     --ui-density-toolbar-height-desktop: 2rem;
     --ui-density-state-title-size: var(--type-sm-size);
     --ui-density-state-title-line: var(--type-sm-line);
-    --ui-density-state-body-size: var(--type-xs-size);
-    --ui-density-state-body-line: var(--type-xs-line);
+    --ui-density-state-body-size: var(--type-sm-size);
+    --ui-density-state-body-line: var(--type-sm-line);
   }
 
   .ui-section-label {
-    font-size: var(--ui-density-section-label-size);
-    line-height: var(--ui-density-section-label-line);
+    font-size: var(--ui-density-section-label-size, var(--type-sm-size));
+    line-height: var(--ui-density-section-label-line, var(--type-sm-line));
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: var(--type-label-caps-tracking);
@@ -621,8 +621,8 @@ All colors MUST be HSL.
 
   .ui-toolbar-button {
     min-height: var(--ui-density-toolbar-height-mobile);
-    font-size: var(--ui-density-toolbar-size);
-    line-height: var(--ui-density-toolbar-line);
+    font-size: var(--ui-density-toolbar-size, var(--type-xs-size));
+    line-height: var(--ui-density-toolbar-line, var(--type-xs-line));
   }
 
   .utility-action-button {
@@ -662,14 +662,14 @@ All colors MUST be HSL.
   }
 
   .ui-state-card-title {
-    font-size: var(--ui-density-state-title-size);
-    line-height: var(--ui-density-state-title-line);
+    font-size: var(--ui-density-state-title-size, var(--type-base-size));
+    line-height: var(--ui-density-state-title-line, var(--type-base-line));
     font-weight: 600;
   }
 
   .ui-state-card-body {
-    font-size: var(--ui-density-state-body-size);
-    line-height: var(--ui-density-state-body-line);
+    font-size: var(--ui-density-state-body-size, var(--type-sm-size));
+    line-height: var(--ui-density-state-body-line, var(--type-sm-line));
   }
 
   .type-label-shortcut {
@@ -801,8 +801,8 @@ All colors MUST be HSL.
     --community-type-chip-line: var(--type-xs-line);
     --community-type-comment-size: var(--type-sm-size);
     --community-type-comment-line: var(--type-sm-line);
-    --community-type-reply-size: var(--type-2xs-size);
-    --community-type-reply-line: var(--type-2xs-line);
+    --community-type-reply-size: var(--type-xs-size);
+    --community-type-reply-line: var(--type-xs-line);
     --community-type-input-size: var(--type-base-size);
     --community-type-input-line: var(--type-base-line);
     --community-type-help-size: var(--type-xs-size);
@@ -815,34 +815,34 @@ All colors MUST be HSL.
   .community-typography[data-density="compact"] {
     --community-type-screen-title-size: 1.625rem;
     --community-type-screen-title-line: 2rem;
-    --community-type-screen-subtitle-size: var(--type-xs-size);
-    --community-type-screen-subtitle-line: var(--type-xs-line);
-    --community-type-tab-size: var(--type-2xs-size);
-    --community-type-tab-line: var(--type-2xs-line);
+    --community-type-screen-subtitle-size: var(--type-sm-size);
+    --community-type-screen-subtitle-line: var(--type-sm-line);
+    --community-type-tab-size: var(--type-xs-size);
+    --community-type-tab-line: var(--type-xs-line);
     --community-type-post-title-size: 1rem;
     --community-type-post-title-line: 1.375rem;
     --community-type-post-body-size: var(--type-xs-size);
     --community-type-post-body-line: var(--type-xs-line);
-    --community-type-author-size: var(--type-2xs-size);
-    --community-type-author-line: var(--type-2xs-line);
-    --community-type-time-size: var(--type-2xs-size);
-    --community-type-time-line: var(--type-2xs-line);
-    --community-type-meta-size: var(--type-2xs-size);
-    --community-type-meta-line: var(--type-2xs-line);
+    --community-type-author-size: var(--type-xs-size);
+    --community-type-author-line: var(--type-xs-line);
+    --community-type-time-size: var(--type-xs-size);
+    --community-type-time-line: var(--type-xs-line);
+    --community-type-meta-size: var(--type-xs-size);
+    --community-type-meta-line: var(--type-xs-line);
     --community-type-button-size: var(--type-xs-size);
     --community-type-button-line: var(--type-xs-line);
-    --community-type-chip-size: var(--type-2xs-size);
-    --community-type-chip-line: var(--type-2xs-line);
+    --community-type-chip-size: var(--type-xs-size);
+    --community-type-chip-line: var(--type-xs-line);
     --community-type-comment-size: var(--type-xs-size);
     --community-type-comment-line: var(--type-xs-line);
-    --community-type-reply-size: var(--type-2xs-size);
-    --community-type-reply-line: var(--type-2xs-line);
-    --community-type-input-size: var(--type-sm-size);
-    --community-type-input-line: var(--type-sm-line);
-    --community-type-help-size: var(--type-2xs-size);
-    --community-type-help-line: var(--type-2xs-line);
-    --community-type-code-size: var(--type-2xs-size);
-    --community-type-code-line: var(--type-2xs-line);
+    --community-type-reply-size: var(--type-xs-size);
+    --community-type-reply-line: var(--type-xs-line);
+    --community-type-input-size: var(--type-base-size);
+    --community-type-input-line: var(--type-base-line);
+    --community-type-help-size: var(--type-xs-size);
+    --community-type-help-line: var(--type-xs-line);
+    --community-type-code-size: var(--type-xs-size);
+    --community-type-code-line: var(--type-xs-line);
   }
 
   .community-typography .type-screen-title {

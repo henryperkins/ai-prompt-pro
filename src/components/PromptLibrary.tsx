@@ -296,7 +296,7 @@ function PromptList({
       <div className="space-y-2 pb-2 border-b border-border/60">
         <div className="flex items-center gap-2">
           <Database className="w-4 h-4 text-muted-foreground" />
-          <h3 className="text-xs font-medium text-foreground">My Prompts</h3>
+          <h3 className="text-sm font-medium text-foreground">My Prompts</h3>
           <Badge type="modern" className="text-xs">
             {filteredSaved.length}
           </Badge>
@@ -316,7 +316,7 @@ function PromptList({
         )}
 
         {savedPrompts.length > 0 && filteredSaved.length === 0 && (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             No saved prompts match this search.
           </p>
         )}
@@ -358,9 +358,9 @@ function PromptList({
                   )}
                 </div>
                 {prompt.description && (
-                  <p className="text-xs text-muted-foreground line-clamp-2">{prompt.description}</p>
+                  <p className="text-sm text-muted-foreground line-clamp-2">{prompt.description}</p>
                 )}
-                <p className="text-xs text-muted-foreground/90 line-clamp-2">
+                <p className="text-sm text-muted-foreground/90 line-clamp-2">
                   <span className="font-medium text-foreground/80">Start:</span> {prompt.starterPrompt}
                 </p>
                 <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
@@ -455,7 +455,7 @@ function PromptList({
 
       <div className="space-y-2">
         <div className="flex items-center gap-2">
-          <h3 className="text-xs font-medium text-foreground">Starter Templates</h3>
+          <h3 className="text-sm font-medium text-foreground">Starter Templates</h3>
         </div>
 
         <div className="flex flex-wrap gap-1.5 py-2">
@@ -518,22 +518,22 @@ function PromptList({
                           {template.category}
                         </Badge>
                       </div>
-                      <p className="text-xs text-muted-foreground line-clamp-2">{template.description}</p>
-                      <p className="text-xs text-muted-foreground/90 line-clamp-2">
+                      <p className="text-sm text-muted-foreground line-clamp-2">{template.description}</p>
+                      <p className="text-sm text-muted-foreground/90 line-clamp-2">
                         <span className="font-medium text-foreground/80">Start:</span> {template.starterPrompt}
                       </p>
                       <div className="mt-1.5 flex gap-1">
-                        <Badge type="modern" className="text-2xs">
+                        <Badge type="modern" className="text-xs">
                           {template.tone}
                         </Badge>
-                        <Badge type="modern" className="text-2xs">
+                        <Badge type="modern" className="text-xs">
                           {template.complexity}
                         </Badge>
                       </div>
                     </div>
                     <span
                       className={cn(
-                        "type-label-caps hidden h-8 shrink-0 items-center rounded-md border px-2 text-2xs font-medium opacity-70 transition-opacity group-hover:opacity-100 sm:inline-flex",
+                        "type-label-caps hidden h-8 shrink-0 items-center rounded-md border px-2 text-xs font-medium opacity-70 transition-opacity group-hover:opacity-100 sm:inline-flex",
                         skin.action,
                       )}
                     >
@@ -647,7 +647,7 @@ function PromptList({
               />
               <Label
                 htmlFor="library-share-confirm-safe"
-                className="cursor-pointer text-xs leading-snug text-muted-foreground"
+                className="cursor-pointer text-sm leading-snug text-muted-foreground"
               >
                 I confirm this prompt contains no secrets or private data.
               </Label>

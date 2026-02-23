@@ -637,12 +637,12 @@ export function OutputPanel({
           </DialogHeader>
           <div className="space-y-3">
             {remixContext && (
-              <div className="rounded-md border border-primary/25 bg-primary/10 px-3 py-2 text-xs text-primary">
+              <div className="rounded-md border border-primary/25 bg-primary/10 px-3 py-2 text-sm text-primary">
                 Remixing {remixContext.authorName}’s “{remixContext.title}”
               </div>
             )}
             <div className="space-y-1">
-              <Label htmlFor="save-dialog-name" className="text-xs font-medium">
+              <Label htmlFor="save-dialog-name" className="text-sm font-medium">
                 Prompt title
               </Label>
               <Input
@@ -658,13 +658,13 @@ export function OutputPanel({
               />
               <p
                 id="save-dialog-name-help"
-                className={cn("text-xs", showSaveNameError ? "text-destructive" : "text-muted-foreground")}
+                className={cn("text-sm", showSaveNameError ? "text-destructive" : "text-muted-foreground")}
               >
                 {showSaveNameError ? saveNameError : "Required."}
               </p>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs font-medium">
+              <Label className="text-sm font-medium">
                 Category
               </Label>
               <Select
@@ -686,7 +686,7 @@ export function OutputPanel({
               </Select>
             </div>
             <div className="space-y-1">
-              <Label htmlFor="save-dialog-description" className="text-xs font-medium">
+              <Label htmlFor="save-dialog-description" className="text-sm font-medium">
                 Description
               </Label>
               <Textarea
@@ -698,7 +698,7 @@ export function OutputPanel({
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="save-dialog-tags" className="text-xs font-medium">
+              <Label htmlFor="save-dialog-tags" className="text-sm font-medium">
                 Tags
               </Label>
               <Input
@@ -712,7 +712,7 @@ export function OutputPanel({
             </div>
             {remixContext && (
               <div className="space-y-1">
-                <Label htmlFor="save-dialog-remix-note" className="text-xs font-medium">
+                <Label htmlFor="save-dialog-remix-note" className="text-sm font-medium">
                   Remix note
                 </Label>
                 <Textarea
@@ -729,10 +729,10 @@ export function OutputPanel({
               <div className="rounded-md border border-border/80 bg-muted/30 px-3 py-2">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label htmlFor="save-dialog-share-toggle" className="text-xs font-medium text-foreground">
+                    <Label htmlFor="save-dialog-share-toggle" className="text-sm font-medium text-foreground">
                       Share to community
                     </Label>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-sm text-muted-foreground">
                       Enable to publish after saving.
                     </p>
                   </div>
@@ -744,7 +744,7 @@ export function OutputPanel({
                   />
                 </div>
                 {!canSharePrompt && (
-                  <p className="mt-2 text-xs text-muted-foreground">
+                  <p className="mt-2 text-sm text-muted-foreground">
                     Sign in to enable sharing.
                   </p>
                 )}
@@ -754,7 +754,7 @@ export function OutputPanel({
             {shareEnabledForUi && (
               <>
                 <div className="space-y-1">
-                  <Label htmlFor="save-dialog-use-case" className="text-xs font-medium">
+                  <Label htmlFor="save-dialog-use-case" className="text-sm font-medium">
                     Use case
                   </Label>
                   <Textarea
@@ -769,13 +769,13 @@ export function OutputPanel({
                   />
                   <p
                     id="save-dialog-use-case-help"
-                    className={cn("text-xs", showSaveUseCaseError ? "text-destructive" : "text-muted-foreground")}
+                    className={cn("text-sm", showSaveUseCaseError ? "text-destructive" : "text-muted-foreground")}
                   >
                     {showSaveUseCaseError ? saveUseCaseError : "Required when sharing."}
                   </p>
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="save-dialog-target-model" className="text-xs font-medium">
+                  <Label htmlFor="save-dialog-target-model" className="text-sm font-medium">
                     Target model
                   </Label>
                   <Input
@@ -801,7 +801,7 @@ export function OutputPanel({
                   />
                   <Label
                     htmlFor="save-dialog-confirm-safe"
-                    className="cursor-pointer text-xs leading-snug text-muted-foreground"
+                    className="cursor-pointer text-sm leading-snug text-muted-foreground"
                   >
                     I confirm this prompt contains no secrets or private data.
                   </Label>
@@ -809,7 +809,7 @@ export function OutputPanel({
                 <p
                   id="save-dialog-confirm-safe-help"
                   className={cn(
-                    "text-xs",
+                    "text-sm",
                     showSaveConfirmedSafeError ? "text-destructive" : "text-muted-foreground",
                   )}
                 >
@@ -877,7 +877,7 @@ export function OutputPanel({
             {webSearchSources.map((source, i) => {
               const safeLink = parseWebSourceLink(source);
               return (
-                <li key={i} className="text-xs text-muted-foreground">
+                <li key={i} className="text-sm text-muted-foreground">
                   {safeLink ? (
                     <a
                       href={safeLink.href}
@@ -901,7 +901,7 @@ export function OutputPanel({
         <div className="flex flex-col gap-2">
           {onWebSearchToggle && (
             <div className="flex flex-wrap items-center gap-2">
-              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground select-none">
                 <Switch
                   checked={webSearchEnabled}
                   onCheckedChange={onWebSearchToggle}

@@ -16,7 +16,7 @@ const Privacy = () => {
       <div className="mx-auto max-w-3xl space-y-4">
         <Card className="pf-card space-y-4 border-border/80 bg-card/90 p-4 sm:p-6">
           <p className="text-sm text-muted-foreground">Last updated: February 20, 2026</p>
-          <article className="prose prose-sm max-w-none text-foreground dark:prose-invert prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-strong:text-foreground">
+          <article className="prose max-w-[68ch] text-foreground dark:prose-invert prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-strong:text-foreground">
             <p>
               We collect only the information needed to provide account access, saved prompts, and community features.
               We do not sell your personal data.

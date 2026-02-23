@@ -17,7 +17,7 @@ const Terms = () => {
         <Card className="pf-card space-y-4 border-border/80 bg-card/90 p-4 sm:p-6">
           <p className="text-sm text-muted-foreground">Last updated: February 20, 2026</p>
 
-          <article className="prose prose-sm max-w-none text-foreground dark:prose-invert prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-strong:text-foreground">
+          <article className="prose max-w-[68ch] text-foreground dark:prose-invert prose-headings:text-foreground prose-p:text-foreground prose-li:text-foreground prose-strong:text-foreground">
             <h2>Using PromptForge responsibly</h2>
             <p>
               By using PromptForge, you agree not to post unlawful, abusive, or harmful content.

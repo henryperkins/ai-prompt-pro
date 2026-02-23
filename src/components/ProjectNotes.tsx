@@ -11,10 +11,10 @@ export function ProjectNotes({ value, onChange }: ProjectNotesProps) {
     <div className="space-y-2">
       <div className="flex items-center gap-1.5">
         <StickyNote className="w-3.5 h-3.5 text-muted-foreground" />
-        <label className="text-xs font-medium text-foreground">
+        <label className="text-sm font-medium text-foreground">
           Project notes
         </label>
-        <span className="text-xs text-muted-foreground">(reusable across prompts)</span>
+        <span className="text-sm text-muted-foreground">(reusable across prompts)</span>
       </div>
       <Textarea
         placeholder="Persistent notes, brand voice guidelines, key facts, or any context you reuse across prompts..."

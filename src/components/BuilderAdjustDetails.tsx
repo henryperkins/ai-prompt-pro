@@ -58,7 +58,7 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
               <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
               Adjust details
             </p>
-            <p className="text-xs text-muted-foreground">Role, style, format, and constraints.</p>
+            <p className="text-sm text-muted-foreground">Role, style, format, and constraints.</p>
           </div>
           <div className="flex items-center gap-2">
             {selectedRole && (
@@ -71,7 +71,7 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
         </button>
 
         {!isOpen && (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             {formatCount} format option{formatCount === 1 ? "" : "s"}, {constraintCount} constraint
             {constraintCount === 1 ? "" : "s"}, tone: {config.tone || "none"}.
           </p>
@@ -81,7 +81,7 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
           <div id="builder-zone-2-content" className="space-y-5 border-t border-border pt-3">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label className="text-xs font-medium text-foreground">AI persona</Label>
+                <Label className="text-sm font-medium text-foreground">AI persona</Label>
                 <Select
                   selectedKey={config.role || undefined}
                   onSelectionChange={(value) => {
@@ -109,7 +109,7 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-medium text-foreground">Tone</Label>
+                <Label className="text-sm font-medium text-foreground">Tone</Label>
                 <div className="flex flex-wrap gap-2">
                   {toneOptions.map((tone) => (
                     <Button
@@ -117,7 +117,7 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
                       type="button"
                       size="sm"
                       color={config.tone === tone ? "primary" : "secondary"}
-                      className="h-11 px-2 text-xs sm:h-9"
+                      className="h-11 px-2 text-sm sm:h-9"
                       onClick={() => onUpdate({ tone })}
                       aria-pressed={config.tone === tone}
                     >
@@ -129,7 +129,7 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-medium text-foreground">Output format</Label>
+              <Label className="text-sm font-medium text-foreground">Output format</Label>
               <div className="flex flex-wrap gap-2">
                 {formatOptions.map((format) => (
                   <Button
@@ -137,7 +137,7 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
                     type="button"
                     size="sm"
                     color={config.format.includes(format) ? "primary" : "secondary"}
-                    className="h-11 px-2 text-xs sm:h-9"
+                    className="h-11 px-2 text-sm sm:h-9"
                     onClick={() => toggleFormat(format)}
                     aria-pressed={config.format.includes(format)}
                   >
@@ -155,7 +155,7 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-medium text-foreground">Length</Label>
+              <Label className="text-sm font-medium text-foreground">Length</Label>
               <Select
                 selectedKey={config.lengthPreference || undefined}
                 onSelectionChange={(value) => {
@@ -175,7 +175,7 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
             </div>
 
             <div className="space-y-3">
-              <Label className="text-xs font-medium text-foreground">Constraints</Label>
+              <Label className="text-sm font-medium text-foreground">Constraints</Label>
               <div className="space-y-2">
                 {constraintOptions.map((constraint) => {
                   const inputId = toConstraintInputId(constraint);
@@ -203,7 +203,7 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-medium text-foreground">Example output (optional)</Label>
+              <Label className="text-sm font-medium text-foreground">Example output (optional)</Label>
               <Textarea
                 value={config.examples}
                 onChange={(e) => onUpdate({ examples: e.target.value })}

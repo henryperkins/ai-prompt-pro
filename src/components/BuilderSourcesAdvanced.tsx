@@ -66,7 +66,7 @@ export function BuilderSourcesAdvanced({
               <Layers3 className="h-4 w-4 text-muted-foreground" />
               Add sources or advanced settings
             </p>
-            <p className="text-xs text-muted-foreground">Optional references and integrations.</p>
+            <p className="text-sm text-muted-foreground">Optional references and integrations.</p>
           </div>
           <div className="flex items-center gap-2">
             {sourceCount > 0 && (
@@ -90,8 +90,8 @@ export function BuilderSourcesAdvanced({
 
             <div className="flex items-center justify-between border-t border-border pt-3">
               <div>
-                <p className="text-xs font-medium text-foreground">Show advanced integrations</p>
-                <p className="text-xs text-muted-foreground">Database + RAG and delimiter controls.</p>
+                <p className="text-sm font-medium text-foreground">Show advanced integrations</p>
+                <p className="text-sm text-muted-foreground">Database + RAG and delimiter controls.</p>
               </div>
               <Button
                 type="button"
@@ -129,7 +129,7 @@ export function BuilderSourcesAdvanced({
                 <div className="flex items-center justify-between border-t border-border pt-3">
                   <div>
                     <Label className="text-sm font-medium text-foreground sm:text-base">Use delimiters</Label>
-                    <p className="text-xs text-muted-foreground">Wrap context blocks in tags for stricter parsing.</p>
+                    <p className="text-sm text-muted-foreground">Wrap context blocks in tags for stricter parsing.</p>
                   </div>
                   <Switch
                     checked={contextConfig.useDelimiters}

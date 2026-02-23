@@ -4,34 +4,37 @@
     --font-display: var(--font-inter, "Inter"), -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
     --font-mono: ui-monospace, "Roboto Mono", SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 
-    /* FONT SIZE */
-    --text-xs: calc(var(--spacing) * 3);
-    --text-xs--line-height: calc(var(--spacing) * 4.5);
+    /* FONT SIZE
+     * Keep @theme text tokens aligned to --type-* scale to avoid line-height drift
+     * between Tailwind text utilities and design-system semantic tokens.
+     */
+    --text-xs: var(--type-xs-size);
+    --text-xs--line-height: var(--type-xs-line);
 
-    --text-sm: calc(var(--spacing) * 3.5);
-    --text-sm--line-height: calc(var(--spacing) * 5);
+    --text-sm: var(--type-sm-size);
+    --text-sm--line-height: var(--type-sm-line);
 
-    --text-md: calc(var(--spacing) * 4);
-    --text-md--line-height: calc(var(--spacing) * 6);
+    --text-md: var(--type-base-size);
+    --text-md--line-height: var(--type-base-line);
 
-    --text-lg: calc(var(--spacing) * 4.5);
-    --text-lg--line-height: calc(var(--spacing) * 7);
+    --text-lg: var(--type-lg-size);
+    --text-lg--line-height: var(--type-lg-line);
 
-    --text-xl: calc(var(--spacing) * 5);
-    --text-xl--line-height: calc(var(--spacing) * 7.5);
+    --text-xl: var(--type-xl-size);
+    --text-xl--line-height: var(--type-xl-line);
 
-    --text-display-xs: calc(var(--spacing) * 6);
-    --text-display-xs--line-height: calc(var(--spacing) * 8);
+    --text-display-xs: var(--type-2xl-size);
+    --text-display-xs--line-height: var(--type-2xl-line);
 
-    --text-display-sm: calc(var(--spacing) * 7.5);
-    --text-display-sm--line-height: calc(var(--spacing) * 9.5);
+    --text-display-sm: var(--type-3xl-size);
+    --text-display-sm--line-height: var(--type-3xl-line);
 
-    --text-display-md: calc(var(--spacing) * 9);
-    --text-display-md--line-height: calc(var(--spacing) * 11);
+    --text-display-md: var(--type-4xl-size);
+    --text-display-md--line-height: var(--type-4xl-line);
     --text-display-md--letter-spacing: -0.72px;
 
-    --text-display-lg: calc(var(--spacing) * 12);
-    --text-display-lg--line-height: calc(var(--spacing) * 15);
+    --text-display-lg: var(--type-5xl-size);
+    --text-display-lg--line-height: var(--type-5xl-line);
     --text-display-lg--letter-spacing: -0.96px;
 
     --text-display-xl: calc(var(--spacing) * 15);

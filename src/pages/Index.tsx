@@ -1468,10 +1468,10 @@ const Index = () => {
         className="pf-gilded-frame pf-hero-surface mb-4 px-4 py-5 text-center sm:mb-8 sm:px-6 sm:py-7"
         data-testid="builder-hero"
       >
-        <h1 className="pf-text-display mb-1 text-xl font-bold tracking-tight text-[rgba(230,225,213,.95)] sm:mb-2 sm:text-3xl md:text-4xl">
+        <h1 className="pf-text-display mb-1 text-2xl font-bold tracking-tight text-[rgba(230,225,213,.95)] sm:mb-2 sm:text-3xl md:text-4xl">
           {heroCopy.headline}
         </h1>
-        <p className="mx-auto max-w-2xl text-xs text-[rgba(230,225,213,.82)] sm:text-sm md:text-base">
+        <p className="mx-auto max-w-2xl text-sm text-[rgba(230,225,213,.82)] sm:text-base">
           {heroCopy.subhead}
         </p>
         <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
@@ -1479,7 +1479,7 @@ const Index = () => {
             <Badge
               key={pillar.title}
               type="modern"
-              className="border border-[rgba(214,166,64,.35)] bg-black/35 text-2xs text-[rgba(230,225,213,.9)] sm:text-xs"
+              className="border border-[rgba(214,166,64,.35)] bg-black/35 text-xs text-[rgba(230,225,213,.9)]"
             >
               {pillar.title}
             </Badge>
