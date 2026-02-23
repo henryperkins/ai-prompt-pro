@@ -31,6 +31,7 @@ jobs:
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
         env:
+          NODE_VERSION: "20"
           VITE_NEON_PROJECT_ID: ${{ secrets.VITE_NEON_PROJECT_ID }}
           VITE_NEON_DATA_API_URL: ${{ secrets.VITE_NEON_DATA_API_URL }}
           VITE_NEON_AUTH_URL: ${{ secrets.VITE_NEON_AUTH_URL }}
@@ -45,7 +46,7 @@ jobs:
           app_location: "/"
           api_location: ""
           output_location: "dist"
-          app_build_command: "npm run check:prod"
+          app_build_command: "npm run check:no-legacy-ui-imports && npm run check:no-legacy-ds-props && STRICT_PRIMITIVE_IMPORTS=1 npm run check:no-primitive-ds-imports && npm run lint && npm run test:unit -- --exclude 'src/test/design-token-contrast.test.ts' && npm run build && npm run check:token-runtime"
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
