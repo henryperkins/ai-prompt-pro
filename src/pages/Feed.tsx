@@ -487,7 +487,7 @@ const Feed = () => {
                 type="button"
                 color="secondary"
                 size="sm"
-                className="h-11 sm:h-9"
+                className="type-button-label h-11 sm:h-9"
                 onClick={() => navigate("/community")}
               >
                 Find creators to follow

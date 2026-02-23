@@ -188,7 +188,7 @@ export function CommunityPostDetail({
               <AvatarFallback className="type-reply-label">{getInitials(authorName)}</AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <Link to={`/profile/${post.authorId}`} className="type-author type-link-inline type-wrap-safe text-foreground">
+              <Link to={`/profile/${post.authorId}`} className="type-author type-link-inline type-wrap-inline text-foreground">
                 {authorName}
               </Link>
               <p className="type-timestamp text-muted-foreground">{createdAgo}</p>

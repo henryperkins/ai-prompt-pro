@@ -190,7 +190,7 @@ export function CommunityComments({
           </Avatar>
           <div className="min-w-0 flex-1">
             <div className="type-meta flex flex-wrap items-center gap-1.5 text-muted-foreground sm:gap-2">
-              <Link to={`/profile/${item.comment.userId}`} className="type-author type-link-inline text-foreground">
+              <Link to={`/profile/${item.comment.userId}`} className="type-author type-link-inline type-wrap-inline text-foreground">
                 {item.displayName}
               </Link>
               <span className="type-timestamp">{item.createdAt}</span>

@@ -79,9 +79,9 @@ export function PageHero({ title, subtitle, eyebrow, className }: PageHeroProps)
         />
       </div>
       {eyebrow && <p className="ui-section-label text-primary">{eyebrow}</p>}
-      <h1 className="page-hero-title pf-text-display text-2xl font-bold text-foreground sm:text-3xl">{title}</h1>
+      <h1 className="page-hero-title type-screen-title pf-text-display text-2xl font-bold text-foreground sm:text-3xl">{title}</h1>
       {subtitle && (
-        <p className="page-hero-subtitle mx-auto mt-1 max-w-2xl text-sm text-muted-foreground sm:text-base">
+        <p className="page-hero-subtitle type-screen-subtitle mx-auto mt-1 max-w-2xl text-sm text-muted-foreground sm:text-base">
           {subtitle}
         </p>
       )}

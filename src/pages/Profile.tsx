@@ -452,26 +452,26 @@ const Profile = () => {
               <div className="flex flex-wrap items-center gap-3">
                 <Avatar className="h-12 w-12 border border-border/60">
                   <AvatarImage src={profile.avatarUrl ?? undefined} alt={profile.displayName} />
-                  <AvatarFallback>{getInitials(profile.displayName)}</AvatarFallback>
+                  <AvatarFallback className="type-reply-label">{getInitials(profile.displayName)}</AvatarFallback>
                 </Avatar>
                 <div className="min-w-0 flex-1">
-                  <p className="text-base font-semibold text-foreground">{profile.displayName}</p>
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <Badge type="modern">{profileStats.followersCount} followers</Badge>
-                    <Badge type="modern">{profileStats.followingCount} following</Badge>
-                    <Badge type="modern" className="border border-border bg-background text-foreground">
+                  <p className="type-post-title type-wrap-inline text-foreground">{profile.displayName}</p>
+                  <div className="type-meta mt-1 flex flex-wrap items-center gap-2 text-muted-foreground">
+                    <Badge type="modern" className="type-chip type-numeric">{profileStats.followersCount} followers</Badge>
+                    <Badge type="modern" className="type-chip type-numeric">{profileStats.followingCount} following</Badge>
+                    <Badge type="modern" className="type-chip type-numeric border border-border bg-background text-foreground">
                       {posts.length} visible prompts
                     </Badge>
                   </div>
                 </div>
                 {isOwnProfile ? (
-                  <Badge type="modern" className="border border-border bg-background text-foreground">You</Badge>
+                  <Badge type="modern" className="type-chip border border-border bg-background text-foreground">You</Badge>
                 ) : (
                   <Button
                     type="button"
                     size="sm"
                     color={isFollowing ? "secondary" : "primary"}
-                    className="h-11 sm:h-9"
+                    className="type-button-label h-11 sm:h-9"
                     onClick={() => void handleToggleFollow()}
                     disabled={followPending}
                   >
@@ -530,7 +530,7 @@ const Profile = () => {
             type="button"
             color="tertiary"
             size="sm"
-            className="h-11 sm:h-9"
+            className="type-button-label h-11 sm:h-9"
             onClick={() => navigate("/community")}
           >
             Back to community

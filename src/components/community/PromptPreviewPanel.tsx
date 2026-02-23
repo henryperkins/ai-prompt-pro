@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Copy } from "lucide-react";
 import { Button } from "@/components/base/buttons/button";
 import { cn } from "@/lib/utils";
@@ -10,15 +10,51 @@ interface PromptPreviewPanelProps {
   onCopy?: () => void | Promise<void>;
 }
 
-const COMPACT_EXPAND_THRESHOLD = 260;
-
 export function PromptPreviewPanel({ text, mode = "compact", className, onCopy }: PromptPreviewPanelProps) {
-  const [expandedFor, setExpandedFor] = useState<string | null>(null);
+  const preRef = useRef<HTMLPreElement | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [hasOverflow, setHasOverflow] = useState(false);
   const normalized = text.trim();
+  const isCompact = mode === "compact";
 
-  const canExpand = mode === "compact" && normalized.length > COMPACT_EXPAND_THRESHOLD;
-  const isExpanded = expandedFor === normalized;
-  const isCollapsed = mode === "compact" && !isExpanded && canExpand;
+  useEffect(() => {
+    setIsExpanded(false);
+  }, [isCompact, normalized]);
+
+  useEffect(() => {
+    if (!isCompact) {
+      setHasOverflow(false);
+      return;
+    }
+
+    if (isExpanded) return;
+
+    const element = preRef.current;
+    if (!element) {
+      setHasOverflow(false);
+      return;
+    }
+
+    let cancelled = false;
+    const measure = () => {
+      if (cancelled) return;
+      setHasOverflow(element.scrollHeight - element.clientHeight > 1);
+    };
+
+    const rafId = window.requestAnimationFrame(measure);
+    const onResize = () => measure();
+    window.addEventListener("resize", onResize);
+    void document.fonts?.ready.then(measure);
+
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(rafId);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [isCompact, isExpanded, normalized]);
+
+  const canExpand = isCompact && hasOverflow;
+  const isCollapsed = isCompact && !isExpanded;
 
   return (
     <div className={cn("rounded-lg border border-border/80 bg-muted/35 p-3 sm:p-4", className)}>
@@ -40,6 +76,7 @@ export function PromptPreviewPanel({ text, mode = "compact", className, onCopy }
           </Button>
         )}
         <pre
+          ref={preRef}
           className={cn(
             "type-code type-wrap-safe font-mono text-foreground/95 whitespace-pre-wrap",
             onCopy && "pr-[4.5rem] sm:pr-14",
@@ -56,7 +93,8 @@ export function PromptPreviewPanel({ text, mode = "compact", className, onCopy }
             color="tertiary"
             size="sm"
             className="type-button-label h-11 px-3 sm:h-9 sm:px-2"
-            onClick={() => setExpandedFor((previous) => (previous === normalized ? null : normalized))}
+            aria-expanded={isExpanded}
+            onClick={() => setIsExpanded((previous) => !previous)}
           >
             {isExpanded ? "Show less" : "Read more"}
           </Button>

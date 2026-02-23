@@ -781,68 +781,55 @@ All colors MUST be HSL.
   .community-typography {
     --community-type-screen-title-size: 1.75rem;
     --community-type-screen-title-line: 2.125rem;
-    --community-type-screen-subtitle-size: var(--type-sm-size);
-    --community-type-screen-subtitle-line: var(--type-sm-line);
-    --community-type-tab-size: var(--type-xs-size);
-    --community-type-tab-line: var(--type-xs-line);
+    --community-type-screen-subtitle-size: 0.9375rem;
+    --community-type-screen-subtitle-line: 1.5rem;
+    --community-type-tab-size: 0.8125rem;
+    --community-type-tab-line: 1.125rem;
     --community-type-post-title-size: 1.125rem;
-    --community-type-post-title-line: 1.5rem;
-    --community-type-post-body-size: var(--type-sm-size);
-    --community-type-post-body-line: var(--type-sm-line);
-    --community-type-author-size: var(--type-xs-size);
-    --community-type-author-line: var(--type-xs-line);
-    --community-type-time-size: var(--type-xs-size);
-    --community-type-time-line: var(--type-xs-line);
-    --community-type-meta-size: var(--type-xs-size);
-    --community-type-meta-line: var(--type-xs-line);
-    --community-type-button-size: var(--type-sm-size);
-    --community-type-button-line: var(--type-sm-line);
-    --community-type-chip-size: var(--type-xs-size);
-    --community-type-chip-line: var(--type-xs-line);
-    --community-type-comment-size: var(--type-sm-size);
-    --community-type-comment-line: var(--type-sm-line);
-    --community-type-reply-size: var(--type-xs-size);
-    --community-type-reply-line: var(--type-xs-line);
+    --community-type-post-title-line: 1.625rem;
+    --community-type-post-body-size: 0.9375rem;
+    --community-type-post-body-line: 1.5rem;
+    --community-type-author-size: 0.8125rem;
+    --community-type-author-line: 1.125rem;
+    --community-type-time-size: 0.75rem;
+    --community-type-time-line: 1rem;
+    --community-type-meta-size: 0.75rem;
+    --community-type-meta-line: 1rem;
+    --community-type-button-size: 0.875rem;
+    --community-type-button-line: 1.25rem;
+    --community-type-chip-size: 0.75rem;
+    --community-type-chip-line: 1rem;
+    --community-type-comment-size: 0.9375rem;
+    --community-type-comment-line: 1.5rem;
+    --community-type-reply-size: 0.6875rem;
+    --community-type-reply-line: 0.875rem;
     --community-type-input-size: var(--type-base-size);
     --community-type-input-line: var(--type-base-line);
-    --community-type-help-size: var(--type-xs-size);
-    --community-type-help-line: var(--type-xs-line);
-    --community-type-code-size: var(--type-xs-size);
-    --community-type-code-line: var(--type-xs-line);
-    --community-type-letter-caps: var(--type-label-caps-tracking);
+    --community-type-help-size: 0.75rem;
+    --community-type-help-line: 1.125rem;
+    --community-type-code-size: 0.8125rem;
+    --community-type-code-line: 1.25rem;
+    --community-type-letter-caps: 0.03em;
   }
 
   .community-typography[data-density="compact"] {
-    --community-type-screen-title-size: 1.625rem;
-    --community-type-screen-title-line: 2rem;
-    --community-type-screen-subtitle-size: var(--type-sm-size);
-    --community-type-screen-subtitle-line: var(--type-sm-line);
-    --community-type-tab-size: var(--type-xs-size);
-    --community-type-tab-line: var(--type-xs-line);
+    --community-type-screen-title-size: 1.5rem;
+    --community-type-screen-title-line: 1.875rem;
+    --community-type-screen-subtitle-size: 0.875rem;
+    --community-type-screen-subtitle-line: 1.25rem;
+    --community-type-tab-size: 0.75rem;
+    --community-type-tab-line: 1rem;
     --community-type-post-title-size: 1rem;
     --community-type-post-title-line: 1.375rem;
-    --community-type-post-body-size: var(--type-xs-size);
-    --community-type-post-body-line: var(--type-xs-line);
-    --community-type-author-size: var(--type-xs-size);
-    --community-type-author-line: var(--type-xs-line);
-    --community-type-time-size: var(--type-xs-size);
-    --community-type-time-line: var(--type-xs-line);
-    --community-type-meta-size: var(--type-xs-size);
-    --community-type-meta-line: var(--type-xs-line);
-    --community-type-button-size: var(--type-xs-size);
-    --community-type-button-line: var(--type-xs-line);
-    --community-type-chip-size: var(--type-xs-size);
-    --community-type-chip-line: var(--type-xs-line);
-    --community-type-comment-size: var(--type-xs-size);
-    --community-type-comment-line: var(--type-xs-line);
-    --community-type-reply-size: var(--type-xs-size);
-    --community-type-reply-line: var(--type-xs-line);
-    --community-type-input-size: var(--type-base-size);
-    --community-type-input-line: var(--type-base-line);
-    --community-type-help-size: var(--type-xs-size);
-    --community-type-help-line: var(--type-xs-line);
-    --community-type-code-size: var(--type-xs-size);
-    --community-type-code-line: var(--type-xs-line);
+    --community-type-post-body-size: 0.875rem;
+    --community-type-post-body-line: 1.3125rem;
+    --community-type-button-size: 0.8125rem;
+    --community-type-button-line: 1.125rem;
+    --community-type-comment-size: 0.875rem;
+    --community-type-comment-line: 1.3125rem;
+    --community-type-help-line: 1rem;
+    --community-type-code-size: 0.75rem;
+    --community-type-code-line: 1.125rem;
   }
 
   .community-typography .type-screen-title {
@@ -892,7 +879,7 @@ All colors MUST be HSL.
   .community-typography .type-meta {
     font-size: var(--community-type-meta-size);
     line-height: var(--community-type-meta-line);
-    font-weight: 500;
+    font-weight: 400;
   }
 
   .community-typography .type-button-label {
@@ -946,7 +933,11 @@ All colors MUST be HSL.
   .community-typography .type-link-inline {
     text-decoration-line: underline;
     text-underline-offset: 0.16em;
-    text-decoration-thickness: from-font;
+    text-decoration-thickness: 1px;
+  }
+
+  .community-typography .type-link-inline:hover {
+    text-decoration-thickness: 2px;
   }
 
   .community-typography .type-link-inline:focus-visible {
@@ -957,7 +948,7 @@ All colors MUST be HSL.
   }
 
   .community-typography .type-link-inline:visited {
-    text-decoration-thickness: 1.5px;
+    text-decoration-thickness: 1.25px;
   }
 
   .community-typography .type-numeric {
@@ -971,6 +962,12 @@ All colors MUST be HSL.
     hyphens: auto;
   }
 
+  .community-typography .type-wrap-inline {
+    overflow-wrap: break-word;
+    word-break: normal;
+    hyphens: auto;
+  }
+
   .community-typography .type-emoji-inline {
     font-size: 1.1em;
     line-height: 1;
@@ -978,7 +975,7 @@ All colors MUST be HSL.
   }
 
   .community-typography .type-prose-measure {
-    max-inline-size: 62ch;
+    max-inline-size: 58ch;
   }
 
   .community-typography .delight-hero h1 {
