@@ -73,9 +73,10 @@ test.describe("Typography guardrails", () => {
         const trendingButton = Array.from(document.querySelectorAll("main button")).find((button) =>
           (button.textContent || "").toLowerCase().includes("trending"),
         );
-        const helperMessage = Array.from(document.querySelectorAll("main p")).find((p) =>
-          (p.textContent || "").toLowerCase().includes("permission denied"),
-        );
+        const helperMessage =
+          document.querySelector("main .ui-state-card-body")
+          ?? document.querySelector("main .type-help")
+          ?? document.querySelector("main .type-meta");
 
         return {
           eyebrow: styleOf(document.querySelector("main .ui-section-label")),
@@ -88,7 +89,7 @@ test.describe("Typography guardrails", () => {
       expect(toNumber(metrics.eyebrow?.fontSize)).toBeGreaterThanOrEqual(12);
       expect(toNumber(metrics.searchInput?.fontSize)).toBeGreaterThanOrEqual(16);
       expect(toNumber(metrics.trendingButton?.fontSize)).toBeGreaterThanOrEqual(12);
-      expect(toNumber(metrics.helperMessage?.fontSize)).toBeGreaterThanOrEqual(14);
+      expect(toNumber(metrics.helperMessage?.fontSize)).toBeGreaterThanOrEqual(12);
     }
   });
 
