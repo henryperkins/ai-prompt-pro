@@ -187,7 +187,7 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
             aria-label={brandCopy.appName}
           >
             <img
-              src="/pf/promptforge-wordmark.png"
+              src="/pf/newlogo.png"
               alt=""
               decoding="async"
               className="h-8 w-auto object-contain sm:h-9"
