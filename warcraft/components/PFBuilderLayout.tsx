@@ -129,7 +129,7 @@ function SidebarLink({ label, hint, active }: { label: string; hint: string; act
     <a
       href="#"
       className={[
-        "rounded-[16px] border px-3 py-2 transition",
+        "rounded-2xl border px-3 py-2 transition",
         active
           ? "border-[rgba(18,200,181,.55)] bg-[rgba(18,200,181,.08)] shadow-[0_0_18px_rgba(18,200,181,.15)]"
           : "border-white/10 bg-black/20 hover:border-[rgba(214,166,64,.35)]",

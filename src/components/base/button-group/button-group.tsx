@@ -18,7 +18,7 @@ const iconStyles: Record<ButtonGroupSize, string> = {
   lg: "h-5 w-5",
 };
 
-interface ButtonGroupProps extends ToggleGroupPrimitive.ToggleGroupSingleProps {
+interface ButtonGroupProps extends Omit<ToggleGroupPrimitive.ToggleGroupSingleProps, "type"> {
   size?: ButtonGroupSize;
   className?: string;
 }
@@ -32,10 +32,10 @@ interface ButtonGroupItemProps extends ToggleGroupPrimitive.ToggleGroupItemProps
 export const ButtonGroup = ({ className, children, size = "md", ...props }: ButtonGroupProps) => {
   return (
     <ToggleGroupPrimitive.Root
+      {...props}
       type="single"
       className={cn("inline-flex items-center rounded-md border border-border bg-card p-1", className)}
       data-size={size}
-      {...props}
     >
       {children}
     </ToggleGroupPrimitive.Root>

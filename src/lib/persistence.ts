@@ -1,3 +1,4 @@
+
 import { neon } from "@/integrations/neon/client";
 import type { Json } from "@/integrations/neon/types";
 import { assertBackendConfigured } from "@/lib/backend-config";
@@ -48,9 +49,12 @@ export class PersistenceError extends Error {
   readonly code: PersistenceErrorCode;
 
   constructor(code: PersistenceErrorCode, message: string, options?: { cause?: unknown }) {
-    super(message, options);
+    super(message);
     this.name = "PersistenceError";
     this.code = code;
+    if (options?.cause !== undefined) {
+      (this as unknown as Record<string, unknown>).cause = options.cause;
+    }
   }
 }
 

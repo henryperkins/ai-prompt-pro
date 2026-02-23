@@ -357,7 +357,7 @@ function isMissingCommunityRatingColumnsError(error: unknown): boolean {
 }
 
 async function runCommunityPostsSelect<T>(
-  execute: (selectColumns: string) => Promise<{ data: T; error: unknown | null }>,
+  execute: (selectColumns: string) => PromiseLike<{ data: T; error: unknown | null }>,
 ): Promise<{ data: T; error: unknown | null }> {
   const primary = await execute(COMMUNITY_POST_SELECT_COLUMNS);
   if (!primary.error || !isMissingCommunityRatingColumnsError(primary.error)) {
@@ -685,7 +685,7 @@ export async function loadFeed(input: LoadFeedInput = {}): Promise<CommunityPost
       return builder;
     });
     if (error) throw error;
-    return (data || []).map((row) => mapCommunityPost(row as CommunityPostRow));
+    return (data || []).map((row) => mapCommunityPost(row as unknown as CommunityPostRow));
   } catch (error) {
     throw toError(error, "Failed to load community feed.");
   }
@@ -718,7 +718,7 @@ export async function loadPostsByAuthor(
       return builder;
     });
     if (error) throw error;
-    return (data || []).map((row) => mapCommunityPost(row as CommunityPostRow));
+    return (data || []).map((row) => mapCommunityPost(row as unknown as CommunityPostRow));
   } catch (error) {
     throw toError(error, "Failed to load profile posts.");
   }
@@ -772,7 +772,7 @@ export async function loadPersonalFeed(options: { page?: number; limit?: number 
       return builder;
     });
     if (error) throw error;
-    return (data || []).map((row) => mapCommunityPost(row as CommunityPostRow));
+    return (data || []).map((row) => mapCommunityPost(row as unknown as CommunityPostRow));
   } catch (error) {
     throw toError(error, "Failed to load personal feed.");
   }
@@ -787,10 +787,10 @@ export async function loadPost(postId: string): Promise<CommunityPost | null> {
 
     if (error) throw error;
     if (!data) return null;
-    return mapCommunityPost(data as CommunityPostRow);
+    return mapCommunityPost(data as unknown as CommunityPostRow);
   } catch (error) {
     if (isInvalidUuidInputError(error)) {
-      throw new Error("This link is invalid or expired.", { cause: error });
+      throw new Error("This link is invalid or expired.");
     }
     throw toError(error, "Failed to load community post.");
   }
@@ -807,7 +807,7 @@ export async function loadPostsByIds(postIds: string[]): Promise<CommunityPost[]
     );
 
     if (error) throw error;
-    return (data || []).map((row) => mapCommunityPost(row as CommunityPostRow));
+    return (data || []).map((row) => mapCommunityPost(row as unknown as CommunityPostRow));
   } catch (error) {
     throw toError(error, "Failed to load related community posts.");
   }
@@ -954,7 +954,7 @@ export async function loadRemixes(postId: string): Promise<CommunityPost[]> {
     );
 
     if (error) throw error;
-    return (data || []).map((row) => mapCommunityPost(row as CommunityPostRow));
+    return (data || []).map((row) => mapCommunityPost(row as unknown as CommunityPostRow));
   } catch (error) {
     throw toError(error, "Failed to load remixes.");
   }
@@ -1247,7 +1247,7 @@ export async function remixToLibrary(
     );
 
     if (postError) throw postError;
-    const post = mapCommunityPost(postRow as CommunityPostRow);
+    const post = mapCommunityPost(postRow as unknown as CommunityPostRow);
     const title = clampTitle(options?.title || `Remix of ${post.title}`);
     const config = normalizeTemplateConfig(
       sanitizePostgresJson(post.publicConfig as unknown as Json) as unknown as PromptConfig,

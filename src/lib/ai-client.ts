@@ -410,6 +410,17 @@ function errorMessage(error: unknown): string {
   return "Unexpected error from AI service.";
 }
 
+function createErrorWithCause(message: string, cause: unknown): Error {
+  const error = new Error(message);
+  Object.defineProperty(error, "cause", {
+    value: cause,
+    enumerable: false,
+    configurable: true,
+    writable: true,
+  });
+  return error;
+}
+
 async function refreshSessionAccessToken(): Promise<string | null> {
   try {
     const {
@@ -508,9 +519,9 @@ async function getAccessToken({
     if (isRetryableAuthSessionError(sessionError)) {
       await clearLocalSession();
       if (PUBLIC_FUNCTION_API_KEY) return PUBLIC_FUNCTION_API_KEY;
-      throw new Error(`Could not read auth session: ${errorMessage(sessionError)}`, { cause: sessionError });
+      throw createErrorWithCause(`Could not read auth session: ${errorMessage(sessionError)}`, sessionError);
     }
-    throw new Error(`Could not read auth session: ${errorMessage(sessionError)}`, { cause: sessionError });
+    throw createErrorWithCause(`Could not read auth session: ${errorMessage(sessionError)}`, sessionError);
   }
 
   const {
@@ -521,9 +532,9 @@ async function getAccessToken({
     if (isRetryableAuthSessionError(sessionError)) {
       await clearLocalSession();
       if (PUBLIC_FUNCTION_API_KEY) return PUBLIC_FUNCTION_API_KEY;
-      throw new Error(`Could not read auth session: ${errorMessage(sessionError)}`, { cause: sessionError });
+      throw createErrorWithCause(`Could not read auth session: ${errorMessage(sessionError)}`, sessionError);
     }
-    throw new Error(`Could not read auth session: ${errorMessage(sessionError)}`, { cause: sessionError });
+    throw createErrorWithCause(`Could not read auth session: ${errorMessage(sessionError)}`, sessionError);
   }
   if (session?.access_token) {
     if (!allowSessionToken) {
@@ -953,9 +964,9 @@ export function readSseEventMeta(payload: unknown): {
     typeof data.event === "string"
       ? data.event
       : responseType ||
-          (typeof data.type === "string"
-            ? data.type
-            : null);
+      (typeof data.type === "string"
+        ? data.type
+        : null);
 
   const threadId = typeof data.thread_id === "string" ? data.thread_id : null;
   const turnId = typeof data.turn_id === "string" ? data.turn_id : null;
@@ -1582,8 +1593,8 @@ export async function inferBuilderFields(
   return data && typeof data === "object"
     ? (data as InferBuilderFieldsOutput)
     : {
-        inferredUpdates: {},
-        inferredFields: [],
-        suggestionChips: [],
-      };
+      inferredUpdates: {},
+      inferredFields: [],
+      suggestionChips: [],
+    };
 }

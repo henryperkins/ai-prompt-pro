@@ -534,7 +534,7 @@ const Community = () => {
               <InputBase
                 id="community-feed-search"
                 value={queryInput}
-                onChange={(event) => setQueryInput(event.target.value)}
+                onChange={setQueryInput}
                 onFocus={() => {
                   if (!mobileEnhancementsEnabled) setIsSearchFocused(true);
                 }}

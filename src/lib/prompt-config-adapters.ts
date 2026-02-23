@@ -106,8 +106,7 @@ function isPromptConfigV2Payload(value: unknown): value is PromptConfigV2 {
 }
 
 function hydrateConfigV2ToWorkingState(payload: PromptConfigV2): PromptConfig {
-  const advanced = isRecord(payload.advanced) ? payload.advanced : {};
-  const ragRaw = isRecord(advanced.rag) ? advanced.rag : {};
+  const { advanced } = payload;
   const normalized = normalizeTemplateConfig(
     {
       ...defaultConfig,
@@ -127,17 +126,12 @@ function hydrateConfigV2ToWorkingState(payload: PromptConfigV2): PromptConfig {
           ? (payload.sources as ContextSource[])
           : [],
         projectNotes: payload.projectNotes,
-        useDelimiters:
-          typeof advanced.useDelimiters === "boolean"
-            ? advanced.useDelimiters
-            : defaultContextConfig.useDelimiters,
-        databaseConnections: Array.isArray(advanced.databaseConnections)
-          ? (advanced.databaseConnections as DatabaseConnection[])
-          : [],
+        useDelimiters: advanced.useDelimiters,
+        databaseConnections: advanced.databaseConnections,
         rag: {
           ...defaultContextConfig.rag,
-          ...(ragRaw as Partial<RagParameters>),
-          documentRefs: toStringArray(ragRaw.documentRefs),
+          ...advanced.rag,
+          documentRefs: toStringArray(advanced.rag.documentRefs),
         },
         structured: {
           ...defaultContextConfig.structured,
