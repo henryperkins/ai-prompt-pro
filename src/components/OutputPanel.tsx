@@ -529,9 +529,9 @@ export function OutputPanel({
             size="sm"
             onClick={handleCopy}
             isDisabled={!displayPrompt}
-            className="ui-toolbar-button gap-1.5 font-semibold min-w-[96px] shadow-md"
+            className="ui-toolbar-button utility-action-button min-w-[84px]"
           >
-            {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+            {copied ? <Check /> : <Copy />}
             {copied ? "Copied!" : "Copy"}
           </Button>
 

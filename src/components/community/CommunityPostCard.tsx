@@ -258,7 +258,7 @@ function CommunityPostCardComponent({
             type="button"
             color={isMobile || isFeatured ? "primary" : "secondary"}
             size="sm"
-            className="type-button-label h-11 px-4 sm:h-9 sm:px-3"
+            className="type-button-label utility-action-button min-w-[84px]"
             onClick={() => navigate(`/?remix=${post.id}`)}
             data-testid="community-remix-cta"
           >

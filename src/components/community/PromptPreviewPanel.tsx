@@ -28,21 +28,21 @@ export function PromptPreviewPanel({ text, mode = "compact", className, onCopy }
             type="button"
             color="secondary"
             size="sm"
-            className="type-button-label absolute right-2 top-2 z-10 h-11 bg-background/85 px-3 backdrop-blur sm:h-9 sm:px-2"
+            className="type-button-label utility-action-button utility-action-button--floating absolute right-2 top-2 z-10"
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
               void onCopy();
             }}
           >
-            <Copy className="h-3.5 w-3.5" />
+            <Copy />
             Copy
           </Button>
         )}
         <pre
           className={cn(
             "type-code type-wrap-safe font-mono text-foreground/95 whitespace-pre-wrap",
-            onCopy && "pr-20 sm:pr-14",
+            onCopy && "pr-[4.5rem] sm:pr-14",
             isCollapsed && "line-clamp-6",
           )}
         >

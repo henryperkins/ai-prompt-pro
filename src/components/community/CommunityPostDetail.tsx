@@ -199,7 +199,7 @@ export function CommunityPostDetail({
               type="button"
               color="tertiary"
               size="sm"
-              className="type-button-label h-11 w-full sm:h-9 sm:w-auto"
+              className="type-button-label utility-action-button w-full sm:w-auto"
               onClick={() => navigate(`/?remix=${post.id}`)}
             >
               Remix

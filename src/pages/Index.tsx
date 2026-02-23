@@ -1500,7 +1500,12 @@ const Index = () => {
                 Your changes will be attributed when you save or share.
               </p>
             </div>
-            <Button color="tertiary" size="sm" onClick={handleClearRemix} className="gap-1 text-sm sm:text-base">
+            <Button
+              color="tertiary"
+              size="sm"
+              onClick={handleClearRemix}
+              className="utility-action-button gap-1.5 text-sm sm:text-sm"
+            >
               <X className="h-3 w-3" />
               Clear remix
             </Button>
