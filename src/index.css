@@ -32,6 +32,14 @@ All colors MUST be HSL.
     --input: 210 21% 23%;
     --ring: 174 83% 43%;
 
+    /* Align Tailwind v4 semantic utility variables with shadcn-style tokens. */
+    --background-color-primary: hsl(var(--primary));
+    --background-color-primary-solid: hsl(var(--primary));
+    --background-color-primary_hover: hsl(var(--primary) / 0.92);
+    --text-color-primary: hsl(var(--primary));
+    --border-color-primary: hsl(var(--primary));
+    --ring-color-primary: hsl(var(--primary));
+
     --radius: 0.75rem;
 
     --sidebar-background: 212 25% 13%;
@@ -142,6 +150,14 @@ All colors MUST be HSL.
     --border: 210 21% 20%;
     --input: 210 21% 20%;
     --ring: 174 83% 48%;
+
+    /* Keep primary utility mappings consistent in dark mode. */
+    --background-color-primary: hsl(var(--primary));
+    --background-color-primary-solid: hsl(var(--primary));
+    --background-color-primary_hover: hsl(var(--primary) / 0.9);
+    --text-color-primary: hsl(var(--primary));
+    --border-color-primary: hsl(var(--primary));
+    --ring-color-primary: hsl(var(--primary));
     --sidebar-background: 212 28% 10%;
     --sidebar-foreground: 42 25% 90%;
     --sidebar-primary: 174 83% 48%;
