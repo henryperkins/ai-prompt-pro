@@ -63,7 +63,12 @@ interface PageHeroProps {
 
 export function PageHero({ title, subtitle, eyebrow, className }: PageHeroProps) {
   return (
-    <div className={cn("delight-hero mb-4 text-center sm:mb-6", className)}>
+    <div
+      className={cn(
+        "pf-gilded-frame pf-hero-surface mb-4 px-4 py-5 text-center sm:mb-6 sm:px-6 sm:py-7",
+        className
+      )}
+    >
       <div className="mb-2 flex items-center justify-center">
         <img
           src="/pf/promptforge-wordmark.png"
@@ -74,7 +79,7 @@ export function PageHero({ title, subtitle, eyebrow, className }: PageHeroProps)
         />
       </div>
       {eyebrow && <p className="ui-section-label text-primary">{eyebrow}</p>}
-      <h1 className="page-hero-title text-2xl font-bold text-foreground sm:text-3xl">{title}</h1>
+      <h1 className="page-hero-title pf-text-display text-2xl font-bold text-foreground sm:text-3xl">{title}</h1>
       {subtitle && (
         <p className="page-hero-subtitle mx-auto mt-1 max-w-2xl text-sm text-muted-foreground">
           {subtitle}
