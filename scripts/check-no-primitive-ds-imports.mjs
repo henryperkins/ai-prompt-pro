@@ -6,6 +6,23 @@ const projectRoot = process.cwd();
 const srcRoot = path.join(projectRoot, "src");
 const sourceExtensions = new Set([".ts", ".tsx"]);
 const strictMode = process.env.STRICT_PRIMITIVE_IMPORTS === "1";
+const allowedFacadeFiles = new Set([
+  "src/components/base/dialog.tsx",
+  "src/components/base/drawer.tsx",
+  "src/components/base/tabs.tsx",
+  "src/components/base/label.tsx",
+  "src/components/base/textarea.tsx",
+]);
+
+function shouldSkipFile(relativePath) {
+  if (relativePath.startsWith("src/test/")) {
+    return true;
+  }
+  if (relativePath.startsWith("src/components/base/primitives/")) {
+    return true;
+  }
+  return allowedFacadeFiles.has(relativePath);
+}
 
 async function* walk(dir) {
   const entries = await readdir(dir, { withFileTypes: true });
@@ -25,6 +42,9 @@ const violations = [];
 for await (const filePath of walk(srcRoot)) {
   const source = await readFile(filePath, "utf8");
   const relativePath = path.relative(projectRoot, filePath);
+  if (shouldSkipFile(relativePath)) {
+    continue;
+  }
   const references = collectForbiddenModulePathUsages(source, relativePath, FORBIDDEN_PRIMITIVE_IMPORTS);
   for (const reference of references) {
     violations.push(`${reference.filePath}:${reference.line} [${reference.kind}] -> ${reference.specifier}`);

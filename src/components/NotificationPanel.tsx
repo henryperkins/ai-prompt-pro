@@ -144,7 +144,7 @@ export function NotificationPanel({
                   {notification.postId ? (
                     <Link
                       to={`/community/${notification.postId}`}
-                      className="block min-h-11 outline-none"
+                      className="block min-h-11 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                       onClick={() => {
                         void onMarkAsRead(notification.id);
                         onNavigate?.();
@@ -155,7 +155,7 @@ export function NotificationPanel({
                   ) : (
                     <button
                       type="button"
-                      className="block min-h-11 w-full text-left"
+                      className="block min-h-11 w-full rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                       onClick={() => {
                         void onMarkAsRead(notification.id);
                       }}

@@ -1,4 +1,4 @@
-import { Textarea } from "@/components/base/primitives/textarea";
+import { Textarea } from "@/components/base/textarea";
 import { Button } from "@/components/base/buttons/button";
 import { RotateCcw } from "lucide-react";
 

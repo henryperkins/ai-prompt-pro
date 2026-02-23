@@ -5,6 +5,11 @@ export const FORBIDDEN_PRIMITIVE_IMPORTS = [
   "@/components/base/primitives/input",
   "@/components/base/primitives/badge",
   "@/components/base/primitives/select",
+  "@/components/base/primitives/dialog",
+  "@/components/base/primitives/drawer",
+  "@/components/base/primitives/tabs",
+  "@/components/base/primitives/label",
+  "@/components/base/primitives/textarea",
 ];
 
 function isStringLiteralLike(node) {

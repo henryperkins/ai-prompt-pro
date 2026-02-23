@@ -1,6 +1,6 @@
 import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/primitives/card";
-import { Textarea } from "@/components/base/primitives/textarea";
+import { Textarea } from "@/components/base/textarea";
 import type { BuilderSuggestionChip } from "@/lib/builder-inference";
 import { Loader2, RotateCcw, Sparkles } from "lucide-react";
 

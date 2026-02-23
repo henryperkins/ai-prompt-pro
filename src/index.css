@@ -920,7 +920,9 @@ All colors MUST be HSL.
   }
 
   .community-typography .type-link-inline:focus-visible {
-    outline: none;
+    border-radius: 0.125rem;
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
     text-decoration-thickness: 2px;
   }
 

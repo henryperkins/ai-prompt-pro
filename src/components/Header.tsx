@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Bell, Loader2, LogIn, LogOut, Menu, Moon, Sun, Trash2, User } from "lucide-react";
+import { Bell, Loader2, LogIn, LogOut, Menu, Moon, Newspaper, Sun, Trash2, User } from "lucide-react";
 import { Button } from "@/components/base/buttons/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitives/avatar";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/base/primitives/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/base/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,9 +24,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/base/primitives/dropdown-menu";
 import { Input } from "@/components/base/input/input";
-import { Label } from "@/components/base/primitives/label";
+import { Label } from "@/components/base/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/base/primitives/popover";
-import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/base/primitives/drawer";
+import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/base/drawer";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -233,6 +233,15 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
                 >
                   {isDark ? <Sun className="w-4 h-4 mr-2" /> : <Moon className="w-4 h-4 mr-2" />}
                   {isDark ? "Switch to light mode" : "Switch to dark mode"}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    navigate("/feed");
+                  }}
+                >
+                  <Newspaper className="w-4 h-4 mr-2" />
+                  Feed
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {user ? (

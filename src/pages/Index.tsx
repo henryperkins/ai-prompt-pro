@@ -55,7 +55,7 @@ import {
   DrawerDescription,
   DrawerHeader,
   DrawerTitle,
-} from "@/components/base/primitives/drawer";
+} from "@/components/base/drawer";
 import { Button } from "@/components/base/buttons/button";
 import { Badge } from "@/components/base/badges/badges";
 import { Card } from "@/components/base/primitives/card";
@@ -1840,9 +1840,9 @@ const Index = () => {
             </p>
           </button>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 max-[360px]:grid max-[360px]:grid-cols-2">
             <label
-              className="flex min-h-11 min-w-23 items-center justify-center gap-2 rounded-md border border-border/70 bg-background/70 px-2 text-sm text-muted-foreground cursor-pointer select-none"
+              className="flex min-h-11 min-w-23 items-center justify-center gap-2 rounded-md border border-border/70 bg-background/70 px-2 text-sm text-muted-foreground cursor-pointer select-none max-[360px]:min-w-0"
               data-testid="builder-mobile-web-toggle"
             >
               <Switch
@@ -1857,7 +1857,7 @@ const Index = () => {
             <Badge
               type="pill-color"
               color={score.total >= 75 ? "brand" : "gray"}
-              className="h-11 min-w-16 justify-center rounded-md px-2 text-sm font-semibold sm:h-10 sm:text-base"
+              className="h-11 min-w-16 justify-center rounded-md px-2 text-sm font-semibold max-[360px]:min-w-0 max-[360px]:justify-self-end sm:h-10 sm:text-base"
             >
               {score.total}/100
             </Badge>
@@ -1866,7 +1866,7 @@ const Index = () => {
               size="md"
               onClick={handleEnhance}
               disabled={isEnhancing || !builtPrompt}
-              className="signature-enhance-button h-11 flex-1 gap-2 sm:h-10"
+              className="signature-enhance-button h-11 min-w-0 flex-1 gap-2 max-[360px]:col-span-2 max-[360px]:w-full max-[360px]:gap-1 max-[360px]:px-2 max-[360px]:text-xs sm:h-10"
               data-phase={enhancePhase}
               data-testid="builder-mobile-enhance-button"
             >

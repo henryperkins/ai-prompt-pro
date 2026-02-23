@@ -902,7 +902,7 @@
 @layer base {
     /* DARK MODE VARIABLES */
 
-    .dark-mode {
+    :where(.dark, .dark-mode) {
         --color-alpha-white: rgb(12 14 18);
         --color-alpha-black: rgb(255 255 255);
 

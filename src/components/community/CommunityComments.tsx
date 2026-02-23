@@ -18,7 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/base/primitives/dropdown-menu";
 import { Skeleton } from "@/components/base/primitives/skeleton";
-import { Textarea } from "@/components/base/primitives/textarea";
+import { Textarea } from "@/components/base/textarea";
 import { cn } from "@/lib/utils";
 
 const COMMENTS_VIRTUALIZATION_THRESHOLD = 30;

@@ -6,7 +6,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/base/primitives/dialog";
+} from "@/components/base/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,14 +23,14 @@ import {
   DrawerDescription,
   DrawerHeader,
   DrawerTitle,
-} from "@/components/base/primitives/drawer";
+} from "@/components/base/drawer";
 import { Button } from "@/components/base/buttons/button";
 import { Badge } from "@/components/base/badges/badges";
 import { Card } from "@/components/base/primitives/card";
 import { Checkbox } from "@/components/base/primitives/checkbox";
 import { Input } from "@/components/base/input/input";
-import { Label } from "@/components/base/primitives/label";
-import { Textarea } from "@/components/base/primitives/textarea";
+import { Label } from "@/components/base/label";
+import { Textarea } from "@/components/base/textarea";
 import { Select } from "@/components/base/select/select";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { PROMPT_CATEGORY_OPTIONS } from "@/lib/prompt-categories";

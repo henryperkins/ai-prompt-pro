@@ -3,9 +3,9 @@ import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/primitives/card";
 import { Checkbox } from "@/components/base/primitives/checkbox";
 import { Input } from "@/components/base/input/input";
-import { Label } from "@/components/base/primitives/label";
+import { Label } from "@/components/base/label";
 import { Select } from "@/components/base/select/select";
-import { Textarea } from "@/components/base/primitives/textarea";
+import { Textarea } from "@/components/base/textarea";
 import {
   PromptConfig,
   constraintOptions,

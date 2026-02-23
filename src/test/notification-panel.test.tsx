@@ -42,7 +42,12 @@ describe("NotificationPanel", () => {
     expect(screen.getByText("Alice")).toBeInTheDocument();
     expect(screen.getByText("Helpful post")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("link"));
+    const itemLink = screen.getByRole("link");
+    expect(itemLink.className).toContain("focus-visible:ring-2");
+    expect(itemLink.className).toContain("focus-visible:ring-ring");
+    expect(itemLink.className).toContain("focus-visible:ring-offset-2");
+
+    fireEvent.click(itemLink);
     expect(onMarkAsRead).toHaveBeenCalledWith("notif-1");
   });
 

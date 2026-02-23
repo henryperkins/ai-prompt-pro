@@ -5,10 +5,10 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/base/primitives/dialog";
+} from "@/components/base/dialog";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
-import { Label } from "@/components/base/primitives/label";
+import { Label } from "@/components/base/label";
 import { useAuth, type AuthOAuthProvider } from "@/hooks/useAuth";
 import { brandCopy } from "@/lib/brand-copy";
 import { Loader2 } from "lucide-react";

@@ -5,8 +5,8 @@ import { Card } from "@/components/base/primitives/card";
 import { Button } from "@/components/base/buttons/button";
 import { Copy, Check, Sparkles, Save, Loader2, MoreHorizontal, Globe } from "lucide-react";
 import { Input } from "@/components/base/input/input";
-import { Label } from "@/components/base/primitives/label";
-import { Textarea } from "@/components/base/primitives/textarea";
+import { Label } from "@/components/base/label";
+import { Textarea } from "@/components/base/textarea";
 import {
   Dialog,
   DialogContent,
@@ -14,7 +14,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/base/primitives/dialog";
+} from "@/components/base/dialog";
 import { Select } from "@/components/base/select/select";
 import {
   DropdownMenu,

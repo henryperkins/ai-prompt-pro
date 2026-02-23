@@ -12,6 +12,7 @@ export function BottomNav() {
     >
       {BOTTOM_NAV_ITEMS.map(({ to, label, icon: Icon }) => {
         const isActive = isRouteActive(pathname, to);
+        const moveToOverflowAtNarrow = to === "/feed";
 
         return (
           <Link
@@ -19,6 +20,7 @@ export function BottomNav() {
             to={to}
             className={cn(
               "mobile-route-link flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-md px-1 py-2 text-xs leading-5 font-medium transition-colors",
+              moveToOverflowAtNarrow && "max-[360px]:hidden",
               isActive
                 ? "text-primary font-medium"
                 : "text-muted-foreground hover:text-foreground",
@@ -26,7 +28,7 @@ export function BottomNav() {
             aria-current={isActive ? "page" : undefined}
           >
             <Icon className="h-5 w-5" />
-            {label}
+            <span>{label}</span>
           </Link>
         );
       })}

@@ -1,8 +1,8 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/base/primitives/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/base/tabs";
 import { Input } from "@/components/base/input/input";
-import { Textarea } from "@/components/base/primitives/textarea";
+import { Textarea } from "@/components/base/textarea";
 import { Checkbox } from "@/components/base/primitives/checkbox";
-import { Label } from "@/components/base/primitives/label";
+import { Label } from "@/components/base/label";
 import { Select } from "@/components/base/select/select";
 import { User, Target, Layout, Lightbulb, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";

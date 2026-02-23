@@ -15,7 +15,7 @@ import {
 } from "@/components/base/primitives/dropdown-menu";
 import { PromptPreviewPanel } from "@/components/community/PromptPreviewPanel";
 import { CommunityComments } from "@/components/community/CommunityComments";
-import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/base/primitives/drawer";
+import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/base/drawer";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getCommunityPostRarityClass } from "@/lib/community-rarity";
 import { communityFeatureFlags } from "@/lib/feature-flags";

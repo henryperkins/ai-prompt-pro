@@ -1,4 +1,4 @@
-import { Textarea } from "@/components/base/primitives/textarea";
+import { Textarea } from "@/components/base/textarea";
 import { StickyNote } from "lucide-react";
 
 interface ProjectNotesProps {

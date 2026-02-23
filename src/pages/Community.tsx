@@ -4,7 +4,7 @@ import { CommunityFeed } from "@/components/community/CommunityFeed";
 import { CommunityReportDialog } from "@/components/community/CommunityReportDialog";
 import { PageHero, PageShell } from "@/components/PageShell";
 import { Button } from "@/components/base/buttons/button";
-import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/base/primitives/drawer";
+import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/base/drawer";
 import { InputBase } from "@/components/base/input/input";
 import { ScrollArea } from "@/components/base/primitives/scroll-area";
 import { useCommunityMobileTelemetry } from "@/hooks/useCommunityMobileTelemetry";

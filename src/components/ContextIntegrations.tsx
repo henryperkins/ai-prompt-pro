@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
-import { Label } from "@/components/base/primitives/label";
+import { Label } from "@/components/base/label";
 import { Select } from "@/components/base/select/select";
 import { Switch } from "@/components/base/primitives/switch";
 import type { DatabaseConnection, RagParameters } from "@/lib/context-types";

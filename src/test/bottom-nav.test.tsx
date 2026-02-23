@@ -32,5 +32,6 @@ describe("BottomNav", () => {
 
     const feedLink = screen.getByRole("link", { name: "Feed" });
     expect(feedLink).toHaveAttribute("href", "/feed");
+    expect(feedLink.className).toContain("max-[360px]:hidden");
   });
 });

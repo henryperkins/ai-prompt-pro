@@ -6,13 +6,13 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/base/primitives/dialog";
+} from "@/components/base/dialog";
 import { Button } from "@/components/base/buttons/button";
-import { Label } from "@/components/base/primitives/label";
+import { Label } from "@/components/base/label";
 import {
   Select,
 } from "@/components/base/select/select";
-import { Textarea } from "@/components/base/primitives/textarea";
+import { Textarea } from "@/components/base/textarea";
 
 const REPORT_REASON_OPTIONS = [
   { value: "harassment", label: "Harassment or bullying" },

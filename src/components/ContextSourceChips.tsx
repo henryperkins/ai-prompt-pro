@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
-import { Textarea } from "@/components/base/primitives/textarea";
+import { Textarea } from "@/components/base/textarea";
 import { Badge } from "@/components/base/badges/badges";
 import {
   Dialog,
@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/base/primitives/dialog";
+} from "@/components/base/dialog";
 import { X, Link, FileText, Type, Plus, Upload, Loader2, Globe } from "lucide-react";
 import type { ContextSource } from "@/lib/context-types";
 import { summarizeSource } from "@/lib/context-types";
