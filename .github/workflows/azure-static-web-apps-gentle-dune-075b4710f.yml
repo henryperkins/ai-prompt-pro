@@ -46,7 +46,7 @@ jobs:
           app_location: "/"
           api_location: ""
           output_location: "dist"
-          app_build_command: "npm run check:no-legacy-ui-imports && npm run check:no-legacy-ds-props && STRICT_PRIMITIVE_IMPORTS=1 npm run check:no-primitive-ds-imports && npm run lint && npm run test:unit && npm run build && npm run check:token-runtime"
+          app_build_command: "npm run check:no-legacy-ui-imports && npm run check:no-legacy-ds-props && STRICT_PRIMITIVE_IMPORTS=1 npm run check:no-primitive-ds-imports && npm run lint && npm run test:unit && VITE_BUILDER_REDESIGN_PHASE1=true VITE_BUILDER_REDESIGN_PHASE2=true VITE_BUILDER_REDESIGN_PHASE3=true VITE_BUILDER_REDESIGN_PHASE4=true VITE_COMMUNITY_MOBILE_ENHANCEMENTS=true VITE_LAUNCH_EXPERIMENT_HERO_COPY=true VITE_LAUNCH_EXPERIMENT_PRIMARY_CTA=true npm run build && npm run check:token-runtime"
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
