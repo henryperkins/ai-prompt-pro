@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { CommunityPostDetail } from "@/components/community/CommunityPostDetail";
 import { CommunityReportDialog } from "@/components/community/CommunityReportDialog";
 import { PageShell } from "@/components/PageShell";
@@ -51,6 +51,7 @@ interface CommunityReportTarget {
 
 const CommunityPost = () => {
   const { postId } = useParams<{ postId: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const requestToken = useRef(0);
   const voteInFlightByPost = useRef<Set<string>>(new Set());
@@ -59,6 +60,9 @@ const CommunityPost = () => {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const mobileEnhancementsEnabled = isMobile && communityFeatureFlags.communityMobileEnhancements;
+  const notificationEntry = searchParams.get("source") === "notification";
+  const openCommentsOnMount = mobileEnhancementsEnabled && searchParams.get("openComments") === "1";
+  const commentSourceSurface = notificationEntry ? "notification" : "post_detail";
   const { trackInteraction } = useCommunityMobileTelemetry({
     enabled: mobileEnhancementsEnabled,
     surface: "community_post",
@@ -282,16 +286,26 @@ const CommunityPost = () => {
   );
 
   const handleCommentAdded = useCallback((targetId: string) => {
-    trackInteraction("comment", "comment_added", { postId: targetId });
+    trackInteraction(
+      "comment",
+      notificationEntry ? "notification_to_reply_comment_added" : "comment_added",
+      { postId: targetId },
+      { sourceSurface: commentSourceSurface },
+    );
     setPost((prev) => {
       if (!prev || prev.id !== targetId) return prev;
       return { ...prev, commentCount: prev.commentCount + 1 };
     });
-  }, [trackInteraction]);
+  }, [commentSourceSurface, notificationEntry, trackInteraction]);
 
   const handleCommentThreadOpen = useCallback((targetId: string) => {
-    trackInteraction("comment", "thread_opened", { postId: targetId });
-  }, [trackInteraction]);
+    trackInteraction(
+      "comment",
+      notificationEntry ? "notification_to_reply_thread_opened" : "thread_opened",
+      { postId: targetId },
+      { sourceSurface: commentSourceSurface },
+    );
+  }, [commentSourceSurface, notificationEntry, trackInteraction]);
 
   const handleSaveToLibrary = useCallback(
     async (targetId: string) => {
@@ -306,6 +320,7 @@ const CommunityPost = () => {
           title: "Saved to Library",
           description: `“${saved.title}” is now in your private prompts.`,
         });
+        trackInteraction("save", "library", { postId: targetId });
       } catch (error) {
         toast({
           title: "Failed to save remix",
@@ -314,7 +329,7 @@ const CommunityPost = () => {
         });
       }
     },
-    [toast, user],
+    [toast, trackInteraction, user],
   );
 
   const handleReportPost = useCallback((targetPost: CommunityPostType) => {
@@ -494,6 +509,7 @@ const CommunityPost = () => {
             voteState={voteState ?? undefined}
             onCommentAdded={handleCommentAdded}
             onCommentThreadOpen={handleCommentThreadOpen}
+            openCommentsOnMount={openCommentsOnMount}
             canVote={Boolean(user)}
             canRate={Boolean(user)}
             ratingValue={ratingValue}

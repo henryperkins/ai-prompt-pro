@@ -61,7 +61,12 @@
       "!.env.example",
       "clip*.md",
       "product-spec.md",
-      "repomix-output.md"
+      "repomix-output.md",
+      "src/test/**",
+      "**/*.test.ts",
+      "**/*.test.tsx",
+      "**/*.spec.ts",
+      "**/*.spec.tsx"
     ]
   },
   "security": {

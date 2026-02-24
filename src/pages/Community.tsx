@@ -348,7 +348,10 @@ const Community = () => {
       } else if (result === "failed") {
         toast({ title: "Share failed", description: "Could not share this post.", variant: "destructive" });
       }
-      trackInteraction("share", result);
+      trackInteraction("share", `share_${result}`, {
+        postId: post.id,
+        shareResult: result,
+      });
     },
     [toast, trackInteraction],
   );
@@ -362,7 +365,9 @@ const Community = () => {
       try {
         await remixToLibrary(postId);
         toast({ title: "Saved to Library", description: "Prompt saved to your library." });
-        trackInteraction("save", "library");
+        trackInteraction("save", "library", {
+          postId,
+        });
       } catch {
         toast({ title: "Save failed", description: "Could not save this prompt.", variant: "destructive" });
       }

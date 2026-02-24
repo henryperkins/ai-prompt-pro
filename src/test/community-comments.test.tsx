@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import type { CommunityComment, CommunityProfile } from "@/lib/community";
@@ -116,5 +116,26 @@ describe("community comments", () => {
     expect(signInLink).toHaveTextContent("Sign in to comment");
     expect(signInLink).toHaveAttribute("href", "/");
     expect(screen.getByText("Sign in to join the conversation")).toBeInTheDocument();
+  });
+
+  it("prefills composer text from quick reply chips and keeps cursor at end", async () => {
+    render(
+      <MemoryRouter>
+        <CommunityComments postId="post-1" totalCount={8} />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("Comment 1");
+
+    const textarea = screen.getByPlaceholderText("Write a comment...") as HTMLTextAreaElement;
+    fireEvent.click(screen.getByRole("button", { name: "Can you share an example?" }));
+
+    await waitFor(() => {
+      expect(textarea.value).toBe("Can you share an example?");
+      expect(textarea).toHaveFocus();
+    });
+
+    expect(textarea.selectionStart).toBe(textarea.value.length);
+    expect(textarea.selectionEnd).toBe(textarea.value.length);
   });
 });

@@ -565,6 +565,19 @@ test("runs mobile smoke flow for feed, filter, post open, and comments", async (
   await expect(page.getByText("Use transactions for reliability.")).toBeVisible();
 });
 
+test("opens comment sheet on notification deep link", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  await page.goto(`/community/${FEED_POSTS[0]?.id}?source=notification&openComments=1`);
+  await expect(page.getByRole("heading", { name: "Backend migration helper" })).toBeVisible();
+  await expect(page.getByTestId("community-comments-sheet")).toBeVisible();
+  await expect(page.getByText("Use transactions for reliability.")).toBeVisible();
+
+  await expect.poll(async () => {
+    return page.evaluate(() => document.activeElement?.tagName || null);
+  }).toBe("TEXTAREA");
+});
+
 test("supports mobile community in dark mode", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => {

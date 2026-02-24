@@ -41,6 +41,17 @@ function getTypeLabel(type: Notification["type"]): string {
   return "commented on your post";
 }
 
+function getNotificationHref(notification: Notification): string {
+  if (!notification.postId) return "#";
+
+  const params = new URLSearchParams({ source: "notification" });
+  if (notification.type === "comment") {
+    params.set("openComments", "1");
+  }
+
+  return `/community/${notification.postId}?${params.toString()}`;
+}
+
 export function NotificationPanel({
   notifications,
   unreadCount,
@@ -147,7 +158,7 @@ export function NotificationPanel({
                 >
                   {notification.postId ? (
                     <Link
-                      to={`/community/${notification.postId}`}
+                      to={getNotificationHref(notification)}
                       className="block min-h-11 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                       onClick={() => {
                         void onMarkAsRead(notification.id);

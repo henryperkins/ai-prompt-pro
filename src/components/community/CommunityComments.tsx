@@ -31,6 +31,11 @@ import {
 } from "@phosphor-icons/react";
 
 const COMMENTS_VIRTUALIZATION_THRESHOLD = 30;
+const QUICK_REPLY_CHIPS = [
+  "Great point - thanks for sharing.",
+  "Can you share an example?",
+  "I tried this and it worked well.",
+] as const;
 
 interface CommunityCommentsProps {
   postId: string;
@@ -142,6 +147,25 @@ export function CommunityComments({
       setSubmitting(false);
     }
   }, [authorById, draft, limit, onCommentAdded, postId, toast, user]);
+
+  const handleQuickReply = useCallback((text: string) => {
+    setDraft((previous) => {
+      const normalizedPrevious = previous.trim();
+      if (!normalizedPrevious) {
+        return text;
+      }
+      const separator = previous.endsWith(" ") ? "" : " ";
+      return `${previous}${separator}${text}`;
+    });
+
+    window.setTimeout(() => {
+      const composer = composerRef.current;
+      if (!composer) return;
+      composer.focus();
+      const end = composer.value.length;
+      composer.setSelectionRange(end, end);
+    }, 0);
+  }, []);
 
   const commentItems = useMemo(
     () =>
@@ -346,6 +370,21 @@ export function CommunityComments({
 
       {canComment ? (
         <div className="space-y-1.5 sm:space-y-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {QUICK_REPLY_CHIPS.map((chip) => (
+              <Button
+                key={`${postId}-${chip}`}
+                type="button"
+                size="sm"
+                color="secondary"
+                className="type-button-label h-10 rounded-full px-3 sm:h-8 sm:px-2.5"
+                onClick={() => handleQuickReply(chip)}
+                data-testid="community-quick-reply-chip"
+              >
+                {chip}
+              </Button>
+            ))}
+          </div>
           <Textarea
             ref={composerRef}
             value={draft}

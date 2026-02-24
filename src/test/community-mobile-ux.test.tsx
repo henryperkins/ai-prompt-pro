@@ -255,4 +255,35 @@ describe("community mobile UX", () => {
     expect(screen.getByText("Read and add comments for this prompt.")).toBeInTheDocument();
     expect(screen.getByTestId("community-comments-detail-post-1")).toBeInTheDocument();
   });
+
+  it("auto-opens comments drawer on notification entry for CommunityPostDetail", async () => {
+    const { CommunityPostDetail } = await importCardAndDetail(true);
+    const post = createPost({ id: "detail-post-notification" });
+    const onCommentThreadOpen = vi.fn();
+
+    render(
+      <MemoryRouter future={memoryRouterFuture}>
+        <CommunityPostDetail
+          post={post}
+          authorName="Prompt Dev"
+          parentPost={null}
+          remixes={[]}
+          authorById={{}}
+          onCopyPrompt={vi.fn()}
+          onToggleVote={vi.fn()}
+          onCommentAdded={vi.fn()}
+          onCommentThreadOpen={onCommentThreadOpen}
+          openCommentsOnMount
+          canVote
+          canSaveToLibrary
+          onSaveToLibrary={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    const commentsSheet = await screen.findByTestId("community-comments-sheet");
+    expect(commentsSheet).toBeVisible();
+    expect(onCommentThreadOpen).toHaveBeenCalledWith("detail-post-notification");
+    expect(screen.getByTestId("community-comments-detail-post-notification")).toBeInTheDocument();
+  });
 });

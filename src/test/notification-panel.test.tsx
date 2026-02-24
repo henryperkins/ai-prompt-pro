@@ -43,6 +43,7 @@ describe("NotificationPanel", () => {
     expect(screen.getByText("Helpful post")).toBeInTheDocument();
 
     const itemLink = screen.getByRole("link");
+    expect(itemLink).toHaveAttribute("href", "/community/post-1?source=notification&openComments=1");
     expect(itemLink.className).toContain("focus-visible:ring-2");
     expect(itemLink.className).toContain("focus-visible:ring-ring");
     expect(itemLink.className).toContain("focus-visible:ring-offset-2");
@@ -67,5 +68,21 @@ describe("NotificationPanel", () => {
     expect(screen.getByText("No notifications yet")).toBeInTheDocument();
     expect(screen.getByText("You'll be notified when others interact with your prompts.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Mark all as read" })).toBeDisabled();
+  });
+
+  it("links non-comment notifications without forced comments composer params", () => {
+    render(
+      <MemoryRouter>
+        <NotificationPanel
+          notifications={[buildNotification({ type: "upvote" })]}
+          unreadCount={1}
+          loading={false}
+          onMarkAsRead={vi.fn()}
+          onMarkAllAsRead={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("link")).toHaveAttribute("href", "/community/post-1?source=notification");
   });
 });

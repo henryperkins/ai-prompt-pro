@@ -4,6 +4,14 @@ export type CommunityTelemetryEvent =
   | "community_mobile_first_meaningful_action"
   | "community_mobile_interaction";
 
+// Community mobile telemetry payload conventions:
+// - surface: route-level context (`community_feed` | `community_post`)
+// - sourceSurface: where the action originated (`feed` | `post_detail` | `notification`)
+// - kind: interaction class (`comment` | `reaction` | `share` | `save`)
+export type CommunityMobileTelemetrySurface = "community_feed" | "community_post";
+export type CommunityMobileTelemetrySourceSurface = "feed" | "post_detail" | "notification";
+export type CommunityMobileInteractionKind = "comment" | "reaction" | "share" | "save";
+
 export type CommunityTelemetryValue = string | number | boolean | null;
 
 export interface CommunityTelemetryPayload {
@@ -14,6 +22,12 @@ export interface CommunityTelemetryEnvelope {
   event: CommunityTelemetryEvent;
   payload: CommunityTelemetryPayload;
   timestamp: number;
+}
+
+export function getDefaultCommunityMobileSourceSurface(
+  surface: CommunityMobileTelemetrySurface,
+): CommunityMobileTelemetrySourceSurface {
+  return surface === "community_feed" ? "feed" : "post_detail";
 }
 
 export function trackCommunityEvent(

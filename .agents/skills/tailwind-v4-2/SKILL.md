@@ -1,7 +1,6 @@
 ---
 name: tailwind-v4-2
 description: Production guidance for Tailwind CSS v4 + shadcn/ui in Vite React projects. Use when setting up Tailwind v4, configuring shadcn, implementing dark mode, or fixing CSS variable and theme token issues.
-license: MIT
 ---
 
 # Tailwind v4 + shadcn Setup

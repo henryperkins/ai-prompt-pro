@@ -45,6 +45,7 @@ describe("useCommunityMobileTelemetry", () => {
     expect(captured).toHaveLength(1);
     expect(captured[0]?.event).toBe("community_mobile_first_meaningful_action");
     expect(captured[0]?.payload.action).toBe("filter_drawer_opened");
+    expect(captured[0]?.payload.sourceSurface).toBe("feed");
     expect(captured[0]?.payload.firstMeaningfulActionMs).toBeGreaterThanOrEqual(1400);
   });
 
@@ -84,5 +85,51 @@ describe("useCommunityMobileTelemetry", () => {
     expect(captured).toHaveLength(1);
     expect(captured[0]?.payload.sessionId).toBe("existing-session");
     expect(captured[0]?.payload.firstMeaningfulActionMs).toBe(5000);
+    expect(captured[0]?.payload.sourceSurface).toBe("post_detail");
+  });
+
+  it("tracks share/save interactions and supports source overrides", () => {
+    const captured: CommunityTelemetryEnvelope[] = [];
+    const handler = (event: Event) => {
+      captured.push((event as CustomEvent<CommunityTelemetryEnvelope>).detail);
+    };
+
+    window.addEventListener(COMMUNITY_TELEMETRY_EVENT_NAME, handler);
+
+    const { result } = renderHook(() =>
+      useCommunityMobileTelemetry({
+        enabled: true,
+        surface: "community_post",
+      }),
+    );
+
+    act(() => {
+      result.current.trackInteraction(
+        "share",
+        "share_clipboard",
+        { postId: "post-1" },
+        { sourceSurface: "notification" },
+      );
+      result.current.trackInteraction("save", "library", { postId: "post-1" });
+    });
+
+    window.removeEventListener(COMMUNITY_TELEMETRY_EVENT_NAME, handler);
+
+    const interactionEvents = captured.filter((event) => event.event === "community_mobile_interaction");
+    expect(interactionEvents).toHaveLength(2);
+
+    expect(interactionEvents[0]?.payload.kind).toBe("share");
+    expect(interactionEvents[0]?.payload.action).toBe("share_clipboard");
+    expect(interactionEvents[0]?.payload.sourceSurface).toBe("notification");
+    expect(interactionEvents[0]?.payload.interactionCount).toBe(1);
+    expect(interactionEvents[0]?.payload.shareInteractions).toBe(1);
+    expect(interactionEvents[0]?.payload.saveInteractions).toBe(0);
+
+    expect(interactionEvents[1]?.payload.kind).toBe("save");
+    expect(interactionEvents[1]?.payload.action).toBe("library");
+    expect(interactionEvents[1]?.payload.sourceSurface).toBe("post_detail");
+    expect(interactionEvents[1]?.payload.interactionCount).toBe(1);
+    expect(interactionEvents[1]?.payload.shareInteractions).toBe(1);
+    expect(interactionEvents[1]?.payload.saveInteractions).toBe(1);
   });
 });

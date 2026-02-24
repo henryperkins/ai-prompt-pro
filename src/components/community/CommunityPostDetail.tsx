@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { Link, useNavigate } from "react-router-dom";
 import type { CommunityPost, CommunityProfile, VoteState, VoteType } from "@/lib/community";
@@ -47,6 +47,7 @@ interface CommunityPostDetailProps {
   voteState?: VoteState;
   onCommentAdded: (postId: string) => void;
   onCommentThreadOpen?: (postId: string) => void;
+  openCommentsOnMount?: boolean;
   canVote: boolean;
   canRate?: boolean;
   ratingValue?: number | null;
@@ -143,6 +144,7 @@ export function CommunityPostDetail({
   voteState,
   onCommentAdded,
   onCommentThreadOpen,
+  openCommentsOnMount = false,
   canVote,
   canRate = false,
   ratingValue = null,
@@ -162,12 +164,21 @@ export function CommunityPostDetail({
   const isMobile = useIsMobile();
   const useMobileCommentsDrawer = isMobile && communityFeatureFlags.communityMobileEnhancements;
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const autoOpenedPostIdRef = useRef<string | null>(null);
   const createdAgo = formatDistanceToNow(new Date(post.createdAt), { addSuffix: true });
   const remixDiff = parseRemixDiff(post.remixDiff);
   const promptBody = (post.enhancedPrompt || post.starterPrompt || "").trim();
   const ratingAverage = post.ratingAverage ?? 0;
   const ratingCount = post.ratingCount ?? 0;
   const ratingSummaryAriaLabel = `Average rating ${ratingAverage.toFixed(1)} from ${ratingCount} rating${ratingCount === 1 ? "" : "s"}`;
+
+  useEffect(() => {
+    if (!useMobileCommentsDrawer || !openCommentsOnMount) return;
+    if (autoOpenedPostIdRef.current === post.id) return;
+    autoOpenedPostIdRef.current = post.id;
+    setCommentsOpen(true);
+    onCommentThreadOpen?.(post.id);
+  }, [onCommentThreadOpen, openCommentsOnMount, post.id, useMobileCommentsDrawer]);
 
   return (
     <div className="space-y-4">

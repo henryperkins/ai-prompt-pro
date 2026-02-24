@@ -22,3 +22,11 @@ Feature flag: `VITE_COMMUNITY_MOBILE_ENHANCEMENTS=true`
 2. Verify mobile filter drawer trigger is hidden.
 3. Verify mobile notifications bell trigger is hidden.
 4. Verify desktop `/community` and `/community/:id` behavior is unchanged.
+
+## Backlog Additions (When CMOB-101+ ship)
+
+1. From a mobile comment notification, tap through to `/community/:postId` and verify comments sheet opens automatically.
+2. Verify comment composer receives focus and can submit without extra navigation.
+3. Verify quick reply chips prefill composer text and preserve moderation checks.
+4. Verify unread notifications sort above read and comment/remix outrank reaction notifications.
+5. Validate telemetry smoke path by confirming `community_mobile_interaction` emits for `save`, `share`, and notification-to-reply actions.
