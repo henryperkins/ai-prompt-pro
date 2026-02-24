@@ -73,4 +73,26 @@ describe("CommunityPostCard action controls", () => {
     fireEvent.click(screen.getByTestId("community-share"));
     expect(onSharePost).toHaveBeenCalledWith(post);
   });
+
+  it("supports tag click filtering callbacks", () => {
+    const post = makePost({ tags: ["ops"] });
+    const onTagClick = vi.fn();
+
+    render(
+      <MemoryRouter>
+        <CommunityPostCard
+          post={post}
+          authorName="Prompt Dev"
+          onCopyPrompt={vi.fn()}
+          onToggleVote={vi.fn()}
+          onCommentAdded={vi.fn()}
+          onTagClick={onTagClick}
+          canVote={false}
+        />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Filter by tag ops" }));
+    expect(onTagClick).toHaveBeenCalledWith("ops");
+  });
 });

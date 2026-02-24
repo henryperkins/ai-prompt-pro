@@ -1,0 +1,1036 @@
+
+ ▐▛███▜▌   Claude Code v2.1.52
+▝▜█████▛▘  Opus 4.6 · Claude Pro
+  ▘▘ ▝▝    ~/ai-prompt-pro
+
+❯ /context 
+  ⎿  Context Usage
+     ⛁ ⛀ ⛁ ⛁ ⛁ ⛁ ⛁ ⛁ ⛁ ⛁   claude-opus-4-6 · 25k/200k tokens (12%)
+     ⛀ ⛁ ⛁ ⛀ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ 
+     ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶   Estimated usage by category
+     ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶   ⛁ System prompt: 3.4k tokens (1.7%)
+     ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶   ⛁ System tools: 16.4k tokens (8.2%)
+     ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶   ⛁ Custom agents: 247 tokens (0.1%)
+     ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶   ⛁ Memory files: 2.7k tokens (1.3%)
+     ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶   ⛁ Skills: 1.9k tokens (1.0%)
+     ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶   ⛁ Messages: 134 tokens (0.1%)
+     ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛶ ⛁ ⛀   ⛁ Compact buffer: 3k tokens (1.5%)
+                           ⛶ Free space: 172k (86.1%)
+
+     Custom agents · /agents
+
+     User
+     └ explore-sonnet: 247 tokens
+
+     Memory files · /memory
+     └ CLAUDE.md: 2.6k tokens
+     └ ~/.claude/projects/-home-azureuser-ai-prompt-pro/memory/MEMORY.md: 57 
+     tokens
+
+     Skills · /skills
+
+     Project
+     └ neon-postgres: 86 tokens
+     └ skill-creator: 60 tokens
+
+     User
+     └ tailwind-v4-shadcn: 207 tokens
+     └ azure-deployment-preflight: 126 tokens
+     └ wp-block-development: 86 tokens
+     └ wp-rest-api: 79 tokens
+     └ wordpress-router: 77 tokens
+     └ wp-performance: 76 tokens
+     └ azure-static-web-apps: 76 tokens
+     └ wp-interactivity-api: 68 tokens
+     └ wp-abilities-api: 67 tokens
+     └ wp-playground: 66 tokens
+     └ wp-plugin-development: 62 tokens
+     └ wp-project-triage: 62 tokens
+     └ wp-wpcli-and-ops: 57 tokens
+     └ wp-block-themes: 56 tokens
+     └ microsoft-agent-framework: 56 tokens
+     └ wp-phpstan: 55 tokens
+     └ supabase-postgres-best-practices: 54 tokens
+     └ tailwindcss-fundamentals-v4: 37 tokens
+     └ wpds: 29 tokens
+
+     Plugin
+     └ firecrawl: 225 tokens
+     └ frontend-design: 67 tokens
+     └ firecrawl:skill-gen: 23 tokens
+
+❯ /frontend-design:frontend-design 
+
+● The frontend design skill is loaded. What would you like me to build? Give me
+  the component, page, or interface you have in mind and I'll craft something
+  distinctive.
+
+❯ Social features need focus 
+
+● Let me explore the current social/community features to understand what we're
+  working with.
+
+● explore-sonnet(Explore social/community features)
+  ⎿  Done (34 tool uses · 103.5k tokens · 3m 6s)
+  (ctrl+o to expand)
+
+● Now let me look at the actual visual design of the key community components to
+   understand the current aesthetic.
+
+● Read 3 files (ctrl+o to expand)
+
+● Let me also check the current theme/styling and the PageShell component.
+
+● Searched for 1 pattern, read 5 files (ctrl+o to expand)
+
+● Now I have a thorough understanding of the codebase. Let me enter plan mode to
+   design the social features uplift.
+
+● Entered plan mode
+  Claude is now exploring and designing an implementation approach.
+
+● I have a solid understanding of the current community features from my
+  exploration. The app has a rich "PromptForge" fantasy/arcane aesthetic with
+  teal, gold, and ember colors. The social features are functional but the
+  Profile page is notably bare-bones and the overall social experience could be
+  elevated.
+
+  Let me clarify what you'd like to focus on.
+
+● User answered Claude's questions:
+  ⎿  · Which social areas do you want to focus on improving? → Both profile
+      + feed
+
+● Full social uplift across both profile and feed. Let me launch targeted
+  exploration agents to gather the remaining details I need for the plan.
+
+● explore-sonnet(Explore feed components deeply)
+  ⎿  Done (15 tool uses · 60.5k tokens · 2m 38s)
+  (ctrl+o to expand)
+
+● Excellent — I now have a deep understanding of both the profile and feed
+  surfaces, the design system, available components, and all the gaps. Let me
+  design the implementation.
+
+● Plan(Design social features uplift plan)
+  ⎿  Initializing…
+  ⎿  Interrupted · What should Claude do instead?
+
+❯ Resume. 
+
+● Let me write the plan based on all the research gathered.
+
+● Write(plan.md)
+  ⎿  Wrote 146 lines to plan.md
+       1 # Social Features Uplift — Implementation Plan
+       2 
+       3 ## Overview
+       4 Full social layer uplift across the Profile page and Community F
+         eed. Transform the minimal profile into a rich creator identity 
+         surface and make the feed more visually dynamic with better soci
+         al engagement patterns.
+       5 
+       6 ---
+       7 
+       8 ## Phase A: Shared Utilities & Foundations
+       9 
+      10 ### A1. Extract `getInitials` to shared utility
+     … +136 lines (ctrl+o to expand)
+
+● Exited plan mode
+
+● Plan approved. Let me start implementing. I'll work through the phases in
+  order.
+
+● Starting with Phase A1 — extracting shared utilities. Let me read the
+  duplicate implementations across files to make sure I capture them exactly.
+
+● Read 3 files (ctrl+o to expand)
+
+● Now let me find the getInitials in CommunityPostDetail and CommunityComments.
+
+● Searched for 4 patterns (ctrl+o to expand)
+
+● Good — even more duplication than initially found. Let me also check what
+  library-pages.ts exports since it has its own getInitials.
+
+● Searched for 1 pattern (ctrl+o to expand)
+
+● The library-pages.ts has its own getInitials used by Library pages — I'll
+  leave that one alone since it's in a different domain. Now let me create the
+  shared community utilities file.
+
+● Write(src/lib/community-utils.ts)
+  ⎿  Wrote 35 lines to src/lib/community-utils.ts
+       1 import type { CommunityPost, CommunityProfile } from "@/lib/comm
+         unity";
+       2 
+       3 export function getInitials(name: string): string {
+       4   const parts = name
+       5     .split(" ")
+       6     .map((part) => part.trim())
+       7     .filter(Boolean);
+       8   if (parts.length === 0) return "?";
+       9   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCas
+         e();
+      10   return `${parts[0][0] || ""}${parts[1][0] || ""}`.toUpperCase(
+         );
+     … +25 lines (ctrl+o to expand)
+
+● Now I need to update all the consumer files. Let me do the CommunityPostCard
+  first — it has both getInitials and estimateTokens.
+
+● Update(src/components/community/CommunityPostCard.tsx)
+  ⎿  Added 1 line
+      3  import { ArrowUp, BookmarkPlus, CheckCircle2, Database, Flag, Gi
+         tBranch, MessageCircle, MoreHorizontal, Share2, Star, UserCheck,
+          UserX } from "lucide-react";
+      4  import { Link, useNavigate } from "react-router-dom";
+      5  import type { CommunityPost, VoteState, VoteType } from "@/lib/c
+         ommunity";
+      6 +import { estimateTokens, getInitials } from "@/lib/community-uti
+        +ls";                                                            
+      7  import { Badge } from "@/components/base/badges/badges";
+      8  import { Button } from "@/components/base/buttons/button";
+      9  import { Card } from "@/components/base/primitives/card";
+
+● Now remove the inline getInitials and estimateTokens from CommunityPostCard.
+
+● Update(src/components/community/CommunityPostCard.tsx)
+  ⎿  Removed 19 lines
+      53    onUnblockUser?: (userId: string) => void;
+      54  }
+      55  
+      56 -function getInitials(name: string): string {                   
+      57 -  const parts = name                                           
+      58 -    .split(" ")                                                
+      59 -    .map((part) => part.trim())                                
+      60 -    .filter(Boolean);                                          
+      61 -  if (parts.length === 0) return "?";                          
+      62 -  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCa
+         -se();                                                          
+      63 -  return `${parts[0][0] || ""}${parts[1][0] || ""}`.toUpperCase
+         -();                                                            
+      64 -}                                                              
+      56  
+      66 -function estimateTokens(text: string): string {                
+      67 -  const words = text                                           
+      68 -    .split(/\s+/)                                              
+      69 -    .map((part) => part.trim())                                
+      70 -    .filter(Boolean).length;                                   
+      71 -  const tokens = Math.max(1, Math.round(words * 1.35));        
+      72 -  if (tokens >= 1000) return `${(tokens / 1000).toFixed(1)}k`; 
+      73 -  return String(tokens);                                       
+      74 -}                                                              
+      75 -                                                               
+      57  function CommunityPostCardComponent({
+      58    post,
+      59    isFeatured = false,
+
+● Now update CommunityPostDetail.tsx.
+
+● Read 1 file (ctrl+o to expand)
+
+● Update(src/components/community/CommunityPostDetail.tsx)
+  ⎿  Added 1 line
+      15  } from "lucide-react";
+      16  import { Link, useNavigate } from "react-router-dom";
+      17  import type { CommunityPost, CommunityProfile, VoteState, VoteT
+          ype } from "@/lib/community";
+      18 +import { getInitials } from "@/lib/community-utils";           
+      19  import { Avatar, AvatarFallback, AvatarImage } from "@/componen
+          ts/base/primitives/avatar";
+      20  import { Badge } from "@/components/base/badges/badges";
+      21  import { Button } from "@/components/base/buttons/button";
+
+● Update(src/components/community/CommunityPostDetail.tsx)
+  ⎿  Removed 10 lines
+      63    onUnblockUser?: (userId: string) => void;
+      64  }
+      65  
+      66 -function getInitials(name: string): string {                   
+      67 -  const parts = name                                           
+      68 -    .split(" ")                                                
+      69 -    .map((part) => part.trim())                                
+      70 -    .filter(Boolean);                                          
+      71 -  if (parts.length === 0) return "?";                          
+      72 -  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCa
+         -se();                                                          
+      73 -  return `${parts[0][0] || ""}${parts[1][0] || ""}`.toUpperCase
+         -();                                                            
+      74 -}                                                              
+      75 -                                                               
+      66  function renderAuthor(authorById: Record<string, CommunityProfi
+          le>, authorId: string): string {
+      67    return authorById[authorId]?.displayName || "Community member
+          ";
+      68  }
+
+● Now CommunityComments.tsx.
+
+● Read 1 file (ctrl+o to expand)
+
+● I see CommunityComments has a local mapProfileById (different name, same
+  function). Let me find it.
+
+● Read 1 file (ctrl+o to expand)
+
+● Update(src/components/community/CommunityComments.tsx)
+  ⎿  Added 1 line
+       5  import { useVirtualizer } from "@tanstack/react-virtual";
+       6  import type { CommunityComment, CommunityProfile } from "@/lib/
+          community";
+       7  import { addComment, loadComments, loadProfilesByIds } from "@/
+          lib/community";
+       8 +import { getInitials, toProfileMap } from "@/lib/community-util
+         +s";                                                            
+       9  import { useAuth } from "@/hooks/useAuth";
+      10  import { useToast } from "@/hooks/use-toast";
+      11  import { Badge } from "@/components/base/badges/badges";
+
+● Update(src/components/community/CommunityComments.tsx)
+  ⎿  Removed 16 lines
+      37    className?: string;
+      38  }
+      39  
+      40 -function mapProfileById(profiles: CommunityProfile[]): Record<s
+         -tring, CommunityProfile> {                                     
+      41 -  return profiles.reduce<Record<string, CommunityProfile>>((map
+         -, profile) => {                                                
+      42 -    map[profile.id] = profile;                                 
+      43 -    return map;                                                
+      44 -  }, {});                                                      
+      45 -}                                                              
+      40  
+      47 -function getInitials(name: string): string {                   
+      48 -  const parts = name                                           
+      49 -    .split(" ")                                                
+      50 -    .map((part) => part.trim())                                
+      51 -    .filter(Boolean);                                          
+      52 -  if (parts.length === 0) return "?";                          
+      53 -  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCa
+         -se();                                                          
+      54 -  return `${parts[0][0] || ""}${parts[1][0] || ""}`.toUpperCase
+         -();                                                            
+      55 -}                                                              
+      56 -                                                               
+      41  export function CommunityComments({
+      42    postId,
+      43    totalCount,
+
+● Now update the mapProfileById call to use toProfileMap.
+
+● Searched for 1 pattern (ctrl+o to expand)
+
+● Update(src/components/community/CommunityComments.tsx)
+  ⎿  Added 1 line, removed 1 line
+      69        setComments(nextComments);
+      70        const authorIds = Array.from(new Set(nextComments.map((co
+          mment) => comment.userId)));
+      71        const profiles = await loadProfilesByIds(authorIds);
+      72 -      setAuthorById(mapProfileById(profiles));                 
+      72 +      setAuthorById(toProfileMap(profiles));                   
+      73      } catch (error) {
+      74        toast({
+      75          title: "Failed to load comments",
+
+● Now update NotificationPanel.tsx.
+
+● Update(src/components/NotificationPanel.tsx)
+  ⎿  Added 1 line
+       5  import { Button } from "@/components/base/buttons/button";
+       6  import { ScrollArea } from "@/components/base/primitives/scroll
+          -area";
+       7  import { Skeleton } from "@/components/base/primitives/skeleton
+          ";
+       8 +import { getInitials } from "@/lib/community-utils";           
+       9  import type { Notification } from "@/lib/notifications";
+      10  import { cn } from "@/lib/utils";
+      11  
+
+● Update(src/components/NotificationPanel.tsx)
+  ⎿  Removed 9 lines
+      20    className?: string;
+      21  }
+      22  
+      23 -function getInitials(name: string): string {                   
+      24 -  const parts = name                                           
+      25 -    .split(" ")                                                
+      26 -    .map((part) => part.trim())                                
+      27 -    .filter(Boolean);                                          
+      28 -  if (parts.length === 0) return "?";                          
+      29 -  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCa
+         -se();                                                          
+      30 -  return `${parts[0][0] || ""}${parts[1][0] || ""}`.toUpperCase
+         -();                                                            
+      31 -}                                                              
+      23  
+      24  function getTypeIcon(type: Notification["type"]) {
+      25    if (type === "upvote") return <ArrowUp className="h-3.5 w-3.5
+           text-primary" />;
+
+● Now update Profile.tsx.
+
+● Update(src/pages/Profile.tsx)
+  ⎿  Added 1 line
+      29    toggleVote,
+      30    unfollowCommunityUser,
+      31  } from "@/lib/community";
+      32 +import { getInitials, toParentTitleMap, toProfileMap } from "@/
+         +lib/community-utils";                                          
+      33  import { toCommunityErrorState, type CommunityErrorState } from
+           "@/lib/community-errors";
+      34  import { copyTextToClipboard } from "@/lib/clipboard";
+      35  
+
+● Update(src/pages/Profile.tsx)
+  ⎿  Removed 23 lines
+      35  
+      36  const PROFILE_PAGE_SIZE = 20;
+      37  
+      38 -function getInitials(name: string): string {                   
+      39 -  const parts = name                                           
+      40 -    .split(" ")                                                
+      41 -    .map((part) => part.trim())                                
+      42 -    .filter(Boolean);                                          
+      43 -  if (parts.length === 0) return "?";                          
+      44 -  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCa
+         -se();                                                          
+      45 -  return `${parts[0][0] || ""}${parts[1][0] || ""}`.toUpperCase
+         -();                                                            
+      46 -}                                                              
+      38  
+      48 -function toProfileMap(profiles: CommunityProfile[]): Record<str
+         -ing, CommunityProfile> {                                       
+      49 -  return profiles.reduce<Record<string, CommunityProfile>>((map
+         -, profile) => {                                                
+      50 -    map[profile.id] = profile;                                 
+      51 -    return map;                                                
+      52 -  }, {});                                                      
+      53 -}                                                              
+      54 -                                                               
+      55 -function toParentTitleMap(posts: CommunityPost[]): Record<strin
+         -g, string> {                                                   
+      56 -  return posts.reduce<Record<string, string>>((map, post) => { 
+      57 -    map[post.id] = post.title;                                 
+      58 -    return map;                                                
+      59 -  }, {});                                                      
+      60 -}                                                              
+      61 -                                                               
+      39  const Profile = () => {
+      40    const { userId: routeUserId } = useParams<{ userId: string }>
+          ();
+      41    const navigate = useNavigate();
+
+● Now update Community.tsx.
+
+● Update(src/pages/Community.tsx)
+  ⎿  Added 1 line
+      45    submitCommunityReport,
+      46    unblockCommunityUser,
+      47  } from "@/lib/community-moderation";
+      48 +import { toParentTitleMap, toProfileMap } from "@/lib/community
+         +-utils";                                                       
+      49  import { cn } from "@/lib/utils";
+      50  
+      51  const SORT_OPTIONS: Array<{ label: string; value: CommunitySort
+           }> = [
+
+● Update(src/pages/Community.tsx)
+  ⎿  Removed 14 lines
+      68    reportedUserId: string | null;
+      69  }
+      70  
+      71 -function toProfileMap(profiles: CommunityProfile[]): Record<str
+         -ing, CommunityProfile> {                                       
+      72 -  return profiles.reduce<Record<string, CommunityProfile>>((map
+         -, profile) => {                                                
+      73 -    map[profile.id] = profile;                                 
+      74 -    return map;                                                
+      75 -  }, {});                                                      
+      76 -}                                                              
+      77 -                                                               
+      78 -function toParentTitleMap(posts: CommunityPost[]): Record<strin
+         -g, string> {                                                   
+      79 -  return posts.reduce<Record<string, string>>((map, post) => { 
+      80 -    map[post.id] = post.title;                                 
+      81 -    return map;                                                
+      82 -  }, {});                                                      
+      83 -}                                                              
+      84 -                                                               
+      71  const Community = () => {
+      72    const [searchParams, setSearchParams] = useSearchParams();
+      73    const feedMode = (searchParams.get("tab") === "following" ? "
+          following" : "for_you") as "for_you" | "following";
+
+● Now update CommunityPost.tsx (the post detail page).
+
+● Read 1 file (ctrl+o to expand)
+
+● Update(src/pages/CommunityPost.tsx)
+  ⎿  Added 1 line, removed 7 lines
+      36    submitCommunityReport,
+      37    unblockCommunityUser,
+      38  } from "@/lib/community-moderation";
+      39 +import { toProfileMap } from "@/lib/community-utils";          
+      40  
+      41  function isUuid(value: string): boolean {
+      42    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9
+          a-f]{12}$/i.test(value);
+      43  }
+      44  
+      44 -function toProfileMap(profiles: CommunityProfile[]): Record<str
+         -ing, CommunityProfile> {                                       
+      45 -  return profiles.reduce<Record<string, CommunityProfile>>((map
+         -, profile) => {                                                
+      46 -    map[profile.id] = profile;                                 
+      47 -    return map;                                                
+      48 -  }, {});                                                      
+      49 -}                                                              
+      50 -                                                               
+      45  interface CommunityReportTarget {
+      46    targetType: "post" | "comment";
+      47    postId: string;
+
+● Now update notifications.ts which also has a toProfileMap.
+
+● Read 1 file (ctrl+o to expand)
+
+● Update(src/lib/notifications.ts)
+  ⎿  Added 1 line
+      1  import { neon } from "@/integrations/neon/client";
+      2  import { type CommunityProfile, loadProfilesByIds } from "@/lib/
+         community";
+      3 +import { toProfileMap } from "@/lib/community-utils";           
+      4  import { isPostgrestError } from "@/lib/saved-prompt-shared";
+      5  
+      6  export type NotificationType = "upvote" | "verified" | "comment"
+          | "remix";
+
+● Update(src/lib/notifications.ts)
+  ⎿  Removed 7 lines
+      48    return "comment";
+      49  }
+      50  
+      51 -function toProfileMap(profiles: CommunityProfile[]): Record<str
+         -ing, CommunityProfile> {                                       
+      52 -  return profiles.reduce<Record<string, CommunityProfile>>((map
+         -, profile) => {                                                
+      53 -    map[profile.id] = profile;                                 
+      54 -    return map;                                                
+      55 -  }, {});                                                      
+      56 -}                                                              
+      57 -                                                               
+      51  function toPostTitleMap(posts: PostTitleRow[]): Record<string, 
+          string> {
+      52    return posts.reduce<Record<string, string>>((map, post) => {
+      53      map[post.id] = post.title;
+
+● Good. Let me verify there are no remaining inline duplicates.
+
+● Searched for 2 patterns (ctrl+o to expand)
+
+● Clean — only the shared utility and the unrelated library-pages.ts remain. Let
+   me run the build to verify.
+
+● Bash(npx tsc --noEmit 2>&1 | head -50)
+  ⎿  (No output)
+
+● Zero type errors. Let me also run lint quickly.
+
+● Bash(npm run lint 2>&1 | tail -20)
+  ⎿    641:3  warning  Fast refresh only works when a file only exports com
+     ponents. Use a new file to share constants or functions between compon
+     ents  react-refresh/only-export-components
+     … +21 lines (ctrl+o to expand)
+
+● 0 errors, only pre-existing warnings. Phase A1 is done.
+
+● Now Phase A2 — adding ProfileActivityStats type and API function. Let me check
+   the existing community.ts exports and the Neon Data API pattern.
+
+● Searched for 2 patterns, read 1 file (ctrl+o to expand)
+
+● Good. Now let me find the right place to add the new type and function — right
+   after FollowStats.
+
+● Read 1 file (ctrl+o to expand)
+
+● Update(src/lib/community.ts)
+  ⎿  Added 7 lines
+      174    followingCount: number;
+      175  }
+      176  
+      177 +export interface ProfileActivityStats {                       
+      178 +  totalPosts: number;                                         
+      179 +  totalUpvotes: number;                                       
+      180 +  totalVerified: number;                                      
+      181 +  averageRating: number;                                      
+      182 +}                                                             
+      183 +                                                              
+      184  export interface RemixDiff {
+      185    changes: Array<{
+      186      field: string;
+
+● Now add the loadProfileActivityStats function. Let me find a good spot — right
+   after loadFollowStats.
+
+● Read 1 file (ctrl+o to expand)
+
+● Update(src/lib/community.ts)
+  ⎿  Added 37 lines
+      867    }
+      868  }
+      869  
+      870 +export async function loadProfileActivityStats(userId: string)
+          +: Promise<ProfileActivityStats> {                             
+      871 +  ensureCommunityBackend("Profile activity stats");           
+      872 +  if (!userId) {                                              
+      873 +    return { totalPosts: 0, totalUpvotes: 0, totalVerified: 0,
+          + averageRating: 0 };                                          
+      874 +  }                                                           
+      875 +                                                              
+      876 +  try {                                                       
+      877 +    const { data, error } = await neon                        
+      878 +      .from("community_posts")                                
+      879 +      .select("upvote_count, verified_count, rating_avg, ratin
+          +g_count")                                                     
+      880 +      .eq("author_id", userId)                                
+      881 +      .eq("is_public", true);                                 
+      882 +                                                              
+      883 +    if (error) throw error;                                   
+      884 +                                                              
+      885 +    const rows = data ?? [];                                  
+      886 +    const totalPosts = rows.length;                           
+      887 +    const totalUpvotes = rows.reduce((sum, row) => sum + (row.
+          +upvote_count ?? 0), 0);                                       
+      888 +    const totalVerified = rows.reduce((sum, row) => sum + (row
+          +.verified_count ?? 0), 0);                                    
+      889 +                                                              
+      890 +    let averageRating = 0;                                    
+      891 +    const ratedRows = rows.filter((row) => (row.rating_count ?
+          +? 0) > 0);                                                    
+      892 +    if (ratedRows.length > 0) {                               
+      893 +      const weightedSum = ratedRows.reduce(                   
+      894 +        (sum, row) => sum + (row.rating_avg ?? 0) * (row.ratin
+          +g_count ?? 0),                                                
+      895 +        0,                                                    
+      896 +      );                                                      
+      897 +      const totalRatings = ratedRows.reduce((sum, row) => sum 
+          ++ (row.rating_count ?? 0), 0);                                
+      898 +      averageRating = totalRatings > 0 ? weightedSum / totalRa
+          +tings : 0;                                                    
+      899 +    }                                                         
+      900 +                                                              
+      901 +    return { totalPosts, totalUpvotes, totalVerified, averageR
+          +ating };                                                      
+      902 +  } catch (error) {                                           
+      903 +    throw toError(error, "Failed to load profile activity stat
+          +s.");                                                         
+      904 +  }                                                           
+      905 +}                                                             
+      906 +                                                              
+      907  export async function isFollowingCommunityUser(targetUserId: s
+           tring): Promise<boolean> {
+      908    ensureCommunityBackend("Community follows");
+      909    if (!targetUserId) return false;
+
+❯ Resume 
+
+● Let me verify where I left off and continue.
+
+● Bash(npx tsc --noEmit 2>&1 | head -20)
+  ⎿  (No output)
+
+● Clean. Task #2 was completed — the ProfileActivityStats type and
+  loadProfileActivityStats API function were already added to community.ts. Let
+  me mark it done and move to building the ProfileHero component.
+
+● Let me read the existing Profile page and relevant components to build the
+  ProfileHero.
+
+● Read 3 files (ctrl+o to expand)
+
+● Now I have everything I need. Let me create the ProfileHero component and add
+  the rarity pulse CSS, then rewrite the Profile page.
+
+● Write(src/components/community/ProfileHero.tsx)
+  ⎿  Wrote 195 lines to src/components/community/ProfileHero.tsx
+      1 import { ArrowUp, CheckCircle2, Flame, Star } from "lucide-react"
+        ;
+      2 import { Link } from "react-router-dom";
+      3 import type { CommunityPost, FollowStats, ProfileActivityStats, C
+        ommunityProfile } from "@/lib/community";
+      4 import { getInitials } from "@/lib/community-utils";
+      5 import { getCommunityPostRarity, type PromptForgeRarity } from "@
+        /lib/community-rarity";
+      6 import { Avatar, AvatarFallback, AvatarImage } from "@/components
+        /base/primitives/avatar";
+      7 import { Badge } from "@/components/base/badges/badges";
+      8 import { Button } from "@/components/base/buttons/button";
+      9 import { cn } from "@/lib/utils";
+     … +185 lines (ctrl+o to expand)
+
+● Now add the rarity pulse CSS animations to the fantasy stylesheet.
+
+● Update(src/styles/promptforge-fantasy.css)
+  ⎿  Added 39 lines
+      471    background:
+      472      linear-gradient(180deg, hsl(var(--card) / 0.88), hsl(var(-
+           -card) / 0.78));
+      473  }
+      474 +                                                              
+      475 +/* Rarity pulse animations — subtle ambient glow for high-enga
+          +gement cards */                                               
+      476 +@media (prefers-reduced-motion: no-preference) {              
+      477 +  .pf-rarity-legendary {                                      
+      478 +    animation: pf-pulse-gold 4s ease-in-out infinite;         
+      479 +  }                                                           
+      480 +                                                              
+      481 +  .pf-rarity-epic {                                           
+      482 +    animation: pf-pulse-ember 6s ease-in-out infinite;        
+      483 +  }                                                           
+      484 +}                                                             
+      485 +                                                              
+      486 +@keyframes pf-pulse-gold {                                    
+      487 +  0%, 100% {                                                  
+      488 +    box-shadow:                                               
+      489 +      var(--pf-shadow-card),                                  
+      490 +      0 0 26px rgba(var(--pf-gold-rgb) / 0.14);               
+      491 +  }                                                           
+      492 +  50% {                                                       
+      493 +    box-shadow:                                               
+      494 +      var(--pf-shadow-card),                                  
+      495 +      0 0 36px rgba(var(--pf-gold-rgb) / 0.22),               
+      496 +      0 0 60px rgba(var(--pf-gold-rgb) / 0.08);               
+      497 +  }                                                           
+      498 +}                                                             
+      499 +                                                              
+      500 +@keyframes pf-pulse-ember {                                   
+      501 +  0%, 100% {                                                  
+      502 +    box-shadow:                                               
+      503 +      var(--pf-shadow-card),                                  
+      504 +      0 0 22px rgba(var(--pf-ember-rgb) / 0.12);              
+      505 +  }                                                           
+      506 +  50% {                                                       
+      507 +    box-shadow:                                               
+      508 +      var(--pf-shadow-card),                                  
+      509 +      0 0 30px rgba(var(--pf-ember-rgb) / 0.18),              
+      510 +      0 0 50px rgba(var(--pf-ember-rgb) / 0.06);              
+      511 +  }                                                           
+      512 +}                                                             
+  ⎿  Interrupted · What should Claude do instead?
+
+❯ /model 
+  ⎿  Set model to opus (claude-opus-4-6)
+
+❯ Resume. 
+
+● Bash(npx tsc --noEmit 2>&1 | head -30)
+  ⎿  (No output)
+
+● Clean. ProfileHero component and rarity pulse CSS are in place.
+
+● Now Task #4 — redesign the Profile page to use ProfileHero, activity stats,
+  and top prompt highlight. Let me read the current state of Profile.tsx.
+
+● Read 1 file (ctrl+o to expand)
+
+● Now I'll rewrite the Profile page to integrate ProfileHero, activity stats,
+  and the top prompt highlight.
+
+● Write(src/pages/Profile.tsx)
+  ⎿  Added 54 lines, removed 64 lines
+       1  import { useCallback, useEffect, useMemo, useRef, useState } fr
+          om "react";
+       2  import { useNavigate, useParams } from "react-router-dom";
+       3  import { CommunityFeed } from "@/components/community/Community
+          Feed";
+       4 -import { PageHero, PageShell } from "@/components/PageShell";  
+       5 -import { Avatar, AvatarFallback, AvatarImage } from "@/componen
+         -ts/base/primitives/avatar";                                    
+       6 -import { Badge } from "@/components/base/badges/badges";       
+       4 +import { ProfileHero, getBestRarityFromPosts } from "@/componen
+         +ts/community/ProfileHero";                                     
+       5 +import { PageShell } from "@/components/PageShell";            
+       6  import { Button } from "@/components/base/buttons/button";
+       8 -import { Card } from "@/components/base/primitives/card";      
+       7  import { StateCard } from "@/components/base/primitives/state-c
+          ard";
+       8 +import { Skeleton } from "@/components/base/primitives/skeleton
+         +";                                                             
+       9  import { useAuth } from "@/hooks/useAuth";
+      10  import { useToast } from "@/hooks/use-toast";
+      12 -import { brandCopy } from "@/lib/brand-copy";                  
+      11  import {
+      12    type CommunityPost,
+      13    type CommunityProfile,
+      14    type FollowStats,
+      15 +  type ProfileActivityStats,                                   
+      16    type VoteState,
+      17    type VoteType,
+      18    computeNextPromptRatingSummary,
+     ...
+      23    loadMyVotes,
+      24    loadPostsByAuthor,
+      25    loadPostsByIds,
+      26 +  loadProfileActivityStats,                                    
+      27    loadProfilesByIds,
+      28    setPromptRating,
+      29    toggleVote,
+      30    unfollowCommunityUser,
+      31  } from "@/lib/community";
+      32 -import { getInitials, toParentTitleMap, toProfileMap } from "@/
+         -lib/community-utils";                                          
+      32 +import { toParentTitleMap, toProfileMap } from "@/lib/community
+         +-utils";                                                       
+      33  import { toCommunityErrorState, type CommunityErrorState } from
+           "@/lib/community-errors";
+      34  import { copyTextToClipboard } from "@/lib/clipboard";
+      35  
+      36  const PROFILE_PAGE_SIZE = 20;
+      37  
+      38 +const EMPTY_ACTIVITY_STATS: ProfileActivityStats = {           
+      39 +  totalPosts: 0,                                               
+      40 +  totalUpvotes: 0,                                             
+      41 +  totalVerified: 0,                                            
+      42 +  averageRating: 0,                                            
+      43 +};                                                             
+      44  
+      45  const Profile = () => {
+      46    const { userId: routeUserId } = useParams<{ userId: string }>
+          ();
+     ...
+      53    const { user } = useAuth();
+      54    const [profile, setProfile] = useState<CommunityProfile | nul
+          l>(null);
+      55    const [profileStats, setProfileStats] = useState<FollowStats>
+          ({ followersCount: 0, followingCount: 0 });
+      56 +  const [activityStats, setActivityStats] = useState<ProfileAct
+         +ivityStats>(EMPTY_ACTIVITY_STATS);                             
+      57    const [posts, setPosts] = useState<CommunityPost[]>([]);
+      58    const [authorById, setAuthorById] = useState<Record<string, C
+          ommunityProfile>>({});
+      59    const [parentTitleById, setParentTitleById] = useState<Record
+          <string, string>>({});
+     ...
+      70  
+      71    const isOwnProfile = Boolean(user?.id && profileUserId && use
+          r.id === profileUserId);
+      72  
+      73 +  const bestRarity = useMemo(() => getBestRarityFromPosts(posts
+         +), [posts]);                                                   
+      74 +                                                               
+      75    const hydratePostContext = useCallback(
+      76      async (
+      77        targetPosts: CommunityPost[],
+     ...
+      115      if (!profileUserId) {
+      116        setProfile(null);
+      117        setProfileStats({ followersCount: 0, followingCount: 0 }
+           );
+      118 +      setActivityStats(EMPTY_ACTIVITY_STATS);                 
+      119        setPosts([]);
+      120        setAuthorById({});
+      121        setParentTitleById({});
+     ...
+      136  
+      137      setProfile(null);
+      138      setProfileStats({ followersCount: 0, followingCount: 0 });
+      139 +    setActivityStats(EMPTY_ACTIVITY_STATS);                   
+      140      setPosts([]);
+      141      setAuthorById({});
+      142      setParentTitleById({});
+     ...
+      152  
+      153      void (async () => {
+      154        try {
+      144 -        const [profiles, stats, firstPage, following] = await 
+          -Promise.all([                                                 
+      155 +        const [profiles, stats, activity, firstPage, following
+          +] = await Promise.all([                                       
+      156            loadProfilesByIds([profileUserId]),
+      157            loadFollowStats(profileUserId),
+      158 +          loadProfileActivityStats(profileUserId),            
+      159            loadPostsByAuthor(profileUserId, { limit: PROFILE_PA
+           GE_SIZE, page: 0 }),
+      160            user?.id && user.id !== profileUserId
+      161              ? isFollowingCommunityUser(profileUserId)
+     ...
+      168          if (!loadedProfile) {
+      169            setProfile(null);
+      170            setProfileStats({ followersCount: 0, followingCount:
+            0 });
+      171 +          setActivityStats(EMPTY_ACTIVITY_STATS);             
+      172            setPosts([]);
+      173            setAuthorById({});
+      174            setParentTitleById({});
+     ...
+      187  
+      188          setProfile(loadedProfile);
+      189          setProfileStats(stats);
+      190 +        setActivityStats(activity);                           
+      191          setPosts(firstPage);
+      192          setAuthorById(toProfileMap([loadedProfile]));
+      193          setPage(0);
+     ...
+      198          if (token !== requestToken.current) return;
+      199          setProfile(null);
+      200          setProfileStats({ followersCount: 0, followingCount: 0
+            });
+      201 +        setActivityStats(EMPTY_ACTIVITY_STATS);               
+      202          setPosts([]);
+      203          setAuthorById({});
+      204          setParentTitleById({});
+     ...
+      412      setRetryNonce((prev) => prev + 1);
+      413    }, []);
+      414  
+      400 -  const subtitle = useMemo(() => {                            
+      401 -    if (profile) {                                            
+      402 -      return "Public prompts, remix activity, and social stats
+          -.";                                                           
+      403 -    }                                                         
+      404 -    return "Community profile";                               
+      405 -  }, [profile]);                                              
+      406 -                                                              
+      415    return (
+      416      <PageShell>
+      417        <div className="community-typography pf-community-page" 
+           data-density="comfortable">
+      410 -        <PageHero                                             
+      411 -          eyebrow={brandCopy.brandLine}                       
+      412 -          title={profile ? `${profile.displayName}` : "Profile
+          -"}                                                            
+      413 -          subtitle={subtitle}                                 
+      414 -          className="pf-gilded-frame pf-hero-surface"         
+      415 -        />                                                    
+      416 -                                                              
+      418          {!loading && errorState && (
+      419            <StateCard
+      420              variant="error"
+      420 -            title={errorState.kind === "not_found" ? "Profile 
+          -not found" : "Couldn’t load profile"}                         
+      421 +            title={errorState.kind === "not_found" ? "Profile 
+          +not found" : "Couldn't load profile"}                         
+      422              description={errorState.message}
+      423              primaryAction={{ label: "Retry", onClick: handleRe
+           try }}
+      424              secondaryAction={{ label: "Open Community", to: "/
+           community" }}
+      425            />
+      426          )}
+      427  
+      427 -        {!errorState && profile && (                          
+      428 -          <>                                                  
+      429 -            <Card className="pf-card mb-4 border-border/80 bg-
+          -card/85 p-4">                                                 
+      430 -              <div className="flex flex-wrap items-center gap-
+          -3">                                                           
+      431 -                <Avatar className="h-12 w-12 border border-bor
+          -der/60">                                                      
+      432 -                  <AvatarImage src={profile.avatarUrl ?? undef
+          -ined} alt={profile.displayName} />                            
+      433 -                  <AvatarFallback className="type-reply-label"
+          ->{getInitials(profile.displayName)}</AvatarFallback>          
+      434 -                </Avatar>                                     
+      435 -                <div className="min-w-0 flex-1">              
+      436 -                  <p className="type-post-title type-wrap-inli
+          -ne text-foreground">{profile.displayName}</p>                 
+      437 -                  <div className="type-meta mt-1 flex flex-wra
+          -p items-center gap-2 text-muted-foreground">                  
+      438 -                    <Badge type="modern" className="type-chip 
+          -type-numeric">{profileStats.followersCount} followers</Badge> 
+      439 -                    <Badge type="modern" className="type-chip 
+          -type-numeric">{profileStats.followingCount} following</Badge> 
+      440 -                    <Badge type="modern" className="type-chip 
+          -type-numeric border border-border bg-background text-foregroun
+          -d">                                                           
+      441 -                      {posts.length} visible prompts          
+      442 -                    </Badge>                                  
+      443 -                  </div>                                      
+      428 +        {!errorState && loading && !profile && (              
+      429 +          <div className="space-y-3">                         
+      430 +            {/* Loading skeleton for hero */}                 
+      431 +            <div className="pf-gilded-frame rounded-2xl px-4 p
+          +y-6 sm:px-6 sm:py-8">                                         
+      432 +              <div className="flex flex-col items-center gap-4
+          + sm:flex-row sm:items-start sm:gap-5">                        
+      433 +                <Skeleton className="h-20 w-20 rounded-full sm
+          +:h-24 sm:w-24" />                                             
+      434 +                <div className="flex flex-1 flex-col items-cen
+          +ter gap-2 sm:items-start">                                    
+      435 +                  <Skeleton className="h-7 w-48" />           
+      436 +                  <Skeleton className="h-4 w-32" />           
+      437 +                  <Skeleton className="mt-1 h-9 w-24" />      
+      438                  </div>
+      445 -                {isOwnProfile ? (                             
+      446 -                  <Badge type="modern" className="type-chip bo
+          -rder border-border bg-background text-foreground">You</Badge> 
+      447 -                ) : (                                         
+      448 -                  <Button                                     
+      449 -                    type="button"                             
+      450 -                    size="sm"                                 
+      451 -                    color={isFollowing ? "secondary" : "primar
+          -y"}                                                           
+      452 -                    className="type-button-label h-11 sm:h-9" 
+      453 -                    onClick={() => void handleToggleFollow()} 
+      454 -                    disabled={followPending}                  
+      455 -                  >                                           
+      456 -                    {followPending ? "Saving..." : isFollowing
+          - ? "Following" : "Follow"}                                    
+      457 -                  </Button>                                   
+      458 -                )}                                            
+      439                </div>
+      460 -            </Card>                                           
+      440 +            </div>                                            
+      441 +            <div className="grid grid-cols-2 gap-2 sm:grid-col
+          +s-4">                                                         
+      442 +              {[0, 1, 2, 3].map((i) => (                      
+      443 +                <Skeleton key={i} className="h-20 rounded-xl" 
+          +/>                                                            
+      444 +              ))}                                             
+      445 +            </div>                                            
+      446 +          </div>                                              
+      447 +        )}                                                    
+      448  
+      449 +        {!errorState && profile && (                          
+      450 +          <>                                                  
+      451 +            <ProfileHero                                      
+      452 +              profile={profile}                               
+      453 +              followStats={profileStats}                      
+      454 +              activityStats={activityStats}                   
+      455 +              bestRarity={bestRarity}                         
+      456 +              isOwnProfile={isOwnProfile}                     
+      457 +              isFollowing={isFollowing}                       
+      458 +              followPending={followPending}                   
+      459 +              onToggleFollow={() => void handleToggleFollow()}
+      460 +            />                                                
+      461 +                                                              
+      462              <CommunityFeed
+      463                posts={posts}
+      464                loading={loading}
+     ...
+      493            />
+      494          )}
+      495  
+      496 -        {!errorState && loading && !profile && (              
+      497 -          <StateCard                                          
+      498 -            variant="empty"                                   
+      499 -            title="Loading profile"                           
+      500 -            description="Please wait while we load this profil
+          -e."                                                           
+      501 -            primaryAction={{ label: "Open Community", to: "/co
+          -mmunity" }}                                                   
+      502 -            secondaryAction={{ label: "Go to Builder", to: "/"
+          - }}                                                           
+      503 -          />                                                  
+      504 -        )}                                                    
+      505 -                                                              
+      496          <div className="mt-4 flex justify-end">
+      497            <Button
+      498              type="button"
+  ⎿  You've hit your limit · resets 12pm (UTC)
+     /upgrade or /extra-usage to finish what you’re working on.
+
+✻ Cooked for 1m 10s

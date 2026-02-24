@@ -14,6 +14,16 @@ function post(createdAt: number) {
   return { createdAt };
 }
 
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
 describe("useNewPostsIndicator", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -24,10 +34,9 @@ describe("useNewPostsIndicator", () => {
     });
   });
 
-  it("polls using limit-based feed requests and reports unseen posts", async () => {
+  it("polls with a single feed request and reports unseen posts", async () => {
     mocks.loadFeed
       .mockResolvedValueOnce([post(100)])
-      .mockResolvedValueOnce([post(200)])
       .mockResolvedValueOnce([
         post(200),
         post(150),
@@ -38,7 +47,7 @@ describe("useNewPostsIndicator", () => {
     await waitFor(() => {
       expect(mocks.loadFeed).toHaveBeenCalledTimes(1);
     });
-    expect(mocks.loadFeed).toHaveBeenCalledWith({ sort: "new", page: 0, limit: 1 });
+    expect(mocks.loadFeed).toHaveBeenCalledWith({ sort: "new", page: 0, limit: 20 });
 
     await waitFor(() => {
       expect(mocks.loadFeed).toHaveBeenCalledTimes(1);
@@ -53,6 +62,7 @@ describe("useNewPostsIndicator", () => {
     });
 
     expect(mocks.loadFeed).toHaveBeenCalledWith({ sort: "new", page: 0, limit: 20 });
+    expect(mocks.loadFeed).toHaveBeenCalledTimes(2);
     unmount();
   });
 
@@ -60,8 +70,7 @@ describe("useNewPostsIndicator", () => {
     mocks.loadFeed
       .mockResolvedValueOnce([post(100)])
       .mockResolvedValueOnce([post(300)])
-      .mockResolvedValueOnce([post(300)])
-      .mockResolvedValue([post(300)]);
+      .mockResolvedValueOnce([post(300)]);
 
     const { result, unmount } = renderHook(() => useNewPostsIndicator({ enabled: true, intervalMs: 60_000 }));
 
@@ -90,10 +99,49 @@ describe("useNewPostsIndicator", () => {
     });
 
     await waitFor(() => {
-      expect(mocks.loadFeed.mock.calls.length).toBeGreaterThanOrEqual(4);
+      expect(mocks.loadFeed).toHaveBeenCalledTimes(3);
     });
 
     expect(result.current.newCount).toBe(0);
+    unmount();
+  });
+
+  it("does not restore a stale count after dismiss during an in-flight poll", async () => {
+    const deferred = createDeferred<Array<{ createdAt: number }>>();
+
+    mocks.loadFeed
+      .mockResolvedValueOnce([post(100)])
+      .mockReturnValueOnce(deferred.promise);
+
+    const { result, unmount } = renderHook(() => useNewPostsIndicator({ enabled: true, intervalMs: 60_000 }));
+
+    await waitFor(() => {
+      expect(mocks.loadFeed).toHaveBeenCalledTimes(1);
+    });
+
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    await waitFor(() => {
+      expect(mocks.loadFeed).toHaveBeenCalledTimes(2);
+    });
+
+    act(() => {
+      result.current.dismiss();
+    });
+
+    expect(result.current.newCount).toBe(0);
+
+    await act(async () => {
+      deferred.resolve([post(200), post(150)]);
+      await deferred.promise;
+    });
+
+    await waitFor(() => {
+      expect(result.current.newCount).toBe(0);
+    });
+
     unmount();
   });
 });

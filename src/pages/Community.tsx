@@ -45,6 +45,7 @@ import {
   submitCommunityReport,
   unblockCommunityUser,
 } from "@/lib/community-moderation";
+import { toParentTitleMap, toProfileMap } from "@/lib/community-utils";
 import { cn } from "@/lib/utils";
 
 const SORT_OPTIONS: Array<{ label: string; value: CommunitySort }> = [
@@ -65,20 +66,6 @@ interface CommunityReportTarget {
   postId: string;
   commentId?: string;
   reportedUserId: string | null;
-}
-
-function toProfileMap(profiles: CommunityProfile[]): Record<string, CommunityProfile> {
-  return profiles.reduce<Record<string, CommunityProfile>>((map, profile) => {
-    map[profile.id] = profile;
-    return map;
-  }, {});
-}
-
-function toParentTitleMap(posts: CommunityPost[]): Record<string, string> {
-  return posts.reduce<Record<string, string>>((map, post) => {
-    map[post.id] = post.title;
-    return map;
-  }, {});
 }
 
 const Community = () => {
@@ -525,6 +512,19 @@ const Community = () => {
     trackInteraction("comment", "thread_opened", { postId });
   }, [trackFirstMeaningfulAction, trackInteraction]);
 
+  const handleTagClick = useCallback((tag: string) => {
+    const normalizedTag = tag.trim();
+    if (!normalizedTag) return;
+    if (isFollowingMode) {
+      setFeedMode("for_you");
+    }
+    setQueryInput(normalizedTag);
+    setQuery(normalizedTag);
+    setIsSearchFocused(false);
+    setMobileCategorySheetOpen(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [isFollowingMode, setFeedMode]);
+
   const visiblePosts = useMemo(
     () => posts.filter((post) => !blockedUserIds.includes(post.authorId)),
     [blockedUserIds, posts],
@@ -899,6 +899,7 @@ const Community = () => {
           onReportComment={handleReportComment}
           onBlockUser={handleBlockUser}
           onUnblockUser={handleUnblockUser}
+          onTagClick={handleTagClick}
           hasMore={hasMore}
           isLoadingMore={isLoadingMore}
           onLoadMore={handleLoadMore}

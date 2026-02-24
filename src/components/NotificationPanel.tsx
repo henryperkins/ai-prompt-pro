@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitive
 import { Button } from "@/components/base/buttons/button";
 import { ScrollArea } from "@/components/base/primitives/scroll-area";
 import { Skeleton } from "@/components/base/primitives/skeleton";
+import { getInitials } from "@/lib/community-utils";
 import type { Notification } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
 
@@ -19,15 +20,6 @@ interface NotificationPanelProps {
   className?: string;
 }
 
-function getInitials(name: string): string {
-  const parts = name
-    .split(" ")
-    .map((part) => part.trim())
-    .filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0] || ""}${parts[1][0] || ""}`.toUpperCase();
-}
 
 function getTypeIcon(type: Notification["type"]) {
   if (type === "upvote") return <ArrowUp className="h-3.5 w-3.5 text-primary" />;
@@ -56,7 +48,7 @@ export function NotificationPanel({
   return (
     <div className={cn("w-[min(96vw,24rem)] rounded-md border border-border/80 bg-popover", className)}>
       <div className="flex items-center justify-between gap-2 border-b border-border/70 px-3 py-2">
-        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+        <div className="type-post-title flex items-center gap-2 text-foreground">
           <Bell className="h-4 w-4" />
           Notifications
         </div>
@@ -66,7 +58,7 @@ export function NotificationPanel({
               type="button"
               size="sm"
               color="tertiary"
-              className="h-11 px-3 text-sm sm:h-9 sm:px-2 sm:text-sm"
+              className="type-button-label h-11 px-3 sm:h-9 sm:px-2"
               onClick={onRefresh}
             >
               Refresh
@@ -76,7 +68,7 @@ export function NotificationPanel({
             type="button"
             size="sm"
             color="tertiary"
-            className="h-11 px-3 text-sm sm:h-9 sm:px-2 sm:text-sm"
+            className="type-button-label h-11 px-3 sm:h-9 sm:px-2"
             onClick={() => void onMarkAllAsRead()}
             disabled={unreadCount === 0 || loading}
           >
@@ -94,8 +86,14 @@ export function NotificationPanel({
       )}
 
       {!loading && notifications.length === 0 && (
-        <div className="px-3 py-8 text-center text-sm text-muted-foreground">
-          No notifications yet.
+        <div className="px-3 py-8 text-center">
+          <span className="mx-auto inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/60 bg-background/80 text-muted-foreground">
+            <Bell className="h-4 w-4" />
+          </span>
+          <p className="type-post-title mt-2 text-foreground">No notifications yet</p>
+          <p className="type-help mt-1 text-muted-foreground">
+            You'll be notified when others interact with your prompts.
+          </p>
         </div>
       )}
 
@@ -112,7 +110,7 @@ export function NotificationPanel({
                         src={notification.actorAvatarUrl ?? undefined}
                         alt={notification.actorDisplayName}
                       />
-                      <AvatarFallback className="text-xs">
+                      <AvatarFallback className="type-reply-label">
                         {getInitials(notification.actorDisplayName)}
                       </AvatarFallback>
                     </Avatar>
@@ -121,12 +119,12 @@ export function NotificationPanel({
                     </span>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm leading-5 text-foreground">
-                      <span className="font-medium">{notification.actorDisplayName}</span>{" "}
+                    <p className="type-post-body text-foreground">
+                      <span className="type-post-title">{notification.actorDisplayName}</span>{" "}
                       {getTypeLabel(notification.type)}
                     </p>
-                    <p className="type-wrap-safe line-clamp-2 text-sm text-muted-foreground">{notification.postTitle}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">{createdAgo}</p>
+                    <p className="type-post-body type-wrap-safe line-clamp-2 text-muted-foreground">{notification.postTitle}</p>
+                    <p className="type-timestamp mt-1 text-muted-foreground">{createdAgo}</p>
                   </div>
                 </div>
               );

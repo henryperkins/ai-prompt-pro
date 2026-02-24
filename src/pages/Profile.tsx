@@ -1,19 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { CommunityFeed } from "@/components/community/CommunityFeed";
-import { PageHero, PageShell } from "@/components/PageShell";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitives/avatar";
-import { Badge } from "@/components/base/badges/badges";
+import { ProfileHero, getBestRarityFromPosts } from "@/components/community/ProfileHero";
+import { PageShell } from "@/components/PageShell";
 import { Button } from "@/components/base/buttons/button";
-import { Card } from "@/components/base/primitives/card";
 import { StateCard } from "@/components/base/primitives/state-card";
+import { Skeleton } from "@/components/base/primitives/skeleton";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { brandCopy } from "@/lib/brand-copy";
 import {
   type CommunityPost,
   type CommunityProfile,
   type FollowStats,
+  type ProfileActivityStats,
   type VoteState,
   type VoteType,
   computeNextPromptRatingSummary,
@@ -24,39 +23,25 @@ import {
   loadMyVotes,
   loadPostsByAuthor,
   loadPostsByIds,
+  loadProfileActivityStats,
   loadProfilesByIds,
   setPromptRating,
   toggleVote,
   unfollowCommunityUser,
 } from "@/lib/community";
+import { getCommunityPostRarity } from "@/lib/community-rarity";
+import { toParentTitleMap, toProfileMap } from "@/lib/community-utils";
 import { toCommunityErrorState, type CommunityErrorState } from "@/lib/community-errors";
 import { copyTextToClipboard } from "@/lib/clipboard";
 
 const PROFILE_PAGE_SIZE = 20;
 
-function getInitials(name: string): string {
-  const parts = name
-    .split(" ")
-    .map((part) => part.trim())
-    .filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0] || ""}${parts[1][0] || ""}`.toUpperCase();
-}
-
-function toProfileMap(profiles: CommunityProfile[]): Record<string, CommunityProfile> {
-  return profiles.reduce<Record<string, CommunityProfile>>((map, profile) => {
-    map[profile.id] = profile;
-    return map;
-  }, {});
-}
-
-function toParentTitleMap(posts: CommunityPost[]): Record<string, string> {
-  return posts.reduce<Record<string, string>>((map, post) => {
-    map[post.id] = post.title;
-    return map;
-  }, {});
-}
+const EMPTY_ACTIVITY_STATS: ProfileActivityStats = {
+  totalPosts: 0,
+  totalUpvotes: 0,
+  totalVerified: 0,
+  averageRating: 0,
+};
 
 const Profile = () => {
   const { userId: routeUserId } = useParams<{ userId: string }>();
@@ -69,6 +54,7 @@ const Profile = () => {
   const { user } = useAuth();
   const [profile, setProfile] = useState<CommunityProfile | null>(null);
   const [profileStats, setProfileStats] = useState<FollowStats>({ followersCount: 0, followingCount: 0 });
+  const [activityStats, setActivityStats] = useState<ProfileActivityStats>(EMPTY_ACTIVITY_STATS);
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [authorById, setAuthorById] = useState<Record<string, CommunityProfile>>({});
   const [parentTitleById, setParentTitleById] = useState<Record<string, string>>({});
@@ -84,6 +70,34 @@ const Profile = () => {
   const [retryNonce, setRetryNonce] = useState(0);
 
   const isOwnProfile = Boolean(user?.id && profileUserId && user.id === profileUserId);
+
+  const bestRarity = useMemo(() => getBestRarityFromPosts(posts), [posts]);
+  const memberSinceAt = useMemo(() => {
+    if (profile?.createdAt) return profile.createdAt;
+    if (posts.length === 0) return null;
+    return posts.reduce((earliest, post) => Math.min(earliest, post.createdAt), posts[0].createdAt);
+  }, [posts, profile?.createdAt]);
+  const topPromptPostId = useMemo(() => {
+    const epicOrLegendaryPosts = posts
+      .filter((post) => {
+        const rarity = getCommunityPostRarity(post);
+        return rarity === "epic" || rarity === "legendary";
+      })
+      .sort((a, b) => {
+        const aLegendary = getCommunityPostRarity(a) === "legendary" ? 1 : 0;
+        const bLegendary = getCommunityPostRarity(b) === "legendary" ? 1 : 0;
+        if (aLegendary !== bLegendary) return bLegendary - aLegendary;
+        if (a.upvoteCount !== b.upvoteCount) return b.upvoteCount - a.upvoteCount;
+        return b.createdAt - a.createdAt;
+      });
+    return epicOrLegendaryPosts[0]?.id ?? null;
+  }, [posts]);
+  const orderedPosts = useMemo(() => {
+    if (!topPromptPostId) return posts;
+    const topPrompt = posts.find((post) => post.id === topPromptPostId);
+    if (!topPrompt) return posts;
+    return [topPrompt, ...posts.filter((post) => post.id !== topPromptPostId)];
+  }, [posts, topPromptPostId]);
 
   const hydratePostContext = useCallback(
     async (
@@ -128,6 +142,7 @@ const Profile = () => {
     if (!profileUserId) {
       setProfile(null);
       setProfileStats({ followersCount: 0, followingCount: 0 });
+      setActivityStats(EMPTY_ACTIVITY_STATS);
       setPosts([]);
       setAuthorById({});
       setParentTitleById({});
@@ -148,6 +163,7 @@ const Profile = () => {
 
     setProfile(null);
     setProfileStats({ followersCount: 0, followingCount: 0 });
+    setActivityStats(EMPTY_ACTIVITY_STATS);
     setPosts([]);
     setAuthorById({});
     setParentTitleById({});
@@ -163,9 +179,10 @@ const Profile = () => {
 
     void (async () => {
       try {
-        const [profiles, stats, firstPage, following] = await Promise.all([
+        const [profiles, stats, activity, firstPage, following] = await Promise.all([
           loadProfilesByIds([profileUserId]),
           loadFollowStats(profileUserId),
+          loadProfileActivityStats(profileUserId),
           loadPostsByAuthor(profileUserId, { limit: PROFILE_PAGE_SIZE, page: 0 }),
           user?.id && user.id !== profileUserId
             ? isFollowingCommunityUser(profileUserId)
@@ -178,6 +195,7 @@ const Profile = () => {
         if (!loadedProfile) {
           setProfile(null);
           setProfileStats({ followersCount: 0, followingCount: 0 });
+          setActivityStats(EMPTY_ACTIVITY_STATS);
           setPosts([]);
           setAuthorById({});
           setParentTitleById({});
@@ -196,6 +214,7 @@ const Profile = () => {
 
         setProfile(loadedProfile);
         setProfileStats(stats);
+        setActivityStats(activity);
         setPosts(firstPage);
         setAuthorById(toProfileMap([loadedProfile]));
         setPage(0);
@@ -206,6 +225,7 @@ const Profile = () => {
         if (token !== requestToken.current) return;
         setProfile(null);
         setProfileStats({ followersCount: 0, followingCount: 0 });
+        setActivityStats(EMPTY_ACTIVITY_STATS);
         setPosts([]);
         setAuthorById({});
         setParentTitleById({});
@@ -419,70 +439,56 @@ const Profile = () => {
     setRetryNonce((prev) => prev + 1);
   }, []);
 
-  const subtitle = useMemo(() => {
-    if (profile) {
-      return "Public prompts, remix activity, and social stats.";
-    }
-    return "Community profile";
-  }, [profile]);
-
   return (
     <PageShell>
       <div className="community-typography pf-community-page" data-density="comfortable">
-        <PageHero
-          eyebrow={brandCopy.brandLine}
-          title={profile ? `${profile.displayName}` : "Profile"}
-          subtitle={subtitle}
-          className="pf-gilded-frame pf-hero-surface"
-        />
-
         {!loading && errorState && (
           <StateCard
             variant="error"
-            title={errorState.kind === "not_found" ? "Profile not found" : "Couldn’t load profile"}
+            title={errorState.kind === "not_found" ? "Profile not found" : "Couldn't load profile"}
             description={errorState.message}
             primaryAction={{ label: "Retry", onClick: handleRetry }}
             secondaryAction={{ label: "Open Community", to: "/community" }}
           />
         )}
 
+        {!errorState && loading && !profile && (
+          <div className="space-y-3">
+            {/* Loading skeleton for hero */}
+            <div className="pf-gilded-frame rounded-2xl px-4 py-6 sm:px-6 sm:py-8">
+              <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start sm:gap-5">
+                <Skeleton className="h-20 w-20 rounded-full sm:h-24 sm:w-24" />
+                <div className="flex flex-1 flex-col items-center gap-2 sm:items-start">
+                  <Skeleton className="h-7 w-48" />
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="mt-1 h-9 w-24" />
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {[0, 1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-20 rounded-xl" />
+              ))}
+            </div>
+          </div>
+        )}
+
         {!errorState && profile && (
           <>
-            <Card className="pf-card mb-4 border-border/80 bg-card/85 p-4">
-              <div className="flex flex-wrap items-center gap-3">
-                <Avatar className="h-12 w-12 border border-border/60">
-                  <AvatarImage src={profile.avatarUrl ?? undefined} alt={profile.displayName} />
-                  <AvatarFallback className="type-reply-label">{getInitials(profile.displayName)}</AvatarFallback>
-                </Avatar>
-                <div className="min-w-0 flex-1">
-                  <p className="type-post-title type-wrap-inline text-foreground">{profile.displayName}</p>
-                  <div className="type-meta mt-1 flex flex-wrap items-center gap-2 text-muted-foreground">
-                    <Badge type="modern" className="type-chip type-numeric">{profileStats.followersCount} followers</Badge>
-                    <Badge type="modern" className="type-chip type-numeric">{profileStats.followingCount} following</Badge>
-                    <Badge type="modern" className="type-chip type-numeric border border-border bg-background text-foreground">
-                      {posts.length} visible prompts
-                    </Badge>
-                  </div>
-                </div>
-                {isOwnProfile ? (
-                  <Badge type="modern" className="type-chip border border-border bg-background text-foreground">You</Badge>
-                ) : (
-                  <Button
-                    type="button"
-                    size="sm"
-                    color={isFollowing ? "secondary" : "primary"}
-                    className="type-button-label h-11 sm:h-9"
-                    onClick={() => void handleToggleFollow()}
-                    disabled={followPending}
-                  >
-                    {followPending ? "Saving..." : isFollowing ? "Following" : "Follow"}
-                  </Button>
-                )}
-              </div>
-            </Card>
+            <ProfileHero
+              profile={profile}
+              followStats={profileStats}
+              activityStats={activityStats}
+              bestRarity={bestRarity}
+              memberSinceAt={memberSinceAt}
+              isOwnProfile={isOwnProfile}
+              isFollowing={isFollowing}
+              followPending={followPending}
+              onToggleFollow={() => void handleToggleFollow()}
+            />
 
             <CommunityFeed
-              posts={posts}
+              posts={orderedPosts}
               loading={loading}
               errorMessage={errorState?.message}
               errorType={errorState?.kind}
@@ -497,6 +503,9 @@ const Profile = () => {
               ratingByPost={ratingByPost}
               onRatePrompt={handleRatePrompt}
               currentUserId={null}
+              featuredPostId={topPromptPostId}
+              featuredPostBadgeLabel={topPromptPostId ? "Top Prompt" : undefined}
+              suppressAutoFeatured={Boolean(topPromptPostId)}
               hasMore={hasMore}
               isLoadingMore={isLoadingMore}
               onLoadMore={handleLoadMore}
@@ -510,16 +519,6 @@ const Profile = () => {
             variant="empty"
             title="Profile not found"
             description="The requested profile is unavailable."
-            primaryAction={{ label: "Open Community", to: "/community" }}
-            secondaryAction={{ label: "Go to Builder", to: "/" }}
-          />
-        )}
-
-        {!errorState && loading && !profile && (
-          <StateCard
-            variant="empty"
-            title="Loading profile"
-            description="Please wait while we load this profile."
             primaryAction={{ label: "Open Community", to: "/community" }}
             secondaryAction={{ label: "Go to Builder", to: "/" }}
           />

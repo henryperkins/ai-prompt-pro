@@ -19,8 +19,10 @@ export function useNewPostsIndicator({
   const newestSeenAt = useRef<number | null>(null);
   const latestObservedAt = useRef<number | null>(null);
   const pollInFlight = useRef(false);
+  const seenVersion = useRef(0);
 
   const dismiss = useCallback(() => {
+    seenVersion.current += 1;
     setNewCount(0);
     if (latestObservedAt.current) {
       newestSeenAt.current = latestObservedAt.current;
@@ -33,6 +35,7 @@ export function useNewPostsIndicator({
       newestSeenAt.current = null;
       latestObservedAt.current = null;
       pollInFlight.current = false;
+      seenVersion.current += 1;
       return;
     }
 
@@ -44,30 +47,35 @@ export function useNewPostsIndicator({
       }
 
       pollInFlight.current = true;
+      const baselineSeenAt = newestSeenAt.current;
+      const baselineVersion = seenVersion.current;
 
       try {
-        const latestPosts = await loadFeed({ sort: "new", page: 0, limit: 1 });
+        const latestPosts = await loadFeed({ sort: "new", page: 0, limit: 20 });
         if (cancelled) return;
+        if (baselineVersion !== seenVersion.current) return;
 
         const latest = latestPosts[0] as CommunityPost | undefined;
-        if (!latest) return;
-
-        latestObservedAt.current = latest.createdAt;
-
-        if (newestSeenAt.current === null) {
-          newestSeenAt.current = latest.createdAt;
-          return;
-        }
-
-        if (latest.createdAt <= newestSeenAt.current) {
+        if (!latest) {
           setNewCount(0);
           return;
         }
 
-        const countPosts = await loadFeed({ sort: "new", page: 0, limit: 20 });
-        if (cancelled) return;
+        latestObservedAt.current = latest.createdAt;
 
-        const count = countPosts.filter((post) => post.createdAt > newestSeenAt.current!).length;
+        if (baselineSeenAt === null) {
+          newestSeenAt.current = latest.createdAt;
+          seenVersion.current += 1;
+          setNewCount(0);
+          return;
+        }
+
+        if (latest.createdAt <= baselineSeenAt) {
+          setNewCount(0);
+          return;
+        }
+
+        const count = latestPosts.filter((post) => post.createdAt > baselineSeenAt).length;
         setNewCount(count);
       } catch (error) {
         if (import.meta.env.DEV) {

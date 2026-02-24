@@ -36,16 +36,10 @@ import {
   submitCommunityReport,
   unblockCommunityUser,
 } from "@/lib/community-moderation";
+import { toProfileMap } from "@/lib/community-utils";
 
 function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
-}
-
-function toProfileMap(profiles: CommunityProfile[]): Record<string, CommunityProfile> {
-  return profiles.reduce<Record<string, CommunityProfile>>((map, profile) => {
-    map[profile.id] = profile;
-    return map;
-  }, {});
 }
 
 interface CommunityReportTarget {

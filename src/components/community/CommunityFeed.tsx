@@ -36,6 +36,10 @@ interface CommunityFeedProps {
   onReportComment?: (commentId: string, userId: string, postId: string) => void;
   onBlockUser?: (userId: string) => void;
   onUnblockUser?: (userId: string) => void;
+  onTagClick?: (tag: string) => void;
+  featuredPostId?: string | null;
+  featuredPostBadgeLabel?: string;
+  suppressAutoFeatured?: boolean;
   hasMore?: boolean;
   isLoadingMore?: boolean;
   onLoadMore?: () => void;
@@ -89,6 +93,10 @@ export function CommunityFeed({
   onReportComment,
   onBlockUser,
   onUnblockUser,
+  onTagClick,
+  featuredPostId,
+  featuredPostBadgeLabel,
+  suppressAutoFeatured = false,
   hasMore = false,
   isLoadingMore = false,
   onLoadMore,
@@ -100,7 +108,9 @@ export function CommunityFeed({
       posts.map((post, index) => {
         const author = authorById[post.authorId];
         const authorName = author?.displayName || "Community member";
-        const isFeatured = !isMobile && index === 0;
+        const isFeatured = featuredPostId
+          ? post.id === featuredPostId
+          : !suppressAutoFeatured && !isMobile && index === 0;
 
         return (
           <CommunityPostCard
@@ -133,6 +143,8 @@ export function CommunityFeed({
             onReportComment={onReportComment}
             onBlockUser={onBlockUser}
             onUnblockUser={onUnblockUser}
+            onTagClick={onTagClick}
+            featuredBadgeLabel={featuredPostId && post.id === featuredPostId ? featuredPostBadgeLabel : undefined}
           />
         );
       }),
@@ -159,6 +171,10 @@ export function CommunityFeed({
       onReportComment,
       onBlockUser,
       onUnblockUser,
+      onTagClick,
+      featuredPostId,
+      featuredPostBadgeLabel,
+      suppressAutoFeatured,
       isMobile,
     ],
   );

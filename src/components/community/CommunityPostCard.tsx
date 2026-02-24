@@ -3,10 +3,12 @@ import { formatDistanceToNow } from "date-fns";
 import { ArrowUp, BookmarkPlus, CheckCircle2, Database, Flag, GitBranch, MessageCircle, MoreHorizontal, Share2, Star, UserCheck, UserX } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import type { CommunityPost, VoteState, VoteType } from "@/lib/community";
+import { estimateTokens, getInitials } from "@/lib/community-utils";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/primitives/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitives/avatar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/base/primitives/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,27 +52,10 @@ interface CommunityPostCardProps {
   onReportComment?: (commentId: string, userId: string, postId: string) => void;
   onBlockUser?: (userId: string) => void;
   onUnblockUser?: (userId: string) => void;
+  onTagClick?: (tag: string) => void;
+  featuredBadgeLabel?: string;
 }
 
-function getInitials(name: string): string {
-  const parts = name
-    .split(" ")
-    .map((part) => part.trim())
-    .filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0] || ""}${parts[1][0] || ""}`.toUpperCase();
-}
-
-function estimateTokens(text: string): string {
-  const words = text
-    .split(/\s+/)
-    .map((part) => part.trim())
-    .filter(Boolean).length;
-  const tokens = Math.max(1, Math.round(words * 1.35));
-  if (tokens >= 1000) return `${(tokens / 1000).toFixed(1)}k`;
-  return String(tokens);
-}
 
 function CommunityPostCardComponent({
   post,
@@ -101,6 +86,8 @@ function CommunityPostCardComponent({
   onReportComment,
   onBlockUser,
   onUnblockUser,
+  onTagClick,
+  featuredBadgeLabel,
 }: CommunityPostCardProps) {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -235,6 +222,14 @@ function CommunityPostCardComponent({
           aria-label={`Open ${post.title}`}
           className="block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
+          {featuredBadgeLabel && (
+            <Badge
+              type="modern"
+              className="type-chip mb-1 border border-primary/35 bg-primary/12 text-primary"
+            >
+              {featuredBadgeLabel}
+            </Badge>
+          )}
           <h3 className={cn("type-post-title text-foreground", isFeatured && "sm:text-xl sm:leading-7")}>
             {post.title}
           </h3>
@@ -255,23 +250,43 @@ function CommunityPostCardComponent({
         {visibleTags.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5">
             {visibleTags.map((tag) => (
-              <Badge
+              <button
                 key={`${post.id}-${tag}`}
-                type="modern"
-                className="type-chip border border-border bg-background text-foreground"
+                type="button"
+                disabled={!onTagClick}
+                onClick={() => onTagClick?.(tag)}
+                aria-label={onTagClick ? `Filter by tag ${tag}` : undefined}
+                className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-default"
               >
-                #{tag}
-              </Badge>
+                <Badge
+                  type="modern"
+                  className={cn(
+                    "type-chip border border-border bg-background text-foreground",
+                    onTagClick && "cursor-pointer hover:bg-muted",
+                  )}
+                >
+                  #{tag}
+                </Badge>
+              </button>
             ))}
           </div>
         )}
 
         <div className="type-meta flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-2 text-muted-foreground">
           <div className="flex flex-wrap items-center gap-3">
-            <span className="type-numeric inline-flex items-center gap-1 font-mono">
-              <Database className="h-3.5 w-3.5" />
-              {tokenEstimate}t
-            </span>
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="type-numeric inline-flex items-center gap-1 font-mono">
+                    <Database className="h-3.5 w-3.5" />
+                    {tokenEstimate}t
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  Estimated token count (~1.35x word count)
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <span className="type-numeric inline-flex items-center gap-1">
               <GitBranch className="h-3.5 w-3.5" />
               {post.remixCount}
@@ -377,43 +392,49 @@ function CommunityPostCardComponent({
           )}
         </div>
 
-        <div className="type-meta flex flex-wrap items-center gap-2 text-muted-foreground">
-          <span
-            aria-label={ratingSummaryAriaLabel}
-            className="inline-flex items-center gap-1.5 rounded-full border border-border/65 bg-background/65 px-2 py-1"
-          >
-            <Star
-              className={cn(
-                "h-3.5 w-3.5",
-                ratingCount > 0 ? "fill-primary text-primary" : "text-muted-foreground",
-              )}
-            />
-            <span className="type-numeric">{ratingAverage.toFixed(1)}</span>
-            <span className="type-numeric text-muted-foreground/80">({ratingCount})</span>
-          </span>
+        <div className="space-y-2">
+          <div className="type-meta flex flex-wrap items-center gap-2 text-muted-foreground">
+            <span className="type-meta text-muted-foreground">Community rating</span>
+            <span
+              aria-label={ratingSummaryAriaLabel}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border/65 bg-background/65 px-2 py-1"
+            >
+              <Star
+                className={cn(
+                  "h-3.5 w-3.5",
+                  ratingCount > 0 ? "fill-primary text-primary" : "text-muted-foreground",
+                )}
+              />
+              <span className="type-numeric">{ratingAverage.toFixed(1)}</span>
+              <span className="type-numeric text-muted-foreground/80">({ratingCount})</span>
+            </span>
+          </div>
           {canRate && onRatePrompt && (
-            <div className="inline-flex items-center gap-0.5 rounded-full border border-border/65 bg-background/65 p-0.5">
-              {[1, 2, 3, 4, 5].map((value) => {
-                const isActive = (ratingValue ?? 0) >= value;
-                return (
-                  <Button
-                    key={`${post.id}-rate-${value}`}
-                    type="button"
-                    color="tertiary"
-                    size="sm"
-                    className="h-10 w-10 rounded-full p-0 sm:h-7 sm:w-7"
-                    aria-label={`Rate ${value} star${value === 1 ? "" : "s"}`}
-                    onClick={() => onRatePrompt(post.id, ratingValue === value ? null : value)}
-                  >
-                    <Star
-                      className={cn(
-                        "h-5 w-5 transition-colors sm:h-4 sm:w-4",
-                        isActive ? "fill-primary text-primary" : "text-muted-foreground",
-                      )}
-                    />
-                  </Button>
-                );
-              })}
+            <div className="type-meta flex flex-wrap items-center gap-2 border-t border-border/40 pt-2 text-muted-foreground">
+              <span className="type-meta text-muted-foreground">Your rating</span>
+              <div className="inline-flex items-center gap-0.5 rounded-full border border-border/65 bg-background/65 p-0.5">
+                {[1, 2, 3, 4, 5].map((value) => {
+                  const isActive = (ratingValue ?? 0) >= value;
+                  return (
+                    <Button
+                      key={`${post.id}-rate-${value}`}
+                      type="button"
+                      color="tertiary"
+                      size="sm"
+                      className="h-10 w-10 rounded-full p-0 sm:h-7 sm:w-7"
+                      aria-label={`Rate ${value} star${value === 1 ? "" : "s"}`}
+                      onClick={() => onRatePrompt(post.id, ratingValue === value ? null : value)}
+                    >
+                      <Star
+                        className={cn(
+                          "h-5 w-5 transition-colors sm:h-4 sm:w-4",
+                          isActive ? "fill-primary text-primary" : "text-muted-foreground",
+                        )}
+                      />
+                    </Button>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
@@ -501,6 +522,8 @@ function arePropsEqual(previous: CommunityPostCardProps, next: CommunityPostCard
     previous.onReportComment === next.onReportComment &&
     previous.onBlockUser === next.onBlockUser &&
     previous.onUnblockUser === next.onUnblockUser &&
+    previous.onTagClick === next.onTagClick &&
+    previous.featuredBadgeLabel === next.featuredBadgeLabel &&
     previous.blockedUserIds === next.blockedUserIds &&
     areVoteStatesEqual(previous.voteState, next.voteState)
   );

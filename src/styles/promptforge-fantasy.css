@@ -471,3 +471,42 @@
   background:
     linear-gradient(180deg, hsl(var(--card) / 0.88), hsl(var(--card) / 0.78));
 }
+
+/* Rarity pulse animations — subtle ambient glow for high-engagement cards */
+@media (prefers-reduced-motion: no-preference) {
+  .pf-rarity-legendary {
+    animation: pf-pulse-gold 4s ease-in-out infinite;
+  }
+
+  .pf-rarity-epic {
+    animation: pf-pulse-ember 6s ease-in-out infinite;
+  }
+}
+
+@keyframes pf-pulse-gold {
+  0%, 100% {
+    box-shadow:
+      var(--pf-shadow-card),
+      0 0 26px rgba(var(--pf-gold-rgb) / 0.14);
+  }
+  50% {
+    box-shadow:
+      var(--pf-shadow-card),
+      0 0 36px rgba(var(--pf-gold-rgb) / 0.22),
+      0 0 60px rgba(var(--pf-gold-rgb) / 0.08);
+  }
+}
+
+@keyframes pf-pulse-ember {
+  0%, 100% {
+    box-shadow:
+      var(--pf-shadow-card),
+      0 0 22px rgba(var(--pf-ember-rgb) / 0.12);
+  }
+  50% {
+    box-shadow:
+      var(--pf-shadow-card),
+      0 0 30px rgba(var(--pf-ember-rgb) / 0.18),
+      0 0 50px rgba(var(--pf-ember-rgb) / 0.06);
+  }
+}

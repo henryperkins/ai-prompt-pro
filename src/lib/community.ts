@@ -167,11 +167,19 @@ export interface CommunityProfile {
   id: string;
   displayName: string;
   avatarUrl: string | null;
+  createdAt?: number | null;
 }
 
 export interface FollowStats {
   followersCount: number;
   followingCount: number;
+}
+
+export interface ProfileActivityStats {
+  totalPosts: number;
+  totalUpvotes: number;
+  totalVerified: number;
+  averageRating: number;
 }
 
 export interface RemixDiff {
@@ -225,6 +233,7 @@ interface CommunityProfileRow {
   id: string;
   display_name: string | null;
   avatar_url: string | null;
+  created_at?: string | null;
 }
 
 function clampText(value: string | undefined, max: number): string {
@@ -329,6 +338,7 @@ function mapCommunityProfile(row: CommunityProfileRow): CommunityProfile {
     id: row.id,
     displayName: row.display_name?.trim() || "Community member",
     avatarUrl: row.avatar_url?.trim() || null,
+    createdAt: row.created_at ? new Date(row.created_at).getTime() : null,
   };
 }
 
@@ -857,6 +867,59 @@ export async function loadFollowStats(userId: string): Promise<FollowStats> {
     };
   } catch (error) {
     throw toError(error, "Failed to load follow stats.");
+  }
+}
+
+export async function loadProfileActivityStats(userId: string): Promise<ProfileActivityStats> {
+  ensureCommunityBackend("Profile activity stats");
+  if (!userId) {
+    return { totalPosts: 0, totalUpvotes: 0, totalVerified: 0, averageRating: 0 };
+  }
+
+  try {
+    const primary = await neon
+      .from("community_posts")
+      .select("upvote_count, verified_count, rating_avg, rating_count")
+      .eq("author_id", userId)
+      .eq("is_public", true);
+
+    const fallback = isMissingCommunityRatingColumnsError(primary.error)
+      ? await neon
+          .from("community_posts")
+          .select("upvote_count, verified_count")
+          .eq("author_id", userId)
+          .eq("is_public", true)
+      : null;
+
+    const data = fallback?.data ?? primary.data;
+    const error = fallback?.error ?? primary.error;
+
+    if (error) throw error;
+
+    const rows = (data ?? []) as Array<{
+      upvote_count?: number | null;
+      verified_count?: number | null;
+      rating_avg?: number | null;
+      rating_count?: number | null;
+    }>;
+    const totalPosts = rows.length;
+    const totalUpvotes = rows.reduce((sum, row) => sum + (row.upvote_count ?? 0), 0);
+    const totalVerified = rows.reduce((sum, row) => sum + (row.verified_count ?? 0), 0);
+
+    let averageRating = 0;
+    const ratedRows = rows.filter((row) => (row.rating_count ?? 0) > 0 && typeof row.rating_avg === "number");
+    if (ratedRows.length > 0) {
+      const weightedSum = ratedRows.reduce(
+        (sum, row) => sum + (row.rating_avg ?? 0) * (row.rating_count ?? 0),
+        0,
+      );
+      const totalRatings = ratedRows.reduce((sum, row) => sum + (row.rating_count ?? 0), 0);
+      averageRating = totalRatings > 0 ? weightedSum / totalRatings : 0;
+    }
+
+    return { totalPosts, totalUpvotes, totalVerified, averageRating };
+  } catch (error) {
+    throw toError(error, "Failed to load profile activity stats.");
   }
 }
 

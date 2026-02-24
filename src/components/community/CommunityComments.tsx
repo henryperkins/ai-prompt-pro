@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "react-router-dom";
-import { Flag, MessageCircle, MoreHorizontal, Send, UserCheck, UserX } from "lucide-react";
+import { Flag, LogIn, MessageCircle, MoreHorizontal, Send, UserCheck, UserX } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { CommunityComment, CommunityProfile } from "@/lib/community";
 import { addComment, loadComments, loadProfilesByIds } from "@/lib/community";
+import { getInitials, toProfileMap } from "@/lib/community-utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/base/badges/badges";
@@ -36,22 +37,6 @@ interface CommunityCommentsProps {
   className?: string;
 }
 
-function mapProfileById(profiles: CommunityProfile[]): Record<string, CommunityProfile> {
-  return profiles.reduce<Record<string, CommunityProfile>>((map, profile) => {
-    map[profile.id] = profile;
-    return map;
-  }, {});
-}
-
-function getInitials(name: string): string {
-  const parts = name
-    .split(" ")
-    .map((part) => part.trim())
-    .filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0] || ""}${parts[1][0] || ""}`.toUpperCase();
-}
 
 export function CommunityComments({
   postId,
@@ -84,7 +69,7 @@ export function CommunityComments({
       setComments(nextComments);
       const authorIds = Array.from(new Set(nextComments.map((comment) => comment.userId)));
       const profiles = await loadProfilesByIds(authorIds);
-      setAuthorById(mapProfileById(profiles));
+      setAuthorById(toProfileMap(profiles));
     } catch (error) {
       toast({
         title: "Failed to load comments",
@@ -283,7 +268,13 @@ export function CommunityComments({
       )}
 
       {!loading && comments.length === 0 && (
-        <p className="type-help text-muted-foreground">Be the first to comment.</p>
+        <div className="rounded-lg border border-border/60 bg-background/60 px-3 py-5 text-center">
+          <span className="mx-auto inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/60 bg-background/80 text-muted-foreground">
+            <MessageCircle className="h-4 w-4" />
+          </span>
+          <p className="type-post-title mt-2 text-foreground">No comments yet</p>
+          <p className="type-help mt-1 text-muted-foreground">Be the first to share your thoughts.</p>
+        </div>
       )}
 
       {!loading && hiddenCommentCount > 0 && (
@@ -345,39 +336,65 @@ export function CommunityComments({
         </Link>
       )}
 
-      <div className="space-y-1.5 sm:space-y-2">
-        <Textarea
-          ref={composerRef}
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-              event.preventDefault();
-              void handleSubmit();
-            }
-          }}
-          placeholder={canComment ? "Write a comment..." : "Sign in to comment"}
-          disabled={!canComment || submitting}
-          className="type-input type-wrap-safe min-h-19 rounded-lg border-border/70 bg-background/95 sm:min-h-22"
-          enterKeyHint="send"
-          maxLength={2000}
-        />
-        <div className="flex items-center justify-between">
-          <span className="type-meta text-muted-foreground">{draft.length}/2000</span>
+      {canComment ? (
+        <div className="space-y-1.5 sm:space-y-2">
+          <Textarea
+            ref={composerRef}
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                event.preventDefault();
+                void handleSubmit();
+              }
+            }}
+            placeholder="Write a comment..."
+            disabled={submitting}
+            className="type-input type-wrap-safe min-h-19 rounded-lg border-border/70 bg-background/95 sm:min-h-22"
+            enterKeyHint="send"
+            maxLength={2000}
+          />
+          <div className="flex items-center justify-between">
+            <span className="type-meta text-muted-foreground">{draft.length}/2000</span>
+            <Button
+              type="button"
+              size="sm"
+              color="primary"
+              onClick={handleSubmit}
+              disabled={submitDisabled}
+              className="type-button-label h-11 gap-1.5 px-4 sm:h-9 sm:px-3"
+              data-testid="community-comment-submit"
+            >
+              <Send className="h-3.5 w-3.5" />
+              {submitLabel}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-border/60 bg-background/70 p-3">
+          <div className="flex items-start gap-2.5">
+            <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border/60 bg-background/80 text-muted-foreground">
+              <MessageCircle className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="type-post-title text-foreground">Sign in to join the conversation</p>
+              <p className="type-help mt-1 text-muted-foreground">
+                Share feedback and remix tips with other creators.
+              </p>
+            </div>
+          </div>
           <Button
-            type="button"
+            href="/"
             size="sm"
-            color={canComment ? "primary" : "secondary"}
-            onClick={handleSubmit}
-            disabled={submitDisabled}
-            className="type-button-label h-11 gap-1.5 px-4 sm:h-9 sm:px-3"
+            color="primary"
+            className="type-button-label mt-3 h-11 gap-1.5 px-4 sm:h-9 sm:px-3"
             data-testid="community-comment-submit"
           >
-            <Send className="h-3.5 w-3.5" />
-            {submitLabel}
+            <LogIn className="h-3.5 w-3.5" />
+            Sign in to comment
           </Button>
         </div>
-      </div>
+      )}
     </Card>
   );
 }

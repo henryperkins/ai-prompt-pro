@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import type { CommunityComment, CommunityProfile } from "@/lib/community";
@@ -100,7 +100,7 @@ describe("community comments", () => {
     expect(screen.getByTestId("community-comment-submit")).toBeInTheDocument();
   });
 
-  it("shows a sign-in action button when the user is signed out", async () => {
+  it("shows a sign-in action when the user is signed out", async () => {
     mocks.user = null;
 
     render(
@@ -111,14 +111,10 @@ describe("community comments", () => {
 
     await screen.findByText("Comment 1");
 
-    const submitButton = screen.getByTestId("community-comment-submit");
-    expect(submitButton).toBeInTheDocument();
-    expect(submitButton).toHaveTextContent("Sign in to comment");
-    expect(submitButton).toBeEnabled();
-
-    fireEvent.click(submitButton);
-    expect(mocks.toast).toHaveBeenCalledWith(expect.objectContaining({
-      title: "Sign in required",
-    }));
+    const signInLink = screen.getByTestId("community-comment-submit");
+    expect(signInLink).toBeInTheDocument();
+    expect(signInLink).toHaveTextContent("Sign in to comment");
+    expect(signInLink).toHaveAttribute("href", "/");
+    expect(screen.getByText("Sign in to join the conversation")).toBeInTheDocument();
   });
 });

@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   toast: vi.fn(),
   loadProfilesByIds: vi.fn(),
   loadFollowStats: vi.fn(),
+  loadProfileActivityStats: vi.fn(),
   loadPostsByAuthor: vi.fn(),
   isFollowingCommunityUser: vi.fn(),
   loadPostsByIds: vi.fn(),
@@ -37,7 +38,22 @@ vi.mock("@/components/PageShell", () => ({
 }));
 
 vi.mock("@/components/community/CommunityFeed", () => ({
-  CommunityFeed: ({ posts }: { posts: CommunityPost[] }) => <div data-testid="community-feed-count">{posts.length}</div>,
+  CommunityFeed: ({
+    posts,
+    featuredPostId,
+    featuredPostBadgeLabel,
+  }: {
+    posts: CommunityPost[];
+    featuredPostId?: string | null;
+    featuredPostBadgeLabel?: string;
+  }) => (
+    <div>
+      <div data-testid="community-feed-count">{posts.length}</div>
+      <div data-testid="community-feed-featured-id">{featuredPostId ?? "none"}</div>
+      <div data-testid="community-feed-featured-label">{featuredPostBadgeLabel ?? "none"}</div>
+      <div data-testid="community-feed-first-title">{posts[0]?.title ?? "none"}</div>
+    </div>
+  ),
 }));
 
 vi.mock("@/lib/community", async () => {
@@ -46,6 +62,7 @@ vi.mock("@/lib/community", async () => {
     ...actual,
     loadProfilesByIds: (...args: unknown[]) => mocks.loadProfilesByIds(...args),
     loadFollowStats: (...args: unknown[]) => mocks.loadFollowStats(...args),
+    loadProfileActivityStats: (...args: unknown[]) => mocks.loadProfileActivityStats(...args),
     loadPostsByAuthor: (...args: unknown[]) => mocks.loadPostsByAuthor(...args),
     isFollowingCommunityUser: (...args: unknown[]) => mocks.isFollowingCommunityUser(...args),
     loadPostsByIds: (...args: unknown[]) => mocks.loadPostsByIds(...args),
@@ -117,6 +134,12 @@ describe("Profile route transitions", () => {
       return Promise.resolve([]);
     });
     mocks.loadFollowStats.mockResolvedValue({ followersCount: 3, followingCount: 5 });
+    mocks.loadProfileActivityStats.mockResolvedValue({
+      totalPosts: 1,
+      totalUpvotes: 0,
+      totalVerified: 0,
+      averageRating: 0,
+    });
     mocks.loadPostsByAuthor.mockImplementation((authorId: string) =>
       Promise.resolve(authorId === "user-1" ? [buildPost()] : []));
     mocks.isFollowingCommunityUser.mockResolvedValue(false);
@@ -140,6 +163,57 @@ describe("Profile route transitions", () => {
     });
 
     expect(screen.queryByRole("heading", { name: "Alpha User" })).not.toBeInTheDocument();
-    expect(screen.getByText("Loading profile")).toBeInTheDocument();
+    expect(document.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0);
+  });
+
+  it("pins an epic or legendary post as the top prompt", async () => {
+    const commonPost = buildPost({
+      id: "post-common",
+      title: "Common Prompt",
+      upvoteCount: 1,
+      ratingAverage: 0,
+      ratingCount: 0,
+    });
+    const legendaryPost = buildPost({
+      id: "post-legendary",
+      title: "Legendary Prompt",
+      upvoteCount: 10,
+      ratingAverage: 4.9,
+      ratingCount: 12,
+      verifiedCount: 2,
+    });
+
+    mocks.loadProfilesByIds.mockResolvedValue([
+      buildProfile({
+        id: "user-1",
+        displayName: "Alpha User",
+        createdAt: new Date("2025-01-14T00:00:00.000Z").getTime(),
+      }),
+    ]);
+    mocks.loadFollowStats.mockResolvedValue({ followersCount: 3, followingCount: 5 });
+    mocks.loadProfileActivityStats.mockResolvedValue({
+      totalPosts: 2,
+      totalUpvotes: 11,
+      totalVerified: 2,
+      averageRating: 4.9,
+    });
+    mocks.loadPostsByAuthor.mockResolvedValue([commonPost, legendaryPost]);
+    mocks.isFollowingCommunityUser.mockResolvedValue(false);
+    mocks.loadPostsByIds.mockResolvedValue([]);
+    mocks.loadMyVotes.mockResolvedValue({});
+    mocks.loadMyRatings.mockResolvedValue({});
+
+    render(
+      <MemoryRouter initialEntries={["/profile/user-1"]}>
+        <Routes>
+          <Route path="/profile/:userId" element={<ProfileRouteHarness />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Alpha User" });
+    expect(screen.getByTestId("community-feed-featured-id")).toHaveTextContent("post-legendary");
+    expect(screen.getByTestId("community-feed-featured-label")).toHaveTextContent("Top Prompt");
+    expect(screen.getByTestId("community-feed-first-title")).toHaveTextContent("Legendary Prompt");
   });
 });

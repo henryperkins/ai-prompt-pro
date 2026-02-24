@@ -1,5 +1,6 @@
 import { neon } from "@/integrations/neon/client";
 import { type CommunityProfile, loadProfilesByIds } from "@/lib/community";
+import { toProfileMap } from "@/lib/community-utils";
 import { isPostgrestError } from "@/lib/saved-prompt-shared";
 
 export type NotificationType = "upvote" | "verified" | "comment" | "remix";
@@ -45,13 +46,6 @@ function normalizeNotificationType(value: string): NotificationType {
   if (value === "verified") return "verified";
   if (value === "remix") return "remix";
   return "comment";
-}
-
-function toProfileMap(profiles: CommunityProfile[]): Record<string, CommunityProfile> {
-  return profiles.reduce<Record<string, CommunityProfile>>((map, profile) => {
-    map[profile.id] = profile;
-    return map;
-  }, {});
 }
 
 function toPostTitleMap(posts: PostTitleRow[]): Record<string, string> {

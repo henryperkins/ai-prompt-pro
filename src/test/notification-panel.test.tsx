@@ -64,7 +64,8 @@ describe("NotificationPanel", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("No notifications yet.")).toBeInTheDocument();
+    expect(screen.getByText("No notifications yet")).toBeInTheDocument();
+    expect(screen.getByText("You'll be notified when others interact with your prompts.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Mark all as read" })).toBeDisabled();
   });
 });
