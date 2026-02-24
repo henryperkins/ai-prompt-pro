@@ -1,10 +1,9 @@
-import type { AnchorHTMLAttributes, ButtonHTMLAttributes, DetailedHTMLProps, FC, ReactNode } from "react";
-import React, { isValidElement } from "react";
+import type { AnchorHTMLAttributes, ButtonHTMLAttributes, DetailedHTMLProps } from "react";
 import { cva } from "class-variance-authority";
 import type { ButtonProps as AriaButtonProps, LinkProps as AriaLinkProps } from "react-aria-components";
 import { Button as AriaButton, Link as AriaLink } from "react-aria-components";
 import { cx, sortCx } from "@/lib/utils/cx";
-import { isReactComponent } from "@/lib/utils/is-react-component";
+import { renderIconSlot, type IconSlot } from "@/lib/utils/icon-slot";
 
 const legacyButtonVariants = cva(
   "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium outline-ring transition duration-100 ease-linear focus-visible:outline-2 focus-visible:outline-offset-2 disabled:pointer-events-none disabled:opacity-50 sm:text-sm [&_svg]:pointer-events-none [&_svg]:h-[1em] [&_svg]:w-[1em] [&_svg]:shrink-0",
@@ -117,6 +116,7 @@ export const styles = sortCx({
 });
 
 type ButtonSize = keyof typeof styles.sizes | "default";
+type ButtonIconProps = { className?: string; "data-icon"?: string };
 
 /**
  * Common props shared between button and anchor variants
@@ -131,9 +131,9 @@ export interface CommonProps {
   /** The color variant of the button */
   color?: keyof typeof styles.colors;
   /** Icon component or element to show before the text */
-  iconLeading?: FC<{ className?: string }> | ReactNode;
+  iconLeading?: IconSlot<ButtonIconProps>;
   /** Icon component or element to show after the text */
-  iconTrailing?: FC<{ className?: string }> | ReactNode;
+  iconTrailing?: IconSlot<ButtonIconProps>;
   /** Removes horizontal padding from the text content */
   noTextPadding?: boolean;
   /** When true, keeps the text visible during loading state */
@@ -214,8 +214,7 @@ export const Button = ({
       )}
     >
       {/* Leading icon */}
-      {isValidElement(IconLeading) && IconLeading}
-      {isReactComponent(IconLeading) && <IconLeading data-icon="leading" className={styles.common.icon} />}
+      {renderIconSlot(IconLeading, { "data-icon": "leading", className: styles.common.icon })}
 
       {loading && (
         <svg
@@ -245,8 +244,7 @@ export const Button = ({
       )}
 
       {/* Trailing icon */}
-      {isValidElement(IconTrailing) && IconTrailing}
-      {isReactComponent(IconTrailing) && <IconTrailing data-icon="trailing" className={styles.common.icon} />}
+      {renderIconSlot(IconTrailing, { "data-icon": "trailing", className: styles.common.icon })}
     </Component>
   );
 };

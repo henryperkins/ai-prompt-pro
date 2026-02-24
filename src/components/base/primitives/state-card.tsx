@@ -1,10 +1,9 @@
-import type { ReactNode } from "react";
+import type { ComponentType } from "react";
 import { Card } from "@/components/base/primitives/card";
 import { Button } from "@/components/base/buttons/button";
 import { DEFAULT_UI_DENSITY, type UIDensity } from "@/lib/ui-density";
 import { cn } from "@/lib/utils";
 import { Lock, MagnifyingGlassMinus as SearchX, Warning as AlertTriangle } from "@phosphor-icons/react";
-import type { Icon } from "@phosphor-icons/react";
 
 type StateCardVariant = "empty" | "error" | "auth";
 
@@ -23,12 +22,11 @@ interface StateCardProps {
   secondaryAction?: StateCardAction;
   density?: UIDensity;
   className?: string;
-  icon?: ReactNode;
 }
 
 const variantMeta: Record<
   StateCardVariant,
-  { icon: Icon; cardClassName: string; iconClassName: string }
+  { icon: ComponentType<{ className?: string }>; cardClassName: string; iconClassName: string }
 > = {
   empty: {
     icon: SearchX,
@@ -79,11 +77,9 @@ export function StateCard({
   secondaryAction,
   density = DEFAULT_UI_DENSITY,
   className,
-  icon,
 }: StateCardProps) {
   const meta = variantMeta[variant];
   const Icon = meta.icon;
-  const resolvedIcon = icon ?? <Icon className="h-4 w-4" />;
 
   return (
     <Card className={cn("ui-density space-y-4 p-4 sm:p-5", meta.cardClassName, className)} data-density={density}>
@@ -94,7 +90,7 @@ export function StateCard({
             meta.iconClassName,
           )}
         >
-          {resolvedIcon}
+          <Icon className="h-4 w-4" />
         </span>
         <div className="space-y-1">
           <p className="ui-state-card-title text-foreground">{title}</p>

@@ -1,16 +1,18 @@
-import type { FC, ReactNode, Ref, RefAttributes } from "react";
-import { createContext, isValidElement } from "react";
+import type { ReactNode, Ref, RefAttributes } from "react";
+import { createContext } from "react";
 import type { SelectProps as AriaSelectProps } from "react-aria-components";
 import { Button as AriaButton, ListBox as AriaListBox, Select as AriaSelect, SelectValue as AriaSelectValue } from "react-aria-components";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { HintText } from "@/components/base/input/hint-text";
 import { Label } from "@/components/base/input/label";
 import { cx } from "@/lib/utils/cx";
-import { isReactComponent } from "@/lib/utils/is-react-component";
+import { renderIconSlot, type IconSlot } from "@/lib/utils/icon-slot";
 import { ComboBox } from "./combobox";
 import { Popover } from "./popover";
 import { SelectItem } from "./select-item";
 import { CaretDown as ChevronDown } from "@phosphor-icons/react";
+
+type SelectIconProps = { className?: string; "data-icon"?: string | boolean; "aria-hidden"?: boolean };
 
 export type SelectItemType = {
     id: string;
@@ -18,7 +20,7 @@ export type SelectItemType = {
     avatarUrl?: string;
     isDisabled?: boolean;
     supportingText?: string;
-    icon?: FC | ReactNode;
+    icon?: IconSlot<SelectIconProps>;
 };
 
 export interface CommonProps {
@@ -32,7 +34,7 @@ export interface CommonProps {
 interface SelectProps extends Omit<AriaSelectProps<SelectItemType>, "children" | "items">, RefAttributes<HTMLDivElement>, CommonProps {
     items?: SelectItemType[];
     popoverClassName?: string;
-    placeholderIcon?: FC | ReactNode;
+    placeholderIcon?: IconSlot<SelectIconProps>;
     children: ReactNode | ((item: SelectItemType) => ReactNode);
 }
 
@@ -43,7 +45,7 @@ interface SelectValueProps {
     isDisabled: boolean;
     placeholder?: string;
     ref?: Ref<HTMLButtonElement>;
-    placeholderIcon?: FC | ReactNode;
+    placeholderIcon?: IconSlot<SelectIconProps>;
 }
 
 export const sizes = {
@@ -78,11 +80,9 @@ const SelectValue = ({ isOpen, isFocused, isDisabled, size, placeholder, placeho
                         <>
                             {state.selectedItem?.avatarUrl ? (
                                 <Avatar size="xs" src={state.selectedItem.avatarUrl} alt={state.selectedItem.label} />
-                            ) : isReactComponent(Icon) ? (
-                                <Icon data-icon aria-hidden="true" />
-                            ) : isValidElement(Icon) ? (
-                                Icon
-                            ) : null}
+                            ) : (
+                                renderIconSlot(Icon, { "data-icon": true, "aria-hidden": true })
+                            )}
 
                             {state.selectedItem ? (
                                 <section className="flex w-full gap-2 truncate">

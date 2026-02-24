@@ -1,4 +1,3 @@
-import type { HTMLAttributes } from "react";
 import type { SelectItemType } from "@/components/base/select/select";
 
 /**
@@ -1335,15 +1334,6 @@ export const countries = [
 export const phoneCodeOptions: SelectItemType[] = countries.map((country) => ({
     id: country.code,
     label: country.code,
-}));
-
-/**
- * Country options for the select component.
- */
-export const countriesOptions: SelectItemType[] = countries.map((country) => ({
-    id: country.code,
-    label: country.name,
-    icon: (props: HTMLAttributes<HTMLImageElement>) => <img {...props} src={country.flag} alt={`${country.name} flag`} />,
 }));
 
 export default countries;

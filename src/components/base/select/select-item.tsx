@@ -1,9 +1,9 @@
-import { isValidElement, useContext } from "react";
+import { useContext } from "react";
 import type { ListBoxItemProps as AriaListBoxItemProps } from "react-aria-components";
 import { ListBoxItem as AriaListBoxItem, Text as AriaText } from "react-aria-components";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { cx } from "@/lib/utils/cx";
-import { isReactComponent } from "@/lib/utils/is-react-component";
+import { renderIconSlot } from "@/lib/utils/icon-slot";
 import type { SelectItemType } from "./select";
 import { SelectContext } from "./select";
 import { Check } from "@phosphor-icons/react";
@@ -57,11 +57,9 @@ export const SelectItem = ({ label, id, value, avatarUrl, supportingText, isDisa
                 >
                     {avatarUrl ? (
                         <Avatar aria-hidden="true" size="xs" src={avatarUrl} alt={label} />
-                    ) : isReactComponent(Icon) ? (
-                        <Icon data-icon aria-hidden="true" />
-                    ) : isValidElement(Icon) ? (
-                        Icon
-                    ) : null}
+                    ) : (
+                        renderIconSlot(Icon, { "data-icon": true, "aria-hidden": true })
+                    )}
 
                     <div className="flex w-full min-w-0 flex-1 flex-wrap gap-x-2">
                         <AriaText

@@ -1,7 +1,6 @@
-import type { FC, ReactNode } from "react";
-import { isValidElement } from "react";
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { isReactComponent } from "@/utils/is-react-component";
+import { renderIconSlot, type IconSlot } from "@/lib/utils/icon-slot";
 import { Badge } from "./badges";
 import type { BadgeTone } from "./badge-types";
 import { ArrowRight } from "@phosphor-icons/react";
@@ -10,7 +9,7 @@ interface BadgeGroupProps {
   addonText: string;
   children?: ReactNode;
   tone?: BadgeTone;
-  iconTrailing?: FC<{ className?: string }> | ReactNode;
+  iconTrailing?: IconSlot<{ className?: string }>;
   className?: string;
 }
 
@@ -32,8 +31,7 @@ export const BadgeGroup = ({
         {addonText}
       </Badge>
       {children ? <span className="pr-1">{children}</span> : null}
-      {isReactComponent(IconTrailing) && <IconTrailing className="mr-1 h-3.5 w-3.5 text-muted-foreground" />}
-      {isValidElement(IconTrailing) && IconTrailing}
+      {renderIconSlot(IconTrailing, { className: "mr-1 h-3.5 w-3.5 text-muted-foreground" })}
     </span>
   );
 };

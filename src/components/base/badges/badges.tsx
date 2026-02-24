@@ -1,10 +1,9 @@
-import type { HTMLAttributes, MouseEventHandler, ReactNode } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 import { cva } from "class-variance-authority";
 import { Dot } from "@/components/foundations/dot-icon";
 import { cx } from "@/lib/utils/cx";
 import type { BadgeColors, BadgeTypeToColorMap, BadgeTypes, FlagTypes, IconComponentType, Sizes } from "./badge-types";
 import { badgeTypes } from "./badge-types";
-import { X as CloseX } from "@phosphor-icons/react";
 
 export const badgeVariants = cva(
     "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition duration-100 ease-linear focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
@@ -337,101 +336,6 @@ export const BadgeWithImage = <T extends BadgeTypes>(props: BadgeWithImageProps<
         <span className={cx(colors.common, sizes[type][size], colors.styles[color].root)}>
             <img src={imgSrc} className="size-4 max-w-none rounded-full" alt="Badge image" />
             {children}
-        </span>
-    );
-};
-
-interface BadgeWithButtonProps<T extends BadgeTypes> {
-    type?: T;
-    size?: Sizes;
-    icon?: IconComponentType;
-    color?: BadgeTypeToColorMap<typeof withPillTypes>[T];
-    children: ReactNode;
-    /**
-     * The label for the button.
-     */
-    buttonLabel?: string;
-    /**
-     * The click event handler for the button.
-     */
-    onButtonClick?: MouseEventHandler<HTMLButtonElement>;
-}
-
-export const BadgeWithButton = <T extends BadgeTypes>(props: BadgeWithButtonProps<T>) => {
-    const { size = "md", color = "gray", type = "pill-color", icon: Icon = CloseX, buttonLabel, children } = props;
-
-    const colors = withPillTypes[type];
-
-    const pillSizes = {
-        sm: "gap-0.5 py-0.5 pl-2 pr-0.75 text-xs font-medium",
-        md: "gap-0.5 py-0.5 pl-2.5 pr-1 text-sm font-medium",
-        lg: "gap-0.5 py-1 pl-3 pr-1.5 text-sm font-medium",
-    };
-    const badgeSizes = {
-        sm: "gap-0.5 py-0.5 pl-1.5 pr-0.75 text-xs font-medium",
-        md: "gap-0.5 py-0.5 pl-2 pr-1 text-sm font-medium",
-        lg: "gap-0.5 py-1 pl-2.5 pr-1.5 text-sm font-medium rounded-lg",
-    };
-
-    const sizes = {
-        [badgeTypes.pillColor]: pillSizes,
-        [badgeTypes.badgeColor]: badgeSizes,
-        [badgeTypes.badgeModern]: badgeSizes,
-    };
-
-    return (
-        <span className={cx(colors.common, sizes[type][size], colors.styles[color].root)}>
-            {children}
-            <button
-                type="button"
-                aria-label={buttonLabel}
-                onClick={props.onButtonClick}
-                className={cx(
-                    "flex cursor-pointer items-center justify-center p-0.5 outline-focus-ring transition duration-100 ease-linear focus-visible:outline-2",
-                    colors.styles[color].addonButton,
-                    type === "pill-color" ? "rounded-full" : "rounded-[3px]",
-                )}
-            >
-                <Icon className="size-3 stroke-[3px] transition-inherit-all" />
-            </button>
-        </span>
-    );
-};
-
-interface BadgeIconProps<T extends BadgeTypes> {
-    type?: T;
-    size?: Sizes;
-    icon: IconComponentType;
-    color?: BadgeTypeToColorMap<typeof withPillTypes>[T];
-    children?: ReactNode;
-}
-
-export const BadgeIcon = <T extends BadgeTypes>(props: BadgeIconProps<T>) => {
-    const { size = "md", color = "gray", type = "pill-color", icon: Icon } = props;
-
-    const colors = withPillTypes[type];
-
-    const pillSizes = {
-        sm: "p-1.25",
-        md: "p-1.5",
-        lg: "p-2",
-    };
-
-    const badgeSizes = {
-        sm: "p-1.25",
-        md: "p-1.5",
-        lg: "p-2 rounded-lg",
-    };
-
-    const sizes = {
-        [badgeTypes.pillColor]: pillSizes,
-        [badgeTypes.badgeColor]: badgeSizes,
-        [badgeTypes.badgeModern]: badgeSizes,
-    };
-
-    return (
-        <span className={cx(colors.common, sizes[type][size], colors.styles[color].root)}>
-            <Icon className={cx("size-3 stroke-[3px]", colors.styles[color].addon)} />
         </span>
     );
 };

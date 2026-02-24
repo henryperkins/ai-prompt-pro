@@ -1,8 +1,7 @@
-import type { AnchorHTMLAttributes, ButtonHTMLAttributes, FC, ReactNode } from "react";
-import { isValidElement } from "react";
+import type { AnchorHTMLAttributes, ButtonHTMLAttributes } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/base/primitives/tooltip";
 import { cn } from "@/lib/utils";
-import { isReactComponent } from "@/utils/is-react-component";
+import { renderIconSlot, type IconSlot } from "@/lib/utils/icon-slot";
 
 type UtilityButtonColor = "secondary" | "tertiary";
 type UtilityButtonSize = "xs" | "sm";
@@ -11,7 +10,7 @@ interface CommonProps {
   isDisabled?: boolean;
   size?: UtilityButtonSize;
   color?: UtilityButtonColor;
-  icon?: FC<{ className?: string }> | ReactNode;
+  icon?: IconSlot<{ className?: string }>;
   tooltip?: string;
   tooltipPlacement?: "top" | "right" | "bottom" | "left";
 }
@@ -51,12 +50,7 @@ export const ButtonUtility = ({
   className,
   ...props
 }: ButtonUtilityProps) => {
-  const content = (
-    <>
-      {isReactComponent(Icon) && <Icon className={iconStyles[size]} />}
-      {isValidElement(Icon) && Icon}
-    </>
-  );
+  const content = renderIconSlot(Icon, { className: iconStyles[size] });
 
   const sharedClassName = cn(
     "inline-flex items-center justify-center rounded-md transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",

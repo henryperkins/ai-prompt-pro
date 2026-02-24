@@ -6,7 +6,6 @@ import { ComboBox as AriaComboBox, Group as AriaGroup, Input as AriaInput, ListB
 import type { ListData } from "react-stately";
 import { useListData } from "react-stately";
 import { Avatar } from "@/components/base/avatar/avatar";
-import type { IconComponentType } from "@/components/base/badges/badge-types";
 import { HintText } from "@/components/base/input/hint-text";
 import { Label } from "@/components/base/input/label";
 import { Popover } from "@/components/base/select/popover";
@@ -14,8 +13,11 @@ import { type SelectItemType, sizes } from "@/components/base/select/select";
 import { TagCloseX } from "@/components/base/tags/base-components/tag-close-x";
 import { useResizeObserver } from "@/hooks/use-resize-observer";
 import { cx } from "@/lib/utils/cx";
+import { renderIconSlot, type IconSlot } from "@/lib/utils/icon-slot";
 import { SelectItem } from "./select-item";
 import { MagnifyingGlass as SearchLg } from "@phosphor-icons/react";
+
+type MultiSelectIconProps = { className?: string; "aria-hidden"?: boolean };
 
 interface ComboBoxValueProps extends AriaGroupProps {
     size: "sm" | "md";
@@ -23,7 +25,7 @@ interface ComboBoxValueProps extends AriaGroupProps {
     isDisabled?: boolean;
     placeholder?: string;
     shortcutClassName?: string;
-    placeholderIcon?: IconComponentType | null;
+    placeholderIcon?: IconSlot<MultiSelectIconProps> | null;
     ref?: RefObject<HTMLDivElement | null>;
     onFocus?: FocusEventHandler;
     onPointerEnter?: PointerEventHandler;
@@ -54,7 +56,7 @@ interface MultiSelectProps extends Omit<AriaComboBoxProps<SelectItemType>, "chil
     popoverClassName?: string;
     shortcutClassName?: string;
     selectedItems: ListData<SelectItemType>;
-    placeholderIcon?: IconComponentType | null;
+    placeholderIcon?: IconSlot<MultiSelectIconProps> | null;
     children: AriaListBoxProps<SelectItemType>["children"];
     onItemCleared?: (key: Key) => void;
     onItemInserted?: (key: Key) => void;
@@ -336,7 +338,7 @@ export const MultiSelectTagsValue = ({
         >
             {({ isDisabled }) => (
                 <>
-                    {Icon && <Icon className="pointer-events-none size-5 text-fg-quaternary" />}
+                    {renderIconSlot(Icon, { className: "pointer-events-none size-5 text-fg-quaternary", "aria-hidden": true })}
                     <FocusScope contain={false} autoFocus={false} restoreFocus={false}>
                         <InnerMultiSelect
                             isDisabled={isDisabled}

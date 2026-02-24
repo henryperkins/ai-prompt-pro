@@ -1,5 +1,6 @@
-import { type FC, type ReactNode, useState } from "react";
+import { type ReactNode, useState } from "react";
 import { cx } from "@/lib/utils/cx";
+import { renderIconSlot, type IconSlot } from "@/lib/utils/icon-slot";
 import { AvatarOnlineIndicator, VerifiedTick } from "./base-components";
 import { User as User01 } from "@phosphor-icons/react";
 
@@ -36,7 +37,7 @@ export interface AvatarProps {
     /**
      * An icon to display if no image is available.
      */
-    placeholderIcon?: FC<{ className?: string }>;
+    placeholderIcon?: IconSlot<{ className?: string }>;
     /**
      * A placeholder to display if no image is available.
      */
@@ -87,7 +88,7 @@ export const Avatar = ({
         }
 
         if (PlaceholderIcon) {
-            return <PlaceholderIcon className={cx("text-fg-quaternary", styles[size].icon)} />;
+            return renderIconSlot(PlaceholderIcon, { className: cx("text-fg-quaternary", styles[size].icon) });
         }
 
         return placeholder || <User01 className={cx("text-fg-quaternary", styles[size].icon)} />;

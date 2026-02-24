@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { cx } from "@/lib/utils/cx";
+import { renderIconSlot } from "@/lib/utils/icon-slot";
 import { type AvatarProps } from "./avatar";
 import { AvatarOnlineIndicator, VerifiedTick } from "./base-components";
 import { User as User01 } from "@phosphor-icons/react";
@@ -83,7 +84,7 @@ export const AvatarProfilePhoto = ({
         if (PlaceholderIcon) {
             return (
                 <div className={cx("flex size-full items-center justify-center rounded-full bg-tertiary ring-1 ring-secondary_alt", styles[size].content)}>
-                    <PlaceholderIcon className={cx("text-fg-quaternary", styles[size].icon)} />
+                    {renderIconSlot(PlaceholderIcon, { className: cx("text-fg-quaternary", styles[size].icon) })}
                 </div>
             );
         }

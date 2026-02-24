@@ -1,8 +1,7 @@
-import type { FC, ReactNode } from "react";
-import { isValidElement } from "react";
+import type { ReactNode } from "react";
 import * as ToggleGroupPrimitive from "@radix-ui/react-toggle-group";
 import { cn } from "@/lib/utils";
-import { isReactComponent } from "@/utils/is-react-component";
+import { renderIconSlot, type IconSlot } from "@/lib/utils/icon-slot";
 
 type ButtonGroupSize = "sm" | "md" | "lg";
 
@@ -25,8 +24,8 @@ interface ButtonGroupProps extends Omit<ToggleGroupPrimitive.ToggleGroupSinglePr
 
 interface ButtonGroupItemProps extends ToggleGroupPrimitive.ToggleGroupItemProps {
   size?: ButtonGroupSize;
-  iconLeading?: FC<{ className?: string }> | ReactNode;
-  iconTrailing?: FC<{ className?: string }> | ReactNode;
+  iconLeading?: IconSlot<{ className?: string }>;
+  iconTrailing?: IconSlot<{ className?: string }>;
 }
 
 export const ButtonGroup = ({ className, children, size = "md", ...props }: ButtonGroupProps) => {
@@ -59,11 +58,9 @@ export const ButtonGroupItem = ({
       )}
       {...props}
     >
-      {isReactComponent(IconLeading) && <IconLeading className={iconStyles[size]} />}
-      {isValidElement(IconLeading) && IconLeading}
+      {renderIconSlot(IconLeading, { className: iconStyles[size] })}
       {children}
-      {isReactComponent(IconTrailing) && <IconTrailing className={iconStyles[size]} />}
-      {isValidElement(IconTrailing) && IconTrailing}
+      {renderIconSlot(IconTrailing, { className: iconStyles[size] })}
     </ToggleGroupPrimitive.Item>
   );
 };
