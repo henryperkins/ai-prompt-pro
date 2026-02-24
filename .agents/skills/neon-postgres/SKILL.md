@@ -48,6 +48,12 @@ Use this when you need to pick the correct transport and driver based on runtime
 
 Link: `references/connection-methods.md`
 
+## Cloudflare Integrations
+
+Use this for Neon + Cloudflare deployment and storage patterns across Pages, Workers, Hyperdrive, and R2.
+
+Link: `references/cloudflare-integrations.md`
+
 ### Serverless Driver
 
 Use this for `@neondatabase/serverless` patterns, including HTTP queries, WebSocket transactions, and runtime-specific optimizations.
