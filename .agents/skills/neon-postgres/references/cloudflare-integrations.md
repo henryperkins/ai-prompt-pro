@@ -85,7 +85,7 @@ Setup notes from guide:
 - Configure bucket CORS for browser-based direct uploads (for example allow `PUT`/`GET` from production + localhost origins).
 - If bucket is public, object URLs are publicly readable; use private buckets/signed access for sensitive files.
 
-Suggested Neon metadata table: `r2_files` with unique `object_key`, `file_url`, `user_id`, and upload timestamp.
+Suggested Neon metadata table: `r2_files` with unique `object_key`, `file_url`, `user_id`, and `created_at`.
 
 - With Neon RLS, apply policies to metadata table in Neon.
 - RLS does not secure R2 objects directly.

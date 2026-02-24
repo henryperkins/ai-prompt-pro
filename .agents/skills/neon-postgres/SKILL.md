@@ -48,7 +48,7 @@ Use this when you need to pick the correct transport and driver based on runtime
 
 Link: `references/connection-methods.md`
 
-## Cloudflare Integrations
+### Cloudflare Integrations
 
 Use this for Neon + Cloudflare deployment and storage patterns across Pages, Workers, Hyperdrive, and R2.
 
