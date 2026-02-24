@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "react-router-dom";
-import { Flag, LogIn, MessageCircle, MoreHorizontal, Send, UserCheck, UserX } from "lucide-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { CommunityComment, CommunityProfile } from "@/lib/community";
 import { addComment, loadComments, loadProfilesByIds } from "@/lib/community";
@@ -21,6 +20,15 @@ import {
 import { Skeleton } from "@/components/base/primitives/skeleton";
 import { Textarea } from "@/components/base/textarea";
 import { cn } from "@/lib/utils";
+import {
+  ChatCircle as MessageCircle,
+  DotsThreeOutline as MoreHorizontal,
+  Flag,
+  PaperPlaneTilt as Send,
+  SignIn as LogIn,
+  UserCheck,
+  UserMinus as UserX,
+} from "@phosphor-icons/react";
 
 const COMMENTS_VIRTUALIZATION_THRESHOLD = 30;
 

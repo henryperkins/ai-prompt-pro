@@ -4,9 +4,9 @@ import { Textarea } from "@/components/base/textarea";
 import { Checkbox } from "@/components/base/primitives/checkbox";
 import { Label } from "@/components/base/label";
 import { Select } from "@/components/base/select/select";
-import { User, Target, Layout, Lightbulb, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toConstraintInputId } from "@/lib/builder-tabs";
+import { Crosshair as Target, Layout, Lightbulb, Shield, User } from "@phosphor-icons/react";
 import {
   PromptConfig,
   roles,

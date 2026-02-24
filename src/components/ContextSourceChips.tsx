@@ -11,12 +11,21 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/base/dialog";
-import { X, Link, FileText, Type, Plus, Upload, Loader2, Globe } from "lucide-react";
 import type { ContextSource } from "@/lib/context-types";
 import { summarizeSource } from "@/lib/context-types";
 import { extractUrl } from "@/lib/ai-client";
 import { normalizeHttpUrl } from "@/lib/url-utils";
 import { toast } from "@/hooks/use-toast";
+import {
+  FileText,
+  Globe,
+  Link,
+  Plus,
+  SpinnerGap as Loader2,
+  TextT as Type,
+  UploadSimple as Upload,
+  X,
+} from "@phosphor-icons/react";
 
 interface ContextSourceChipsProps {
   sources: ContextSource[];

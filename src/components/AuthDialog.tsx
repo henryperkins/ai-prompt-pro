@@ -11,7 +11,7 @@ import { Input } from "@/components/base/input/input";
 import { Label } from "@/components/base/label";
 import { useAuth, type AuthOAuthProvider } from "@/hooks/useAuth";
 import { brandCopy } from "@/lib/brand-copy";
-import { Loader2 } from "lucide-react";
+import { SpinnerGap as Loader2 } from "@phosphor-icons/react";
 
 interface AuthDialogProps {
   open: boolean;

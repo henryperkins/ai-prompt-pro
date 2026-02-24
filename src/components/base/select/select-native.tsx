@@ -1,8 +1,8 @@
 import { type SelectHTMLAttributes, useId } from "react";
-import { ChevronDown } from "@untitledui/icons";
 import { HintText } from "@/components/base/input/hint-text";
 import { Label } from "@/components/base/input/label";
 import { cx } from "@/lib/utils/cx";
+import { CaretDown as ChevronDown } from "@phosphor-icons/react";
 
 interface NativeSelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
     label?: string;

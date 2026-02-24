@@ -1,10 +1,10 @@
 import type { FC, ReactNode } from "react";
 import { isValidElement } from "react";
-import { ArrowRight } from "@untitledui/icons";
 import { cn } from "@/lib/utils";
 import { isReactComponent } from "@/utils/is-react-component";
 import { Badge } from "./badges";
 import type { BadgeTone } from "./badge-types";
+import { ArrowRight } from "@phosphor-icons/react";
 
 interface BadgeGroupProps {
   addonText: string;

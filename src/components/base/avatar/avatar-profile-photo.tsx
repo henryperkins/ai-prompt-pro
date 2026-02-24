@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { User01 } from "@untitledui/icons";
 import { cx } from "@/lib/utils/cx";
 import { type AvatarProps } from "./avatar";
 import { AvatarOnlineIndicator, VerifiedTick } from "./base-components";
+import { User as User01 } from "@phosphor-icons/react";
 
 const styles = {
     sm: {

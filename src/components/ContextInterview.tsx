@@ -2,10 +2,10 @@ import { useState } from "react";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
 import { Badge, badgeVariants } from "@/components/base/badges/badges";
-import { MessageSquareText, ChevronRight, Check } from "lucide-react";
 import { interviewQuestions } from "@/lib/context-types";
 import type { InterviewAnswer } from "@/lib/context-types";
 import { cn } from "@/lib/utils";
+import { CaretRight as ChevronRight, ChatText as MessageSquareText, Check } from "@phosphor-icons/react";
 
 interface ContextInterviewProps {
   answers: InterviewAnswer[];

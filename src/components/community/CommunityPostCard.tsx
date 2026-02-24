@@ -1,6 +1,5 @@
 import { memo, useMemo, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { ArrowUp, BookmarkPlus, CheckCircle2, Database, Flag, GitBranch, MessageCircle, MoreHorizontal, Share2, Star, UserCheck, UserX } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import type { CommunityPost, VoteState, VoteType } from "@/lib/community";
 import { estimateTokens, getInitials } from "@/lib/community-utils";
@@ -22,6 +21,20 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { getCommunityPostRarityClass } from "@/lib/community-rarity";
 import { communityFeatureFlags } from "@/lib/feature-flags";
 import { cn } from "@/lib/utils";
+import {
+  ArrowUp,
+  BookmarkSimple as BookmarkPlus,
+  ChatCircle as MessageCircle,
+  CheckCircle as CheckCircle2,
+  Database,
+  DotsThreeOutline as MoreHorizontal,
+  Flag,
+  GitBranch,
+  ShareNetwork as Share2,
+  Star,
+  UserCheck,
+  UserMinus as UserX,
+} from "@phosphor-icons/react";
 
 interface CommunityPostCardProps {
   post: CommunityPost;

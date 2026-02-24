@@ -1,4 +1,3 @@
-import { ArrowUp, CheckCircle2, Flame, Star } from "lucide-react";
 import { format } from "date-fns";
 import type { CommunityPost, FollowStats, ProfileActivityStats, CommunityProfile } from "@/lib/community";
 import { getInitials } from "@/lib/community-utils";
@@ -7,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitive
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { cn } from "@/lib/utils";
+import { ArrowUp, CheckCircle as CheckCircle2, Fire as Flame, Star } from "@phosphor-icons/react";
 
 interface ProfileHeroProps {
   profile: CommunityProfile;

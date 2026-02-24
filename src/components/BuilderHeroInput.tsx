@@ -2,7 +2,7 @@ import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/primitives/card";
 import { Textarea } from "@/components/base/textarea";
 import type { BuilderSuggestionChip } from "@/lib/builder-inference";
-import { Loader2, RotateCcw, Sparkles } from "lucide-react";
+import { ArrowCounterClockwise as RotateCcw, Sparkle as Sparkles, SpinnerGap as Loader2 } from "@phosphor-icons/react";
 
 interface BuilderHeroInputProps {
   value: string;

@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
-import { AlertTriangle, Lock, SearchX, type LucideIcon } from "lucide-react";
 import { Card } from "@/components/base/primitives/card";
 import { Button } from "@/components/base/buttons/button";
 import { DEFAULT_UI_DENSITY, type UIDensity } from "@/lib/ui-density";
 import { cn } from "@/lib/utils";
+import { Lock, MagnifyingGlassMinus as SearchX, Warning as AlertTriangle } from "@phosphor-icons/react";
+import type { Icon } from "@phosphor-icons/react";
 
 type StateCardVariant = "empty" | "error" | "auth";
 
@@ -27,7 +28,7 @@ interface StateCardProps {
 
 const variantMeta: Record<
   StateCardVariant,
-  { icon: LucideIcon; cardClassName: string; iconClassName: string }
+  { icon: Icon; cardClassName: string; iconClassName: string }
 > = {
   empty: {
     icon: SearchX,

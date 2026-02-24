@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Bell, Loader2, LogIn, LogOut, Menu, Moon, Sun, Trash2, User, Users } from "lucide-react";
 import { Button } from "@/components/base/buttons/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitives/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/base/dialog";
@@ -38,6 +37,18 @@ import { APP_ROUTE_NAV_ITEMS, isRouteActive } from "@/lib/navigation";
 import { getGravatarUrl } from "@/lib/gravatar";
 import { brandCopy } from "@/lib/brand-copy";
 import { DISPLAY_NAME_MAX_LENGTH, validateDisplayName } from "@/lib/profile";
+import {
+  Bell,
+  List as Menu,
+  Moon,
+  SignIn as LogIn,
+  SignOut as LogOut,
+  SpinnerGap as Loader2,
+  Sun,
+  Trash as Trash2,
+  User,
+  Users,
+} from "@phosphor-icons/react";
 
 interface HeaderProps {
   isDark: boolean;

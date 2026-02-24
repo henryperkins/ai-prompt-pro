@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Copy } from "lucide-react";
 import { Button } from "@/components/base/buttons/button";
 import { cn } from "@/lib/utils";
+import { Copy } from "@phosphor-icons/react";
 
 interface PromptPreviewPanelProps {
   text: string;

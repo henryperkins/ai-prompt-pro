@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { ArrowRight } from "lucide-react";
 import { Button } from "./button";
+import { ArrowRight } from "@phosphor-icons/react";
 
 const meta = {
   title: "Design System/Button",

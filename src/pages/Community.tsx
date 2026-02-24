@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search } from "lucide-react";
 import { CommunityFeed } from "@/components/community/CommunityFeed";
 import { CommunityReportDialog } from "@/components/community/CommunityReportDialog";
 import { PageHero, PageShell } from "@/components/PageShell";
@@ -47,6 +46,7 @@ import {
 } from "@/lib/community-moderation";
 import { toParentTitleMap, toProfileMap } from "@/lib/community-utils";
 import { cn } from "@/lib/utils";
+import { MagnifyingGlass as Search } from "@phosphor-icons/react";
 
 const SORT_OPTIONS: Array<{ label: string; value: CommunitySort }> = [
   { label: "Trending", value: "popular" },

@@ -1,18 +1,5 @@
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
-import {
-  ArrowUp,
-  BookmarkPlus,
-  CheckCircle2,
-  ExternalLink,
-  Flag,
-  GitBranch,
-  MessageCircle,
-  MoreHorizontal,
-  Star,
-  UserCheck,
-  UserX,
-} from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import type { CommunityPost, CommunityProfile, VoteState, VoteType } from "@/lib/community";
 import { getInitials } from "@/lib/community-utils";
@@ -34,6 +21,19 @@ import { getCommunityPostRarityClass } from "@/lib/community-rarity";
 import { communityFeatureFlags } from "@/lib/feature-flags";
 import { UI_STATUS_ROW_CLASSES, UI_STATUS_SURFACE_CLASSES } from "@/lib/ui-status";
 import { cn } from "@/lib/utils";
+import {
+  ArrowSquareOut as ExternalLink,
+  ArrowUp,
+  BookmarkSimple as BookmarkPlus,
+  ChatCircle as MessageCircle,
+  CheckCircle as CheckCircle2,
+  DotsThreeOutline as MoreHorizontal,
+  Flag,
+  GitBranch,
+  Star,
+  UserCheck,
+  UserMinus as UserX,
+} from "@phosphor-icons/react";
 
 interface CommunityPostDetailProps {
   post: CommunityPost;

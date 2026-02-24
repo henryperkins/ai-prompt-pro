@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { CommunityPostDetail } from "@/components/community/CommunityPostDetail";
 import { CommunityReportDialog } from "@/components/community/CommunityReportDialog";
@@ -37,6 +36,7 @@ import {
   unblockCommunityUser,
 } from "@/lib/community-moderation";
 import { toProfileMap } from "@/lib/community-utils";
+import { ArrowLeft } from "@phosphor-icons/react";
 
 function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);

@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
-import { Check, Copy } from "lucide-react";
 import { Badge, BadgeWithDot } from "@/components/base/badges/badges";
 import { ButtonGroup, ButtonGroupItem } from "@/components/base/button-group/button-group";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { cn } from "@/lib/utils";
+import { Check, Copy } from "@phosphor-icons/react";
 
 export interface CodeSnippetProps {
   code: string;

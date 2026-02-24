@@ -8,7 +8,7 @@ import { Button } from "@/components/base/buttons/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useIntersectionAutoLoad } from "@/hooks/useIntersectionAutoLoad";
 import type { CommunityErrorKind } from "@/lib/community-errors";
-import { Loader2 } from "lucide-react";
+import { SpinnerGap as Loader2 } from "@phosphor-icons/react";
 
 interface CommunityFeedProps {
   posts: CommunityPost[];

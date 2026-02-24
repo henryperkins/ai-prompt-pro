@@ -7,13 +7,19 @@ import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/primitives/card";
 import { Label } from "@/components/base/label";
 import { Switch } from "@/components/base/primitives/switch";
+import {
+  CaretDown as ChevronDown,
+  CaretRight as ChevronRight,
+  Database,
+  GearSix as Settings2,
+  Stack as Layers3,
+} from "@phosphor-icons/react";
 import type {
   ContextConfig,
   ContextSource,
   DatabaseConnection,
   RagParameters,
 } from "@/lib/context-types";
-import { ChevronDown, ChevronRight, Database, Layers3, Settings2 } from "lucide-react";
 
 interface BuilderSourcesAdvancedProps {
   contextConfig: ContextConfig;

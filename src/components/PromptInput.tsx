@@ -1,6 +1,6 @@
 import { Textarea } from "@/components/base/textarea";
 import { Button } from "@/components/base/buttons/button";
-import { RotateCcw } from "lucide-react";
+import { ArrowCounterClockwise as RotateCcw } from "@phosphor-icons/react";
 
 interface PromptInputProps {
   value: string;

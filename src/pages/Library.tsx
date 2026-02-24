@@ -1,17 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import {
-  ArrowDownUp,
-  Database,
-  ExternalLink,
-  GitBranch,
-  Lock,
-  MoreHorizontal,
-  Search,
-  Share2,
-  Sparkles,
-} from "lucide-react";
 import { PageHero, PageShell } from "@/components/PageShell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitives/avatar";
 import { Badge } from "@/components/base/badges/badges";
@@ -36,6 +25,17 @@ import {
 } from "@/lib/library-pages";
 import * as persistence from "@/lib/persistence";
 import { PFTemplateCard } from "@/components/fantasy/PFTemplateCard";
+import {
+  ArrowSquareOut as ExternalLink,
+  ArrowsDownUp as ArrowDownUp,
+  Database,
+  DotsThreeOutline as MoreHorizontal,
+  GitBranch,
+  Lock,
+  MagnifyingGlass as Search,
+  ShareNetwork as Share2,
+  Sparkle as Sparkles,
+} from "@phosphor-icons/react";
 
 type SavedPromptSort = "recent" | "name" | "revision";
 const LIBRARY_VIRTUALIZATION_THRESHOLD = 50;

@@ -1,6 +1,5 @@
 import type { FC, ReactNode, Ref, RefAttributes } from "react";
 import { createContext, isValidElement } from "react";
-import { ChevronDown } from "@untitledui/icons";
 import type { SelectProps as AriaSelectProps } from "react-aria-components";
 import { Button as AriaButton, ListBox as AriaListBox, Select as AriaSelect, SelectValue as AriaSelectValue } from "react-aria-components";
 import { Avatar } from "@/components/base/avatar/avatar";
@@ -11,6 +10,7 @@ import { isReactComponent } from "@/lib/utils/is-react-component";
 import { ComboBox } from "./combobox";
 import { Popover } from "./popover";
 import { SelectItem } from "./select-item";
+import { CaretDown as ChevronDown } from "@phosphor-icons/react";
 
 export type SelectItemType = {
     id: string;

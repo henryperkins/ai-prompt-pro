@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { Bell, GitPullRequest, Heart, MessageSquare, MoreHorizontal, Rocket } from "lucide-react";
 import { Badge } from "@/components/base/badges/badges";
 import { BadgeGroup } from "@/components/base/badges/badge-groups";
 import { ButtonGroup, ButtonGroupItem } from "@/components/base/button-group/button-group";
@@ -7,6 +6,14 @@ import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { Avatar, AvatarFallback } from "@/components/base/primitives/avatar";
 import { Card } from "@/components/base/primitives/card";
 import { cn } from "@/lib/utils";
+import {
+  Bell,
+  Chat as MessageSquare,
+  DotsThreeOutline as MoreHorizontal,
+  GitPullRequest,
+  Heart,
+  Rocket,
+} from "@phosphor-icons/react";
 
 type FeedFilter = "all" | "mentions" | "deployments";
 

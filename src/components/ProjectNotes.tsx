@@ -1,5 +1,5 @@
 import { Textarea } from "@/components/base/textarea";
-import { StickyNote } from "lucide-react";
+import { Notepad as StickyNote } from "@phosphor-icons/react";
 
 interface ProjectNotesProps {
   value: string;

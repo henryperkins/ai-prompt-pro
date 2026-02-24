@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { Minus, Plus, RotateCcw } from "lucide-react";
 import { Badge } from "@/components/base/badges/badges";
 import { BadgeGroup } from "@/components/base/badges/badge-groups";
 import { ButtonGroup, ButtonGroupItem } from "@/components/base/button-group/button-group";
@@ -13,6 +12,7 @@ import { ProgressBar } from "@/components/base/progress-indicators/progress-indi
 import { ProgressBarCircle, ProgressBarHalfCircle } from "@/components/base/progress-indicators/progress-circles";
 import { PageHero, PageShell } from "@/components/PageShell";
 import { Card } from "@/components/base/primitives/card";
+import { ArrowCounterClockwise as RotateCcw, Minus, Plus } from "@phosphor-icons/react";
 
 const SNIPPETS = [
   {

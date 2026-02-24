@@ -1,8 +1,8 @@
 import * as React from "react";
 import * as ContextMenuPrimitive from "@radix-ui/react-context-menu";
-import { Check, ChevronRight, Circle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { CaretRight as ChevronRight, Check, Circle } from "@phosphor-icons/react";
 
 const ContextMenu = ContextMenuPrimitive.Root;
 

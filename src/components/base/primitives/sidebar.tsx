@@ -1,7 +1,6 @@
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { VariantProps, cva } from "class-variance-authority";
-import { PanelLeft } from "lucide-react";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
@@ -11,6 +10,7 @@ import { Separator } from "@/components/base/primitives/separator";
 import { Sheet, SheetContent } from "@/components/base/primitives/sheet";
 import { Skeleton } from "@/components/base/primitives/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/base/primitives/tooltip";
+import { SidebarSimple as PanelLeft } from "@phosphor-icons/react";
 
 const SIDEBAR_COOKIE_NAME = "sidebar:state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;

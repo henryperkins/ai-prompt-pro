@@ -6,7 +6,7 @@ import { Label } from "@/components/base/label";
 import { Select } from "@/components/base/select/select";
 import { Switch } from "@/components/base/primitives/switch";
 import type { DatabaseConnection, RagParameters } from "@/lib/context-types";
-import { Database, Plus, X } from "lucide-react";
+import { Database, Plus, X } from "@phosphor-icons/react";
 
 interface ContextIntegrationsProps {
   databaseConnections: DatabaseConnection[];

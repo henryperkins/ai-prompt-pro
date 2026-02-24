@@ -1,7 +1,7 @@
 import { type FC, type ReactNode, useState } from "react";
-import { User01 } from "@untitledui/icons";
 import { cx } from "@/lib/utils/cx";
 import { AvatarOnlineIndicator, VerifiedTick } from "./base-components";
+import { User as User01 } from "@phosphor-icons/react";
 
 type AvatarSize = "xxs" | "xs" | "sm" | "md" | "lg" | "xl" | "2xl";
 

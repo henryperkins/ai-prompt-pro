@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Badge, BadgeWithDot, BadgeWithIcon } from "./badges";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle as CheckCircle2 } from "@phosphor-icons/react";
 
 const meta = {
   title: "Design System/Badge",

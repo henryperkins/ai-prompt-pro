@@ -1,10 +1,10 @@
 import type { HTMLAttributes, MouseEventHandler, ReactNode } from "react";
 import { cva } from "class-variance-authority";
-import { X as CloseX } from "@untitledui/icons";
 import { Dot } from "@/components/foundations/dot-icon";
 import { cx } from "@/lib/utils/cx";
 import type { BadgeColors, BadgeTypeToColorMap, BadgeTypes, FlagTypes, IconComponentType, Sizes } from "./badge-types";
 import { badgeTypes } from "./badge-types";
+import { X as CloseX } from "@phosphor-icons/react";
 
 export const badgeVariants = cva(
     "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition duration-100 ease-linear focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",

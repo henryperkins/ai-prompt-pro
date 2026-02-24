@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Search } from "lucide-react";
 import { Input } from "./input";
+import { MagnifyingGlass as Search } from "@phosphor-icons/react";
 
 const meta = {
   title: "Design System/Input",

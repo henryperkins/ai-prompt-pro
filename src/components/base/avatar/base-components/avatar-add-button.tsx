@@ -1,7 +1,7 @@
-import { Plus } from "@untitledui/icons";
 import type { ButtonProps as AriaButtonProps } from "react-aria-components";
 import { Tooltip as AriaTooltip, TooltipTrigger as AriaTooltipTrigger } from "@/components/base/tooltip/tooltip";
 import { cx } from "@/lib/utils/cx";
+import { Plus } from "@phosphor-icons/react";
 
 const sizes = {
     xs: { root: "size-6", icon: "size-4" },

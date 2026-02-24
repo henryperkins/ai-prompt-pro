@@ -1,6 +1,6 @@
 import { Card } from "@/components/base/primitives/card";
 import { Progress } from "@/components/base/primitives/progress";
-import { CheckCircle2, AlertCircle } from "lucide-react";
+import { CheckCircle as CheckCircle2, WarningCircle as AlertCircle } from "@phosphor-icons/react";
 
 interface QualityScoreProps {
   score: {

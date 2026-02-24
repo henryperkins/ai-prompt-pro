@@ -61,28 +61,28 @@ import { Badge } from "@/components/base/badges/badges";
 import { Card } from "@/components/base/primitives/card";
 import { ToastAction } from "@/components/base/primitives/toast";
 import { Switch } from "@/components/base/primitives/switch";
-import type { LucideIcon } from "lucide-react";
-import {
-  Sparkles,
-  Loader2,
-  Eye,
-  Target,
-  Layout as LayoutIcon,
-  MessageSquare,
-  BarChart3,
-  Check,
-  CircleDashed,
-  Gauge,
-  CheckCircle2,
-  X,
-  Globe,
-} from "lucide-react";
+import type { Icon as IconType } from "@phosphor-icons/react";
 import { UI_STATUS_SURFACE_CLASSES } from "@/lib/ui-status";
 import { PFQualityGauge } from "@/components/fantasy/PFQualityGauge";
+import {
+  ChartBar as BarChart3,
+  Chat as MessageSquare,
+  Check,
+  CheckCircle as CheckCircle2,
+  CircleDashed,
+  Crosshair as Target,
+  Eye,
+  Gauge,
+  Globe,
+  Layout as LayoutIcon,
+  Sparkle as Sparkles,
+  SpinnerGap as Loader2,
+  X,
+} from "@phosphor-icons/react";
 
 const healthBadgeStyles: Record<
   SectionHealthState,
-  { label: string; className: string; icon: LucideIcon }
+  { label: string; className: string; icon: IconType }
 > = {
   empty: {
     label: "Empty",

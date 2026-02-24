@@ -15,7 +15,11 @@ import {
   toneOptions,
 } from "@/lib/prompt-builder";
 import { toConstraintInputId } from "@/lib/builder-tabs";
-import { ChevronDown, ChevronRight, SlidersHorizontal } from "lucide-react";
+import {
+  CaretDown as ChevronDown,
+  CaretRight as ChevronRight,
+  Sliders as SlidersHorizontal,
+} from "@phosphor-icons/react";
 
 interface BuilderAdjustDetailsProps {
   config: PromptConfig;

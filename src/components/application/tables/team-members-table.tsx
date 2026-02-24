@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Filter, MoreHorizontal, Users } from "lucide-react";
 import { Badge } from "@/components/base/badges/badges";
 import { BadgeGroup } from "@/components/base/badges/badge-groups";
 import { ButtonGroup, ButtonGroupItem } from "@/components/base/button-group/button-group";
@@ -10,6 +9,13 @@ import { Card } from "@/components/base/primitives/card";
 import { Checkbox } from "@/components/base/primitives/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/base/primitives/table";
 import { cn } from "@/lib/utils";
+import {
+  CaretLeft as ChevronLeft,
+  CaretRight as ChevronRight,
+  DotsThreeOutline as MoreHorizontal,
+  Funnel as Filter,
+  Users,
+} from "@phosphor-icons/react";
 
 type TableSize = "md" | "sm";
 type TableRows = "divider" | "alternating";

@@ -1,5 +1,5 @@
-import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Check } from "@phosphor-icons/react";
 
 export type ProgressStepStatus = "complete" | "current" | "upcoming";
 

@@ -3,7 +3,6 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Card } from "@/components/base/primitives/card";
 import { Button } from "@/components/base/buttons/button";
-import { Copy, Check, Sparkles, Save, Loader2, MoreHorizontal, Globe } from "lucide-react";
 import { Input } from "@/components/base/input/input";
 import { Label } from "@/components/base/label";
 import { Textarea } from "@/components/base/textarea";
@@ -45,6 +44,15 @@ import { cn } from "@/lib/utils";
 import { normalizeHttpUrl } from "@/lib/url-utils";
 import { Checkbox } from "@/components/base/primitives/checkbox";
 import { Switch } from "@/components/base/primitives/switch";
+import {
+  Check,
+  Copy,
+  DotsThreeOutline as MoreHorizontal,
+  FloppyDisk as Save,
+  Globe,
+  Sparkle as Sparkles,
+  SpinnerGap as Loader2,
+} from "@phosphor-icons/react";
 
 export type EnhancePhase = "idle" | "starting" | "streaming" | "settling" | "done";
 const REASONING_SUMMARY_FADE_MS = 900;

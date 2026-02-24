@@ -1,9 +1,16 @@
-import { BookOpen, History, Layers, PenSquare, Users, type LucideIcon } from "lucide-react";
+import {
+  BookOpen,
+  ClockCounterClockwise as History,
+  PencilSimple as PenSquare,
+  Stack as Layers,
+  Users,
+} from "@phosphor-icons/react";
+import type { Icon } from "@phosphor-icons/react";
 
 export interface AppRouteNavItem {
   to: string;
   label: string;
-  icon: LucideIcon;
+  icon: Icon;
   ariaLabel: string;
 }
 

@@ -1,6 +1,6 @@
-import { CheckCircle2, Circle } from "lucide-react";
 import type { ContextConfig } from "@/lib/context-types";
 import { scoreContext } from "@/lib/context-types";
+import { CheckCircle as CheckCircle2, Circle } from "@phosphor-icons/react";
 
 interface ContextQualityMeterProps {
   contextConfig: ContextConfig;

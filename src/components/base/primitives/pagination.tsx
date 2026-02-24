@@ -1,8 +1,12 @@
 import * as React from "react";
-import { ChevronLeft, ChevronRight, MoreHorizontal } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { ButtonProps, buttonVariants } from "@/components/base/buttons/button";
+import {
+  CaretLeft as ChevronLeft,
+  CaretRight as ChevronRight,
+  DotsThreeOutline as MoreHorizontal,
+} from "@phosphor-icons/react";
 
 const Pagination = ({ className, ...props }: React.ComponentProps<"nav">) => (
   <nav

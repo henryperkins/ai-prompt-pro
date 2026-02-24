@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Input } from "@/components/base/input/input";
 import { Button } from "@/components/base/buttons/button";
-import { ChevronDown, ChevronUp, Lightbulb } from "lucide-react";
 import type { StructuredContext } from "@/lib/context-types";
 import { structuredFieldsMeta } from "@/lib/context-types";
+import { CaretDown as ChevronDown, CaretUp as ChevronUp, Lightbulb } from "@phosphor-icons/react";
 
 interface StructuredContextFormProps {
   values: StructuredContext;

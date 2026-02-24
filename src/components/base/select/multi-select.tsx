@@ -1,6 +1,5 @@
 import type { FocusEventHandler, KeyboardEvent, PointerEventHandler, RefAttributes, RefObject } from "react";
 import { createContext, useCallback, useContext, useRef, useState } from "react";
-import { SearchLg } from "@untitledui/icons";
 import { FocusScope, useFilter, useFocusManager } from "react-aria";
 import type { ComboBoxProps as AriaComboBoxProps, GroupProps as AriaGroupProps, ListBoxProps as AriaListBoxProps, Key } from "react-aria-components";
 import { ComboBox as AriaComboBox, Group as AriaGroup, Input as AriaInput, ListBox as AriaListBox, ComboBoxStateContext } from "react-aria-components";
@@ -16,6 +15,7 @@ import { TagCloseX } from "@/components/base/tags/base-components/tag-close-x";
 import { useResizeObserver } from "@/hooks/use-resize-observer";
 import { cx } from "@/lib/utils/cx";
 import { SelectItem } from "./select-item";
+import { MagnifyingGlass as SearchLg } from "@phosphor-icons/react";
 
 interface ComboBoxValueProps extends AriaGroupProps {
     size: "sm" | "md";

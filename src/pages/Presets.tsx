@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { createSearchParams, useNavigate } from "react-router-dom";
-import { Search } from "lucide-react";
 import { PageHero, PageShell } from "@/components/PageShell";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
@@ -14,6 +13,7 @@ import {
   type PromptCategory,
 } from "@/lib/templates";
 import { cn } from "@/lib/utils";
+import { MagnifyingGlass as Search } from "@phosphor-icons/react";
 
 const categoryIcons: Record<string, string> = {
   general: "✦",

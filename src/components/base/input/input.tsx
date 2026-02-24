@@ -1,11 +1,11 @@
 import { type ComponentType, type HTMLAttributes, type ReactNode, type Ref, createContext, useContext } from "react";
-import { HelpCircle, InfoCircle } from "@untitledui/icons";
 import type { InputProps as AriaInputProps, TextFieldProps as AriaTextFieldProps } from "react-aria-components";
 import { Group as AriaGroup, Input as AriaInput, TextField as AriaTextField } from "react-aria-components";
 import { HintText } from "@/components/base/input/hint-text";
 import { Label } from "@/components/base/input/label";
 import { Tooltip, TooltipTrigger } from "@/components/base/tooltip/tooltip";
 import { cx, sortCx } from "@/lib/utils/cx";
+import { Info as InfoCircle, Question as HelpCircle } from "@phosphor-icons/react";
 
 export interface InputBaseProps extends TextFieldProps {
     /** Tooltip message on hover. */

@@ -1,12 +1,4 @@
 import { useState } from "react";
-import {
-  FileText,
-  MessageSquare,
-  MoreHorizontal,
-  Paperclip,
-  Tag,
-  UserPlus,
-} from "lucide-react";
 import { Badge } from "@/components/base/badges/badges";
 import { BadgeGroup } from "@/components/base/badges/badge-groups";
 import { ButtonGroup, ButtonGroupItem } from "@/components/base/button-group/button-group";
@@ -14,6 +6,14 @@ import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { Avatar, AvatarFallback } from "@/components/base/primitives/avatar";
 import { Card } from "@/components/base/primitives/card";
 import { cn } from "@/lib/utils";
+import {
+  Chat as MessageSquare,
+  DotsThreeOutline as MoreHorizontal,
+  FileText,
+  Paperclip,
+  Tag,
+  UserPlus,
+} from "@phosphor-icons/react";
 
 type FeedMode = "activity" | "messages";
 type FeedLayout = "divided" | "connected" | "spaced";

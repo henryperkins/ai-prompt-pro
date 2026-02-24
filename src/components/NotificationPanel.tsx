@@ -1,5 +1,4 @@
 import { formatDistanceToNow } from "date-fns";
-import { ArrowUp, Bell, CheckCircle2, GitBranch, MessageCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitives/avatar";
 import { Button } from "@/components/base/buttons/button";
@@ -8,6 +7,13 @@ import { Skeleton } from "@/components/base/primitives/skeleton";
 import { getInitials } from "@/lib/community-utils";
 import type { Notification } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
+import {
+  ArrowUp,
+  Bell,
+  ChatCircle as MessageCircle,
+  CheckCircle as CheckCircle2,
+  GitBranch,
+} from "@phosphor-icons/react";
 
 interface NotificationPanelProps {
   notifications: Notification[];

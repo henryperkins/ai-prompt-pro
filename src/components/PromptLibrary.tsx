@@ -43,27 +43,27 @@ import {
 } from "@/lib/templates";
 import type { PromptShareInput, PromptSummary } from "@/lib/persistence";
 import {
-  Sparkles,
-  Layout,
-  Server,
-  Layers,
+  ArrowSquareOut as ExternalLink,
+  ArrowsDownUp as ArrowDownUp,
+  BookOpen,
+  Brain,
+  ChatCircle as MessageCircle,
   Cloud,
   Database,
-  Brain,
-  Shield,
-  FlaskConical,
-  Cable,
-  Bot,
-  BookOpen,
-  Trash2,
-  Search,
-  ArrowDownUp,
-  Share2,
-  Lock,
+  Flask as FlaskConical,
   GitBranch,
-  MessageCircle,
-  ExternalLink,
-} from "lucide-react";
+  HardDrives as Server,
+  Layout,
+  Lock,
+  MagnifyingGlass as Search,
+  PlugsConnected as Cable,
+  Robot as Bot,
+  ShareNetwork as Share2,
+  Shield,
+  Sparkle as Sparkles,
+  Stack as Layers,
+  Trash as Trash2,
+} from "@phosphor-icons/react";
 
 interface PromptLibraryProps {
   open: boolean;
