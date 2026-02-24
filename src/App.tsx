@@ -11,6 +11,7 @@ import {
   GenericRouteFallback,
   LibraryRouteFallback,
 } from "@/components/route-fallbacks";
+import { Analytics } from "@vercel/analytics/react";
 
 const Index = lazy(() => import("./pages/Index"));
 const Community = lazy(() => import("./pages/Community"));
@@ -68,6 +69,7 @@ const App = () => (
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={withRouteFallback(<NotFound />, <GenericRouteFallback />)} />
           </Routes>
+          <Analytics />
         </ThemeProvider>
       </BrowserRouter>
     </AuthProvider>
