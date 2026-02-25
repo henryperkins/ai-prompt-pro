@@ -34,8 +34,10 @@ const configuredEnhanceWebSocketConnectTimeoutMs = parsePositiveInteger(
 );
 
 let bootstrapTokenPromise: Promise<string> | null = null;
+let publishableKeyFallbackUntilMs = 0;
 const ACCESS_TOKEN_REFRESH_GRACE_SECONDS = 30;
 const FUNCTION_NETWORK_RETRY_DELAY_MS = 250;
+const PUBLISHABLE_KEY_AUTH_FALLBACK_WINDOW_MS = 2 * 60_000;
 const DEFAULT_ENHANCE_REQUEST_TIMEOUT_MS = 90_000;
 export const ENHANCE_REQUEST_TIMEOUT_MS =
   configuredEnhanceRequestTimeoutMs ?? DEFAULT_ENHANCE_REQUEST_TIMEOUT_MS;
@@ -421,6 +423,19 @@ function createErrorWithCause(message: string, cause: unknown): Error {
   return error;
 }
 
+function shouldPreferPublishableKeyFallback(): boolean {
+  return Boolean(PUBLIC_FUNCTION_API_KEY) && publishableKeyFallbackUntilMs > Date.now();
+}
+
+function markPublishableKeyFallbackWindow(): void {
+  if (!PUBLIC_FUNCTION_API_KEY) return;
+  publishableKeyFallbackUntilMs = Date.now() + PUBLISHABLE_KEY_AUTH_FALLBACK_WINDOW_MS;
+}
+
+function clearPublishableKeyFallbackWindow(): void {
+  publishableKeyFallbackUntilMs = 0;
+}
+
 async function refreshSessionAccessToken(): Promise<string | null> {
   try {
     const {
@@ -428,7 +443,11 @@ async function refreshSessionAccessToken(): Promise<string | null> {
       error,
     } = await neon.auth.refreshSession();
     if (error) return null;
-    return session?.access_token ?? null;
+    if (session?.access_token) {
+      clearPublishableKeyFallbackWindow();
+      return session.access_token;
+    }
+    return null;
   } catch (error) {
     if (isRetryableAuthSessionError(error)) {
       await clearLocalSession();
@@ -438,11 +457,10 @@ async function refreshSessionAccessToken(): Promise<string | null> {
 }
 
 async function clearLocalSession(): Promise<void> {
-  try {
-    await neon.auth.signOut({ scope: "local" });
-  } catch {
-    // Ignore local sign-out failures and continue with fallback auth.
-  }
+  // Prefer the publishable-key fallback path for a short window instead of
+  // trying Neon Auth sign-out here, which can emit noisy 5xx errors when
+  // auth infrastructure is degraded.
+  markPublishableKeyFallbackWindow();
 }
 
 function assertFunctionRuntimeEnv(): void {
@@ -506,6 +524,10 @@ async function getAccessToken({
   if (forceRefresh) {
     const forcedToken = await refreshSessionAccessToken();
     if (forcedToken) return forcedToken;
+  }
+
+  if (!forceRefresh && allowSessionToken && shouldPreferPublishableKeyFallback() && PUBLIC_FUNCTION_API_KEY) {
+    return PUBLIC_FUNCTION_API_KEY;
   }
 
   let sessionResult!: {
