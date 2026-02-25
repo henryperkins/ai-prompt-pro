@@ -148,7 +148,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    await neon.auth.signOut();
+    try {
+      await neon.auth.signOut();
+    } catch {
+      // Neon Auth sign-out endpoint can transiently fail (e.g. upstream 5xx).
+      // Clear local auth state anyway so user intent (sign out) always succeeds.
+    } finally {
+      setSession(null);
+      setUser(null);
+    }
   }, []);
 
   const updateDisplayName = useCallback(async (displayName: string) => {
@@ -205,7 +213,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: error.message || "Failed to delete account." };
     }
 
-    await neon.auth.signOut();
+    try {
+      await neon.auth.signOut();
+    } catch {
+      // Best-effort remote sign-out; local state is still cleared below.
+    }
     setSession(null);
     setUser(null);
     return { error: null };
