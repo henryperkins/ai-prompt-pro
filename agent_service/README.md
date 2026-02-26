@@ -127,6 +127,7 @@ Set `REQUIRE_PROVIDER_CONFIG=true` to disable step 3 and fail fast instead of fa
 | `ENHANCE_WS_INITIAL_MESSAGE_TIMEOUT_MS` | `5000` | Time allowed for first websocket message before the socket is closed |
 | `ENHANCE_WS_MAX_PAYLOAD_BYTES` | `65536` | Maximum websocket message payload size in bytes |
 | `ENHANCE_WS_MAX_CONNECTIONS_PER_IP` | `10` | Maximum concurrent `/enhance/ws` connections allowed per client IP |
+| `MAX_HTTP_BODY_BYTES` | `262144` | Maximum HTTP JSON body size in bytes before returning `413 payload_too_large` |
 | `ALLOW_UNVERIFIED_JWT_FALLBACK` | `false` | Dev-only: allow decoded JWT fallback when Neon Auth config/service is unavailable |
 | `ALLOW_UNVERIFIED_JWT_FALLBACK_IN_PRODUCTION` | `false` | Explicit override to permit decoded-JWT fallback in production (emergency use only) |
 | `MAX_PROMPT_CHARS` | `16000` | Maximum prompt character length |
@@ -189,4 +190,5 @@ Set `REQUIRE_PROVIDER_CONFIG=true` to disable step 3 and fail fast instead of fa
 - **SSE streaming**: Compatible with the frontend's `streamEnhance()` parser (supports both `/` and `.` event separators).
 - **Client disconnect detection**: Aborts the Codex process when the client disconnects.
 - **Neon auth validation**: Verifies JWT bearer tokens via Neon JWKS.
+- **HTTP payload guardrail**: Rejects oversized JSON request bodies with `413` without buffering unbounded payloads in memory.
 - **CORS + per-endpoint rate limiting**: Browser-safe headers with request throttling for enhance/extract/infer routes.

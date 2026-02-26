@@ -19,6 +19,9 @@ import {
   isAzureProvider,
   resolveProviderConfig,
 } from "./codex-config.mjs";
+import { runGuardedAsync } from "./async-guard.mjs";
+import { isPayloadTooLargeError, readBodyJsonWithLimit } from "./http-body.mjs";
+import { computeStreamTextUpdate, extractItemText } from "./stream-text.mjs";
 
 // ---------------------------------------------------------------------------
 // Resolve provider from ~/.codex/config.toml (preferred) or CODEX_CONFIG_JSON.
@@ -109,6 +112,10 @@ const ENHANCE_WS_INITIAL_MESSAGE_TIMEOUT_MS = parsePositiveIntegerEnv(
 const ENHANCE_WS_MAX_PAYLOAD_BYTES = parsePositiveIntegerEnv(
   "ENHANCE_WS_MAX_PAYLOAD_BYTES",
   64 * 1024,
+);
+const MAX_HTTP_BODY_BYTES = parsePositiveIntegerEnv(
+  "MAX_HTTP_BODY_BYTES",
+  256 * 1024,
 );
 const ENHANCE_WS_MAX_CONNECTIONS_PER_IP = parsePositiveIntegerEnv(
   "ENHANCE_WS_MAX_CONNECTIONS_PER_IP",
@@ -1335,38 +1342,10 @@ function endSse(res) {
   res.end();
 }
 
-function readBodyJson(req) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    req.on("data", (chunk) => {
-      chunks.push(chunk);
-    });
-    req.on("error", reject);
-    req.on("end", () => {
-      const body = Buffer.concat(chunks).toString("utf8").trim();
-      if (!body) {
-        resolve({});
-        return;
-      }
-      try {
-        resolve(JSON.parse(body));
-      } catch (error) {
-        reject(new Error("Invalid JSON body.", { cause: error }));
-      }
-    });
-  });
-}
-
 function asNonEmptyString(value) {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   return trimmed ? trimmed : undefined;
-}
-
-function textFromItem(item) {
-  if (!item || typeof item !== "object") return "";
-  if (typeof item.text === "string") return item.text;
-  return "";
 }
 
 function idFromItem(item) {
@@ -2190,14 +2169,7 @@ async function runEnhanceTurnStream(requestData, options) {
 
         if (isStreamedTextItemType(itemType)) {
           const previousText = itemId ? stateByItemId.get(itemId) || "" : "";
-          const currentText = textFromItem(event.item);
-          let delta = "";
-
-          if (currentText && currentText.startsWith(previousText)) {
-            delta = currentText.slice(previousText.length);
-          } else if (currentText && currentText !== previousText) {
-            delta = currentText;
-          }
+          const { nextText: currentText, delta } = computeStreamTextUpdate(previousText, event.item);
 
           if (itemId) {
             stateByItemId.set(itemId, currentText);
@@ -2245,7 +2217,7 @@ async function runEnhanceTurnStream(requestData, options) {
         const itemType = typeFromItem(event.item);
 
         if (isStreamedTextItemType(itemType)) {
-          const text = textFromItem(event.item);
+          const text = extractItemText(event.item) || (itemId ? stateByItemId.get(itemId) || "" : "");
           if (itemId) {
             stateByItemId.set(itemId, text);
           }
@@ -2494,7 +2466,7 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
     ws.once("message", (rawData, isBinary) => {
       receivedStartMessage = true;
       globalThis.clearTimeout(firstMessageTimeoutHandle);
-      void (async () => {
+      runGuardedAsync(async () => {
         if (isBinary) {
           setRequestError(requestContext, "bad_response", "Invalid websocket payload.", 400);
           writeWebSocketError(ws, {
@@ -2612,7 +2584,17 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
           });
           closeWebSocket(ws, 1000, "done");
         }
-      })();
+      }, (error) => {
+        setRequestError(requestContext, "service_error", toErrorMessage(error), 500);
+        if (isWebSocketOpen(ws)) {
+          writeWebSocketError(ws, {
+            message: toErrorMessage(error),
+            status: 500,
+            code: "service_error",
+          });
+          closeWebSocket(ws, 1011, "internal_error");
+        }
+      });
     });
   } catch (error) {
     setRequestError(requestContext, "service_error", toErrorMessage(error), 500);
@@ -2996,10 +2978,13 @@ async function requestHandler(req, res) {
 
     let body;
     try {
-      body = await readBodyJson(req);
+      body = await readBodyJsonWithLimit(req, { maxBytes: MAX_HTTP_BODY_BYTES });
     } catch (error) {
-      setRequestError(requestContext, "bad_request", toErrorMessage(error), 400);
-      json(res, 400, { error: toErrorMessage(error) }, cors.headers);
+      const statusCode = isPayloadTooLargeError(error) ? 413 : 400;
+      const errorCode = statusCode === 413 ? "payload_too_large" : "bad_request";
+      const errorMessage = toErrorMessage(error);
+      setRequestError(requestContext, errorCode, errorMessage, statusCode);
+      json(res, statusCode, { error: errorMessage }, cors.headers);
       return;
     }
 
