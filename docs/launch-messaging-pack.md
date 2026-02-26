@@ -1,5 +1,7 @@
 # PromptForge Launch Messaging Pack
 
+Last updated: 2026-02-26
+
 ## Brand Line
 Quality prompts grounded in context
 

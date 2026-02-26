@@ -1,5 +1,7 @@
 # Launch Experiments
 
+Last updated: 2026-02-26
+
 ## Scope
 Two launch-window experiments are configured:
 - Hero copy A/B

@@ -1,5 +1,7 @@
 # PromptForge Launch Assets Pack
 
+Last updated: 2026-02-26
+
 ## Purpose
 Publishing-ready launch assets aligned to locked messaging, metadata, and visual tokens.
 

@@ -1,3 +1,7 @@
+# UX Review Prioritized
+
+Last updated: 2026-02-26
+
 Assumption: this review is based on provided screenshots and current route/component files in this repository; most captured states are empty/error, so I prioritized resilience and first-run clarity.
 
 **First Impressions (30s)**

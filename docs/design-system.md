@@ -1,5 +1,7 @@
 # PromptForge Design System
 
+Last updated: 2026-02-26
+
 ## 1) System Overview
 
 This project uses a **token-first design system** built on:

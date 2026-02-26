@@ -50,6 +50,8 @@ jobs:
             echo "Missing required secret: VITE_NEON_PUBLISHABLE_KEY (or legacy VITE_SUPABASE_PUBLISHABLE_KEY)"
             exit 1
           fi
+      - name: Validate documentation references
+        run: node scripts/check-docs-freshness.mjs
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1

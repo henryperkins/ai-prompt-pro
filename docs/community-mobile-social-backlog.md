@@ -1,5 +1,7 @@
 # Community Mobile Social Backlog (2-Sprint Plan)
 
+Last updated: 2026-02-26
+
 ## Objective
 Increase meaningful mobile social actions on Community (comment, follow, remix) by reducing interaction friction and improving creator discovery loops.
 

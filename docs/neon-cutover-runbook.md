@@ -1,6 +1,6 @@
 # Neon Cutover Runbook
 
-Last updated: 2026-02-13
+Last updated: 2026-02-26
 
 ## Pre-cutover verification
 
@@ -12,6 +12,7 @@ npm run check:prod
 
 This runs:
 
+- `npm run check:docs`
 - `npm run check:no-legacy-ui-imports`
 - `npm run check:no-legacy-ds-props`
 - `STRICT_PRIMITIVE_IMPORTS=1 npm run check:no-primitive-ds-imports`

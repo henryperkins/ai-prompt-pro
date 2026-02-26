@@ -1,5 +1,7 @@
 # Typography Regression Checklist
 
+Last updated: 2026-02-26
+
 Use this checklist when reviewing typography changes.
 
 ## Routes

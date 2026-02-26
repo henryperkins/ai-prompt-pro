@@ -59,7 +59,7 @@ npm run dev
 - `archive/supabase/functions/`: archived legacy Edge functions (reference only)
 - `supabase/migrations/`: SQL migrations
 - `agent_service/`: Codex SDK service for prompt enhancement
-- `docs/`: specs + runbooks + QA checklists
+- `docs/`: specs + runbooks + QA checklists (`docs/README.md` is the index)
 - `public/`: static assets
 - `dist/`: build output (generated, do not edit manually)
 

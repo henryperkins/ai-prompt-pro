@@ -1,5 +1,7 @@
 # Community Mobile UX QA Checklist
 
+Last updated: 2026-02-26
+
 Feature flag: `VITE_COMMUNITY_MOBILE_ENHANCEMENTS=true`
 
 ## iOS Safari and Android Chrome

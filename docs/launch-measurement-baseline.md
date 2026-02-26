@@ -1,5 +1,7 @@
 # Launch Measurement Baseline
 
+Last updated: 2026-02-26
+
 ## Goal
 Track awareness, activation, and retention from day one of launch.
 
