@@ -1,4 +1,6 @@
-# Rye App Prompt Build and Enhancement Flow
+# PromptForge Prompt Build and Enhancement Flow
+
+Last updated: 2026-02-26
 
 This document explains how the app turns user input into:
 
