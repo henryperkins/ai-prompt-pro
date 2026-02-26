@@ -41,15 +41,18 @@ vi.mock("@/components/community/CommunityFeed", () => ({
   CommunityFeed: ({
     posts,
     featuredPostId,
+    selectedPostId,
     featuredPostBadgeLabel,
   }: {
     posts: CommunityPost[];
     featuredPostId?: string | null;
+    selectedPostId?: string | null;
     featuredPostBadgeLabel?: string;
   }) => (
     <div>
       <div data-testid="community-feed-count">{posts.length}</div>
       <div data-testid="community-feed-featured-id">{featuredPostId ?? "none"}</div>
+      <div data-testid="community-feed-selected-id">{selectedPostId ?? "none"}</div>
       <div data-testid="community-feed-featured-label">{featuredPostBadgeLabel ?? "none"}</div>
       <div data-testid="community-feed-first-title">{posts[0]?.title ?? "none"}</div>
     </div>
@@ -213,6 +216,7 @@ describe("Profile route transitions", () => {
 
     await screen.findByRole("heading", { name: "Alpha User" });
     expect(screen.getByTestId("community-feed-featured-id")).toHaveTextContent("post-legendary");
+    expect(screen.getByTestId("community-feed-selected-id")).toHaveTextContent("post-legendary");
     expect(screen.getByTestId("community-feed-featured-label")).toHaveTextContent("Top Prompt");
     expect(screen.getByTestId("community-feed-first-title")).toHaveTextContent("Legendary Prompt");
   });

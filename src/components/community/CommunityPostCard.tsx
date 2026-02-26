@@ -39,6 +39,8 @@ import {
 interface CommunityPostCardProps {
   post: CommunityPost;
   isFeatured?: boolean;
+  isSelected?: boolean;
+  isDeemphasized?: boolean;
   animationDelayMs?: number;
   authorName: string;
   authorAvatarUrl?: string | null;
@@ -73,6 +75,8 @@ interface CommunityPostCardProps {
 function CommunityPostCardComponent({
   post,
   isFeatured = false,
+  isSelected = false,
+  isDeemphasized = false,
   animationDelayMs = 0,
   authorName,
   authorAvatarUrl,
@@ -117,16 +121,23 @@ function CommunityPostCardComponent({
   const ratingSummaryAriaLabel = `Average rating ${ratingAverage.toFixed(1)} from ${ratingCount} rating${ratingCount === 1 ? "" : "s"}`;
   const visibleTags = useMemo(() => {
     const mobileMax = 2;
-    const desktopMax = isFeatured ? 6 : 4;
+    const desktopMax = isSelected ? 6 : isDeemphasized ? 2 : 4;
     return post.tags.slice(0, isMobile ? mobileMax : desktopMax);
-  }, [isFeatured, isMobile, post.tags]);
+  }, [isDeemphasized, isMobile, isSelected, post.tags]);
   const postPath = `/community/${post.id}`;
   const commentsLabel = useMobileCommentsDrawer ? "Comments" : commentsOpen ? "Hide comments" : "Comments";
+  const showSecondaryActionButton = !isDeemphasized || isMobile;
+  const showTertiaryActionButton = !isDeemphasized || isMobile;
 
   return (
     <Card
+      role="article"
+      data-selected={isSelected ? "true" : "false"}
+      data-state={isSelected ? "selected" : "idle"}
       className={cn(
         "community-feed-card interactive-card pf-card overflow-hidden border-border/80 bg-card/85 p-3 sm:p-4",
+        isSelected && "community-feed-card--selected ring-1 ring-primary/35",
+        isDeemphasized && "community-feed-card--deemphasized",
         getCommunityPostRarityClass(post, isFeatured),
         isFeatured && "lg:col-span-2 bg-linear-to-br from-primary/10 via-card/90 to-card/85",
       )}
@@ -247,7 +258,7 @@ function CommunityPostCardComponent({
             {post.title}
           </h3>
           {post.useCase && (
-            <p className="type-post-body type-prose-measure type-wrap-safe mt-1 line-clamp-3 text-muted-foreground">
+            <p className="type-post-body type-prose-measure type-wrap-safe mt-1 line-clamp-3 text-foreground/90">
               {post.useCase}
             </p>
           )}
@@ -306,10 +317,10 @@ function CommunityPostCardComponent({
             </span>
           </div>
           <div className="flex items-center gap-1.5">
-            {onSaveToLibrary && currentUserId && (
+            {showSecondaryActionButton && onSaveToLibrary && currentUserId && (
               <Button
                 type="button"
-                color="secondary"
+                color="tertiary"
                 size="sm"
                 className="type-button-label utility-action-button"
                 onClick={() => onSaveToLibrary(post.id)}
@@ -390,7 +401,7 @@ function CommunityPostCardComponent({
               </Badge>
             )}
           </Button>
-          {onSharePost && (
+          {showTertiaryActionButton && onSharePost && (
             <Button
               type="button"
               color="tertiary"
@@ -511,6 +522,8 @@ function arePropsEqual(previous: CommunityPostCardProps, next: CommunityPostCard
   return (
     previous.post === next.post &&
     previous.isFeatured === next.isFeatured &&
+    previous.isSelected === next.isSelected &&
+    previous.isDeemphasized === next.isDeemphasized &&
     previous.animationDelayMs === next.animationDelayMs &&
     previous.authorName === next.authorName &&
     previous.authorAvatarUrl === next.authorAvatarUrl &&

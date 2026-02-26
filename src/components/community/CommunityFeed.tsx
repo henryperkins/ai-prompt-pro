@@ -8,6 +8,7 @@ import { Button } from "@/components/base/buttons/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useIntersectionAutoLoad } from "@/hooks/useIntersectionAutoLoad";
 import type { CommunityErrorKind } from "@/lib/community-errors";
+import { cn } from "@/lib/utils";
 import { SpinnerGap as Loader2 } from "@phosphor-icons/react";
 
 interface CommunityFeedProps {
@@ -40,6 +41,7 @@ interface CommunityFeedProps {
   featuredPostId?: string | null;
   featuredPostBadgeLabel?: string;
   suppressAutoFeatured?: boolean;
+  selectedPostId?: string | null;
   hasMore?: boolean;
   isLoadingMore?: boolean;
   onLoadMore?: () => void;
@@ -97,26 +99,33 @@ export function CommunityFeed({
   featuredPostId,
   featuredPostBadgeLabel,
   suppressAutoFeatured = false,
+  selectedPostId,
   hasMore = false,
   isLoadingMore = false,
   onLoadMore,
   onRetry,
 }: CommunityFeedProps) {
   const isMobile = useIsMobile();
+  const autoFeaturedPostId = !suppressAutoFeatured && !isMobile ? posts[0]?.id ?? null : null;
+  const activeFeaturedPostId = featuredPostId ?? autoFeaturedPostId;
+  const activeSelectedPostId = selectedPostId ?? null;
+  const hasSelectedPost = Boolean(activeSelectedPostId);
   const renderedPosts = useMemo(
     () =>
       posts.map((post, index) => {
         const author = authorById[post.authorId];
         const authorName = author?.displayName || "Community member";
-        const isFeatured = featuredPostId
-          ? post.id === featuredPostId
-          : !suppressAutoFeatured && !isMobile && index === 0;
+        const isSelected = activeSelectedPostId ? post.id === activeSelectedPostId : false;
+        const isFeatured = activeFeaturedPostId ? post.id === activeFeaturedPostId : false;
+        const isDeemphasized = hasSelectedPost && !isSelected;
 
         return (
           <CommunityPostCard
             key={post.id}
             post={post}
             isFeatured={isFeatured}
+            isSelected={isSelected}
+            isDeemphasized={isDeemphasized}
             animationDelayMs={Math.min(index, 8) * 40}
             authorName={authorName}
             authorAvatarUrl={author?.avatarUrl}
@@ -144,7 +153,9 @@ export function CommunityFeed({
             onBlockUser={onBlockUser}
             onUnblockUser={onUnblockUser}
             onTagClick={onTagClick}
-            featuredBadgeLabel={featuredPostId && post.id === featuredPostId ? featuredPostBadgeLabel : undefined}
+            featuredBadgeLabel={isSelected
+              ? (featuredPostBadgeLabel ?? "Selected")
+              : (isFeatured && featuredPostBadgeLabel ? featuredPostBadgeLabel : undefined)}
           />
         );
       }),
@@ -172,10 +183,10 @@ export function CommunityFeed({
       onBlockUser,
       onUnblockUser,
       onTagClick,
-      featuredPostId,
+      activeFeaturedPostId,
+      activeSelectedPostId,
+      hasSelectedPost,
       featuredPostBadgeLabel,
-      suppressAutoFeatured,
-      isMobile,
     ],
   );
 
@@ -237,7 +248,12 @@ export function CommunityFeed({
   }
 
   return (
-    <div className="community-feed-grid grid grid-cols-1 gap-3 lg:grid-cols-2">
+    <div
+      className={cn(
+        "community-feed-grid grid grid-cols-1 gap-3 lg:grid-cols-2",
+        hasSelectedPost && "community-feed-grid--focus-mode",
+      )}
+    >
       {renderedPosts}
       {hasMore && (
         <div className="space-y-2 py-2 lg:col-span-2">

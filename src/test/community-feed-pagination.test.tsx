@@ -6,10 +6,22 @@ import { CommunityFeed } from "@/components/community/CommunityFeed";
 import { defaultConfig } from "@/lib/prompt-builder";
 
 vi.mock("@/components/community/CommunityPostCard", () => ({
-  CommunityPostCard: ({ post }: { post: { title: string } }) => <article>{post.title}</article>,
+  CommunityPostCard: ({
+    post,
+    isSelected,
+    isDeemphasized,
+  }: {
+    post: { title: string };
+    isSelected?: boolean;
+    isDeemphasized?: boolean;
+  }) => (
+    <article data-selected={isSelected ? "true" : "false"} data-deemphasized={isDeemphasized ? "true" : "false"}>
+      {post.title}
+    </article>
+  ),
 }));
 
-function makePost(): CommunityPost {
+function makePost(overrides: Partial<CommunityPost> = {}): CommunityPost {
   return {
     id: "11111111-1111-1111-1111-111111111111",
     savedPromptId: "saved-1",
@@ -35,6 +47,7 @@ function makePost(): CommunityPost {
     ratingAverage: 0,
     createdAt: Date.now(),
     updatedAt: Date.now(),
+    ...overrides,
   };
 }
 
@@ -87,5 +100,33 @@ describe("CommunityFeed pagination controls", () => {
     );
 
     expect(screen.getByRole("button", { name: "Loading…" })).toBeDisabled();
+  });
+
+  it("marks selected and non-selected cards when selectedPostId is provided", () => {
+    const selected = makePost();
+    const other = makePost({ id: "22222222-2222-2222-2222-222222222222", title: "Post 2" });
+
+    render(
+      <MemoryRouter>
+        <CommunityFeed
+          posts={[selected, other]}
+          loading={false}
+          authorById={{}}
+          parentTitleById={{}}
+          onCopyPrompt={vi.fn()}
+          onToggleVote={vi.fn()}
+          voteStateByPost={{} as Record<string, VoteState>}
+          onCommentAdded={vi.fn()}
+          canVote={false}
+          selectedPostId={selected.id}
+        />
+      </MemoryRouter>,
+    );
+
+    const cards = screen.getAllByRole("article");
+    expect(cards[0]).toHaveAttribute("data-selected", "true");
+    expect(cards[0]).toHaveAttribute("data-deemphasized", "false");
+    expect(cards[1]).toHaveAttribute("data-selected", "false");
+    expect(cards[1]).toHaveAttribute("data-deemphasized", "true");
   });
 });

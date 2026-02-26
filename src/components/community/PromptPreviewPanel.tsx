@@ -92,8 +92,8 @@ export function PromptPreviewPanel({ text, mode = "compact", className, onCopy }
           className={cn(
             "type-code type-wrap-safe whitespace-pre-wrap font-mono text-foreground antialiased",
             isFull
-              ? "text-[0.86rem] leading-6 sm:text-[0.9rem] sm:leading-7"
-              : "text-foreground/95",
+              ? "text-[0.93rem] leading-6 sm:text-[0.97rem] sm:leading-7"
+              : "text-[0.88rem] leading-6 text-foreground/95 sm:text-[0.92rem]",
             onCopy && (isFull ? "pr-20 sm:pr-24" : "pr-[4.5rem] sm:pr-14"),
             isCollapsed && "line-clamp-6",
           )}

@@ -652,7 +652,7 @@ const Community = () => {
         />
 
         <div
-          className="pf-panel pf-panel-overflow-visible relative mb-3 rounded-xl border border-border bg-card/85 shadow-sm focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
+          className="pf-panel relative z-20 mb-3 overflow-visible rounded-xl border border-border bg-card/85 shadow-sm focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
           data-testid="community-search-shell"
         >
           <div className="p-2 sm:p-0">
@@ -862,7 +862,7 @@ const Community = () => {
         )}
 
         {!isFollowingMode && newPostCount > 0 && (
-          <div className="sticky top-16 z-30 flex justify-center py-2">
+          <div className="sticky top-[calc(var(--pf-sticky-header-height)+0.5rem)] z-10 flex justify-center py-2">
             <button
               type="button"
               className="animate-in slide-in-from-top-2 rounded-full bg-brand-solid px-4 py-1.5 text-sm font-medium text-white shadow-md transition-transform hover:scale-105"

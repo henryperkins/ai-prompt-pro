@@ -209,7 +209,7 @@ export function CommunityPostDetail({
             </Button>
             <Button
               type="button"
-              color="secondary"
+              color="tertiary"
               size="sm"
               className="type-button-label h-11 w-full gap-1.5 px-4 sm:h-9 sm:w-auto sm:px-3"
               disabled={!canSaveToLibrary}
@@ -272,7 +272,7 @@ export function CommunityPostDetail({
         <div className="space-y-1">
           <h1 className="type-post-title text-foreground">{post.title}</h1>
           {post.useCase && (
-            <p className="type-post-body type-prose-measure type-wrap-safe text-foreground/90">{post.useCase}</p>
+            <p className="type-post-body type-prose-measure type-wrap-safe text-foreground/95">{post.useCase}</p>
           )}
         </div>
 

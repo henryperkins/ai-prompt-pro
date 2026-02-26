@@ -95,4 +95,52 @@ describe("CommunityPostCard action controls", () => {
     fireEvent.click(screen.getByRole("button", { name: "Filter by tag ops" }));
     expect(onTagClick).toHaveBeenCalledWith("ops");
   });
+
+  it("applies selected-state semantics and de-emphasizes secondary actions", () => {
+    const post = makePost();
+
+    const { unmount } = render(
+      <MemoryRouter>
+        <CommunityPostCard
+          post={post}
+          authorName="Prompt Dev"
+          onCopyPrompt={vi.fn()}
+          onToggleVote={vi.fn()}
+          onCommentAdded={vi.fn()}
+          onSharePost={vi.fn()}
+          onSaveToLibrary={vi.fn()}
+          currentUserId="viewer-1"
+          canVote={false}
+          isSelected
+        />
+      </MemoryRouter>,
+    );
+
+    const selectedCard = screen.getByRole("article");
+    expect(selectedCard).toHaveAttribute("data-state", "selected");
+    expect(selectedCard).toHaveAttribute("data-selected", "true");
+
+    unmount();
+
+    render(
+      <MemoryRouter>
+        <CommunityPostCard
+          post={post}
+          authorName="Prompt Dev"
+          onCopyPrompt={vi.fn()}
+          onToggleVote={vi.fn()}
+          onCommentAdded={vi.fn()}
+          onSharePost={vi.fn()}
+          onSaveToLibrary={vi.fn()}
+          currentUserId="viewer-1"
+          canVote={false}
+          isDeemphasized
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByTestId("community-save-cta")).toBeNull();
+    expect(screen.queryByTestId("community-share")).toBeNull();
+    expect(screen.getByTestId("community-remix-cta")).toBeInTheDocument();
+  });
 });

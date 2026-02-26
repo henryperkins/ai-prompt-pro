@@ -42,11 +42,19 @@
   --pf-base: 220ms;
   --pf-slow: 360ms;
 
+  --pf-sticky-header-height: 3rem;
+
   --pf-font-display: Cinzel, "Trajan Pro", "Times New Roman", serif;
   --pf-font-body: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
 
   --pf-hero-image: url("/pf/promptforge-background-1920x1080.png");
   --pf-rune-image: url("/pf/promptforge-rune-texture-tile-1024.png");
+}
+
+@media (min-width: 640px) {
+  :root {
+    --pf-sticky-header-height: 3.5rem;
+  }
 }
 
 .pf-text-display {
@@ -253,7 +261,7 @@
   overflow: hidden;
 }
 
-.pf-card:hover {
+.pf-card:hover:not(.community-feed-card) {
   transform: translateY(-2px);
   box-shadow: var(--pf-shadow-elevated);
 }
@@ -453,6 +461,33 @@
 .pf-community-page {
   position: relative;
   z-index: 1;
+}
+
+.pf-community-page .community-feed-grid--focus-mode .community-feed-card {
+  transition:
+    opacity 180ms var(--pf-ease),
+    filter 180ms var(--pf-ease),
+    transform var(--pf-fast) var(--pf-ease),
+    box-shadow var(--pf-fast) var(--pf-ease),
+    border-color var(--pf-fast) var(--pf-ease);
+}
+
+.pf-community-page .community-feed-card--selected {
+  border-color: rgba(var(--pf-gold-rgb) / 0.78);
+  box-shadow:
+    var(--pf-shadow-card),
+    0 0 0 1px rgba(var(--pf-gold-rgb) / 0.44),
+    0 0 30px rgba(var(--pf-arcane-rgb) / 0.16);
+}
+
+.pf-community-page .community-feed-card--deemphasized {
+  opacity: 0.72;
+  filter: saturate(0.85);
+}
+
+.pf-community-page .community-feed-grid--focus-mode .community-feed-card--deemphasized:hover {
+  opacity: 0.9;
+  filter: saturate(0.94);
 }
 
 .pf-community-toolbar {

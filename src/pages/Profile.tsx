@@ -504,6 +504,7 @@ const Profile = () => {
               onRatePrompt={handleRatePrompt}
               currentUserId={null}
               featuredPostId={topPromptPostId}
+              selectedPostId={topPromptPostId}
               featuredPostBadgeLabel={topPromptPostId ? "Top Prompt" : undefined}
               suppressAutoFeatured={Boolean(topPromptPostId)}
               hasMore={hasMore}
