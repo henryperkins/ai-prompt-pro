@@ -5,7 +5,7 @@
 UUI marketing components live in `src/components/marketing/`, design foundations in `src/components/foundations/`.  
 Tests live in `src/test/` (Vitest).  
 Mobile E2E coverage and viewport baselines live in `playwright/` (Playwright).  
-Backend-adjacent code is split across `supabase/functions/` (Edge Functions), `supabase/migrations/` (SQL), and `agent_service/` (Codex SDK service for prompt enhancement).  
+Backend-adjacent code is split across `agent_service/` (Codex SDK service for prompt enhancement), `supabase/migrations/` (SQL), and `archive/supabase/functions/` (legacy Edge Function references).  
 Manual QA checklists live in `docs/`.
 Static assets go in `public/`; build output is `dist/` (generated, do not edit manually).
 
@@ -17,8 +17,8 @@ Static assets go in `public/`; build output is `dist/` (generated, do not edit m
 - `npm test`: run Vitest once.
 - `npm run test:mobile`: run Playwright mobile checks.
 - `npm run test:watch`: run Vitest in watch mode.
-- `npm run test:rls`: run Supabase RLS-focused tests.
-- `npm run check:prod`: lint + tests + build (pre-merge gate).
+- `npm run test:rls`: run Neon RLS-focused tests.
+- `npm run check:prod`: design-system gates + lint + `test:unit` + build + token-runtime check (pre-merge gate).
 - `npm run agent:codex`: run local Codex SDK agent service.
 
 ## Coding Style & Naming Conventions
@@ -33,12 +33,11 @@ Add regression tests for behavior changes in prompt composition, persistence, au
 For Community mobile UX changes, also add/adjust Playwright checks in `playwright/community.mobile.spec.ts` and keep 320/375/390/428 baselines.
 
 ## Feature Flags & Telemetry
-Community mobile rollout is gated by `VITE_COMMUNITY_MOBILE_ENHANCEMENTS` (default `false` in `.env.example`).  
+Community mobile rollout is gated by `VITE_COMMUNITY_MOBILE_ENHANCEMENTS` (default `true` in `.env.example`).  
 When this flag is enabled, mobile-specific Community behaviors are active (filter drawer, comment thread drawers, one-tap mobile notifications).  
 Community mobile telemetry events are emitted via `src/lib/community-telemetry.ts` and `src/hooks/useCommunityMobileTelemetry.ts`.
 
 ## Commit & Pull Request Guidelines
 Recent history mixes terse messages and scoped prefixes (for example, `ci: ...`). Prefer clear imperative commits with optional scope: `ui: improve community post card spacing`. Avoid vague messages like `up` or `Changes`.  
 PRs should include: what changed, why, test commands run, screenshots for UI updates, and any env/secret impacts.
-
 

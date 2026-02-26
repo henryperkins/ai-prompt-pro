@@ -12,9 +12,14 @@ npm run check:prod
 
 This runs:
 
+- `npm run check:no-legacy-ui-imports`
+- `npm run check:no-legacy-ds-props`
+- `STRICT_PRIMITIVE_IMPORTS=1 npm run check:no-primitive-ds-imports`
+- `npm run check:no-new-phosphor-imports`
 - `npm run lint`
-- `npm test`
+- `npm run test:unit`
 - `npm run build`
+- `npm run check:token-runtime`
 
 ## Smoke validation
 

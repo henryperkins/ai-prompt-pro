@@ -21,7 +21,7 @@ Primary source files:
 
 Legacy note:
 
-- `src/styles/theme.css` is retained for reference but is not imported at runtime.
+- `src/styles/theme.css` is imported via `src/styles/globals.css` as part of the runtime style stack.
 
 Phase 3 status (completed February 22, 2026):
 

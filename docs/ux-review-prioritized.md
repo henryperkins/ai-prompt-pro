@@ -1,4 +1,4 @@
-Assumption: this review is based on the provided screenshots plus code context in `docs/review-inputs-fresh.md` and current route/component files; most captured states are empty/error, so I prioritized resilience and first-run clarity.
+Assumption: this review is based on provided screenshots and current route/component files in this repository; most captured states are empty/error, so I prioritized resilience and first-run clarity.
 
 **First Impressions (30s)**
 The product feels clean, structured, and credible for technical users. Immediate friction is high because key surfaces are dominated by empty/error states, and mobile navigation hides some high-value entry points (notably Presets), so first-time users can stall before they get a “win.”
@@ -52,7 +52,7 @@ Implementation hint: default-collapse advanced sections, keep one concise step h
 Before/After: before = many simultaneous decisions; after = guided first outcome in under 10 seconds.
 
 3. **Improve state card readability and hierarchy**
-Problem: critical states rely heavily on `text-xs` and low-emphasis copy (`src/components/ui/state-card.tsx:52`, `src/components/ui/state-card.tsx:90`).
+Problem: critical states rely heavily on `text-xs` and low-emphasis copy (`src/components/base/primitives/state-card.tsx:52`, `src/components/base/primitives/state-card.tsx:90`).
 Why it matters: error/empty states are currently frequent and need fast comprehension.
 Recommendation: promote state title/body sizing and strengthen action prominence.
 Implementation hint: standardize `StateCard` typography to `text-sm` body and reserve `text-xs` for metadata only.
@@ -73,7 +73,7 @@ Implementation hint: remove card-level keyboard navigation handlers; use explici
 Before/After: before = mixed interaction model; after = cleaner, predictable semantics.
 
 6. **Increase touch comfort in mobile sticky action bar**
-Problem: Web switch control is visually/tap-size constrained (`src/components/ui/switch.tsx:12`, `src/pages/Index.tsx:1617`).
+Problem: Web switch control is visually/tap-size constrained (`src/components/base/primitives/switch.tsx:12`, `src/pages/Index.tsx:1617`).
 Why it matters: accidental taps and poor ergonomics on 360–430px devices.
 Recommendation: enlarge hit area and spacing of sticky controls.
 Implementation hint: wrap switch+label in a minimum `44x44` hitbox, or introduce a mobile-specific larger switch size token.
@@ -117,7 +117,7 @@ Implementation hint: media query for mobile to switch to `background-attachment:
 Before/After: before = potential scroll repaint overhead; after = smoother scrolling.
 
 4. **Normalize UI density tokens across feature screens**
-Problem: repeated ad-hoc `text-xs`/size classes across components (`src/components/OutputPanel.tsx:460`, `src/components/ui/state-card.tsx:90`, `src/components/BuilderTabs.tsx:42`).
+Problem: repeated ad-hoc `text-xs`/size classes across components (`src/components/OutputPanel.tsx:460`, `src/components/base/primitives/state-card.tsx:90`, `src/components/BuilderTabs.tsx:42`).
 Why it matters: visual inconsistency and harder maintenance.
 Recommendation: define semantic density variants (`comfortable`, `compact`) for key primitives.
 Implementation hint: add variant props to shared components (state cards, toolbar buttons, section labels) tied to design tokens.

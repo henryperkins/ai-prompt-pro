@@ -8,7 +8,7 @@ npm run build          # production build
 npm run lint           # ESLint
 npm test               # Vitest (all suites, once)
 npm run test:watch     # Vitest in watch mode
-npm run check:prod     # lint + test + build (pre-merge gate)
+npm run check:prod     # design-system gates + lint + test:unit + build + token-runtime check
 ```
 
 Run a single test file:
@@ -55,7 +55,7 @@ npm run test:rls
 
 ### Feature flags
 - `src/lib/feature-flags.ts` reads `VITE_*` env vars at build time.
-- Community mobile rollout: `VITE_COMMUNITY_MOBILE_ENHANCEMENTS` (default `false`).
+- Community mobile rollout: `VITE_COMMUNITY_MOBILE_ENHANCEMENTS` (default `true` in `.env.example`).
 - Builder redesign phases: `VITE_BUILDER_REDESIGN_PHASE{1..4}`.
 
 ## Conventions

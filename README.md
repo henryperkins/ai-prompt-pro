@@ -42,8 +42,8 @@ npm run dev
 - `npm test`: run Vitest once
 - `npm run test:watch`: run Vitest in watch mode
 - `npm run test:mobile`: run Playwright mobile checks
-- `npm run test:rls`: run Supabase RLS-focused tests
-- `npm run check:prod`: lint + tests + build (pre-merge gate)
+- `npm run test:rls`: run Neon RLS-focused tests
+- `npm run check:prod`: design-system gates + lint + `test:unit` + build + token-runtime check (pre-merge gate)
 - `npm run agent:codex`: run local Codex SDK agent service
 
 ## Project structure
@@ -56,7 +56,7 @@ npm run dev
 - `src/lib/`: domain logic/helpers
 - `src/test/`: Vitest tests
 - `playwright/`: Playwright mobile E2E coverage + viewport baselines
-- `supabase/functions/`: Edge functions
+- `archive/supabase/functions/`: archived legacy Edge functions (reference only)
 - `supabase/migrations/`: SQL migrations
 - `agent_service/`: Codex SDK service for prompt enhancement
 - `docs/`: specs + runbooks + QA checklists

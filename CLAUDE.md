@@ -23,7 +23,7 @@ npm run lint             # Run ESLint on ts/tsx sources
 npm test                 # Run Vitest once
 npm run test:watch       # Run Vitest in watch mode
 npm run test:mobile     # Run Playwright mobile E2E checks
-npm run test:rls        # Run Supabase RLS-focused tests
+npm run test:rls        # Run Neon RLS-focused tests
 npm run check:prod      # pre-merge gate (design-system checks → lint → test:unit → build → token-runtime)
 npm run agent:codex     # Run local Codex SDK agent service
 npm run test:unit        # Vitest excluding RLS integration tests (used by check:prod)
@@ -60,7 +60,7 @@ npx vitest run src/test/persistence.test.ts
 ## Key Directories
 
 - `src/components/`: feature UI components
-- `src/components/ui/`: shared shadcn/ui primitives — being migrated to UUI
+- `src/components/base/primitives/`: shared Radix/shadcn-compatible primitives
 - `src/components/base/`: Untitled UI core components (migration target)
 - `src/components/foundations/`: UUI design tokens, logos, featured icons
 - `src/components/marketing/`: UUI marketing components (footers, headers)
@@ -121,9 +121,9 @@ The app is migrating from shadcn/ui (Radix) to **Untitled UI** (React Aria + Tai
 ```
 src/components/
 ├── base/           # UUI core components (Button, Input, Select, Checkbox, Avatar, Badge, Tooltip, etc.)
+├── base/primitives # Radix/shadcn-compatible primitives
 ├── foundations/    # UUI design tokens, logos, featured icons
 ├── marketing/     # UUI marketing components (footers, headers, CTAs)
-├── ui/            # shadcn/ui components (being migrated away)
 └── ...            # App-specific feature components
 ```
 
