@@ -32,9 +32,35 @@ jobs:
                const coredemo = require('@actions/core')
                return await coredemo.getIDToken()
            result-encoding: string
+      - name: Validate frontend build secrets
+        run: |
+          if [ -z "${{ secrets.VITE_NEON_DATA_API_URL }}" ]; then
+            echo "Missing required secret: VITE_NEON_DATA_API_URL"
+            exit 1
+          fi
+          if [ -z "${{ secrets.VITE_NEON_AUTH_URL }}" ]; then
+            echo "Missing required secret: VITE_NEON_AUTH_URL"
+            exit 1
+          fi
+          if [ -z "${{ secrets.VITE_AGENT_SERVICE_URL }}" ]; then
+            echo "Missing required secret: VITE_AGENT_SERVICE_URL"
+            exit 1
+          fi
+          if [ -z "${{ secrets.VITE_NEON_PUBLISHABLE_KEY }}" ] && [ -z "${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}" ]; then
+            echo "Missing required secret: VITE_NEON_PUBLISHABLE_KEY (or legacy VITE_SUPABASE_PUBLISHABLE_KEY)"
+            exit 1
+          fi
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
+        env:
+          VITE_NEON_PROJECT_ID: ${{ secrets.VITE_NEON_PROJECT_ID }}
+          VITE_NEON_DATA_API_URL: ${{ secrets.VITE_NEON_DATA_API_URL }}
+          VITE_NEON_AUTH_URL: ${{ secrets.VITE_NEON_AUTH_URL }}
+          VITE_NEON_PUBLISHABLE_KEY: ${{ secrets.VITE_NEON_PUBLISHABLE_KEY }}
+          # Backward-compatible env for older clients/builds.
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_AGENT_SERVICE_URL: ${{ secrets.VITE_AGENT_SERVICE_URL }}
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_GENTLE_DUNE_075B4710F }}
           action: "upload"
@@ -42,7 +68,8 @@ jobs:
           # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
           app_location: "/" # App source code path
           api_location: "" # Api source code path - optional
-          output_location: "build" # Built app content directory - optional
+          app_build_command: "npm run build"
+          output_location: "dist" # Built app content directory - optional
           github_id_token: ${{ steps.idtoken.outputs.result }}
           ###### End of Repository/Build Configurations ######
 
