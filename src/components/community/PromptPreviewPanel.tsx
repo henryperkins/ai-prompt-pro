@@ -16,6 +16,7 @@ export function PromptPreviewPanel({ text, mode = "compact", className, onCopy }
   const [hasOverflow, setHasOverflow] = useState(false);
   const normalized = text.trim();
   const isCompact = mode === "compact";
+  const isFull = mode === "full";
 
   useEffect(() => {
     setIsExpanded(false);
@@ -57,14 +58,25 @@ export function PromptPreviewPanel({ text, mode = "compact", className, onCopy }
   const isCollapsed = isCompact && !isExpanded;
 
   return (
-    <div className={cn("rounded-lg border border-border/80 bg-muted/35 p-3 sm:p-4", className)}>
-      <div className="relative">
+    <div
+      className={cn(
+        "rounded-lg border p-3 sm:p-4",
+        isFull
+          ? "border-border/70 bg-background/80 shadow-sm"
+          : "border-border/80 bg-muted/35",
+        className,
+      )}
+    >
+      <div className={cn("relative", isFull && "mx-auto max-w-[108ch]") }>
         {onCopy && (
           <Button
             type="button"
             color="secondary"
             size="sm"
-            className="type-button-label utility-action-button utility-action-button--floating absolute right-2 top-2 z-10"
+            className={cn(
+              "type-button-label utility-action-button utility-action-button--floating absolute z-10",
+              isFull ? "right-3 top-3" : "right-2 top-2",
+            )}
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -78,8 +90,11 @@ export function PromptPreviewPanel({ text, mode = "compact", className, onCopy }
         <pre
           ref={preRef}
           className={cn(
-            "type-code type-wrap-safe font-mono text-foreground/95 whitespace-pre-wrap",
-            onCopy && "pr-[4.5rem] sm:pr-14",
+            "type-code type-wrap-safe whitespace-pre-wrap font-mono text-foreground antialiased",
+            isFull
+              ? "text-[0.86rem] leading-6 sm:text-[0.9rem] sm:leading-7"
+              : "text-foreground/95",
+            onCopy && (isFull ? "pr-20 sm:pr-24" : "pr-[4.5rem] sm:pr-14"),
             isCollapsed && "line-clamp-6",
           )}
         >

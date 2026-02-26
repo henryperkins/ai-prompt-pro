@@ -369,22 +369,12 @@ export function CommunityComments({
       )}
 
       {canComment ? (
-        <div className="space-y-1.5 sm:space-y-2">
-          <div className="flex flex-wrap items-center gap-1.5">
-            {QUICK_REPLY_CHIPS.map((chip) => (
-              <Button
-                key={`${postId}-${chip}`}
-                type="button"
-                size="sm"
-                color="secondary"
-                className="type-button-label h-10 rounded-full px-3 sm:h-8 sm:px-2.5"
-                onClick={() => handleQuickReply(chip)}
-                data-testid="community-quick-reply-chip"
-              >
-                {chip}
-              </Button>
-            ))}
+        <div className="space-y-2.5 rounded-lg border border-border/65 bg-background/65 p-2.5 sm:space-y-3 sm:p-3">
+          <div className="space-y-0.5">
+            <p className="type-reply-label type-label-caps text-muted-foreground">Write a comment</p>
+            <p className="type-help text-muted-foreground">Quick replies are optional. Add your own context before posting.</p>
           </div>
+
           <Textarea
             ref={composerRef}
             value={draft}
@@ -401,7 +391,24 @@ export function CommunityComments({
             enterKeyHint="send"
             maxLength={2000}
           />
-          <div className="flex items-center justify-between">
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            {QUICK_REPLY_CHIPS.map((chip) => (
+              <Button
+                key={`${postId}-${chip}`}
+                type="button"
+                size="sm"
+                color="tertiary"
+                className="type-button-label h-10 rounded-full border border-border/60 bg-background/75 px-3 text-muted-foreground sm:h-8 sm:px-2.5"
+                onClick={() => handleQuickReply(chip)}
+                data-testid="community-quick-reply-chip"
+              >
+                {chip}
+              </Button>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between border-t border-border/55 pt-2">
             <span className="type-meta text-muted-foreground">{draft.length}/2000</span>
             <Button
               type="button"

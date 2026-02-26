@@ -10,6 +10,8 @@ AI Prompt Pro - Build, enhance, and share AI prompts with a structured prompt bu
 - Frontend: Vite + React + TypeScript + Tailwind + shadcn/ui (migrating to Untitled UI)
 - Backend: Neon Postgres via Neon Data API + Neon Auth
 - Optional: prompt enhancement via local Codex SDK agent service (`agent_service/`)
+- Node requirement: `^20.19.0 || >=22.12.0`
+- Dev server: `http://localhost:8080` (Vite, non-default port)
 
 ## Common Commands
 
@@ -22,8 +24,10 @@ npm test                 # Run Vitest once
 npm run test:watch       # Run Vitest in watch mode
 npm run test:mobile     # Run Playwright mobile E2E checks
 npm run test:rls        # Run Supabase RLS-focused tests
-npm run check:prod      # lint + tests + build (pre-merge gate)
+npm run check:prod      # pre-merge gate (design-system checks → lint → test:unit → build → token-runtime)
 npm run agent:codex     # Run local Codex SDK agent service
+npm run test:unit        # Vitest excluding RLS integration tests (used by check:prod)
+npm run check:design-system  # Build + all design-system lint gates
 ```
 
 Run a single test file:
@@ -68,11 +72,14 @@ npx vitest run src/test/persistence.test.ts
 - `supabase/migrations/`: SQL migrations
 - `agent_service/`: Codex SDK service for prompt enhancement
 - `docs/`: specs and runbooks
+- `scripts/`: design-system lint gates (legacy-import checks, token-drift, Phosphor-icon guardrails)
 
 ## Feature Flags
 
 - `VITE_COMMUNITY_MOBILE_ENHANCEMENTS` - gates mobile-specific Community behaviors (filter drawer, comment thread drawers)
 - `VITE_BUILDER_REDESIGN_PHASE{1..4}` - builder redesign phases
+- `VITE_LAUNCH_EXPERIMENT_HERO_COPY` - A/B hero copy experiment
+- `VITE_LAUNCH_EXPERIMENT_PRIMARY_CTA` - A/B primary CTA experiment
 - Feature flag implementation in `src/lib/feature-flags.ts`
 
 ## Agent Preferences
@@ -100,6 +107,7 @@ Key frontend vars (see `.env.example` for full list):
 - Azure Static Web Apps via `.github/workflows/azure-static-web-apps-gentle-dune-075b4710f.yml`
 - SWA CLI config: `swa-cli.config.json`
 - Runtime routing: `public/staticwebapp.config.json`
+- Additional CI: `codeql.yml` (security scanning), `neon-pr-branches.yml` (preview DB branches)
 
 ## Untitled UI (UUI) Component System
 

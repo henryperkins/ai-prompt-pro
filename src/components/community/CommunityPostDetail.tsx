@@ -181,8 +181,8 @@ export function CommunityPostDetail({
   }, [onCommentThreadOpen, openCommentsOnMount, post.id, useMobileCommentsDrawer]);
 
   return (
-    <div className="space-y-4">
-      <Card className={cn("pf-card space-y-4 border-border/80 bg-card/85 p-4 sm:p-5", getCommunityPostRarityClass(post))}>
+    <div className="space-y-5">
+      <Card className={cn("pf-card space-y-5 border-border/80 bg-card/85 p-4 sm:p-5", getCommunityPostRarityClass(post))}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
             <Avatar className="h-9 w-9 border border-border/60">
@@ -196,23 +196,25 @@ export function CommunityPostDetail({
               <p className="type-timestamp text-muted-foreground">{createdAgo}</p>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          <div className="flex w-full flex-wrap items-center gap-2 rounded-lg border border-border/65 bg-background/55 p-2 sm:w-auto sm:justify-end">
             <Button
               type="button"
-              color="tertiary"
+              color="primary"
               size="sm"
-              className="type-button-label utility-action-button w-full sm:w-auto"
+              className="type-button-label utility-action-button h-11 w-full min-w-[110px] justify-center px-4 sm:h-9 sm:w-auto sm:px-3"
               onClick={() => navigate(`/?remix=${post.id}`)}
+              data-testid="community-detail-remix-cta"
             >
               Remix
             </Button>
             <Button
               type="button"
-              color="tertiary"
+              color="secondary"
               size="sm"
-              className="type-button-label h-11 w-full gap-1.5 sm:h-9 sm:w-auto"
+              className="type-button-label h-11 w-full gap-1.5 px-4 sm:h-9 sm:w-auto sm:px-3"
               disabled={!canSaveToLibrary}
               onClick={() => onSaveToLibrary(post.id)}
+              data-testid="community-detail-save-cta"
             >
               <BookmarkPlus className="h-3.5 w-3.5" />
               Save to Library
@@ -224,7 +226,7 @@ export function CommunityPostDetail({
                     type="button"
                     color="secondary"
                     size="sm"
-                    className="h-11 w-11 sm:h-9 sm:w-9"
+                    className="h-11 w-11 shrink-0 sm:h-9 sm:w-9"
                     aria-label="Open moderation actions"
                   >
                     <MoreHorizontal className="h-4 w-4" />
@@ -270,7 +272,7 @@ export function CommunityPostDetail({
         <div className="space-y-1">
           <h1 className="type-post-title text-foreground">{post.title}</h1>
           {post.useCase && (
-            <p className="type-post-body type-prose-measure type-wrap-safe text-muted-foreground">{post.useCase}</p>
+            <p className="type-post-body type-prose-measure type-wrap-safe text-foreground/90">{post.useCase}</p>
           )}
         </div>
 
@@ -347,125 +349,146 @@ export function CommunityPostDetail({
           </div>
         )}
 
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Badge type="modern" className="type-chip border border-border bg-background text-foreground capitalize">
-            {post.category}
-          </Badge>
-          {post.targetModel && <Badge type="modern" className="type-chip">{post.targetModel}</Badge>}
-          {post.tags.slice(0, 8).map((tag) => (
-            <Badge
-              key={`${post.id}-${tag}`}
-              type="modern"
-              className="type-chip border border-border bg-background text-foreground"
-            >
-              #{tag}
+        <div className="space-y-2">
+          <p className="type-reply-label type-label-caps text-muted-foreground">Context</p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Badge type="modern" className="type-chip border border-border bg-background text-foreground capitalize">
+              {post.category}
             </Badge>
-          ))}
+            {post.targetModel && <Badge type="modern" className="type-chip">{post.targetModel}</Badge>}
+            {post.tags.slice(0, 8).map((tag) => (
+              <Badge
+                key={`${post.id}-${tag}`}
+                type="modern"
+                className="type-chip border border-border bg-background text-foreground"
+              >
+                #{tag}
+              </Badge>
+            ))}
+          </div>
         </div>
 
-        <PromptPreviewPanel
-          text={promptBody}
-          mode="full"
-          className="pf-community-preview"
-          onCopy={() => onCopyPrompt(post)}
-        />
+        <div className="space-y-2 rounded-lg border border-border/65 bg-background/45 p-2.5 sm:p-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="type-reply-label type-label-caps text-muted-foreground">Prompt</p>
+            <span className="type-meta text-muted-foreground">Full text</span>
+          </div>
+          <PromptPreviewPanel
+            text={promptBody}
+            mode="full"
+            className="pf-community-preview border-border/70 bg-background/80"
+            onCopy={() => onCopyPrompt(post)}
+          />
+        </div>
 
-        <div className="type-meta flex flex-wrap items-center gap-2 text-muted-foreground">
-          <Button
-            type="button"
-            size="sm"
-            color={voteState?.upvote ? "primary" : "secondary"}
-            className="type-button-label interactive-chip h-11 min-w-11 gap-1.5 px-3 sm:h-9 sm:min-w-9 sm:gap-1 sm:px-2.5"
-            disabled={!canVote}
-            onClick={() => onToggleVote(post.id, "upvote")}
-            data-testid="community-vote-upvote"
-          >
-            <ArrowUp className="h-3.5 w-3.5" />
-            <span className="type-numeric">{post.upvoteCount}</span>
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            color={voteState?.verified ? "primary" : "secondary"}
-            className="type-button-label interactive-chip h-11 min-w-11 gap-1.5 px-3 sm:h-9 sm:min-w-9 sm:gap-1 sm:px-2.5"
-            disabled={!canVote}
-            onClick={() => onToggleVote(post.id, "verified")}
-            data-testid="community-vote-verified"
-          >
-            <CheckCircle2 className="h-3.5 w-3.5" />
-            <span className="type-numeric">{post.verifiedCount}</span>
-          </Button>
-          <span className="type-numeric inline-flex items-center gap-1">
-            <GitBranch className="h-3.5 w-3.5" />
-            {post.remixCount}
-          </span>
-          {useMobileCommentsDrawer ? (
-            <Button
-              type="button"
-              size="sm"
-              color="primary"
-              className="type-button-label h-11 gap-1.5 px-3 sm:h-9 sm:px-2.5"
-              aria-label={`Comments ${post.commentCount}`}
-              onClick={() => {
-                setCommentsOpen(true);
-                onCommentThreadOpen?.(post.id);
-              }}
-              data-testid="community-comments-thread-trigger"
-            >
-              <MessageCircle className="h-3.5 w-3.5" />
-              Comments
-              <Badge
-                type="modern"
-                className="type-reply-label type-numeric ml-0.5 h-4 min-w-4 px-1 leading-none"
-                aria-hidden="true"
+        <div className="space-y-2.5 rounded-lg border border-border/65 bg-background/45 p-2.5 sm:p-3">
+          <p className="type-reply-label type-label-caps text-muted-foreground">Engagement</p>
+          <div className="type-meta flex flex-wrap items-center gap-2 text-muted-foreground">
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-border/65 bg-background/70 p-1">
+              <Button
+                type="button"
+                size="sm"
+                color={voteState?.upvote ? "primary" : "secondary"}
+                className="type-button-label interactive-chip h-11 min-w-11 gap-1.5 px-3 sm:h-9 sm:min-w-9 sm:gap-1 sm:px-2.5"
+                disabled={!canVote}
+                onClick={() => onToggleVote(post.id, "upvote")}
+                data-testid="community-vote-upvote"
               >
-                {post.commentCount}
-              </Badge>
-            </Button>
-          ) : (
-            <span className="type-numeric inline-flex items-center gap-1">
-              <MessageCircle className="h-3.5 w-3.5" />
-              {post.commentCount}
-            </span>
-          )}
-          <span
-            aria-label={ratingSummaryAriaLabel}
-            className="type-numeric inline-flex items-center gap-1.5 rounded-full border border-border/65 bg-background/65 px-2 py-1"
-          >
-            <Star
-              className={cn(
-                "h-3.5 w-3.5",
-                ratingCount > 0 ? "fill-primary text-primary" : "text-muted-foreground",
-              )}
-            />
-            {ratingAverage.toFixed(1)}
-            <span className="text-muted-foreground/80">({ratingCount})</span>
-          </span>
-          {canRate && onRatePrompt && (
-            <div className="inline-flex items-center gap-0.5 rounded-full border border-border/65 bg-background/65 p-0.5">
-              {[1, 2, 3, 4, 5].map((value) => {
-                const isActive = (ratingValue ?? 0) >= value;
-                return (
-                  <Button
-                    key={`${post.id}-detail-rate-${value}`}
-                    type="button"
-                    color="tertiary"
-                    size="sm"
-                    className="h-10 w-10 rounded-full p-0 sm:h-7 sm:w-7"
-                    aria-label={`Rate ${value} star${value === 1 ? "" : "s"}`}
-                    onClick={() => onRatePrompt(post.id, ratingValue === value ? null : value)}
-                  >
-                    <Star
-                      className={cn(
-                        "h-5 w-5 transition-colors sm:h-4 sm:w-4",
-                        isActive ? "fill-primary text-primary" : "text-muted-foreground",
-                      )}
-                    />
-                  </Button>
-                );
-              })}
+                <ArrowUp className="h-3.5 w-3.5" />
+                <span className="type-numeric">{post.upvoteCount}</span>
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                color={voteState?.verified ? "primary" : "secondary"}
+                className="type-button-label interactive-chip h-11 min-w-11 gap-1.5 px-3 sm:h-9 sm:min-w-9 sm:gap-1 sm:px-2.5"
+                disabled={!canVote}
+                onClick={() => onToggleVote(post.id, "verified")}
+                data-testid="community-vote-verified"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                <span className="type-numeric">{post.verifiedCount}</span>
+              </Button>
             </div>
-          )}
+
+            <span className="type-numeric inline-flex items-center gap-1.5 rounded-full border border-border/65 bg-background/65 px-2.5 py-1">
+              <GitBranch className="h-3.5 w-3.5" />
+              <span className="type-meta text-foreground/90">Remixes</span>
+              {post.remixCount}
+            </span>
+
+            {useMobileCommentsDrawer ? (
+              <Button
+                type="button"
+                size="sm"
+                color="primary"
+                className="type-button-label h-11 gap-1.5 rounded-full px-3 sm:h-9 sm:px-2.5"
+                aria-label={`Comments ${post.commentCount}`}
+                onClick={() => {
+                  setCommentsOpen(true);
+                  onCommentThreadOpen?.(post.id);
+                }}
+                data-testid="community-comments-thread-trigger"
+              >
+                <MessageCircle className="h-3.5 w-3.5" />
+                Comments
+                <Badge
+                  type="modern"
+                  className="type-reply-label type-numeric ml-0.5 h-4 min-w-4 px-1 leading-none"
+                  aria-hidden="true"
+                >
+                  {post.commentCount}
+                </Badge>
+              </Button>
+            ) : (
+              <span className="type-numeric inline-flex items-center gap-1.5 rounded-full border border-border/65 bg-background/65 px-2.5 py-1">
+                <MessageCircle className="h-3.5 w-3.5" />
+                <span className="type-meta text-foreground/90">Comments</span>
+                {post.commentCount}
+              </span>
+            )}
+
+            <span
+              aria-label={ratingSummaryAriaLabel}
+              className="type-numeric inline-flex items-center gap-1.5 rounded-full border border-border/65 bg-background/65 px-2.5 py-1"
+            >
+              <Star
+                className={cn(
+                  "h-3.5 w-3.5",
+                  ratingCount > 0 ? "fill-primary text-primary" : "text-muted-foreground",
+                )}
+              />
+              <span className="type-meta text-foreground/90">Rating</span>
+              {ratingAverage.toFixed(1)}
+              <span className="text-muted-foreground/80">({ratingCount})</span>
+            </span>
+
+            {canRate && onRatePrompt && (
+              <div className="inline-flex items-center gap-0.5 rounded-full border border-border/65 bg-background/65 p-0.5 sm:ml-auto">
+                {[1, 2, 3, 4, 5].map((value) => {
+                  const isActive = (ratingValue ?? 0) >= value;
+                  return (
+                    <Button
+                      key={`${post.id}-detail-rate-${value}`}
+                      type="button"
+                      color="tertiary"
+                      size="sm"
+                      className="h-10 w-10 rounded-full p-0 sm:h-7 sm:w-7"
+                      aria-label={`Rate ${value} star${value === 1 ? "" : "s"}`}
+                      onClick={() => onRatePrompt(post.id, ratingValue === value ? null : value)}
+                    >
+                      <Star
+                        className={cn(
+                          "h-5 w-5 transition-colors sm:h-4 sm:w-4",
+                          isActive ? "fill-primary text-primary" : "text-muted-foreground",
+                        )}
+                      />
+                    </Button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </Card>
 
