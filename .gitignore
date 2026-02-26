@@ -65,3 +65,6 @@ bun.lockb
 
 # Local GitHub Actions runner
 actions-runner/
+
+# Archived documentation (historical reference only)
+docs/archive/
