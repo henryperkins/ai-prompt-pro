@@ -12,7 +12,7 @@ Use this file as the starting point for repo documentation.
 - `docs/typography-regression-checklist.md` - typography validation checks.
 - `docs/community-mobile-qa-checklist.md` - manual mobile QA checks.
 - `docs/community-mobile-social-backlog.md` - active backlog for mobile social UX.
-- `docs/rye-prompt-build-and-enhancement.md` - prompt build and enhancement architecture.
+- `docs/prompt-build-and-enhancement.md` - prompt build and enhancement architecture.
 - `docs/codex-integration-review.md` - security and architecture review findings.
 
 ## Product and design reference docs
