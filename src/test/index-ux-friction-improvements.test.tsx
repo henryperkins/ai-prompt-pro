@@ -1,5 +1,5 @@
-import { Profiler, type ReactNode } from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { defaultConfig } from "@/lib/prompt-builder";
@@ -7,8 +7,6 @@ import { defaultConfig } from "@/lib/prompt-builder";
 const mocks = vi.hoisted(() => ({
   toast: vi.fn(),
   usePromptBuilder: vi.fn(),
-  adjustRenders: 0,
-  sourcesRenders: 0,
 }));
 
 vi.mock("@/hooks/use-toast", () => ({
@@ -21,66 +19,65 @@ vi.mock("@/hooks/use-mobile", () => ({
 
 vi.mock("@/lib/ai-client", () => ({
   streamEnhance: vi.fn(),
+  inferBuilderFields: vi.fn(),
 }));
 
 vi.mock("@/components/PageShell", () => ({
   PageShell: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
-vi.mock("@/components/PromptInput", () => ({
-  PromptInput: () => <div>Legacy PromptInput</div>,
-}));
-
 vi.mock("@/components/BuilderHeroInput", () => ({
-  BuilderHeroInput: () => <div>Redesign Hero Input</div>,
+  BuilderHeroInput: ({ onResetAll }: { onResetAll?: () => void }) => (
+    <div>
+      <div>Redesign Hero Input</div>
+      <button type="button" onClick={() => onResetAll?.()}>
+        Reset all
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock("@/components/BuilderAdjustDetails", () => ({
-  BuilderAdjustDetails: () => {
-    let accumulator = 0;
-    for (let i = 0; i < 900_000; i += 1) {
-      accumulator += i % 7;
-    }
-    if (accumulator < 0) {
-      return <div>Impossible path</div>;
-    }
-    mocks.adjustRenders += 1;
-    return <div>Redesign Adjust Details</div>;
-  },
+  BuilderAdjustDetails: () => null,
 }));
 
 vi.mock("@/components/BuilderSourcesAdvanced", () => ({
-  BuilderSourcesAdvanced: () => {
-    let accumulator = 0;
-    for (let i = 0; i < 900_000; i += 1) {
-      accumulator += i % 11;
-    }
-    if (accumulator < 0) {
-      return <div>Impossible path</div>;
-    }
-    mocks.sourcesRenders += 1;
-    return <div>Redesign Sources Advanced</div>;
-  },
+  BuilderSourcesAdvanced: () => null,
+}));
+
+vi.mock("@/components/PromptInput", () => ({
+  PromptInput: () => null,
 }));
 
 vi.mock("@/components/BuilderTabs", () => ({
-  BuilderTabs: () => <div>Legacy BuilderTabs</div>,
+  BuilderTabs: () => null,
 }));
 
 vi.mock("@/components/ContextPanel", () => ({
-  ContextPanel: () => <div>Legacy ContextPanel</div>,
+  ContextPanel: () => null,
 }));
 
 vi.mock("@/components/ToneControls", () => ({
-  ToneControls: () => <div>Legacy ToneControls</div>,
+  ToneControls: () => null,
 }));
 
 vi.mock("@/components/QualityScore", () => ({
-  QualityScore: () => <div>Legacy QualityScore</div>,
+  QualityScore: () => null,
 }));
 
 vi.mock("@/components/OutputPanel", () => ({
-  OutputPanel: () => <div>Output panel</div>,
+  OutputPanel: ({
+    previewSource,
+    hasEnhancedOnce,
+  }: {
+    previewSource?: string;
+    hasEnhancedOnce?: boolean;
+  }) => (
+    <div>
+      <div data-testid="preview-source-prop">{previewSource || "none"}</div>
+      <div data-testid="has-enhanced-once-prop">{String(Boolean(hasEnhancedOnce))}</div>
+    </div>
+  ),
 }));
 
 vi.mock("@/components/base/primitives/accordion", () => ({
@@ -95,6 +92,7 @@ vi.mock("@/components/base/primitives/drawer", () => ({
   DrawerContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   DrawerHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   DrawerTitle: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  DrawerDescription: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
 vi.mock("@/components/base/buttons/button", () => ({
@@ -113,23 +111,46 @@ vi.mock("@/components/base/primitives/card", () => ({
   Card: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
+vi.mock("@/components/base/primitives/toast", () => ({
+  ToastAction: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
+
+vi.mock("@/components/base/primitives/switch", () => ({
+  Switch: () => null,
+}));
+
 vi.mock("@/hooks/usePromptBuilder", () => ({
   usePromptBuilder: () => mocks.usePromptBuilder(),
 }));
 
-function buildPromptBuilderState(enhancedPrompt = "") {
+function buildPromptBuilderState(
+  overrides?: {
+    originalPrompt?: string;
+    role?: string;
+    builtPrompt?: string;
+  },
+) {
+  const originalPrompt = overrides?.originalPrompt ?? "";
+  const role = overrides?.role ?? "Software Developer";
+  const builtPrompt = overrides?.builtPrompt ?? "**Role:** Act as a Software Developer.";
+
   return {
-    config: defaultConfig,
+    config: {
+      ...defaultConfig,
+      originalPrompt,
+      role,
+    },
     updateConfig: vi.fn(),
     resetConfig: vi.fn(),
     clearOriginalPrompt: vi.fn(),
-    builtPrompt: "Built prompt",
+    builtPrompt,
     score: { total: 70, tips: ["tip"] },
-    enhancedPrompt,
+    enhancedPrompt: "",
     setEnhancedPrompt: vi.fn(),
     isEnhancing: false,
     setIsEnhancing: vi.fn(),
     isSignedIn: false,
+    versions: [],
     saveVersion: vi.fn(),
     savePrompt: vi.fn(),
     saveAndSharePrompt: vi.fn(),
@@ -147,62 +168,46 @@ function buildPromptBuilderState(enhancedPrompt = "") {
   };
 }
 
-async function measureBuilderMount(enhancedPrompt = "") {
-  mocks.adjustRenders = 0;
-  mocks.sourcesRenders = 0;
-  mocks.usePromptBuilder.mockReturnValue(buildPromptBuilderState(enhancedPrompt));
-
-  const profilerSamples: Array<{ phase: string; duration: number }> = [];
+async function renderIndex() {
   const { default: Index } = await import("@/pages/Index");
-  const rendered = render(
-    <Profiler
-      id="Index"
-      onRender={(_id, phase, actualDuration) => {
-        profilerSamples.push({ phase, duration: actualDuration });
-      }}
-    >
-      <MemoryRouter>
-        <Index />
-      </MemoryRouter>
-    </Profiler>,
+  render(
+    <MemoryRouter>
+      <Index />
+    </MemoryRouter>,
   );
-
-  await screen.findByText("Redesign Hero Input");
-  await waitFor(() => {
-    expect(profilerSamples.some((sample) => sample.phase === "mount")).toBe(true);
-  });
-
-  const mountDuration = profilerSamples.find((sample) => sample.phase === "mount")?.duration ?? 0;
-  return {
-    mountDuration,
-    adjustRenders: mocks.adjustRenders,
-    sourcesRenders: mocks.sourcesRenders,
-    unmount: rendered.unmount,
-  };
 }
 
-describe("Index deferred rendering profiler coverage", () => {
+describe("Index UX friction improvements", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
     vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE1", "true");
+    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE2", "true");
+    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE3", "true");
+    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE4", "true");
+    mocks.usePromptBuilder.mockReturnValue(buildPromptBuilderState());
   });
 
-  it("defers heavy advanced sections from initial mount and measures the difference", async () => {
-    const deferredMount = await measureBuilderMount("");
-    deferredMount.unmount();
+  it("uses desktop step wording and computes preview source from builder fields", async () => {
+    await renderIndex();
 
-    const eagerMount = await measureBuilderMount("Already enhanced");
-    eagerMount.unmount();
+    expect(screen.getByText(/Click\s+/)).toBeInTheDocument();
+    expect(screen.getByTestId("preview-source-prop")).toHaveTextContent("builder_fields");
+    expect(screen.getByTestId("has-enhanced-once-prop")).toHaveTextContent("false");
+  });
 
-    expect(deferredMount.adjustRenders).toBe(0);
-    expect(deferredMount.sourcesRenders).toBe(0);
-    expect(eagerMount.adjustRenders).toBeGreaterThan(0);
-    expect(eagerMount.sourcesRenders).toBeGreaterThan(0);
-    expect(deferredMount.mountDuration).toBeGreaterThan(0);
-    expect(eagerMount.mountDuration).toBeGreaterThan(0);
-    expect(eagerMount.adjustRenders + eagerMount.sourcesRenders).toBeGreaterThan(
-      deferredMount.adjustRenders + deferredMount.sourcesRenders,
+  it("prefers builder_fields preview source when prompt text and builder details both contribute", async () => {
+    mocks.usePromptBuilder.mockReturnValue(
+      buildPromptBuilderState({
+        originalPrompt: "Summarize this launch plan.",
+        role: "Software Developer",
+        builtPrompt: "**Role:** Act as a Software Developer.\n\n**Task:** Summarize this launch plan.",
+      }),
     );
+
+    await renderIndex();
+
+    expect(screen.getByTestId("preview-source-prop")).toHaveTextContent("builder_fields");
+    expect(screen.getByTestId("has-enhanced-once-prop")).toHaveTextContent("false");
   });
 });

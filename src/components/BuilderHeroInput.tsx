@@ -8,6 +8,7 @@ interface BuilderHeroInputProps {
   value: string;
   onChange: (value: string) => void;
   onClear: () => void;
+  onResetAll?: () => void;
   phase3Enabled?: boolean;
   suggestionChips?: BuilderSuggestionChip[];
   isInferringSuggestions?: boolean;
@@ -21,6 +22,7 @@ export function BuilderHeroInput({
   value,
   onChange,
   onClear,
+  onResetAll,
   phase3Enabled = false,
   suggestionChips = [],
   isInferringSuggestions = false,
@@ -43,6 +45,18 @@ export function BuilderHeroInput({
             <span id={promptInputMetaId} className="text-xs text-muted-foreground">
               {value.length} chars
             </span>
+            {onResetAll && (
+              <Button
+                type="button"
+                color="tertiary"
+                size="sm"
+                onClick={onResetAll}
+                aria-label="Reset all builder fields"
+                className="interactive-chip h-11 gap-1 px-3 text-sm sm:h-9 sm:px-2 sm:text-sm"
+              >
+                Reset all
+              </Button>
+            )}
             {value && (
               <Button
                 type="button"

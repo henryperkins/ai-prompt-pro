@@ -136,6 +136,7 @@ function buildPromptBuilderState() {
       originalPrompt: "Draft launch prompt",
     },
     updateConfig: vi.fn(),
+    resetConfig: vi.fn(),
     clearOriginalPrompt: vi.fn(),
     builtPrompt: "Built launch prompt",
     score: { total: 70 },
@@ -213,6 +214,8 @@ describe("Index web search streaming", () => {
         "[Release notes](https://example.com/release)|[Status page](https://status.example.com/)",
       );
     });
+
+    expect(screen.getByText(/start in 3 steps/i)).toBeInTheDocument();
   });
 
   it("replaces raw streamed JSON with enhance metadata enhanced_prompt", async () => {

@@ -6,9 +6,10 @@ interface PromptInputProps {
   value: string;
   onChange: (value: string) => void;
   onClear: () => void;
+  onResetAll?: () => void;
 }
 
-export function PromptInput({ value, onChange, onClear }: PromptInputProps) {
+export function PromptInput({ value, onChange, onClear, onResetAll }: PromptInputProps) {
   const promptInputId = "builder-original-prompt";
   const promptInputMetaId = "builder-original-prompt-meta";
 
@@ -22,6 +23,17 @@ export function PromptInput({ value, onChange, onClear }: PromptInputProps) {
           <span id={promptInputMetaId} className="text-sm text-muted-foreground">
             {value.length} chars
           </span>
+          {onResetAll && (
+            <Button
+              color="tertiary"
+              size="sm"
+              onClick={onResetAll}
+              aria-label="Reset all builder fields"
+              className="interactive-chip h-11 gap-1 px-2 text-sm sm:h-9"
+            >
+              Reset all
+            </Button>
+          )}
           {value && (
             <Button
               color="tertiary"

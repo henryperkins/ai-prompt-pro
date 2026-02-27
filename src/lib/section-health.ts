@@ -1,4 +1,5 @@
 import type { PromptConfig } from "@/lib/prompt-builder";
+import { getContextCoreSignals } from "@/lib/context-types";
 
 export type SectionHealthState = "empty" | "in_progress" | "complete";
 
@@ -20,6 +21,7 @@ function resolveState(
 
 export function getSectionHealth(config: PromptConfig, qualityTotal: number): SectionHealth {
   const hasValue = (value: string, minLength = 1) => value.trim().length >= minLength;
+  const hasCoreIntent = hasValue(config.originalPrompt, 8) || hasValue(config.task, 8);
 
   const contextStructuredCount = Object.values(config.contextConfig.structured).filter(
     (value) => typeof value === "string" && hasValue(value, 2),
@@ -30,6 +32,7 @@ export function getSectionHealth(config: PromptConfig, qualityTotal: number): Se
   const hasRag =
     config.contextConfig.rag.enabled && hasValue(config.contextConfig.rag.vectorStoreRef, 2);
   const hasIntegrations = config.contextConfig.databaseConnections.length > 0 || hasRag;
+  const contextCoreSignals = getContextCoreSignals(config.contextConfig);
 
   const builderSignalCount =
     (config.role || hasValue(config.customRole, 2) ? 1 : 0) +
@@ -52,9 +55,20 @@ export function getSectionHealth(config: PromptConfig, qualityTotal: number): Se
     config.complexity !== "Moderate",
   ].filter(Boolean).length;
 
+  const rawBuilderState = resolveState(builderSignalCount, { inProgress: 1, complete: 4 });
+  const builderState =
+    rawBuilderState === "complete" && !hasCoreIntent ? "in_progress" : rawBuilderState;
+
+  const rawContextState = resolveState(contextSignalCount, { inProgress: 1, complete: 3 });
+  const contextHasMinimumCoreSignals = contextCoreSignals.hasObjective && contextCoreSignals.hasBackground;
+  const contextState =
+    rawContextState === "complete" && !contextHasMinimumCoreSignals
+      ? "in_progress"
+      : rawContextState;
+
   return {
-    builder: resolveState(builderSignalCount, { inProgress: 1, complete: 4 }),
-    context: resolveState(contextSignalCount, { inProgress: 1, complete: 3 }),
+    builder: builderState,
+    context: contextState,
     tone: resolveState(toneSignalCount, { inProgress: 1, complete: 2 }),
     quality:
       qualityTotal >= 75 ? "complete" : qualityTotal >= 50 ? "in_progress" : "empty",

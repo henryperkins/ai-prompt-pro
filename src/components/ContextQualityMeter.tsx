@@ -8,6 +8,7 @@ interface ContextQualityMeterProps {
 
 export function ContextQualityMeter({ contextConfig }: ContextQualityMeterProps) {
   const { score, checks } = scoreContext(contextConfig);
+  const nextBestAction = checks.find((check) => !check.met)?.tip ?? "Context signals look complete.";
 
   const getScoreColor = () => {
     if (score >= 75) return "text-primary";
@@ -21,6 +22,7 @@ export function ContextQualityMeter({ contextConfig }: ContextQualityMeterProps)
         <span className="text-xs font-medium text-foreground">Context completeness</span>
         <span className={`text-xs font-bold ${getScoreColor()}`}>{score}%</span>
       </div>
+      <p className="text-xs text-muted-foreground">Next best action: {nextBestAction}</p>
       <div className="space-y-1.5">
         {checks.map((check) => (
           <div key={check.label} className="flex items-start gap-2">

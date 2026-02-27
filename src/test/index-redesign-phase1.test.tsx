@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { defaultConfig } from "@/lib/prompt-builder";
@@ -38,7 +38,14 @@ vi.mock("@/components/BuilderAdjustDetails", () => ({
 }));
 
 vi.mock("@/components/BuilderSourcesAdvanced", () => ({
-  BuilderSourcesAdvanced: () => <div>Redesign Sources Advanced</div>,
+  BuilderSourcesAdvanced: ({ onToggleWebSearch }: { onToggleWebSearch?: (value: boolean) => void }) => (
+    <div>
+      <div>Redesign Sources Advanced</div>
+      <button type="button" onClick={() => onToggleWebSearch?.(true)}>
+        Toggle web lookup
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock("@/components/BuilderTabs", () => ({
@@ -58,7 +65,9 @@ vi.mock("@/components/QualityScore", () => ({
 }));
 
 vi.mock("@/components/OutputPanel", () => ({
-  OutputPanel: () => <div>Output panel</div>,
+  OutputPanel: ({ webSearchEnabled }: { webSearchEnabled?: boolean }) => (
+    <div data-testid="output-web-search-state">{String(Boolean(webSearchEnabled))}</div>
+  ),
 }));
 
 vi.mock("@/components/base/primitives/accordion", () => ({
@@ -99,6 +108,7 @@ function buildPromptBuilderState() {
   return {
     config: defaultConfig,
     updateConfig: vi.fn(),
+    resetConfig: vi.fn(),
     clearOriginalPrompt: vi.fn(),
     builtPrompt: "Built prompt",
     score: { total: 70, tips: ["tip"] },
@@ -154,5 +164,29 @@ describe("Index redesign phase 1 gating", () => {
     expect(screen.queryByText("Legacy PromptInput")).not.toBeInTheDocument();
     expect(screen.queryByText("Legacy BuilderTabs")).not.toBeInTheDocument();
     expect(screen.queryByText("Legacy ContextPanel")).not.toBeInTheDocument();
+  });
+
+  it("shows right-rail helper modules and history link on desktop", async () => {
+    await renderIndex();
+
+    expect(screen.getByText("Next best action")).toBeInTheDocument();
+    expect(screen.getByText("History")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Version History" })).toHaveAttribute("href", "/history");
+  });
+
+  it("passes web lookup toggle through advanced sources zone", async () => {
+    await renderIndex();
+
+    expect(screen.getByTestId("output-web-search-state")).toHaveTextContent("false");
+
+    const revealAdvancedButton = screen.queryByRole("button", { name: "Show advanced controls" });
+    if (revealAdvancedButton) {
+      fireEvent.click(revealAdvancedButton);
+    }
+    fireEvent.click(screen.getByRole("button", { name: "Toggle web lookup" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("output-web-search-state")).toHaveTextContent("true");
+    });
   });
 });

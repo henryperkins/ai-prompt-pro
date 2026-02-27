@@ -62,6 +62,13 @@ export interface InterviewAnswer {
   answer: string;
 }
 
+export interface ContextCoreSignals {
+  hasObjective: boolean;
+  hasBackground: boolean;
+  hasConstraints: boolean;
+  hasSupportingEvidence: boolean;
+}
+
 export interface ContextConfig {
   sources: ContextSource[];
   databaseConnections: DatabaseConnection[];
@@ -340,41 +347,26 @@ export function scoreContext(ctx: ContextConfig): {
   score: number;
   checks: { label: string; met: boolean; tip: string }[];
 } {
+  const signals = getContextCoreSignals(ctx);
   const checks: { label: string; met: boolean; tip: string }[] = [];
-
-  const hasObjective =
-    ctx.structured.offer.trim().length > 0 ||
-    ctx.interviewAnswers.some((a) => a.questionId === "goal" && a.answer.trim());
   checks.push({
     label: "Clear objective",
-    met: hasObjective,
+    met: signals.hasObjective,
     tip: "Fill in the Goal/Offer field or complete the context interview.",
   });
-
-  const hasBackground =
-    ctx.structured.audience.trim().length > 0 ||
-    ctx.structured.product.trim().length > 0 ||
-    ctx.sources.length > 0;
   checks.push({
     label: "Enough background",
-    met: hasBackground,
+    met: signals.hasBackground,
     tip: "Add audience, subject info, or attach source material.",
   });
-
-  const hasConstraints =
-    ctx.structured.excludedTopics.trim().length > 0 ||
-    ctx.interviewAnswers.some((a) => a.questionId === "constraints" && a.answer.trim());
   checks.push({
     label: "Defined constraints",
-    met: hasConstraints,
+    met: signals.hasConstraints,
     tip: "Specify excluded topics or constraints so the model knows boundaries.",
   });
-
-  const hasExample =
-    ctx.structured.mustInclude.trim().length > 0 || ctx.sources.length > 0;
   checks.push({
     label: "Supporting evidence",
-    met: hasExample,
+    met: signals.hasSupportingEvidence,
     tip: "Add must-include facts or attach a source for grounded output.",
   });
 
@@ -382,4 +374,26 @@ export function scoreContext(ctx: ContextConfig): {
   const score = Math.round((metCount / checks.length) * 100);
 
   return { score, checks };
+}
+
+export function getContextCoreSignals(ctx: ContextConfig): ContextCoreSignals {
+  const hasObjective =
+    ctx.structured.offer.trim().length > 0 ||
+    ctx.interviewAnswers.some((a) => a.questionId === "goal" && a.answer.trim().length > 0);
+  const hasBackground =
+    ctx.structured.audience.trim().length > 0 ||
+    ctx.structured.product.trim().length > 0 ||
+    ctx.sources.length > 0;
+  const hasConstraints =
+    ctx.structured.excludedTopics.trim().length > 0 ||
+    ctx.interviewAnswers.some((a) => a.questionId === "constraints" && a.answer.trim().length > 0);
+  const hasSupportingEvidence =
+    ctx.structured.mustInclude.trim().length > 0 || ctx.sources.length > 0;
+
+  return {
+    hasObjective,
+    hasBackground,
+    hasConstraints,
+    hasSupportingEvidence,
+  };
 }

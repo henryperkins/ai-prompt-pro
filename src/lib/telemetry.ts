@@ -9,6 +9,10 @@ export type BuilderTelemetryEvent =
   | "builder_enhance_completed"
   | "builder_inference_applied"
   | "builder_field_manual_override"
+  | "builder_copy_pre_enhance"
+  | "builder_save_pre_enhance_attempt"
+  | "builder_more_pre_enhance_attempt"
+  | "builder_clear_prompt_with_preview"
   | "builder_save_clicked"
   | "builder_share_toggled"
   | "builder_dev_export_used";

@@ -1,9 +1,11 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { BuilderAdjustDetails } from "@/components/BuilderAdjustDetails";
+import { ContextQualityMeter } from "@/components/ContextQualityMeter";
 import { OutputPanel } from "@/components/OutputPanel";
 import { PromptInput } from "@/components/PromptInput";
 import { toConstraintInputId } from "@/lib/builder-tabs";
+import { defaultContextConfig } from "@/lib/context-types";
 import { defaultConfig } from "@/lib/prompt-builder";
 import {
   validateSaveDialogInput,
@@ -18,6 +20,26 @@ describe("Phase 2 accessibility and validation", () => {
     const textarea = screen.getByLabelText("Your Prompt");
     expect(textarea).toHaveAttribute("id", "builder-original-prompt");
     expect(textarea).toHaveAttribute("aria-describedby", "builder-original-prompt-meta");
+  });
+
+  it("surfaces next-best-action text in context quality meter", () => {
+    render(<ContextQualityMeter contextConfig={defaultContextConfig} />);
+
+    expect(screen.getByText(/Next best action:/)).toBeInTheDocument();
+  });
+
+  it("renders reset-all action in PromptInput when provided", () => {
+    const onResetAll = () => undefined;
+    render(
+      <PromptInput
+        value="Draft prompt"
+        onChange={() => undefined}
+        onClear={() => undefined}
+        onResetAll={onResetAll}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Reset all builder fields" })).toBeInTheDocument();
   });
 
   it("uses sanitized checkbox ids for constraint options", () => {

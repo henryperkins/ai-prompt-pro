@@ -12,6 +12,7 @@ import {
   CaretRight as ChevronRight,
   Database,
   GearSix as Settings2,
+  Globe,
   Stack as Layers3,
 } from "@phosphor-icons/react";
 import type {
@@ -30,6 +31,9 @@ interface BuilderSourcesAdvancedProps {
   onUpdateRag: (updates: Partial<RagParameters>) => void;
   onUpdateProjectNotes: (notes: string) => void;
   onToggleDelimiters: (value: boolean) => void;
+  webSearchEnabled?: boolean;
+  onToggleWebSearch?: (value: boolean) => void;
+  isEnhancing?: boolean;
 }
 
 export function BuilderSourcesAdvanced({
@@ -41,10 +45,16 @@ export function BuilderSourcesAdvanced({
   onUpdateRag,
   onUpdateProjectNotes,
   onToggleDelimiters,
+  webSearchEnabled = false,
+  onToggleWebSearch,
+  isEnhancing = false,
 }: BuilderSourcesAdvancedProps) {
   const sourceCount = contextConfig.sources.length;
   const hasAdvancedConfig =
-    contextConfig.databaseConnections.length > 0 || contextConfig.rag.enabled || !contextConfig.useDelimiters;
+    contextConfig.databaseConnections.length > 0 ||
+    contextConfig.rag.enabled ||
+    !contextConfig.useDelimiters ||
+    webSearchEnabled;
 
   const [advancedVisibility, setAdvancedVisibility] = useState<"auto" | "shown" | "hidden">("auto");
   const showAdvanced = advancedVisibility === "auto" ? hasAdvancedConfig : advancedVisibility === "shown";
@@ -134,7 +144,7 @@ export function BuilderSourcesAdvanced({
 
                 <div className="flex items-center justify-between border-t border-border pt-3">
                   <div>
-                    <Label className="text-sm font-medium text-foreground sm:text-base">Use delimiters</Label>
+                    <Label className="text-sm font-medium text-foreground sm:text-base">Wrap context in XML-style tags</Label>
                     <p className="text-sm text-muted-foreground">Wrap context blocks in tags for stricter parsing.</p>
                   </div>
                   <Switch
@@ -142,6 +152,26 @@ export function BuilderSourcesAdvanced({
                     onCheckedChange={onToggleDelimiters}
                   />
                 </div>
+
+                {onToggleWebSearch && (
+                  <div className="flex items-center justify-between border-t border-border pt-3">
+                    <div>
+                      <Label className="flex items-center gap-1.5 text-sm font-medium text-foreground sm:text-base">
+                        <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                        Use web lookup during enhancement
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        Let enhance fetch current references from the web.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={webSearchEnabled}
+                      onCheckedChange={onToggleWebSearch}
+                      disabled={isEnhancing}
+                      aria-label="Enable web search during enhancement"
+                    />
+                  </div>
+                )}
               </div>
             )}
           </div>

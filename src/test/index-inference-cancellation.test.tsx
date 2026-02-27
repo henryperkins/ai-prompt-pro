@@ -126,6 +126,7 @@ vi.mock("@/hooks/usePromptBuilder", async () => {
       return {
         config,
         updateConfig,
+        resetConfig: vi.fn(),
         clearOriginalPrompt: () => updateConfig({ originalPrompt: "" }),
         builtPrompt: "Built prompt",
         score: { total: 70, tips: ["tip"] },

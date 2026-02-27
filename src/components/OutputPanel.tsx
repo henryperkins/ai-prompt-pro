@@ -49,12 +49,12 @@ import {
   Copy,
   DotsThreeOutline as MoreHorizontal,
   FloppyDisk as Save,
-  Globe,
   Sparkle as Sparkles,
   SpinnerGap as Loader2,
 } from "@phosphor-icons/react";
 
 export type EnhancePhase = "idle" | "starting" | "streaming" | "settling" | "done";
+export type OutputPreviewSource = "empty" | "prompt_text" | "builder_fields" | "enhanced";
 const REASONING_SUMMARY_FADE_MS = 900;
 
 interface SavePromptInput {
@@ -89,6 +89,8 @@ interface OutputPanelProps {
   onWebSearchToggle?: (enabled: boolean) => void;
   webSearchSources?: string[];
   reasoningSummary?: string;
+  previewSource?: OutputPreviewSource;
+  hasEnhancedOnce?: boolean;
 }
 
 type CodexExportModule = typeof import("@/lib/codex-export");
@@ -142,6 +144,8 @@ export function OutputPanel({
   onWebSearchToggle,
   webSearchSources = [],
   reasoningSummary = "",
+  previewSource,
+  hasEnhancedOnce = true,
 }: OutputPanelProps) {
   const [copied, setCopied] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -164,6 +168,20 @@ export function OutputPanel({
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const displayPrompt = enhancedPrompt || builtPrompt;
+  const inferredPreviewSource: OutputPreviewSource = enhancedPrompt.trim()
+    ? "enhanced"
+    : builtPrompt.trim()
+      ? "builder_fields"
+      : "empty";
+  const effectivePreviewSource = previewSource ?? inferredPreviewSource;
+  const previewSourceLabel =
+    effectivePreviewSource === "enhanced"
+      ? "Enhanced output"
+      : effectivePreviewSource === "prompt_text"
+        ? "Prompt text"
+        : effectivePreviewSource === "builder_fields"
+          ? "Builder details"
+          : "No preview yet";
   const trimmedReasoningSummary = reasoningSummary.trim();
   const [displayedReasoningSummary, setDisplayedReasoningSummary] = useState(trimmedReasoningSummary);
   const [isReasoningSummaryFading, setIsReasoningSummaryFading] = useState(false);
@@ -374,7 +392,9 @@ export function OutputPanel({
   const hasCompare = Boolean(
     builtPrompt.trim() && enhancedPrompt.trim() && builtPrompt.trim() !== enhancedPrompt.trim()
   );
-  const canUseSaveMenu = canSavePrompt || canSharePrompt || Boolean(displayPrompt);
+  const hasPreviewContent = displayPrompt.trim().length > 0;
+  const showUtilityActions = hasEnhancedOnce || hasPreviewContent;
+  const canUseSaveMenu = canSavePrompt || canSharePrompt || hasPreviewContent;
   const saveValidationErrors = validateSaveDialogInput({
     name: saveName,
     shareEnabled: shareEnabledForUi,
@@ -398,6 +418,11 @@ export function OutputPanel({
   const handleCopy = async () => {
     if (!displayPrompt) return;
     try {
+      if (!hasEnhancedOnce) {
+        trackBuilderEvent("builder_copy_pre_enhance", {
+          previewSource: effectivePreviewSource,
+        });
+      }
       await copyTextToClipboard(displayPrompt);
       setCopied(true);
       toast({ title: "Copied to clipboard!", description: "Paste it into your favorite AI tool." });
@@ -491,6 +516,11 @@ export function OutputPanel({
   };
 
   const openSaveDialog = (share: boolean) => {
+    if (!hasEnhancedOnce) {
+      trackBuilderEvent("builder_save_pre_enhance_attempt", {
+        shareRequested: share,
+      });
+    }
     if (share && !canSharePrompt) return;
     if (remixContext) {
       if (!saveName.trim()) {
@@ -514,6 +544,9 @@ export function OutputPanel({
           <h2 className="text-sm font-medium text-foreground">
             {enhancedPrompt ? "✨ Enhanced Prompt" : "📝 Preview"}
           </h2>
+          <span className="interactive-chip inline-flex items-center rounded-full border border-border/80 bg-muted/50 px-2 py-0.5 text-xs font-medium text-muted-foreground">
+            Source: {previewSourceLabel}
+          </span>
           {statusLabel && (
             <span className="interactive-chip inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
               {statusLabel}
@@ -540,72 +573,113 @@ export function OutputPanel({
             className="ui-toolbar-button utility-action-button min-w-[84px]"
           >
             {copied ? <Check /> : <Copy />}
-            {copied ? "Copied!" : "Copy"}
+            {copied ? "Copied!" : hasEnhancedOnce ? "Copy" : "Copy preview"}
           </Button>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button color="secondary" size="sm" isDisabled={!canUseSaveMenu} className="ui-toolbar-button gap-1.5">
-                <Save className="w-3 h-3" />
-                Save
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {phase2Enabled ? (
-                <DropdownMenuItem
-                  disabled={!canSavePrompt}
-                  onSelect={() => openSaveDialog(false)}
-                >
-                  Save Prompt
-                </DropdownMenuItem>
-              ) : (
-                <>
-                  <DropdownMenuItem
-                    disabled={!canSavePrompt}
-                    onSelect={() => openSaveDialog(false)}
-                  >
-                    Save Prompt
+          {showUtilityActions && (
+            <>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button color="secondary" size="sm" isDisabled={!canUseSaveMenu} className="ui-toolbar-button gap-1.5">
+                    <Save className="w-3 h-3" />
+                    Save
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {phase2Enabled ? (
+                    <DropdownMenuItem
+                      disabled={!canSavePrompt}
+                      onSelect={() => openSaveDialog(false)}
+                    >
+                      Save Prompt
+                    </DropdownMenuItem>
+                  ) : (
+                    <>
+                      <DropdownMenuItem
+                        disabled={!canSavePrompt}
+                        onSelect={() => openSaveDialog(false)}
+                      >
+                        Save Prompt
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        disabled={!canSharePrompt}
+                        onSelect={() => openSaveDialog(true)}
+                      >
+                        Save & Share Prompt
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  <DropdownMenuItem disabled={!displayPrompt} onSelect={() => onSaveVersion()}>
+                    Save Version
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    disabled={!canSharePrompt}
-                    onSelect={() => openSaveDialog(true)}
-                  >
-                    Save & Share Prompt
-                  </DropdownMenuItem>
-                </>
-              )}
-              <DropdownMenuItem disabled={!displayPrompt} onSelect={() => onSaveVersion()}>
-                Save Version
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button color="tertiary" size="sm" className="ui-toolbar-button gap-1.5">
-                <MoreHorizontal className="w-3 h-3" />
-                More
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {isMobile ? (
-                <>
-                  <DropdownMenuLabel>Developer tools</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {developerToolItems}
-                </>
-              ) : (
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>Developer tools</DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent>
-                    {developerToolItems}
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button color="tertiary" size="sm" className="ui-toolbar-button gap-1.5">
+                    <MoreHorizontal className="w-3 h-3" />
+                    More
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {isMobile ? (
+                    <>
+                      <DropdownMenuLabel>Developer tools</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {developerToolItems}
+                    </>
+                  ) : (
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>Developer tools</DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent>
+                        {developerToolItems}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          )}
         </div>
       </div>
+      {!showUtilityActions && (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            Save and developer tools unlock once preview content is available.
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              color="secondary"
+              size="sm"
+              className="ui-toolbar-button gap-1.5"
+              onClick={() =>
+                trackBuilderEvent("builder_save_pre_enhance_attempt", {
+                  previewSource: effectivePreviewSource,
+                })
+              }
+            >
+              <Save className="w-3 h-3" />
+              Save (locked)
+            </Button>
+            <Button
+              type="button"
+              color="tertiary"
+              size="sm"
+              className="ui-toolbar-button gap-1.5"
+              onClick={() =>
+                trackBuilderEvent("builder_more_pre_enhance_attempt", {
+                  previewSource: effectivePreviewSource,
+                })
+              }
+            >
+              <MoreHorizontal className="w-3 h-3" />
+              More (locked)
+            </Button>
+          </div>
+        </div>
+      )}
 
       <Dialog open={compareDialogOpen} onOpenChange={setCompareDialogOpen}>
         <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
@@ -907,20 +981,9 @@ export function OutputPanel({
 
       {!hideEnhanceButton && (
         <div className="flex flex-col gap-2">
-          {onWebSearchToggle && (
-            <div className="flex flex-wrap items-center gap-2">
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground select-none">
-                <Switch
-                  checked={webSearchEnabled}
-                  onCheckedChange={onWebSearchToggle}
-                  disabled={isEnhancing}
-                  aria-label="Enable web search during enhancement"
-                />
-                <Globe className="w-3.5 h-3.5" />
-                <span>Use web sources</span>
-              </label>
-            </div>
-          )}
+          <p className="text-xs text-muted-foreground" aria-live="polite">
+            Web lookup: {webSearchEnabled ? "On" : "Off"}
+          </p>
           <Button
             color="primary"
             size="lg"

@@ -115,6 +115,77 @@ describe("OutputPanel phase 2 save flow", () => {
     expect(screen.getByLabelText("Target model")).toHaveClass("text-base");
   });
 
+  it("shows preview source and keeps utility actions available before first enhancement", () => {
+    mocks.trackBuilderEvent.mockReset();
+    renderPanel({
+      enhancedPrompt: "",
+      hasEnhancedOnce: false,
+      previewSource: "builder_fields",
+    });
+
+    expect(screen.getByText("Source: Builder details")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy preview" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "More" })).toBeInTheDocument();
+    expect(screen.queryByText("Save and developer tools unlock once preview content is available.")).not.toBeInTheDocument();
+  });
+
+  it("keeps utility actions locked when preview is empty", () => {
+    mocks.trackBuilderEvent.mockReset();
+    renderPanel({
+      builtPrompt: "",
+      enhancedPrompt: "",
+      hasEnhancedOnce: false,
+      previewSource: "empty",
+    });
+
+    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "More" })).not.toBeInTheDocument();
+    expect(screen.getByText("Save and developer tools unlock once preview content is available.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "More (locked)" }));
+    expect(mocks.trackBuilderEvent).toHaveBeenCalledWith("builder_more_pre_enhance_attempt", {
+      previewSource: "empty",
+    });
+  });
+
+  it("shows utility actions after first enhancement", () => {
+    renderPanel({
+      enhancedPrompt: "Improved launch plan",
+      hasEnhancedOnce: true,
+      previewSource: "enhanced",
+    });
+
+    expect(screen.getByText("Source: Enhanced output")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "More" })).toBeInTheDocument();
+  });
+
+  it("tracks pre-enhance copy intent", () => {
+    mocks.trackBuilderEvent.mockReset();
+    renderPanel({
+      enhancedPrompt: "",
+      hasEnhancedOnce: false,
+      previewSource: "builder_fields",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy preview" }));
+
+    expect(mocks.trackBuilderEvent).toHaveBeenCalledWith("builder_copy_pre_enhance", {
+      previewSource: "builder_fields",
+    });
+  });
+
+  it("shows read-only web lookup status indicator", () => {
+    renderPanel({
+      onWebSearchToggle: () => undefined,
+      webSearchEnabled: true,
+    });
+
+    expect(screen.getByText("Web lookup: On")).toBeInTheDocument();
+  });
+
   it("shows compare inline and groups dev tools in submenu", async () => {
     renderPanel({
       enhancedPrompt: "Improved launch plan",

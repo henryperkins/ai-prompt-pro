@@ -7,6 +7,7 @@ import { ProjectNotes } from "@/components/ProjectNotes";
 import { ContextIntegrations } from "@/components/ContextIntegrations";
 import { ContextQualityMeter } from "@/components/ContextQualityMeter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/base/tabs";
+import { Globe } from "@phosphor-icons/react";
 import type {
   ContextConfig,
   ContextSource,
@@ -25,6 +26,9 @@ interface ContextPanelProps {
   onUpdateInterview: (answers: InterviewAnswer[]) => void;
   onUpdateProjectNotes: (notes: string) => void;
   onToggleDelimiters: (value: boolean) => void;
+  webSearchEnabled?: boolean;
+  onToggleWebSearch?: (value: boolean) => void;
+  isEnhancing?: boolean;
 }
 
 export function ContextPanel({
@@ -36,6 +40,9 @@ export function ContextPanel({
   onUpdateInterview,
   onUpdateProjectNotes,
   onToggleDelimiters,
+  webSearchEnabled = false,
+  onToggleWebSearch,
+  isEnhancing = false,
 }: ContextPanelProps) {
   const handleAddSource = (source: ContextSource) => {
     onUpdateSources([...contextConfig.sources, source]);
@@ -67,17 +74,17 @@ export function ContextPanel({
 
       <Tabs defaultValue="structured" className="w-full">
         <TabsList className="h-auto w-full grid grid-cols-2 gap-1 bg-muted/30 p-1 sm:grid-cols-4">
-          <TabsTrigger value="structured" aria-label="Structured context tab" className="interactive-chip h-11 px-2 text-sm sm:h-10 sm:text-sm">
-            Structured{structuredCount > 0 ? ` (${structuredCount})` : ""}
+          <TabsTrigger value="structured" aria-label="Guided brief tab" className="interactive-chip h-11 px-2 text-sm sm:h-10 sm:text-sm">
+            Guided brief{structuredCount > 0 ? ` (${structuredCount})` : ""}
           </TabsTrigger>
-          <TabsTrigger value="integrations" aria-label="Integrations tab" className="interactive-chip h-11 px-2 text-sm sm:h-10 sm:text-sm">
-            Integrations{integrationCount > 0 ? ` (${integrationCount})` : ""}
+          <TabsTrigger value="integrations" aria-label="Connected data tab" className="interactive-chip h-11 px-2 text-sm sm:h-10 sm:text-sm">
+            Connected data{integrationCount > 0 ? ` (${integrationCount})` : ""}
           </TabsTrigger>
-          <TabsTrigger value="interview" aria-label="Context interview tab" className="interactive-chip h-11 px-2 text-sm sm:h-10 sm:text-sm">
-            Interview{interviewCount > 0 ? ` (${interviewCount})` : ""}
+          <TabsTrigger value="interview" aria-label="Guided Q&A tab" className="interactive-chip h-11 px-2 text-sm sm:h-10 sm:text-sm">
+            Guided Q&amp;A{interviewCount > 0 ? ` (${interviewCount})` : ""}
           </TabsTrigger>
-          <TabsTrigger value="notes" aria-label="Project notes tab" className="interactive-chip h-11 px-2 text-sm sm:h-10 sm:text-sm">
-            Notes{hasNotes ? " (1)" : ""}
+          <TabsTrigger value="notes" aria-label="Notes and constraints tab" className="interactive-chip h-11 px-2 text-sm sm:h-10 sm:text-sm">
+            Notes &amp; constraints{hasNotes ? " (1)" : ""}
           </TabsTrigger>
         </TabsList>
 
@@ -103,16 +110,38 @@ export function ContextPanel({
         </TabsContent>
       </Tabs>
 
-      {/* Settings & quality — compact row */}
-      <div className="flex items-center justify-between pt-2 border-t border-border">
-        <div className="flex items-center gap-2">
-          <Switch
-            checked={contextConfig.useDelimiters}
-            onCheckedChange={onToggleDelimiters}
-          />
-          <Label className="text-sm text-muted-foreground sm:text-base">Delimiters</Label>
+      {/* Settings & quality */}
+      <div className="border-t border-border pt-2">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={contextConfig.useDelimiters}
+                onCheckedChange={onToggleDelimiters}
+              />
+              <Label className="text-sm text-muted-foreground sm:text-base">
+                Wrap context in XML-style tags
+              </Label>
+            </div>
+
+            {onToggleWebSearch && (
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={webSearchEnabled}
+                  onCheckedChange={onToggleWebSearch}
+                  disabled={isEnhancing}
+                  aria-label="Enable web search during enhancement"
+                />
+                <Label className="flex items-center gap-1.5 text-sm text-muted-foreground sm:text-base">
+                  <Globe className="h-3.5 w-3.5" />
+                  Use web lookup during enhancement
+                </Label>
+              </div>
+            )}
+          </div>
+
+          <ContextQualityMeter contextConfig={contextConfig} />
         </div>
-        <ContextQualityMeter contextConfig={contextConfig} />
       </div>
     </div>
   );

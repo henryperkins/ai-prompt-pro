@@ -88,6 +88,7 @@ function buildPromptBuilderState() {
   return {
     config: defaultConfig,
     updateConfig: vi.fn(),
+    resetConfig: vi.fn(),
     clearOriginalPrompt: vi.fn(),
     builtPrompt: "Built prompt",
     score: { total: 70 },

@@ -1,6 +1,13 @@
-function parseBooleanFlag(value: string | undefined): boolean {
-  if (!value) return false;
-  const normalized = value.trim().toLowerCase();
+function parseBooleanFlag(value: string | undefined, defaultValue = false): boolean {
+  if (typeof value !== "string") return defaultValue;
+
+  const trimmed = value.trim();
+  if (!trimmed) return defaultValue;
+
+  const normalized = trimmed.toLowerCase();
+  if (normalized === "0" || normalized === "false" || normalized === "no" || normalized === "off") {
+    return false;
+  }
   return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
 }
 
@@ -12,10 +19,10 @@ export interface BuilderRedesignFlags {
 }
 
 export const builderRedesignFlags: BuilderRedesignFlags = {
-  builderRedesignPhase1: parseBooleanFlag(import.meta.env.VITE_BUILDER_REDESIGN_PHASE1),
-  builderRedesignPhase2: parseBooleanFlag(import.meta.env.VITE_BUILDER_REDESIGN_PHASE2),
-  builderRedesignPhase3: parseBooleanFlag(import.meta.env.VITE_BUILDER_REDESIGN_PHASE3),
-  builderRedesignPhase4: parseBooleanFlag(import.meta.env.VITE_BUILDER_REDESIGN_PHASE4),
+  builderRedesignPhase1: parseBooleanFlag(import.meta.env.VITE_BUILDER_REDESIGN_PHASE1, true),
+  builderRedesignPhase2: parseBooleanFlag(import.meta.env.VITE_BUILDER_REDESIGN_PHASE2, true),
+  builderRedesignPhase3: parseBooleanFlag(import.meta.env.VITE_BUILDER_REDESIGN_PHASE3, true),
+  builderRedesignPhase4: parseBooleanFlag(import.meta.env.VITE_BUILDER_REDESIGN_PHASE4, true),
 };
 
 export interface CommunityFeatureFlags {

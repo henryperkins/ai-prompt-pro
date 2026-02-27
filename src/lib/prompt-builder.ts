@@ -43,7 +43,7 @@ function getPrimaryTaskInput(config: PromptConfig): string {
   return config.task.trim();
 }
 
-export function hasPromptInput(config: PromptConfig): boolean {
+export function hasBuilderFieldInput(config: PromptConfig): boolean {
   const hasStructuredContext = Object.values(config.contextConfig.structured).some(
     (value) => typeof value === "string" && hasText(value),
   );
@@ -55,7 +55,6 @@ export function hasPromptInput(config: PromptConfig): boolean {
     hasRagDocumentRefs;
 
   return (
-    hasText(config.originalPrompt) ||
     hasText(config.task) ||
     hasText(config.role) ||
     hasText(config.customRole) ||
@@ -75,6 +74,10 @@ export function hasPromptInput(config: PromptConfig): boolean {
     config.tone !== defaultConfig.tone ||
     config.complexity !== defaultConfig.complexity
   );
+}
+
+export function hasPromptInput(config: PromptConfig): boolean {
+  return hasText(config.originalPrompt) || hasBuilderFieldInput(config);
 }
 
 export const roles = [

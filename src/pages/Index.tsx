@@ -9,7 +9,7 @@ import { BuilderTabs } from "@/components/BuilderTabs";
 import { ContextPanel } from "@/components/ContextPanel";
 import { ToneControls } from "@/components/ToneControls";
 import { QualityScore } from "@/components/QualityScore";
-import { OutputPanel, type EnhancePhase } from "@/components/OutputPanel";
+import { OutputPanel, type EnhancePhase, type OutputPreviewSource } from "@/components/OutputPanel";
 import { usePromptBuilder } from "@/hooks/usePromptBuilder";
 import {
   inferBuilderFields,
@@ -28,7 +28,7 @@ import {
   type BuilderSuggestionChip,
 } from "@/lib/builder-inference";
 import { getSectionHealth, type SectionHealthState } from "@/lib/section-health";
-import { buildPrompt, defaultConfig, hasPromptInput } from "@/lib/prompt-builder";
+import { buildPrompt, defaultConfig, hasBuilderFieldInput, hasPromptInput } from "@/lib/prompt-builder";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { loadPost, loadProfilesByIds } from "@/lib/community";
@@ -602,6 +602,13 @@ const Index = () => {
     });
   }, []);
 
+  const handleWebSearchToggle = useCallback(
+    (value: boolean | ((prev: boolean) => boolean)) => {
+      persistedSetWebSearchEnabled(value);
+    },
+    [persistedSetWebSearchEnabled],
+  );
+
   const persistedSetShowAdvancedControls = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
     setShowAdvancedControls((prev) => {
       const next = typeof value === "function" ? value(prev) : value;
@@ -613,6 +620,7 @@ const Index = () => {
   const {
     config,
     updateConfig,
+    resetConfig,
     clearOriginalPrompt,
     builtPrompt,
     score,
@@ -1189,6 +1197,9 @@ const Index = () => {
   const sectionHealth = getSectionHealth(config, score.total);
   const selectedRole = config.customRole || config.role;
   const displayPrompt = enhancedPrompt || builtPrompt;
+  const hasBuiltPrompt = builtPrompt.trim().length > 0;
+  const hasOriginalPromptInput = config.originalPrompt.trim().length > 0;
+  const hasBuilderDrivenInput = hasBuilderFieldInput(config);
   const hasEnhancedOnce = enhancedPrompt.trim().length > 0;
   const allSectionsComplete =
     sectionHealth.builder === "complete" &&
@@ -1211,6 +1222,16 @@ const Index = () => {
   );
   const shouldShowAdvancedControls =
     showAdvancedControls || hasEnhancedOnce || hasDetailSelections || hasSourceOrAdvancedSelections;
+  const previewSource: OutputPreviewSource = hasEnhancedOnce
+    ? "enhanced"
+    : hasBuiltPrompt
+      ? hasBuilderDrivenInput
+        ? "builder_fields"
+        : hasOriginalPromptInput
+          ? "prompt_text"
+          : "builder_fields"
+      : "empty";
+  const hasUnenhancedPreview = !hasEnhancedOnce && builtPrompt.trim().length > 0;
   const canSavePrompt = hasPromptInput(config);
   const canSharePrompt = canSavePrompt && isSignedIn;
   const mobileEnhanceLabel = isEnhancing
@@ -1283,6 +1304,15 @@ const Index = () => {
       redesignPhase1: isBuilderRedesignPhase1,
     });
   }, [config.originalPrompt, isBuilderRedesignPhase1]);
+
+  const handleClearPrompt = useCallback(() => {
+    if (hasUnenhancedPreview) {
+      trackBuilderEvent("builder_clear_prompt_with_preview", {
+        previewSource,
+      });
+    }
+    clearOriginalPrompt();
+  }, [clearOriginalPrompt, hasUnenhancedPreview, previewSource]);
 
   useEffect(() => {
     if (isBuilderRedesignPhase3) return;
@@ -1514,7 +1544,7 @@ const Index = () => {
       )}
 
       {/* Split layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]">
         {/* Left: Input & Builder */}
         <div className="space-y-3 sm:space-y-4">
           {isBuilderRedesignPhase1 ? (
@@ -1522,7 +1552,8 @@ const Index = () => {
               <BuilderHeroInput
                 value={config.originalPrompt}
                 onChange={(value) => updateConfig({ originalPrompt: value })}
-                onClear={clearOriginalPrompt}
+                onClear={handleClearPrompt}
+                onResetAll={resetConfig}
                 phase3Enabled={isBuilderRedesignPhase3}
                 suggestionChips={suggestionChips}
                 isInferringSuggestions={isInferringSuggestions}
@@ -1536,12 +1567,12 @@ const Index = () => {
                 <Card className="border-border/70 bg-card/80 p-3">
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-foreground">Start in 3 steps</p>
-                    <ol className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-3">
+                    <ol className="grid gap-1 text-sm text-muted-foreground sm:grid-cols-3">
                       <li>1. Add your rough prompt</li>
-                      <li>2. Tap {primaryCtaLabel}</li>
+                      <li>2. {isMobile ? "Tap" : "Click"} {primaryCtaLabel}</li>
                       <li>3. Refine details</li>
                     </ol>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-sm text-muted-foreground">
                       Keep the first pass simple, then strengthen quality, context, and remix readiness.
                     </p>
                   </div>
@@ -1611,6 +1642,9 @@ const Index = () => {
                     onUpdateRag={updateRagParameters}
                     onUpdateProjectNotes={updateProjectNotes}
                     onToggleDelimiters={toggleDelimiters}
+                    webSearchEnabled={webSearchEnabled}
+                    onToggleWebSearch={handleWebSearchToggle}
+                    isEnhancing={isEnhancing}
                   />
                 </>
               )}
@@ -1620,19 +1654,20 @@ const Index = () => {
               <PromptInput
                 value={config.originalPrompt}
                 onChange={(v) => updateConfig({ originalPrompt: v })}
-                onClear={clearOriginalPrompt}
+                onClear={handleClearPrompt}
+                onResetAll={resetConfig}
               />
 
               {showEnhanceFirstCard && (
                 <Card className="border-border/70 bg-card/80 p-3">
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-foreground">Start in 3 steps</p>
-                    <ol className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-3">
+                    <ol className="grid gap-1 text-sm text-muted-foreground sm:grid-cols-3">
                       <li>1. Add your rough prompt</li>
-                      <li>2. Tap {primaryCtaLabel}</li>
+                      <li>2. {isMobile ? "Tap" : "Click"} {primaryCtaLabel}</li>
                       <li>3. Refine details</li>
                     </ol>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-sm text-muted-foreground">
                       Keep the first pass simple, then strengthen quality, context, and remix readiness.
                     </p>
                   </div>
@@ -1713,6 +1748,9 @@ const Index = () => {
                       onUpdateInterview={updateContextInterview}
                       onUpdateProjectNotes={updateProjectNotes}
                       onToggleDelimiters={toggleDelimiters}
+                      webSearchEnabled={webSearchEnabled}
+                      onToggleWebSearch={handleWebSearchToggle}
+                      isEnhancing={isEnhancing}
                     />
                   </AccordionContent>
                 </AccordionItem>
@@ -1769,14 +1807,14 @@ const Index = () => {
 
         {/* Right: Output — inline on desktop, drawer on mobile */}
         {!isMobile && (
-          <div className="lg:sticky lg:top-20 lg:self-start">
+          <div className="space-y-3 lg:sticky lg:top-20 lg:self-start">
             {isBuilderRedesignPhase1 && (
               <Card className="pf-panel mb-3 border-[rgba(214,166,64,.32)] bg-card/80 p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs font-medium text-[rgba(230,225,213,.92)]">Quality signal</p>
-                    <p className="mt-0.5 text-xs text-[rgba(230,225,213,.72)]">
-                      {score.tips[0]}
+                    <p className="mt-0.5 text-sm text-[rgba(230,225,213,.72)]">
+                      {score.tips?.[0] || "Add context and constraints to improve quality."}
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1">
@@ -1793,29 +1831,61 @@ const Index = () => {
                 </div>
               </Card>
             )}
-            <OutputPanel
-              builtPrompt={builtPrompt}
-              enhancedPrompt={enhancedPrompt}
-              reasoningSummary={reasoningSummary}
-              isEnhancing={isEnhancing}
-              enhancePhase={enhancePhase}
-              onEnhance={handleEnhance}
-              onSaveVersion={saveVersion}
-              onSavePrompt={handleSavePrompt}
-              onSaveAndSharePrompt={handleSaveAndSharePrompt}
-              canSavePrompt={canSavePrompt}
-              canSharePrompt={canSharePrompt}
-              phase2Enabled={isBuilderRedesignPhase2}
-              webSearchEnabled={webSearchEnabled}
-              onWebSearchToggle={persistedSetWebSearchEnabled}
-              webSearchSources={webSearchSources}
-              enhanceIdleLabel={primaryCtaLabel}
+              <OutputPanel
+                builtPrompt={builtPrompt}
+                enhancedPrompt={enhancedPrompt}
+                reasoningSummary={reasoningSummary}
+                isEnhancing={isEnhancing}
+                enhancePhase={enhancePhase}
+                onEnhance={handleEnhance}
+                onSaveVersion={saveVersion}
+                onSavePrompt={handleSavePrompt}
+                onSaveAndSharePrompt={handleSaveAndSharePrompt}
+                canSavePrompt={canSavePrompt}
+                canSharePrompt={canSharePrompt}
+                previewSource={previewSource}
+                hasEnhancedOnce={hasEnhancedOnce}
+                phase2Enabled={isBuilderRedesignPhase2}
+                webSearchEnabled={webSearchEnabled}
+                onWebSearchToggle={handleWebSearchToggle}
+                webSearchSources={webSearchSources}
+                enhanceIdleLabel={primaryCtaLabel}
               remixContext={
                 remixContext
                   ? { title: remixContext.parentTitle, authorName: remixContext.parentAuthor }
                   : undefined
-              }
-            />
+                }
+              />
+            <Card className="pf-panel border-border/70 bg-card/80 p-3">
+              <p className="text-xs font-medium text-foreground">Next best action</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {!hasEnhancedOnce
+                  ? "Run your first enhancement to unlock save/share workflows and compare changes."
+                  : (refineSuggestions[0]?.description ?? "Use Improve this result suggestions to keep iterating.")}
+              </p>
+            </Card>
+            {webSearchSources.length > 0 && (
+              <Card className="pf-panel border-border/70 bg-card/80 p-3">
+                <p className="text-xs font-medium text-foreground">Recent web sources</p>
+                <ul className="mt-2 space-y-1">
+                  {webSearchSources.slice(0, 3).map((source, index) => (
+                    <li key={`${source}-${index}`} className="text-xs text-muted-foreground line-clamp-2 break-all">
+                      {source}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
+            <Card className="pf-panel border-border/70 bg-card/80 p-3">
+              <p className="text-xs font-medium text-foreground">History</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Saved versions appear in History. Open{" "}
+                <Link to="/history" className="text-primary underline-offset-2 hover:underline">
+                  Version History
+                </Link>{" "}
+                to restore prior prompts.
+              </p>
+            </Card>
             <p className="text-xs text-muted-foreground text-center mt-3">
               Press <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded border border-border font-mono">Ctrl+Enter</kbd> to enhance
             </p>
@@ -1852,7 +1922,7 @@ const Index = () => {
             >
               <Switch
                 checked={webSearchEnabled}
-                onCheckedChange={persistedSetWebSearchEnabled}
+                onCheckedChange={handleWebSearchToggle}
                 disabled={isEnhancing}
                 aria-label="Enable web search during enhancement"
               />
@@ -1916,6 +1986,8 @@ const Index = () => {
                 onSaveAndSharePrompt={handleSaveAndSharePrompt}
                 canSavePrompt={canSavePrompt}
                 canSharePrompt={canSharePrompt}
+                previewSource={previewSource}
+                hasEnhancedOnce={hasEnhancedOnce}
                 phase2Enabled={isBuilderRedesignPhase2}
                 enhanceIdleLabel={primaryCtaLabel}
                 hideEnhanceButton

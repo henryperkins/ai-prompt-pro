@@ -53,7 +53,7 @@ describe("getSectionHealth", () => {
     expect(health.quality).toBe("complete");
   });
 
-  it("marks context complete when at least three context channels are filled", () => {
+  it("marks context complete when channels include objective and background", () => {
     const health = getSectionHealth(
       buildConfig({
         contextConfig: {
@@ -71,6 +71,7 @@ describe("getSectionHealth", () => {
           structured: {
             ...defaultConfig.contextConfig.structured,
             audience: "Engineering managers",
+            offer: "Launch a release readiness brief for engineering leadership.",
           },
           projectNotes: "Ship by Friday with launch notes, QA checklist, and rollback plan.",
         },
@@ -92,5 +93,56 @@ describe("getSectionHealth", () => {
 
     expect(health.tone).toBe("in_progress");
     expect(health.quality).toBe("empty");
+  });
+
+  it("does not mark builder complete without a core intent signal", () => {
+    const health = getSectionHealth(
+      buildConfig({
+        role: "Software Developer",
+        format: ["Markdown"],
+        constraints: ["Avoid jargon"],
+        examples: "Use an onboarding checklist with dependencies and approvals.",
+      }),
+      80,
+    );
+
+    expect(health.builder).toBe("in_progress");
+  });
+
+  it("keeps context in progress when objective/background are missing despite channel count", () => {
+    const health = getSectionHealth(
+      buildConfig({
+        contextConfig: {
+          ...defaultConfig.contextConfig,
+          interviewAnswers: [
+            {
+              questionId: "constraints",
+              question: "Any constraints?",
+              answer: "Do not include budget assumptions.",
+            },
+            {
+              questionId: "timeline",
+              question: "Timeline?",
+              answer: "Need a launch checklist this week.",
+            },
+          ],
+          databaseConnections: [
+            {
+              id: "db-1",
+              label: "Production analytics",
+              provider: "postgres",
+              connectionRef: "postgres://example",
+              database: "analytics",
+              tables: ["events"],
+              readOnly: true,
+            },
+          ],
+          projectNotes: "Coordinate release notes, QA, and stakeholder comms with a rollback plan before cutover.",
+        },
+      }),
+      58,
+    );
+
+    expect(health.context).toBe("in_progress");
   });
 });
