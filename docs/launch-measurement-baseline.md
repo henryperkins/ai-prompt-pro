@@ -2,6 +2,8 @@
 
 Last updated: 2026-02-26
 
+> Status: Active while launch-channel measurement is tracked; archive to `docs/reviews/` when replaced by a broader growth analytics spec.
+
 ## Goal
 Track awareness, activation, and retention from day one of launch.
 

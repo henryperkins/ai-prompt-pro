@@ -2,6 +2,8 @@
 
 Last updated: 2026-02-26
 
+> Status: Active while `VITE_LAUNCH_EXPERIMENT_HERO_COPY` or `VITE_LAUNCH_EXPERIMENT_PRIMARY_CTA` are enabled.
+
 ## Scope
 Two launch-window experiments are configured:
 - Hero copy A/B

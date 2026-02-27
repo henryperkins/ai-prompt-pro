@@ -2,6 +2,9 @@
 
 Last updated: 2026-02-26
 
+> Historical snapshot.
+> Do not treat this file as current operational guidance; use `docs/README.md` to find active docs.
+
 Assumption: this review is based on provided screenshots and current route/component files in this repository; most captured states are empty/error, so I prioritized resilience and first-run clarity.
 
 **First Impressions (30s)**

@@ -2,6 +2,8 @@
 
 Last updated: 2026-02-26
 
+> Status: Active campaign copy pack; archive to `docs/reviews/` when launch messaging is no longer canonical.
+
 ## Brand Line
 Quality prompts grounded in context
 

@@ -2,6 +2,9 @@
 
 Last updated: 2026-02-26
 
+> Historical snapshot.
+> Do not treat this file as current operational guidance; use `docs/README.md` to find active docs.
+
 **Date:** 2026-02-20
 **Scope:** `@openai/codex-sdk` integration across `agent_service/`, `src/lib/ai-client.ts`, `src/lib/codex-export.ts`, CI/CD pipelines, and supporting infrastructure.
 **Methodology:** Static analysis of all source files, environment configuration, CI workflows, and documentation. No runtime testing performed.

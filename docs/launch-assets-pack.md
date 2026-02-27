@@ -2,6 +2,8 @@
 
 Last updated: 2026-02-26
 
+> Status: Active while launch messaging/assets are in use. Move to `docs/reviews/` when launch collateral is retired.
+
 ## Purpose
 Publishing-ready launch assets aligned to locked messaging, metadata, and visual tokens.
 

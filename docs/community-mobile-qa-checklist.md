@@ -25,10 +25,13 @@ Feature flag: `VITE_COMMUNITY_MOBILE_ENHANCEMENTS=true`
 3. Verify mobile notifications bell trigger is hidden.
 4. Verify desktop `/community` and `/community/:id` behavior is unchanged.
 
-## Backlog Additions (When CMOB-101+ ship)
+## Implemented CMOB Regression Checks
 
 1. From a mobile comment notification, tap through to `/community/:postId` and verify comments sheet opens automatically.
 2. Verify comment composer receives focus and can submit without extra navigation.
 3. Verify quick reply chips prefill composer text and preserve moderation checks.
-4. Verify unread notifications sort above read and comment/remix outrank reaction notifications.
-5. Validate telemetry smoke path by confirming `community_mobile_interaction` emits for `save`, `share`, and notification-to-reply actions.
+4. Validate telemetry smoke path by confirming `community_mobile_interaction` emits for `save`, `share`, and notification-to-reply actions.
+
+## Pending Backlog Checks
+
+1. Once CMOB-104 lands, verify unread notifications sort above read and comment/remix outrank reaction notifications.

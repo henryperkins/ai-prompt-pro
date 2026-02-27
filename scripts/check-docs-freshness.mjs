@@ -13,6 +13,13 @@ function walkFiles(dirPath, predicate) {
   for (const entry of fs.readdirSync(dirPath, { withFileTypes: true })) {
     const fullPath = path.join(dirPath, entry.name);
     if (entry.isDirectory()) {
+      const relFromDocs = path.relative(docsDir, fullPath);
+      const isDocsArchiveDir =
+        !relFromDocs.startsWith("..") &&
+        (relFromDocs === "archive" || relFromDocs.startsWith(`archive${path.sep}`));
+      if (isDocsArchiveDir) {
+        continue;
+      }
       out.push(...walkFiles(fullPath, predicate));
       continue;
     }
@@ -166,6 +173,33 @@ function checkLastUpdated(targets) {
   return warnings;
 }
 
+function checkReviewSnapshotWarnings() {
+  const reviewsDir = path.join(docsDir, "reviews");
+  if (!fs.existsSync(reviewsDir)) {
+    return [];
+  }
+
+  const reviewFiles = walkFiles(reviewsDir, isMarkdown).filter(
+    (filePath) => path.basename(filePath).toLowerCase() !== "readme.md",
+  );
+
+  const missing = [];
+  for (const filePath of reviewFiles) {
+    const content = fs.readFileSync(filePath, "utf8");
+    const topChunk = content.split("\n").slice(0, 30).join("\n");
+    const hasSnapshotLine = topChunk.includes("> Historical snapshot.");
+    const hasOperationalGuidanceLine = topChunk.includes(
+      "> Do not treat this file as current operational guidance; use `docs/README.md` to find active docs.",
+    );
+
+    if (!hasSnapshotLine || !hasOperationalGuidanceLine) {
+      missing.push(toRelative(filePath));
+    }
+  }
+
+  return missing;
+}
+
 const markdownFiles = [
   path.join(repoRoot, "README.md"),
   ...walkFiles(docsDir, isMarkdown),
@@ -175,11 +209,20 @@ const missingRefs = checkMissingRefs(markdownFiles);
 
 const freshnessTargets = extractDocsIndexTargets(path.join(docsDir, "README.md"));
 const staleDateWarnings = checkLastUpdated(freshnessTargets);
+const reviewWarningIssues = checkReviewSnapshotWarnings();
 
 if (missingRefs.length > 0) {
   console.error("Documentation link check failed: missing local doc references found.");
   for (const item of missingRefs) {
     console.error(`- ${item.file}: "${item.reference}" -> ${item.resolved} (missing)`);
+  }
+  process.exit(1);
+}
+
+if (reviewWarningIssues.length > 0) {
+  console.error("Documentation review snapshot check failed: missing standard historical warning block.");
+  for (const relPath of reviewWarningIssues) {
+    console.error(`- ${relPath}`);
   }
   process.exit(1);
 }

@@ -1,8 +1,11 @@
-# Neon Cutover Runbook
+# Neon Operations Runbook
 
 Last updated: 2026-02-26
 
-## Pre-cutover verification
+Initial Neon cutover is complete; keep this runbook for production verification, monitoring, and rollback readiness.
+File path remains `docs/neon-cutover-runbook.md` for compatibility with existing references.
+
+## Pre-release verification
 
 Run from repo root:
 
@@ -31,7 +34,7 @@ Primary smoke validation uses the test suite:
 - AI enhancement/extraction/inference client behavior: `src/test/ai-client-auth.test.ts`, `src/test/ai-client-sse.test.ts`, `src/test/builder-inference.test.ts`
 - Notifications refresh behavior: `src/test/useNotifications.test.ts`, `src/test/notifications-lib.test.ts`
 
-## Production monitoring snapshot
+## Production monitoring baseline
 
 Agent service resource:
 

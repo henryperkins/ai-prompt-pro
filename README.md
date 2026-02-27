@@ -60,6 +60,7 @@ npm run dev
 - `supabase/migrations/`: SQL migrations
 - `agent_service/`: Codex SDK service for prompt enhancement
 - `docs/`: specs + runbooks + QA checklists (`docs/README.md` is the index)
+- `docs/reviews/`: historical point-in-time review snapshots (not operational source of truth)
 - `public/`: static assets
 - `dist/`: build output (generated, do not edit manually)
 

@@ -8,42 +8,38 @@ Use this file as the starting point for repo documentation.
 
 - `docs/design-system.md` - canonical design-system and UI governance reference.
 - `docs/component-adoption.md` - canonical component import and adoption status guide.
-- `docs/neon-cutover-runbook.md` - Neon production cutover and rollback operations.
+- `docs/neon-cutover-runbook.md` - Neon production operations, validation, and rollback runbook.
 - `docs/typography-regression-checklist.md` - typography validation checks.
 - `docs/community-mobile-qa-checklist.md` - manual mobile QA checks.
 - `docs/community-mobile-social-backlog.md` - active backlog for mobile social UX.
 - `docs/prompt-build-and-enhancement.md` - prompt build and enhancement architecture.
-- `docs/codex-integration-review.md` - security and architecture review findings.
 
-## Product and design reference docs
+## Campaign and launch docs
 
 - `docs/launch-assets-pack.md`
 - `docs/launch-messaging-pack.md`
 - `docs/launch-measurement-baseline.md`
 - `docs/launch-experiments.md`
-- `docs/design-ux-review-prompt.md`
-- `docs/ux-review-prioritized.md`
+- Archive these to `docs/reviews/` when launch experiments and launch-window messaging are retired.
 
-## External/spec source snapshots (archived)
+## Product/design templates
 
-Snapshot references from external sources have been moved to `docs/archive/2026-02/reference-clippings/`. Re-verify against source URLs before relying on policy details:
-- Apple HIG (color, typography, layout, web standards, App Store review guidelines)
-- OpenAI Codex (agent loop, app server, agent skills spec)
-- Untitled UI (CLI tool, text editor components)
+- `docs/design-ux-review-prompt.md` - reusable UX review prompt template.
 
-## Archived docs
+## Historical review snapshots
 
-- Archived documentation lives under `docs/archive/`.
-- 2026-02 archival pass details: `docs/archive/2026-02/README.md`
-- External reference clippings: `docs/archive/2026-02/reference-clippings/`
-- Historical root planning artifacts now live in `docs/archive/2026-02/root-planning/`.
-- Historical implementation specs and audits are in:
-  - `docs/archive/2026-02/plans/`
-  - `docs/archive/2026-02/reviews/`
+- `docs/reviews/codex-integration-review.md` - point-in-time Codex integration audit snapshot.
+- `docs/reviews/ux-review-prioritized.md` - point-in-time UX prioritization snapshot.
+- `docs/reviews/community-mobile-social-backlog-2026-02.md` - original 2-sprint mobile social backlog snapshot.
+
+## Local-only archive notes
+
+- `docs/archive/` is a local historical workspace and is gitignored.
+- Do not add required references from active docs to `docs/archive/`; keep required references in tracked docs or external source URLs.
 
 ## Maintenance policy
 
 - Keep only currently actionable runbooks/checklists in `docs/` root.
-- Move completed phase plans and one-time migration checklists to `docs/archive/YYYY-MM/`.
+- Move point-in-time review snapshots to `docs/reviews/` once they are superseded.
 - Preserve historical context in archive files; do not delete unless content is duplicate and safely recoverable from git history.
-- Run `npm run check:docs` before merge to catch missing local doc references.
+- Run `npm run check:docs` before merge to catch missing local doc references and enforce historical warning headers in `docs/reviews/`.

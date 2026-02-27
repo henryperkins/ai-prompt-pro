@@ -318,11 +318,10 @@ Avoid direct hardcoded `px` typography values and avoid bypassing primitives unl
 Use this checklist for iOS-facing releases and major UI refactors. It consolidates guidance from:
 
 - `https://developer.apple.com/design/human-interface-guidelines/`
-- `docs/apple-color.md`
-- `docs/apple-layout.html`
-- `docs/apple-typography.md`
-- `docs/apple-web-standards.md`
-- `docs/app-review-guidelines.md`
+- `https://developer.apple.com/design/human-interface-guidelines/color`
+- `https://developer.apple.com/design/human-interface-guidelines/layout`
+- `https://developer.apple.com/design/human-interface-guidelines/typography`
+- `https://developer.apple.com/app-store/review/guidelines/`
 
 ### 11.1 Color Checklist (HIG Color)
 

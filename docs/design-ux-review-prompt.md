@@ -2,6 +2,8 @@
 
 Last updated: 2026-02-26
 
+> Template: reusable prompt scaffold for design/UX audits. Replace sample context references when auditing a new scope.
+
 ```text
 You are a principal product designer + senior UX auditor. Review the app’s design system quality, visual consistency, and end-to-end UX using ONLY the assets and docs below.
 
@@ -12,7 +14,7 @@ Project context:
 - Product: PromptForge (prompt builder, library/history, community remix)
 - Primary users: developers and technical AI users
 - Design system reference: docs/design-system.md
-- Route/flow context: docs/ux-review-prioritized.md
+- Route/flow context sample (archived): docs/reviews/ux-review-prioritized.md
 - Launch asset references: docs/launch-assets-pack.md
 
 Assets to review:
