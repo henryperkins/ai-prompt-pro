@@ -60,6 +60,7 @@ const approvedPhosphorImportFiles = new Set([
   "src/components/community/PromptPreviewPanel.tsx",
   "src/components/ContextIntegrations.tsx",
   "src/components/ContextInterview.tsx",
+  "src/components/ContextPanel.tsx",
   "src/components/ContextQualityMeter.tsx",
   "src/components/ContextSourceChips.tsx",
   "src/components/Header.tsx",

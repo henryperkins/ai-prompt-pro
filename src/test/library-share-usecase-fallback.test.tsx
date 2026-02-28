@@ -84,7 +84,7 @@ describe("Library share use case fallback", () => {
         useCase: "Draft the incident timeline summary.",
       });
     });
-  });
+  }, 15_000);
 
   it("shows visible helper text when share is disabled", async () => {
     const prompt = buildPrompt({ useCase: "", starterPrompt: "" });

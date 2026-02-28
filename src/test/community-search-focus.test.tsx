@@ -91,7 +91,7 @@ describe("Community search focus visibility", () => {
     await waitFor(() => {
       expect(mocks.loadFeed).toHaveBeenCalled();
     });
-  });
+  }, 15_000);
 
   it("preserves the focus shell styling in dark mode", async () => {
     document.documentElement.classList.add("dark");

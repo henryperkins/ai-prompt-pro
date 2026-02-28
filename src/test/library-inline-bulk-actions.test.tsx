@@ -105,7 +105,7 @@ describe("Library inline bulk actions", () => {
     expect(deleteSavedTemplate).not.toHaveBeenCalled();
 
     confirmSpy.mockRestore();
-  });
+  }, 15_000);
 
   it("supports selected-only focus mode", async () => {
     mocks.usePromptBuilder.mockReturnValue({

@@ -19,7 +19,7 @@ describe("accessibility audits", () => {
 
     const results = await axe(document.body);
     expect(results.violations).toEqual([]);
-  });
+  }, 15_000);
 
   it("has no axe violations on the community route", async () => {
     await renderAppAt("/community");

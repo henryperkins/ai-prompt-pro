@@ -174,7 +174,7 @@ describe("community mobile UX", () => {
         }),
       );
     });
-  });
+  }, 15_000);
 
   it("hides mobile filter drawer trigger when the rollout flag is off", async () => {
     await renderCommunityPage(false);

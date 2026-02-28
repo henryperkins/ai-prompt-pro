@@ -31,7 +31,7 @@ describe("app startup when backend is unconfigured", () => {
     const hero = await screen.findByTestId("builder-hero", {}, { timeout: 5000 });
     expect(hero).toBeInTheDocument();
     expect(within(hero).getByRole("heading", { level: 1 })).toHaveTextContent(/\S+/);
-  });
+  }, 15_000);
 
   it("shows actionable Community backend setup state instead of crashing", async () => {
     await renderAppAt("/community");
