@@ -38,14 +38,22 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
     event.preventDefault();
     if (loading || oauthLoading || forgotPasswordLoading) return;
 
+    const normalizedEmail = email.trim();
+
     setError("");
     setForgotPasswordSent(false);
+
+    if (!normalizedEmail) {
+      setError("Enter a valid email address.");
+      return;
+    }
+
     setLoading(true);
 
     const result =
       mode === "login"
-        ? await signIn(email, password)
-        : await signUp(email, password, displayName);
+        ? await signIn(normalizedEmail, password)
+        : await signUp(normalizedEmail, password, displayName);
 
     setLoading(false);
 
@@ -178,7 +186,7 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
             </p>
             <Button
               color="secondary"
-              onPress={() => {
+              onClick={() => {
                 setMode("login");
                 setConfirmationSent(false);
               }}
@@ -192,7 +200,7 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               <Button
                 color="secondary"
-                onPress={() => void handleOAuth("apple")}
+                onClick={() => void handleOAuth("apple")}
                 isDisabled={loading || Boolean(oauthLoading)}
                 isLoading={oauthLoading === "apple"}
                 showTextWhileLoading
@@ -202,7 +210,7 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
               </Button>
               <Button
                 color="secondary"
-                onPress={() => void handleOAuth("github")}
+                onClick={() => void handleOAuth("github")}
                 isDisabled={loading || Boolean(oauthLoading)}
                 isLoading={oauthLoading === "github"}
                 showTextWhileLoading
@@ -212,7 +220,7 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
               </Button>
               <Button
                 color="secondary"
-                onPress={() => void handleOAuth("google")}
+                onClick={() => void handleOAuth("google")}
                 isDisabled={loading || Boolean(oauthLoading)}
                 isLoading={oauthLoading === "google"}
                 showTextWhileLoading
@@ -290,8 +298,8 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
                   <Button
                     type="button"
                     color="link-color"
-                    onPress={() => void handleForgotPassword()}
-                    isDisabled={forgotPasswordLoading}
+                    onClick={() => void handleForgotPassword()}
+                    isDisabled={loading || Boolean(oauthLoading) || forgotPasswordLoading}
                     isLoading={forgotPasswordLoading}
                     showTextWhileLoading
                     className="text-sm"

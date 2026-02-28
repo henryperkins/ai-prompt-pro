@@ -268,7 +268,7 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
                     <Input
                       placeholder="https://example.com"
                       value={urlInput}
-                      onChange={(e) => setUrlInput(e.target.value)}
+                      onChange={(value) => setUrlInput(value)}
                       className="bg-background flex-1"
                     />
                     <Button
@@ -290,7 +290,7 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
                 <Input
                   placeholder={mode === "url" ? "Page title (auto-filled on fetch)" : "Source title (optional)"}
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  onChange={(value) => setTitle(value)}
                   className="bg-background"
                 />
                 <Textarea
@@ -332,15 +332,16 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
       {sources.length > 0 && (
         <div className="flex flex-wrap gap-1.5 sm:gap-2">
           {sources.map((source) => (
-            <Badge
-              key={source.id}
-              type="modern"
-              className="gap-1 sm:gap-1.5 pr-1 max-w-[180px] sm:max-w-[200px] group cursor-default"
-              title={`${source.title}\n${source.summary}`}
-            >
+              <Badge
+                key={source.id}
+                type="modern"
+                className="gap-1 sm:gap-1.5 pr-1 max-w-45 sm:max-w-50 group cursor-default"
+                title={`${source.title}\n${source.summary}`}
+              >
               {chipIcon(source.type)}
               <span className="type-wrap-safe text-xs">{source.title}</span>
               <button
+                type="button"
                 onClick={() => onRemove(source.id)}
                 className="ml-0.5 rounded-full p-0.5 hover:bg-destructive/20 transition-colors"
                 aria-label={`Remove ${source.title}`}

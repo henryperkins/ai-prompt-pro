@@ -19,8 +19,22 @@ export function ContextInterview({ answers, onUpdate }: ContextInterviewProps) {
   const getAnswer = (qId: string) => answers.find((a) => a.questionId === qId)?.answer || "";
 
   const setAnswer = (qId: string, question: string, answer: string) => {
-    const existing = answers.filter((a) => a.questionId !== qId);
-    onUpdate([...existing, { questionId: qId, question, answer }]);
+    const existingIndex = answers.findIndex((a) => a.questionId === qId);
+
+    if (!answer.trim()) {
+      if (existingIndex === -1) return;
+      onUpdate(answers.filter((a) => a.questionId !== qId));
+      return;
+    }
+
+    if (existingIndex === -1) {
+      onUpdate([...answers, { questionId: qId, question, answer }]);
+      return;
+    }
+
+    const nextAnswers = [...answers];
+    nextAnswers[existingIndex] = { questionId: qId, question, answer };
+    onUpdate(nextAnswers);
   };
 
   const answeredCount = answers.filter((a) => a.answer.trim()).length;
@@ -95,7 +109,7 @@ export function ContextInterview({ answers, onUpdate }: ContextInterviewProps) {
         <Input
           placeholder="Type your answer..."
           value={getAnswer(currentQ.id)}
-          onChange={(e) => setAnswer(currentQ.id, currentQ.question, e.target.value)}
+          onChange={(value) => setAnswer(currentQ.id, currentQ.question, value)}
           className="bg-background"
         />
       )}
