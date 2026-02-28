@@ -346,22 +346,22 @@ export function buildEnhancementMetaPrompt(userInput, context) {
     return `- ${key}: ${value || "(empty)"}`;
   }).join("\n");
   const template = MASTER_META_PROMPT
-    .replace("{{USER_INPUT}}", userInput)
-    .replace("{{INTENT_TYPE}}", joinOrDefault(context.intent, "general"))
-    .replace("{{DOMAIN}}", joinOrDefault(context.domain, "general"))
-    .replace("{{COMPLEXITY}}", String(context.complexity))
-    .replace("{{BUILDER_MODE}}", context.builderMode)
-    .replace("{{INPUT_LANGUAGE}}", context.inputLanguage)
-    .replace(
+    .replaceAll("{{USER_INPUT}}", userInput)
+    .replaceAll("{{INTENT_TYPE}}", joinOrDefault(context.intent, "general"))
+    .replaceAll("{{DOMAIN}}", joinOrDefault(context.domain, "general"))
+    .replaceAll("{{COMPLEXITY}}", String(context.complexity))
+    .replaceAll("{{BUILDER_MODE}}", context.builderMode)
+    .replaceAll("{{INPUT_LANGUAGE}}", context.inputLanguage)
+    .replaceAll(
       "{{PRESENT_SECTIONS}}",
       joinOrDefault(context.structure.presentSections, "none"),
     )
-    .replace(
+    .replaceAll(
       "{{MISSING_SECTIONS}}",
       joinOrDefault(context.structure.missingSections, "none"),
     )
-    .replace("{{BUILDER_FIELDS}}", builderFieldLines)
-    .replace("{{EDGE_CASE_NOTES}}", edgeCaseNotes);
+    .replaceAll("{{BUILDER_FIELDS}}", builderFieldLines)
+    .replaceAll("{{EDGE_CASE_NOTES}}", edgeCaseNotes);
 
   return [template, modeAddon, ...intentAddons].join("\n\n");
 }

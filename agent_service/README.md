@@ -136,6 +136,9 @@ Set `REQUIRE_PROVIDER_CONFIG=true` to disable step 3 and fail fast instead of fa
 | `EXTRACT_FETCH_TIMEOUT_MS` | `15000` | Timeout for page/OpenAI extraction calls |
 | `EXTRACT_MAX_RESPONSE_BYTES` | `1048576` | Max downloaded page size (bytes) |
 | `EXTRACT_MODEL` | Inherits `CODEX_MODEL`/provider model (or `gpt-4.1-mini` for non-Azure) | OpenAI model for URL extraction summarization |
+| `SHUTDOWN_DRAIN_TIMEOUT_MS` | `10000` | Time to wait for in-flight connections to drain before forced exit on SIGTERM/SIGINT |
+| `EXTRACT_URL_CACHE_TTL_MS` | `600000` | TTL for cached `/extract-url` responses (milliseconds) |
+| `EXTRACT_URL_CACHE_MAX_ENTRIES` | `200` | Maximum number of cached `/extract-url` responses |
 
 ### Codex client options
 
@@ -181,6 +184,11 @@ Set `REQUIRE_PROVIDER_CONFIG=true` to disable step 3 and fail fast instead of fa
 | `EXTRACT_PER_DAY` | `120` | `/extract-url` requests per day |
 | `INFER_PER_MINUTE` | `15` | `/infer-builder-fields` requests per minute |
 | `INFER_PER_DAY` | `400` | `/infer-builder-fields` requests per day |
+
+## Known limitations
+
+- **Per-process rate limiting**: Rate-limit counters are stored in an in-memory `Map` and are not shared across multiple instances. Restarting the process resets all counters.
+- **Per-process extract-URL cache**: The `/extract-url` response cache is also in-memory and per-process, so cache hits only benefit the same instance.
 
 ## Features
 

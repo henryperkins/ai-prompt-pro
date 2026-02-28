@@ -121,6 +121,18 @@ const ENHANCE_WS_MAX_CONNECTIONS_PER_IP = parsePositiveIntegerEnv(
   "ENHANCE_WS_MAX_CONNECTIONS_PER_IP",
   10,
 );
+const SHUTDOWN_DRAIN_TIMEOUT_MS = parsePositiveIntegerEnv(
+  "SHUTDOWN_DRAIN_TIMEOUT_MS",
+  10_000,
+);
+const EXTRACT_URL_CACHE_TTL_MS = parsePositiveIntegerEnv(
+  "EXTRACT_URL_CACHE_TTL_MS",
+  600_000,
+);
+const EXTRACT_URL_CACHE_MAX_ENTRIES = parsePositiveIntegerEnv(
+  "EXTRACT_URL_CACHE_MAX_ENTRIES",
+  200,
+);
 
 const OPENAI_API_BASE_URL = (CODEX_CONFIG?.baseUrl ? CODEX_CONFIG.baseUrl.replace(/\/+$/, "") : null)
   || process.env.OPENAI_BASE_URL?.trim()
@@ -443,12 +455,19 @@ function normalizeNeonAuthUrl(rawValue) {
   return trimmed;
 }
 
+function stripInternalPaths(message) {
+  return message
+    .replace(/(?:\/(?:home|tmp|var|usr|opt|etc|root))\S*/gi, "[path]")
+    .replace(/[A-Z]:\\[^\s"')]+/g, "[path]")
+    .replace(/https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|::1)(?::\d+)?[^\s"]*/gi, "[internal-url]");
+}
+
 function sanitizeCodexExecErrorMessage(message) {
   if (typeof message !== "string") return "Unexpected error from Codex service.";
   const trimmed = message.trim();
   if (!trimmed) return "Unexpected error from Codex service.";
   if (!trimmed.includes("Codex Exec exited with")) {
-    return trimmed;
+    return stripInternalPaths(trimmed);
   }
 
   const stderrSection = trimmed.split(":").slice(1).join(":").trim();
@@ -598,6 +617,32 @@ const ENHANCE_WS_SERVICE_PROTOCOL_PREFIX = "auth.service.";
 
 const rateLimitStores = new Map();
 const activeEnhanceWebSocketConnectionsByIp = new Map();
+const extractUrlCache = new Map();
+
+function getExtractUrlCacheEntry(url) {
+  const entry = extractUrlCache.get(url);
+  if (!entry) return null;
+  if (Date.now() - entry.cachedAt > EXTRACT_URL_CACHE_TTL_MS) {
+    extractUrlCache.delete(url);
+    return null;
+  }
+  return entry;
+}
+
+function setExtractUrlCacheEntry(url, title, content) {
+  // Prune expired entries
+  for (const [key, entry] of extractUrlCache) {
+    if (Date.now() - entry.cachedAt > EXTRACT_URL_CACHE_TTL_MS) {
+      extractUrlCache.delete(key);
+    }
+  }
+  // Evict oldest if at capacity
+  if (extractUrlCache.size >= EXTRACT_URL_CACHE_MAX_ENTRIES) {
+    const oldestKey = extractUrlCache.keys().next().value;
+    extractUrlCache.delete(oldestKey);
+  }
+  extractUrlCache.set(url, { title, content, cachedAt: Date.now() });
+}
 
 let neonJwksResolver = null;
 let hasLoggedAuthConfigWarning = false;
@@ -2130,20 +2175,21 @@ async function runEnhanceTurnStream(requestData, options) {
           type: "turn.failed",
           turn_id: turnId,
           thread_id: activeThreadId,
-          error: event.error,
+          error: failureMessage,
         });
         continue;
       }
 
       if (event.type === "error") {
         turnError = true;
-        setRequestError(requestContext, "service_error", toErrorMessage(event.message));
+        const threadErrorMessage = toErrorMessage(event.message);
+        setRequestError(requestContext, "service_error", threadErrorMessage);
         emit({
           event: "thread.error",
           type: "error",
           turn_id: turnId,
           thread_id: activeThreadId,
-          error: event.message,
+          error: threadErrorMessage,
         });
         continue;
       }
@@ -2751,6 +2797,16 @@ async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
     return;
   }
 
+  const cachedEntry = getExtractUrlCacheEntry(parsedUrl.href);
+  if (cachedEntry) {
+    logEvent("info", "extract_url_cache_hit", {
+      request_id: requestContext?.requestId,
+      url: parsedUrl.href,
+    });
+    json(res, 200, { title: cachedEntry.title, content: cachedEntry.content }, corsHeaders);
+    return;
+  }
+
   let pageResponse;
   try {
     pageResponse = await fetchPageWithHeaderFallback(parsedUrl.href, FETCH_TIMEOUT_MS);
@@ -2853,6 +2909,7 @@ async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
     return;
   }
 
+  setExtractUrlCacheEntry(parsedUrl.href, title, summaryResult.content);
   json(res, 200, { title, content: summaryResult.content }, corsHeaders);
 }
 
@@ -3014,7 +3071,7 @@ async function requestHandler(req, res) {
       json(
         res,
         500,
-        { error: error instanceof Error ? error.message : "Unknown error" },
+        { error: requestContext.errorMessage || "Internal server error." },
         cors.headers,
       );
       return;
@@ -3120,3 +3177,44 @@ server.listen(SERVICE_CONFIG.port, SERVICE_CONFIG.host, () => {
     sandbox_mode: DEFAULT_THREAD_OPTIONS.sandboxMode || null,
   });
 });
+
+// ---------------------------------------------------------------------------
+// Graceful shutdown
+// ---------------------------------------------------------------------------
+let isShuttingDown = false;
+
+function gracefulShutdown(signal) {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+
+  logEvent("info", "service_shutdown_start", { signal });
+
+  server.close(() => {
+    logEvent("info", "service_shutdown_http_closed", { signal });
+  });
+
+  for (const ws of enhanceWebSocketServer.clients) {
+    try {
+      ws.send(JSON.stringify({
+        event: "stream.error",
+        type: "error",
+        error: "Server is shutting down.",
+      }));
+      ws.close(1001, "Server is shutting down.");
+    } catch {
+      // ignore errors on already-closing sockets
+    }
+  }
+
+  const drainTimer = setTimeout(() => {
+    logEvent("warn", "service_shutdown_drain_timeout", {
+      signal,
+      timeout_ms: SHUTDOWN_DRAIN_TIMEOUT_MS,
+    });
+    process.exit(1);
+  }, SHUTDOWN_DRAIN_TIMEOUT_MS);
+  drainTimer.unref();
+}
+
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));

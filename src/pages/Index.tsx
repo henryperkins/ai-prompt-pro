@@ -119,7 +119,7 @@ function SectionHealthBadge({ state }: { state: SectionHealthState }) {
 type BuilderSection = "builder" | "context" | "tone" | "quality";
 
 const ENHANCE_THREAD_OPTIONS_BASE: Omit<EnhanceThreadOptions, "webSearchEnabled"> = {
-  modelReasoningEffort: "medium",
+  modelReasoningEffort: "xhigh",
 };
 
 const DEBUG_ENHANCE_EVENTS_KEY = "promptforge:debug-enhance-events";
