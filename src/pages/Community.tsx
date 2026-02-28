@@ -694,7 +694,7 @@ const Community = () => {
                 type="button"
                 color="secondary"
                 size="sm"
-                className="type-button-label mt-2 h-11 w-full items-center justify-between px-3"
+                className="type-button-label mt-2 h-11 w-full items-center justify-between px-3 max-[320px]:mt-1 max-[320px]:h-10"
                 onClick={() => {
                   trackFirstMeaningfulAction("filter_drawer_opened");
                   setMobileCategorySheetOpen(true);

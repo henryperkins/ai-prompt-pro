@@ -38,7 +38,7 @@ function classifyErrorKind(message: string): CommunityErrorKind {
     return "auth";
   }
 
-  if (/not found|unavailable|invalid or expired|no post|404/.test(normalized)) {
+  if (/not found|unavailable|invalid or expired|invalid input|no post|404/.test(normalized)) {
     return "not_found";
   }
 

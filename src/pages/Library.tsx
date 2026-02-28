@@ -852,30 +852,34 @@ const Library = () => {
             </div>
 
             {templateSummaries.length === 0 && (
-              <StateCard
-                variant="empty"
-                title="No saved prompts yet"
-                description="Create a prompt in Builder, run a quality pass, and save it here."
-                primaryAction={{ label: "Go to Builder", to: "/" }}
-              />
+              <div className="mb-6">
+                <StateCard
+                  variant="empty"
+                  title="No saved prompts yet"
+                  description="Create a prompt in Builder, run a quality pass, and save it here."
+                  primaryAction={{ label: "Go to Builder", to: "/" }}
+                />
+              </div>
             )}
 
             {templateSummaries.length > 0 && visibleSaved.length === 0 && (
-              <StateCard
-                variant="empty"
-                title={showSelectedOnly ? "No selected prompts in this view." : "No prompts match this filter."}
-                description={
-                  showSelectedOnly
-                    ? "Select prompts, or switch off Selected only to browse everything."
-                    : "Try a different search term, category, or context keyword."
-                }
-                primaryAction={
-                  hasActiveFilters
-                    ? { label: "Reset filters", onClick: resetFilters }
-                    : { label: "Go to Builder", to: "/" }
-                }
-                secondaryAction={{ label: "Go to Builder", to: "/" }}
-              />
+              <div className="mb-6">
+                <StateCard
+                  variant="empty"
+                  title={showSelectedOnly ? "No selected prompts in this view." : "No prompts match this filter."}
+                  description={
+                    showSelectedOnly
+                      ? "Select prompts, or switch off Selected only to browse everything."
+                      : "Try a different search term, category, or context keyword."
+                  }
+                  primaryAction={
+                    hasActiveFilters
+                      ? { label: "Reset filters", onClick: resetFilters }
+                      : { label: "Go to Builder", to: "/" }
+                  }
+                  secondaryAction={{ label: "Go to Builder", to: "/" }}
+                />
+              </div>
             )}
 
             {shouldVirtualize ? (

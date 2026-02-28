@@ -345,7 +345,7 @@ function CommunityPostCardComponent({
                     type="button"
                     color="tertiary"
                     size="sm"
-                    className="type-button-label utility-action-button h-10 w-10 p-0 sm:h-9 sm:w-9"
+                    className="type-button-label utility-action-button h-11 w-11 p-0 sm:h-9 sm:w-9"
                     aria-label="More actions"
                     data-testid="community-card-overflow"
                   >

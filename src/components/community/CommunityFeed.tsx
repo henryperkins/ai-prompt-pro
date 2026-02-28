@@ -225,13 +225,15 @@ export function CommunityFeed({
           : { label: "Open Library", to: "/library" };
 
     return (
-      <StateCard
-        variant="error"
-        title={title}
-        description={errorMessage}
-        primaryAction={onRetry ? { label: "Retry", onClick: onRetry } : { label: "Go to Builder", to: "/" }}
-        secondaryAction={secondaryAction}
-      />
+      <div className="mb-6">
+        <StateCard
+          variant="error"
+          title={title}
+          description={errorMessage}
+          primaryAction={onRetry ? { label: "Retry", onClick: onRetry } : { label: "Go to Builder", to: "/" }}
+          secondaryAction={secondaryAction}
+        />
+      </div>
     );
   }
 

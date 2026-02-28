@@ -342,6 +342,20 @@ function mapCommunityProfile(row: CommunityProfileRow): CommunityProfile {
   };
 }
 
+function sanitizePostgrestMessage(message: string, fallback: string): string {
+  const lower = message.toLowerCase();
+  if (/permission denied|row.level security|forbidden/i.test(lower)) {
+    return "Sign in to access this content.";
+  }
+  if (/jwt expired|jwt/i.test(lower)) {
+    return "Your session has expired. Please sign in again.";
+  }
+  if (/invalid input syntax for type uuid/i.test(lower)) {
+    return "This link is invalid or expired.";
+  }
+  return fallback;
+}
+
 function toError(error: unknown, fallback: string): Error {
   if (error instanceof Error) return error;
   if (isPostgrestError(error)) {
@@ -349,7 +363,7 @@ function toError(error: unknown, fallback: string): Error {
     if (/unsupported unicode escape sequence|\\u0000 cannot be converted to text/i.test(detail)) {
       return new Error("Prompt text contains unsupported characters. Please remove hidden control characters.");
     }
-    return new Error(error.message || fallback);
+    return new Error(sanitizePostgrestMessage(error.message || "", fallback));
   }
   return new Error(fallback);
 }
@@ -730,6 +744,9 @@ export async function loadPostsByAuthor(
     if (error) throw error;
     return (data || []).map((row) => mapCommunityPost(row as unknown as CommunityPostRow));
   } catch (error) {
+    if (isInvalidUuidInputError(error)) {
+      throw new Error("This profile link is invalid or expired.");
+    }
     throw toError(error, "Failed to load profile posts.");
   }
 }
@@ -836,6 +853,9 @@ export async function loadProfilesByIds(userIds: string[]): Promise<CommunityPro
     if (error) throw error;
     return (data || []).map((row) => mapCommunityProfile(row as CommunityProfileRow));
   } catch (error) {
+    if (isInvalidUuidInputError(error)) {
+      throw new Error("This profile link is invalid or expired.");
+    }
     throw toError(error, "Failed to load community profiles.");
   }
 }

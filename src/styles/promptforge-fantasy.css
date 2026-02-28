@@ -518,6 +518,20 @@
   }
 }
 
+/* Landscape — collapse hero to preserve vertical space on short viewports */
+@media (orientation: landscape) and (max-height: 500px) {
+  .pf-hero-surface {
+    max-height: 25vh;
+    overflow: hidden;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .pf-hero-surface .pf-divider {
+    display: none;
+  }
+}
+
 @keyframes pf-pulse-gold {
   0%, 100% {
     box-shadow:

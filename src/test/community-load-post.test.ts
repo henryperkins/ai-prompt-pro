@@ -189,7 +189,7 @@ describe("community.loadPost", () => {
     });
 
     await expect(loadPost("00000000-0000-0000-0000-000000000001")).rejects.toThrow(
-      "column community_posts.unrelated_column does not exist",
+      "Failed to load community post.",
     );
     expect(fromMock).toHaveBeenCalledTimes(1);
   });
