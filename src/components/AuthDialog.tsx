@@ -259,6 +259,8 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
               <InputGroup
                 label="Password"
                 isRequired
+                value={password}
+                onChange={setPassword}
                 hint={mode === "signup" ? "Use at least 8 characters." : undefined}
                 trailingAddon={
                   <InputGroup.Prefix isDisabled={loading || Boolean(oauthLoading)}>
@@ -277,8 +279,6 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
               >
                 <InputBase
                   type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={setPassword}
                   placeholder={mode === "signup" ? "At least 8 characters" : "Enter your password"}
                   minLength={mode === "signup" ? 8 : undefined}
                   autoComplete={mode === "login" ? "current-password" : "new-password"}
