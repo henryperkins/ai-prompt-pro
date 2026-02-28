@@ -70,8 +70,8 @@ describe("CommunityPostCard action controls", () => {
     fireEvent.click(screen.getByTestId("community-save-cta"));
     expect(onSaveToLibrary).toHaveBeenCalledWith(post.id);
 
-    fireEvent.click(screen.getByTestId("community-share"));
-    expect(onSharePost).toHaveBeenCalledWith(post);
+    // Share is now inside the overflow menu (Radix dropdown)
+    expect(screen.getByTestId("community-card-overflow")).toBeInTheDocument();
   });
 
   it("supports tag click filtering callbacks", () => {
@@ -139,7 +139,8 @@ describe("CommunityPostCard action controls", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.queryByTestId("community-save-cta")).toBeNull();
+    // Save is always visible; Share is inside overflow menu (not a standalone button)
+    expect(screen.getByTestId("community-save-cta")).toBeInTheDocument();
     expect(screen.queryByTestId("community-share")).toBeNull();
     expect(screen.getByTestId("community-remix-cta")).toBeInTheDocument();
   });

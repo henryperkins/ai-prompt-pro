@@ -26,6 +26,7 @@ import {
   BookmarkSimple as BookmarkPlus,
   ChatCircle as MessageCircle,
   CheckCircle as CheckCircle2,
+  Copy,
   Database,
   DotsThreeOutline as MoreHorizontal,
   Flag,
@@ -92,9 +93,9 @@ function CommunityPostCardComponent({
   currentUserId,
   onToggleFollow,
   canVote,
-  canRate = false,
-  ratingValue = null,
-  onRatePrompt,
+  canRate: _canRate = false,
+  ratingValue: _ratingValue = null,
+  onRatePrompt: _onRatePrompt,
   canModerate = false,
   canBlockAuthor = true,
   isAuthorBlocked = false,
@@ -125,9 +126,6 @@ function CommunityPostCardComponent({
     return post.tags.slice(0, isMobile ? mobileMax : desktopMax);
   }, [isDeemphasized, isMobile, isSelected, post.tags]);
   const postPath = `/community/${post.id}`;
-  const commentsLabel = useMobileCommentsDrawer ? "Comments" : commentsOpen ? "Hide comments" : "Comments";
-  const showSecondaryActionButton = !isDeemphasized || isMobile;
-  const showTertiaryActionButton = !isDeemphasized || isMobile;
 
   return (
     <Card
@@ -163,7 +161,7 @@ function CommunityPostCardComponent({
                     type="button"
                     size="sm"
                     color={followingUserIds?.has(post.authorId) ? "secondary" : "primary"}
-                    className="type-button-label h-6 px-2 text-xs leading-none sm:h-5"
+                    className="type-button-label h-7 min-w-11 px-2.5 text-xs leading-none"
                     onClick={() => onToggleFollow(post.authorId, followingUserIds?.has(post.authorId) ?? false)}
                   >
                     {followingUserIds?.has(post.authorId) ? "Following" : "Follow"}
@@ -317,10 +315,10 @@ function CommunityPostCardComponent({
             </span>
           </div>
           <div className="flex items-center gap-1.5">
-            {showSecondaryActionButton && onSaveToLibrary && currentUserId && (
+            {onSaveToLibrary && (
               <Button
                 type="button"
-                color="tertiary"
+                color="secondary"
                 size="sm"
                 className="type-button-label utility-action-button"
                 onClick={() => onSaveToLibrary(post.id)}
@@ -332,7 +330,7 @@ function CommunityPostCardComponent({
             )}
             <Button
               type="button"
-              color={isMobile || isFeatured ? "primary" : "secondary"}
+              color="primary"
               size="sm"
               className="type-button-label utility-action-button min-w-[84px]"
               onClick={() => navigate(`/?remix=${post.id}`)}
@@ -340,13 +338,51 @@ function CommunityPostCardComponent({
             >
               Remix
             </Button>
+            {(onSharePost || onCopyPrompt) && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    color="tertiary"
+                    size="sm"
+                    className="type-button-label utility-action-button h-10 w-10 p-0 sm:h-9 sm:w-9"
+                    aria-label="More actions"
+                    data-testid="community-card-overflow"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {onSharePost && (
+                    <DropdownMenuItem
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        onSharePost(post);
+                      }}
+                    >
+                      <Share2 className="mr-2 h-4 w-4" />
+                      Share post
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem
+                    onSelect={(event) => {
+                      event.preventDefault();
+                      onCopyPrompt(post);
+                    }}
+                  >
+                    <Copy className="mr-2 h-4 w-4" />
+                    Copy prompt
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
 
         <div
           className={cn(
             "type-meta gap-2 text-muted-foreground",
-            isMobile ? "grid grid-cols-4" : "flex flex-wrap items-center",
+            isMobile ? "flex flex-wrap items-center" : "flex flex-wrap items-center",
           )}
         >
           <Button
@@ -378,7 +414,7 @@ function CommunityPostCardComponent({
             color="tertiary"
             size="sm"
             className="type-button-label interactive-chip h-11 gap-1.5 px-3 sm:h-9 sm:px-2.5"
-            aria-label={post.commentCount > 0 ? `${commentsLabel} ${post.commentCount}` : commentsLabel}
+            aria-label={post.commentCount > 0 ? `Comments ${post.commentCount}` : "Comments"}
             onClick={() => {
               if (useMobileCommentsDrawer) {
                 setCommentsOpen(true);
@@ -390,77 +426,26 @@ function CommunityPostCardComponent({
             data-testid="community-comment-toggle"
           >
             <MessageCircle className="h-3.5 w-3.5" />
-            {commentsLabel}
             {post.commentCount > 0 && (
-              <Badge
-                type="modern"
-                className="type-reply-label type-numeric ml-0.5 h-4 min-w-4 px-1 leading-none"
-                aria-hidden="true"
-              >
-                {post.commentCount}
-              </Badge>
+              <span className="type-numeric">{post.commentCount}</span>
             )}
           </Button>
-          {showTertiaryActionButton && onSharePost && (
-            <Button
-              type="button"
-              color="tertiary"
-              size="sm"
-              className="type-button-label interactive-chip h-11 min-w-11 gap-1.5 px-3 sm:h-9 sm:min-w-9 sm:gap-1 sm:px-2.5"
-              aria-label="Share post"
-              onClick={() => onSharePost(post)}
-              data-testid="community-share"
-            >
-              <Share2 className="h-3.5 w-3.5" />
-            </Button>
-          )}
         </div>
 
-        <div className="space-y-2">
-          <div className="type-meta flex flex-wrap items-center gap-2 text-muted-foreground">
-            <span className="type-meta text-muted-foreground">Community rating</span>
-            <span
-              aria-label={ratingSummaryAriaLabel}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border/65 bg-background/65 px-2 py-1"
-            >
-              <Star
-                className={cn(
-                  "h-3.5 w-3.5",
-                  ratingCount > 0 ? "fill-primary text-primary" : "text-muted-foreground",
-                )}
-              />
-              <span className="type-numeric">{ratingAverage.toFixed(1)}</span>
-              <span className="type-numeric text-muted-foreground/80">({ratingCount})</span>
-            </span>
-          </div>
-          {canRate && onRatePrompt && (
-            <div className="type-meta flex flex-wrap items-center gap-2 border-t border-border/40 pt-2 text-muted-foreground">
-              <span className="type-meta text-muted-foreground">Your rating</span>
-              <div className="inline-flex items-center gap-0.5 rounded-full border border-border/65 bg-background/65 p-0.5">
-                {[1, 2, 3, 4, 5].map((value) => {
-                  const isActive = (ratingValue ?? 0) >= value;
-                  return (
-                    <Button
-                      key={`${post.id}-rate-${value}`}
-                      type="button"
-                      color="tertiary"
-                      size="sm"
-                      className="h-10 w-10 rounded-full p-0 sm:h-7 sm:w-7"
-                      aria-label={`Rate ${value} star${value === 1 ? "" : "s"}`}
-                      onClick={() => onRatePrompt(post.id, ratingValue === value ? null : value)}
-                    >
-                      <Star
-                        className={cn(
-                          "h-5 w-5 transition-colors sm:h-4 sm:w-4",
-                          isActive ? "fill-primary text-primary" : "text-muted-foreground",
-                        )}
-                      />
-                    </Button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+        <div className="type-meta flex flex-wrap items-center gap-2 text-muted-foreground">
+          <span
+            aria-label={ratingSummaryAriaLabel}
+            className="inline-flex items-center gap-1.5 rounded-full border border-border/65 bg-background/65 px-2 py-1"
+          >
+            <Star
+              className={cn(
+                "h-3.5 w-3.5",
+                ratingCount > 0 ? "fill-primary text-primary" : "text-muted-foreground",
+              )}
+            />
+            <span className="type-numeric">{ratingAverage.toFixed(1)}</span>
+            <span className="type-numeric text-muted-foreground/80">({ratingCount})</span>
+          </span>
         </div>
 
         {!useMobileCommentsDrawer && commentsOpen && (

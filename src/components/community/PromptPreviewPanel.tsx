@@ -105,9 +105,9 @@ export function PromptPreviewPanel({ text, mode = "compact", className, onCopy }
         <div className="mt-2">
           <Button
             type="button"
-            color="tertiary"
+            color="secondary"
             size="sm"
-            className="type-button-label h-11 px-3 sm:h-9 sm:px-2"
+            className="type-button-label h-11 px-4 font-semibold sm:h-9 sm:px-3"
             aria-expanded={isExpanded}
             onClick={() => setIsExpanded((previous) => !previous)}
           >

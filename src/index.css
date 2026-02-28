@@ -558,16 +558,15 @@ All colors MUST be HSL.
       background-color 180ms var(--motion-snap),
       border-color 180ms var(--motion-snap),
       color 180ms var(--motion-snap);
-    box-shadow: 0 4px 14px -14px hsl(var(--foreground) / 0.65);
+    box-shadow: 0 2px 8px -8px hsl(var(--foreground) / 0.5);
   }
 
   .interactive-chip:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 9px 20px -16px hsl(var(--foreground) / 0.78);
+    box-shadow: 0 4px 12px -10px hsl(var(--foreground) / 0.6);
   }
 
   .interactive-chip:active {
-    transform: translateY(0) scale(0.98);
+    transform: scale(0.98);
   }
 
   .interactive-card {
@@ -575,16 +574,16 @@ All colors MUST be HSL.
       transform 220ms var(--motion-snap),
       box-shadow 220ms var(--motion-snap),
       border-color 220ms var(--motion-snap);
-    box-shadow: 0 8px 22px -24px hsl(var(--foreground) / 0.86);
+    box-shadow: 0 4px 14px -14px hsl(var(--foreground) / 0.6);
   }
 
   .interactive-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 16px 40px -30px hsl(var(--foreground) / 0.8);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 22px -18px hsl(var(--foreground) / 0.65);
   }
 
   .interactive-card:active {
-    transform: translateY(0) scale(0.995);
+    transform: translateY(0) scale(0.998);
   }
 
   .page-hero-title {
@@ -895,7 +894,8 @@ All colors MUST be HSL.
   .community-typography .type-meta {
     font-size: var(--community-type-meta-size);
     line-height: var(--community-type-meta-line);
-    font-weight: 400;
+    font-weight: 450;
+    letter-spacing: 0.005em;
   }
 
   .community-typography .type-button-label {

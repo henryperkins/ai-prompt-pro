@@ -52,7 +52,7 @@ const SORT_OPTIONS: Array<{ label: string; value: CommunitySort }> = [
   { label: "Trending", value: "popular" },
   { label: "Newest", value: "new" },
   { label: "Most Remixed", value: "most_remixed" },
-  { label: "Verified", value: "verified" },
+  { label: "AI Verified", value: "verified" },
 ];
 
 const CATEGORY_OPTIONS = [
@@ -652,7 +652,7 @@ const Community = () => {
         />
 
         <div
-          className="pf-panel relative z-20 mb-3 overflow-visible rounded-xl border border-border bg-card/85 shadow-sm focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
+          className="pf-panel relative z-20 mb-3 overflow-visible rounded-xl border-2 border-border/90 bg-card/85 shadow-sm focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
           data-testid="community-search-shell"
         >
           <div className="p-2 sm:p-0">
@@ -752,63 +752,75 @@ const Community = () => {
           )}
         </div>
 
-        <div className="mb-3 flex rounded-lg bg-muted p-1">
-          <button
-            type="button"
-            onClick={() => setFeedMode("for_you")}
-            aria-pressed={feedMode === "for_you"}
-            className={cn(
-              "type-tab-label flex-1 rounded-md px-3 py-2 transition-all",
-              feedMode === "for_you"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
+        <div className="mb-4 space-y-3">
+          <fieldset className="space-y-1.5">
+            <legend className="type-meta mb-1 font-semibold uppercase tracking-wider text-muted-foreground">
+              Feed
+            </legend>
+            <div className="flex rounded-lg bg-muted p-1">
+              <button
+                type="button"
+                onClick={() => setFeedMode("for_you")}
+                aria-pressed={feedMode === "for_you"}
+                className={cn(
+                  "type-tab-label flex-1 rounded-md px-3 py-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+                  feedMode === "for_you"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                For You
+              </button>
+              <button
+                type="button"
+                onClick={() => setFeedMode("following")}
+                aria-pressed={feedMode === "following"}
+                className={cn(
+                  "type-tab-label flex-1 rounded-md px-3 py-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+                  feedMode === "following"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Following
+              </button>
+            </div>
+            {isFollowingMode && (
+              <p className="type-help text-muted-foreground">
+                Search, sort, and category filters apply to the For You tab.
+              </p>
             )}
-          >
-            For You
-          </button>
-          <button
-            type="button"
-            onClick={() => setFeedMode("following")}
-            aria-pressed={feedMode === "following"}
-            className={cn(
-              "type-tab-label flex-1 rounded-md px-3 py-2 transition-all",
-              feedMode === "following"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            Following
-          </button>
-        </div>
-        {isFollowingMode && (
-          <p className="type-help mb-3 text-muted-foreground">
-            Search, sort, and category filters apply to the For You tab.
-          </p>
-        )}
+          </fieldset>
 
-        <div className="pf-community-toolbar mb-4 grid grid-cols-2 gap-2 sm:flex sm:rounded-lg sm:bg-muted sm:p-1">
-          {SORT_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              disabled={isFollowingMode}
-              onClick={() => {
-                setSort(option.value);
-                trackFirstMeaningfulAction("sort_changed", { sort: option.value });
-              }}
-              aria-pressed={sort === option.value}
-              data-testid="community-sort-button"
-              className={cn(
-                "type-tab-label h-11 rounded-md px-3 transition-all sm:h-10 sm:flex-1 sm:px-2",
-                isFollowingMode && "cursor-not-allowed opacity-60",
-                sort === option.value
-                  ? "bg-background text-foreground shadow-sm"
-                  : "bg-muted text-muted-foreground hover:text-foreground sm:bg-transparent",
-              )}
-            >
-              {option.label}
-            </button>
-          ))}
+          <fieldset className="space-y-1.5">
+            <legend className="type-meta mb-1 font-semibold uppercase tracking-wider text-muted-foreground">
+              Sort
+            </legend>
+            <div className="pf-community-toolbar grid grid-cols-2 gap-2 sm:flex sm:rounded-lg sm:bg-muted sm:p-1">
+              {SORT_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  disabled={isFollowingMode}
+                  onClick={() => {
+                    setSort(option.value);
+                    trackFirstMeaningfulAction("sort_changed", { sort: option.value });
+                  }}
+                  aria-pressed={sort === option.value}
+                  data-testid="community-sort-button"
+                  className={cn(
+                    "type-tab-label h-11 rounded-md px-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 sm:h-10 sm:flex-1 sm:px-2",
+                    isFollowingMode && "cursor-not-allowed opacity-60",
+                    sort === option.value
+                      ? "bg-background text-foreground shadow-sm"
+                      : "bg-muted text-muted-foreground hover:text-foreground sm:bg-transparent",
+                  )}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </fieldset>
         </div>
 
         {mobileEnhancementsEnabled && !isFollowingMode && (

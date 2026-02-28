@@ -159,14 +159,13 @@ describe("community prompt preview fallback", () => {
     expect(screen.queryByRole("button", { name: "Comments 0" })).toBeNull();
   });
 
-  it("updates rating controls when rating props change", () => {
-    const post = buildPost({ ratingAverage: 2.4, ratingCount: 11 });
+  it("shows community rating summary on feed card (personal rating moved to detail page)", () => {
+    const post = buildPost({ ratingAverage: 4.2, ratingCount: 11 });
     const onCopyPrompt = vi.fn();
     const onToggleVote = vi.fn();
     const onCommentAdded = vi.fn();
-    const onRatePrompt = vi.fn();
 
-    const { rerender } = render(
+    render(
       <MemoryRouter>
         <CommunityPostCard
           post={post}
@@ -177,34 +176,16 @@ describe("community prompt preview fallback", () => {
           canVote
           canRate
           ratingValue={2}
-          onRatePrompt={onRatePrompt}
+          onRatePrompt={vi.fn()}
         />
       </MemoryRouter>,
     );
 
-    const fiveStarButton = screen.getByRole("button", { name: "Rate 5 stars" });
-    const initialFiveStarIcon = fiveStarButton.querySelector("svg");
-    expect(initialFiveStarIcon).toHaveClass("text-muted-foreground");
-
-    rerender(
-      <MemoryRouter>
-        <CommunityPostCard
-          post={post}
-          authorName="Prompt Dev"
-          onCopyPrompt={onCopyPrompt}
-          onToggleVote={onToggleVote}
-          onCommentAdded={onCommentAdded}
-          canVote
-          canRate
-          ratingValue={5}
-          onRatePrompt={onRatePrompt}
-        />
-      </MemoryRouter>,
-    );
-
-    const updatedFiveStarIcon = screen.getByRole("button", { name: "Rate 5 stars" }).querySelector("svg");
-    expect(updatedFiveStarIcon).toHaveClass("fill-primary");
-    expect(updatedFiveStarIcon).toHaveClass("text-primary");
+    // Community rating summary is still shown
+    const ratingLabel = screen.getByLabelText(/Average rating 4\.2 from 11 ratings/);
+    expect(ratingLabel).toBeInTheDocument();
+    // Personal star rating buttons no longer rendered on feed card
+    expect(screen.queryByRole("button", { name: "Rate 5 stars" })).toBeNull();
   });
 
   it("emphasizes the aggregate rating star when ratings exist", () => {

@@ -147,10 +147,10 @@
 .pf-panel {
   position: relative;
   border-radius: var(--pf-radius-lg);
-  border: 2px solid rgba(var(--pf-gold-rgb) / 0.4);
-  box-shadow: var(--pf-shadow-card);
+  border: 1px solid rgba(var(--pf-gold-rgb) / 0.28);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3);
   background:
-    radial-gradient(700px 250px at 25% 0%, rgba(var(--pf-arcane-rgb) / 0.1), transparent 65%),
+    radial-gradient(700px 250px at 25% 0%, rgba(var(--pf-arcane-rgb) / 0.07), transparent 65%),
     linear-gradient(180deg, rgba(18, 24, 32, 0.94), rgba(11, 15, 20, 0.94));
   overflow: hidden;
 }
@@ -252,8 +252,8 @@
 .pf-card {
   border-radius: var(--pf-radius-lg);
   background: linear-gradient(180deg, rgba(18, 24, 32, 0.92), rgba(11, 15, 20, 0.94));
-  box-shadow: var(--pf-shadow-card);
-  border: 2px solid rgba(var(--pf-slate-rgb) / 0.9);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(var(--pf-slate-rgb) / 0.7);
   transition:
     transform var(--pf-fast) var(--pf-ease),
     box-shadow var(--pf-fast) var(--pf-ease),
@@ -271,24 +271,24 @@
 }
 
 .pf-rarity-rare {
-  border-color: rgba(var(--pf-arcane-rgb) / 0.88);
+  border-color: rgba(var(--pf-arcane-rgb) / 0.6);
   box-shadow:
-    var(--pf-shadow-card),
-    0 0 22px rgba(var(--pf-arcane-rgb) / 0.14);
+    0 10px 24px rgba(0, 0, 0, 0.3),
+    0 0 14px rgba(var(--pf-arcane-rgb) / 0.08);
 }
 
 .pf-rarity-epic {
-  border-color: rgba(var(--pf-ember-rgb) / 0.85);
+  border-color: rgba(var(--pf-ember-rgb) / 0.55);
   box-shadow:
-    var(--pf-shadow-card),
-    0 0 22px rgba(var(--pf-ember-rgb) / 0.12);
+    0 10px 24px rgba(0, 0, 0, 0.3),
+    0 0 14px rgba(var(--pf-ember-rgb) / 0.07);
 }
 
 .pf-rarity-legendary {
-  border-color: rgba(var(--pf-gold-rgb) / 0.92);
+  border-color: rgba(var(--pf-gold-rgb) / 0.65);
   box-shadow:
-    var(--pf-shadow-card),
-    0 0 26px rgba(var(--pf-gold-rgb) / 0.14);
+    0 10px 24px rgba(0, 0, 0, 0.3),
+    0 0 16px rgba(var(--pf-gold-rgb) / 0.09);
 }
 
 .pf-nav-link {
@@ -491,7 +491,7 @@
 }
 
 .pf-community-toolbar {
-  border: 1px solid color-mix(in srgb, hsl(var(--border)) 72%, rgba(var(--pf-gold-rgb) / 0.35));
+  border: 1px solid color-mix(in srgb, hsl(var(--border)) 82%, rgba(var(--pf-gold-rgb) / 0.2));
 }
 
 .pf-community-popover {
@@ -502,7 +502,7 @@
 }
 
 .pf-community-preview {
-  border-color: color-mix(in srgb, hsl(var(--border)) 64%, rgba(var(--pf-arcane-rgb) / 0.45));
+  border-color: color-mix(in srgb, hsl(var(--border)) 75%, rgba(var(--pf-arcane-rgb) / 0.25));
   background:
     linear-gradient(180deg, hsl(var(--card) / 0.88), hsl(var(--card) / 0.78));
 }
@@ -521,27 +521,25 @@
 @keyframes pf-pulse-gold {
   0%, 100% {
     box-shadow:
-      var(--pf-shadow-card),
-      0 0 26px rgba(var(--pf-gold-rgb) / 0.14);
+      0 10px 24px rgba(0, 0, 0, 0.3),
+      0 0 16px rgba(var(--pf-gold-rgb) / 0.09);
   }
   50% {
     box-shadow:
-      var(--pf-shadow-card),
-      0 0 36px rgba(var(--pf-gold-rgb) / 0.22),
-      0 0 60px rgba(var(--pf-gold-rgb) / 0.08);
+      0 10px 24px rgba(0, 0, 0, 0.3),
+      0 0 22px rgba(var(--pf-gold-rgb) / 0.14);
   }
 }
 
 @keyframes pf-pulse-ember {
   0%, 100% {
     box-shadow:
-      var(--pf-shadow-card),
-      0 0 22px rgba(var(--pf-ember-rgb) / 0.12);
+      0 10px 24px rgba(0, 0, 0, 0.3),
+      0 0 14px rgba(var(--pf-ember-rgb) / 0.07);
   }
   50% {
     box-shadow:
-      var(--pf-shadow-card),
-      0 0 30px rgba(var(--pf-ember-rgb) / 0.18),
-      0 0 50px rgba(var(--pf-ember-rgb) / 0.06);
+      0 10px 24px rgba(0, 0, 0, 0.3),
+      0 0 20px rgba(var(--pf-ember-rgb) / 0.12);
   }
 }

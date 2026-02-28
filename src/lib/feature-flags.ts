@@ -27,10 +27,12 @@ export const builderRedesignFlags: BuilderRedesignFlags = {
 
 export interface CommunityFeatureFlags {
   communityMobileEnhancements: boolean;
+  communityFeedUxV2: boolean;
 }
 
 export const communityFeatureFlags: CommunityFeatureFlags = {
   communityMobileEnhancements: parseBooleanFlag(import.meta.env.VITE_COMMUNITY_MOBILE_ENHANCEMENTS),
+  communityFeedUxV2: parseBooleanFlag(import.meta.env.VITE_COMMUNITY_FEED_UX_V2, true),
 };
 
 export interface LaunchExperimentFlags {
