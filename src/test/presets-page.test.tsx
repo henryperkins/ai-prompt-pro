@@ -98,11 +98,16 @@ async function renderPresets() {
 }
 
 describe("Presets page", () => {
-  it("exposes an accessible search label and selected-state semantics for category filters", async () => {
+  it("exposes search/filter semantics and result context for active filters", async () => {
     await renderPresets();
 
-    expect(screen.getByRole("textbox", { name: "Search presets" })).toBeInTheDocument();
+    const searchInput = screen.getByRole("textbox", { name: "Search presets" });
+    const resultSummary = screen.getByTestId("preset-results-summary");
+
+    expect(searchInput).toBeInTheDocument();
     expect(screen.getByRole("group", { name: "Filter presets by category" })).toBeInTheDocument();
+    expect(resultSummary).toHaveTextContent("Showing 2");
+    expect(resultSummary).toHaveTextContent("of 2 presets");
 
     const allButton = screen.getByRole("button", { name: "All" });
     const testingButton = screen.getByRole("button", { name: /Testing/i });
@@ -114,13 +119,24 @@ describe("Presets page", () => {
 
     expect(testingButton).toHaveAttribute("aria-pressed", "true");
     expect(allButton).toHaveAttribute("aria-pressed", "false");
+
+    expect(resultSummary).toHaveTextContent("Showing 1");
+    expect(resultSummary).toHaveTextContent("of 2 presets in Testing");
+    expect(screen.getByRole("button", { name: "Clear filters" })).toBeInTheDocument();
+
+    fireEvent.change(searchInput, { target: { value: "does-not-exist" } });
+    expect(screen.getByText("No presets match your current filters.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Clear filters" })[0]);
+    expect(allButton).toHaveAttribute("aria-pressed", "true");
+    expect(resultSummary).toHaveTextContent("Showing 2");
+    expect(resultSummary).toHaveTextContent("of 2 presets");
   });
 
   it("encodes preset ids when navigating to the builder", async () => {
     await renderPresets();
 
-    const usePresetButtons = screen.getAllByRole("button", { name: "Use preset" });
-    fireEvent.click(usePresetButtons[1]);
+    fireEvent.click(screen.getByRole("button", { name: "Use Encoded Preset preset" }));
 
     expect(screen.getByTestId("location")).toHaveTextContent("/?preset=id+with%2Fslash+%26+space");
   });
