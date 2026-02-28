@@ -17,19 +17,29 @@ describe("getUserPreferences", () => {
       theme: "light",
       webSearchEnabled: false,
       showAdvancedControls: false,
+      recentlyUsedPresetIds: [],
+      favoritePresetIds: [],
     });
   });
 
   it("returns stored values", () => {
     localStorage.setItem(
       "promptforge-user-prefs",
-      JSON.stringify({ theme: "dark", webSearchEnabled: true, showAdvancedControls: true }),
+      JSON.stringify({
+        theme: "dark",
+        webSearchEnabled: true,
+        showAdvancedControls: true,
+        recentlyUsedPresetIds: ["blog-post", "email-campaign"],
+        favoritePresetIds: ["code-review"],
+      }),
     );
     resetPreferencesCache();
     const prefs = getUserPreferences();
     expect(prefs.theme).toBe("dark");
     expect(prefs.webSearchEnabled).toBe(true);
     expect(prefs.showAdvancedControls).toBe(true);
+    expect(prefs.recentlyUsedPresetIds).toEqual(["blog-post", "email-campaign"]);
+    expect(prefs.favoritePresetIds).toEqual(["code-review"]);
   });
 
   it("falls back to defaults for corrupt JSON", () => {
@@ -45,6 +55,8 @@ describe("getUserPreferences", () => {
     expect(prefs.theme).toBe("dark");
     expect(prefs.webSearchEnabled).toBe(false);
     expect(prefs.showAdvancedControls).toBe(false);
+    expect(prefs.recentlyUsedPresetIds).toEqual([]);
+    expect(prefs.favoritePresetIds).toEqual([]);
   });
 
   it("normalizes invalid theme value to light", () => {
@@ -68,5 +80,12 @@ describe("setUserPreference", () => {
     setUserPreference("theme", "dark");
     expect(getUserPreferences().webSearchEnabled).toBe(true);
     expect(getUserPreferences().theme).toBe("dark");
+  });
+
+  it("persists preset personalization arrays", () => {
+    setUserPreference("recentlyUsedPresetIds", ["blog-post", "email-campaign"]);
+    setUserPreference("favoritePresetIds", ["code-review"]);
+    expect(getUserPreferences().recentlyUsedPresetIds).toEqual(["blog-post", "email-campaign"]);
+    expect(getUserPreferences().favoritePresetIds).toEqual(["code-review"]);
   });
 });

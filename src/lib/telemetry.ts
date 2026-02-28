@@ -1,6 +1,10 @@
 export const BUILDER_TELEMETRY_EVENT_NAME = "promptforge:builder-telemetry";
 
 export type BuilderTelemetryEvent =
+  | "preset_viewed"
+  | "preset_clicked"
+  | "preset_applied"
+  | "preset_not_found"
   | "builder_loaded"
   | "builder_first_input"
   | "builder_zone2_opened"

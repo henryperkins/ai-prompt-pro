@@ -1,4 +1,4 @@
-import { type ChangeEvent, useMemo, useState } from "react";
+import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createSearchParams, useNavigate } from "react-router-dom";
 import { PageHero, PageShell } from "@/components/PageShell";
 import { Badge } from "@/components/base/badges/badges";
@@ -12,6 +12,15 @@ import {
   type PromptTemplate,
   type PromptCategory,
 } from "@/lib/templates";
+import {
+  filterPresetTemplates,
+  getPresetCategories,
+  hasActivePresetFilters,
+  rankPresetTemplates,
+  splitPresetSections,
+} from "@/lib/preset-catalog";
+import { trackBuilderEvent } from "@/lib/telemetry";
+import { getUserPreferences, setUserPreference } from "@/lib/user-preferences";
 import { cn } from "@/lib/utils";
 import { MagnifyingGlass as Search } from "@phosphor-icons/react";
 
@@ -30,7 +39,15 @@ const categoryIcons: Record<string, string> = {
   docs: "📝",
 };
 
-function PresetCard({ template }: { template: PromptTemplate }) {
+function PresetCard({
+  template,
+  isFavorite,
+  onToggleFavorite,
+}: {
+  template: PromptTemplate;
+  isFavorite: boolean;
+  onToggleFavorite: (templateId: string) => void;
+}) {
   const navigate = useNavigate();
   const skin = promptCategorySkins[template.category] ?? promptCategorySkins.general;
   const presetSearch = createSearchParams({ preset: template.id }).toString();
@@ -62,6 +79,16 @@ function PresetCard({ template }: { template: PromptTemplate }) {
               {categoryLabel}
             </Badge>
           </div>
+          <Button
+            type="button"
+            color="tertiary"
+            size="sm"
+            className="h-8 w-8 p-0 text-base"
+            aria-label={isFavorite ? `Remove ${template.name} from favorites` : `Add ${template.name} to favorites`}
+            onClick={() => onToggleFavorite(template.id)}
+          >
+            {isFavorite ? "★" : "☆"}
+          </Button>
         </div>
 
         <p className="line-clamp-2 text-sm leading-relaxed text-secondary_on-brand">{template.description}</p>
@@ -90,7 +117,13 @@ function PresetCard({ template }: { template: PromptTemplate }) {
             size="sm"
             aria-label={`Use ${template.name} preset`}
             className="h-10 w-full gap-1.5 text-sm font-semibold sm:h-9 sm:w-auto"
-            onClick={() => navigate({ pathname: "/", search: `?${presetSearch}` })}
+            onClick={() => {
+              trackBuilderEvent("preset_clicked", {
+                presetId: template.id,
+                presetCategory: template.category,
+              });
+              navigate({ pathname: "/", search: `?${presetSearch}` });
+            }}
           >
             Use preset
           </Button>
@@ -101,8 +134,12 @@ function PresetCard({ template }: { template: PromptTemplate }) {
 }
 
 const Presets = () => {
+  const initialPreferences = useMemo(() => getUserPreferences(), []);
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("all");
+  const [favoritePresetIds, setFavoritePresetIds] = useState<string[]>(() => initialPreferences.favoritePresetIds);
+  const [recentlyUsedPresetIds] = useState<string[]>(() => initialPreferences.recentlyUsedPresetIds);
+  const hasTrackedPresetViewed = useRef(false);
 
   const hasQuery = query.trim().length > 0;
 
@@ -121,29 +158,61 @@ const Presets = () => {
   };
 
   const categories = useMemo(() => {
-    const used = new Set(templates.map((t) => t.category));
-    return ["all", ...Array.from(used)] as string[];
+    return getPresetCategories(templates);
+  }, []);
+
+  const favoritePresetIdSet = useMemo(() => new Set(favoritePresetIds), [favoritePresetIds]);
+
+  useEffect(() => {
+    if (hasTrackedPresetViewed.current) return;
+    hasTrackedPresetViewed.current = true;
+    trackBuilderEvent("preset_viewed", {
+      totalPresets: templates.length,
+      categoryCount: categories.length - 1,
+      recentCount: recentlyUsedPresetIds.length,
+      favoriteCount: favoritePresetIds.length,
+    });
+  }, [categories.length, recentlyUsedPresetIds.length, favoritePresetIds.length]);
+
+  const toggleFavoritePreset = useCallback((templateId: string) => {
+    setFavoritePresetIds((prev) => {
+      const next = prev.includes(templateId)
+        ? prev.filter((id) => id !== templateId)
+        : [templateId, ...prev.filter((id) => id !== templateId)];
+      setUserPreference("favoritePresetIds", next);
+      return next;
+    });
   }, []);
 
   const filtered = useMemo(() => {
-    let result = templates;
-    if (activeCategory !== "all") {
-      result = result.filter((t) => t.category === activeCategory);
-    }
-    if (hasQuery) {
-      const q = query.toLowerCase();
-      result = result.filter(
-        (t) =>
-          t.name.toLowerCase().includes(q) ||
-          t.description.toLowerCase().includes(q) ||
-          t.category.toLowerCase().includes(q) ||
-          t.starterPrompt.toLowerCase().includes(q),
-      );
-    }
-    return result;
-  }, [activeCategory, hasQuery, query]);
+    return filterPresetTemplates({
+      items: templates,
+      activeCategory,
+      query,
+    });
+  }, [activeCategory, query]);
 
-  const hasActiveFilters = hasQuery || activeCategory !== "all";
+  const rankedFiltered = useMemo(() => {
+    return rankPresetTemplates({
+      items: filtered,
+      favoritePresetIds,
+      recentlyUsedPresetIds,
+    });
+  }, [favoritePresetIds, filtered, recentlyUsedPresetIds]);
+
+  const hasActiveFilters = hasActivePresetFilters(activeCategory, query);
+  const presetSections = useMemo(() => {
+    return splitPresetSections({
+      items: rankedFiltered,
+      favoritePresetIds,
+      recentlyUsedPresetIds,
+      hasActiveFilters,
+    });
+  }, [favoritePresetIds, hasActiveFilters, rankedFiltered, recentlyUsedPresetIds]);
+
+  const recentSectionTemplates = presetSections.recent;
+  const favoriteSectionTemplates = presetSections.favorites;
+  const allSectionTemplates = presetSections.all;
   const activeCategoryLabel =
     activeCategory === "all"
       ? "All categories"
@@ -187,7 +256,7 @@ const Presets = () => {
 
         <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
           <p className="text-muted-foreground" aria-live="polite" data-testid="preset-results-summary">
-            Showing <span className="font-semibold text-foreground">{filtered.length}</span> of {templates.length} presets
+            Showing <span className="font-semibold text-foreground">{rankedFiltered.length}</span> of {templates.length} presets
             {activeCategory !== "all" ? ` in ${activeCategoryLabel}` : ""}
             {hasQuery ? ` matching “${query.trim()}”` : ""}
           </p>
@@ -204,7 +273,7 @@ const Presets = () => {
           )}
         </div>
 
-        {filtered.length === 0 ? (
+        {rankedFiltered.length === 0 ? (
           <Card className="pf-card border-dashed p-6 text-center">
             <p className="text-sm text-muted-foreground">No presets match your current filters.</p>
             {hasActiveFilters && (
@@ -221,11 +290,74 @@ const Presets = () => {
               </div>
             )}
           </Card>
+        ) : hasActiveFilters ? (
+          <section aria-label="All presets">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {allSectionTemplates.map((template) => (
+                <PresetCard
+                  key={template.id}
+                  template={template}
+                  isFavorite={favoritePresetIdSet.has(template.id)}
+                  onToggleFavorite={toggleFavoritePreset}
+                />
+              ))}
+            </div>
+          </section>
         ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {filtered.map((template) => (
-              <PresetCard key={template.id} template={template} />
-            ))}
+          <div className="space-y-5">
+            {recentSectionTemplates.length > 0 && (
+              <section aria-label="Recent presets" className="space-y-2">
+                <h2 className="text-sm font-semibold text-foreground">Recent</h2>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {recentSectionTemplates.map((template) => (
+                    <PresetCard
+                      key={template.id}
+                      template={template}
+                      isFavorite={favoritePresetIdSet.has(template.id)}
+                      onToggleFavorite={toggleFavoritePreset}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {favoriteSectionTemplates.length > 0 && (
+              <section aria-label="Favorite presets" className="space-y-2">
+                <h2 className="text-sm font-semibold text-foreground">Favorites</h2>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {favoriteSectionTemplates.map((template) => (
+                    <PresetCard
+                      key={template.id}
+                      template={template}
+                      isFavorite={favoritePresetIdSet.has(template.id)}
+                      onToggleFavorite={toggleFavoritePreset}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            <section aria-label="All presets" className="space-y-2">
+              <h2 className="text-sm font-semibold text-foreground">All presets</h2>
+              {allSectionTemplates.length > 0 ? (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {allSectionTemplates.map((template) => (
+                    <PresetCard
+                      key={template.id}
+                      template={template}
+                      isFavorite={favoritePresetIdSet.has(template.id)}
+                      onToggleFavorite={toggleFavoritePreset}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <Card className="pf-card border-dashed p-6 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    All presets are already represented in your recent or favorite sections.
+                  </p>
+                </Card>
+              )}
+            </section>
           </div>
         )}
       </div>

@@ -715,11 +715,25 @@ const Index = () => {
     if (!presetId) return;
     const preset = templates.find((t) => t.id === presetId);
     if (!preset) {
+      trackBuilderEvent("preset_not_found", {
+        presetId,
+      });
       toast({ title: "Preset not found", description: `No preset with id "${presetId}".` });
       setSearchParams((prev) => { prev.delete("preset"); return prev; }, { replace: true });
       return;
     }
     loadTemplate(preset);
+    const preferences = getUserPreferences();
+    const nextRecentPresetIds = [
+      preset.id,
+      ...preferences.recentlyUsedPresetIds.filter((id) => id !== preset.id),
+    ].slice(0, 8);
+    setUserPreference("recentlyUsedPresetIds", nextRecentPresetIds);
+    trackBuilderEvent("preset_applied", {
+      presetId: preset.id,
+      presetCategory: preset.category,
+      hasStarterPrompt: Boolean(preset.starterPrompt.trim()),
+    });
     toast({ title: "Preset loaded", description: `"${preset.name}" applied to the builder.` });
     setSearchParams((prev) => { prev.delete("preset"); return prev; }, { replace: true });
   }, [presetId, loadTemplate, toast, setSearchParams]);

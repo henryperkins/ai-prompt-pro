@@ -3,9 +3,11 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { defaultConfig } from "@/lib/prompt-builder";
+import { resetPreferencesCache } from "@/lib/user-preferences";
 
 const mocks = vi.hoisted(() => ({
   toast: vi.fn(),
+  trackBuilderEvent: vi.fn(),
   usePromptBuilder: vi.fn(),
   loadTemplate: vi.fn(),
 }));
@@ -16,6 +18,10 @@ vi.mock("@/hooks/use-toast", () => ({
 
 vi.mock("@/hooks/use-mobile", () => ({
   useIsMobile: () => false,
+}));
+
+vi.mock("@/lib/telemetry", () => ({
+  trackBuilderEvent: (...args: unknown[]) => mocks.trackBuilderEvent(...args),
 }));
 
 vi.mock("@/lib/ai-client", () => ({
@@ -163,6 +169,8 @@ async function renderIndexAt(url: string) {
 describe("Index preset query param", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
+    resetPreferencesCache();
     mocks.usePromptBuilder.mockReturnValue(buildPromptBuilderState());
   });
 
@@ -183,6 +191,16 @@ describe("Index preset query param", () => {
         title: "Preset loaded",
       }),
     );
+    expect(mocks.trackBuilderEvent).toHaveBeenCalledWith(
+      "preset_applied",
+      expect.objectContaining({
+        presetId: "blog-post",
+        presetCategory: "docs",
+        hasStarterPrompt: true,
+      }),
+    );
+    const storedPreferences = JSON.parse(localStorage.getItem("promptforge-user-prefs") ?? "{}");
+    expect(storedPreferences.recentlyUsedPresetIds).toEqual(["blog-post"]);
 
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toBe("");
@@ -201,6 +219,9 @@ describe("Index preset query param", () => {
     });
 
     expect(mocks.loadTemplate).not.toHaveBeenCalled();
+    expect(mocks.trackBuilderEvent).toHaveBeenCalledWith("preset_not_found", {
+      presetId: "missing-preset",
+    });
 
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toBe("");

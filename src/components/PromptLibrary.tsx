@@ -34,6 +34,11 @@ import { Textarea } from "@/components/base/textarea";
 import { Select } from "@/components/base/select/select";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { PROMPT_CATEGORY_OPTIONS } from "@/lib/prompt-categories";
+import {
+  filterPresetTemplates,
+  getPresetCategories,
+  rankPresetTemplates,
+} from "@/lib/preset-catalog";
 import { cn } from "@/lib/utils";
 import {
   templates,
@@ -41,6 +46,7 @@ import {
   promptCategorySkins,
   type PromptTemplate,
 } from "@/lib/templates";
+import { getUserPreferences } from "@/lib/user-preferences";
 import type { PromptShareInput, PromptSummary } from "@/lib/persistence";
 import {
   ArrowSquareOut as ExternalLink,
@@ -163,7 +169,8 @@ function PromptList({
   onUnshareSaved: (id: string) => void | Promise<void>;
   onClose: () => void;
 }) {
-  const categories = ["all", ...Object.keys(categoryLabels)];
+  const categories = useMemo(() => getPresetCategories(templates), []);
+  const preferenceSnapshot = useMemo(() => getUserPreferences(), []);
   const normalizedQuery = query.trim().toLowerCase();
   const [sharePrompt, setSharePrompt] = useState<PromptSummary | null>(null);
   const [shareName, setShareName] = useState("");
@@ -235,26 +242,18 @@ function PromptList({
   }, [savedPrompts, normalizedQuery, sortBy]);
 
   const filtered = useMemo(() => {
-    const scoped =
-      activeCategory === "all"
-        ? templates
-        : templates.filter((template) => template.category === activeCategory);
-
-    return scoped.filter((template) => {
-      if (!normalizedQuery) return true;
-      const haystack = [
-        template.name,
-        template.description,
-        template.starterPrompt,
-        template.category,
-        template.tone,
-        template.complexity,
-      ]
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(normalizedQuery);
+    const filteredTemplates = filterPresetTemplates({
+      items: templates,
+      activeCategory,
+      query,
     });
-  }, [activeCategory, normalizedQuery]);
+
+    return rankPresetTemplates({
+      items: filteredTemplates,
+      favoritePresetIds: preferenceSnapshot.favoritePresetIds,
+      recentlyUsedPresetIds: preferenceSnapshot.recentlyUsedPresetIds,
+    });
+  }, [activeCategory, preferenceSnapshot.favoritePresetIds, preferenceSnapshot.recentlyUsedPresetIds, query]);
 
   return (
     <>

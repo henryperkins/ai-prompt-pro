@@ -1,9 +1,18 @@
 import type { ReactNode } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const fixtures = vi.hoisted(() => ({
+  trackBuilderEvent: vi.fn(),
+  setUserPreference: vi.fn(),
+  userPreferences: {
+    theme: "light" as const,
+    webSearchEnabled: false,
+    showAdvancedControls: false,
+    recentlyUsedPresetIds: [] as string[],
+    favoritePresetIds: [] as string[],
+  },
   templates: [
     {
       id: "baseline-preset",
@@ -72,6 +81,18 @@ vi.mock("@/lib/templates", () => ({
   },
 }));
 
+vi.mock("@/lib/telemetry", () => ({
+  trackBuilderEvent: (...args: unknown[]) => fixtures.trackBuilderEvent(...args),
+}));
+
+vi.mock("@/lib/user-preferences", () => ({
+  getUserPreferences: () => fixtures.userPreferences,
+  setUserPreference: (key: string, value: unknown) => {
+    fixtures.setUserPreference(key, value);
+    (fixtures.userPreferences as Record<string, unknown>)[key] = value;
+  },
+}));
+
 async function renderPresets() {
   const { default: Presets } = await import("@/pages/Presets");
 
@@ -98,6 +119,13 @@ async function renderPresets() {
 }
 
 describe("Presets page", () => {
+  beforeEach(() => {
+    fixtures.trackBuilderEvent.mockReset();
+    fixtures.setUserPreference.mockReset();
+    fixtures.userPreferences.recentlyUsedPresetIds = [];
+    fixtures.userPreferences.favoritePresetIds = [];
+  });
+
   it("exposes search/filter semantics and result context for active filters", async () => {
     await renderPresets();
 
@@ -131,6 +159,15 @@ describe("Presets page", () => {
     expect(allButton).toHaveAttribute("aria-pressed", "true");
     expect(resultSummary).toHaveTextContent("Showing 2");
     expect(resultSummary).toHaveTextContent("of 2 presets");
+
+    await waitFor(() => {
+      expect(fixtures.trackBuilderEvent).toHaveBeenCalledWith("preset_viewed", {
+        totalPresets: 2,
+        categoryCount: 2,
+        recentCount: 0,
+        favoriteCount: 0,
+      });
+    });
   });
 
   it("encodes preset ids when navigating to the builder", async () => {
@@ -139,5 +176,30 @@ describe("Presets page", () => {
     fireEvent.click(screen.getByRole("button", { name: "Use Encoded Preset preset" }));
 
     expect(screen.getByTestId("location")).toHaveTextContent("/?preset=id+with%2Fslash+%26+space");
+    expect(fixtures.trackBuilderEvent).toHaveBeenCalledWith("preset_clicked", {
+      presetId: "id with/slash & space",
+      presetCategory: "testing",
+    });
+  });
+
+  it("renders recent/favorite sections and persists favorite toggles", async () => {
+    fixtures.userPreferences.recentlyUsedPresetIds = ["baseline-preset"];
+    fixtures.userPreferences.favoritePresetIds = ["id with/slash & space"];
+
+    await renderPresets();
+
+    const recentSection = screen.getByRole("region", { name: "Recent presets" });
+    const favoriteSection = screen.getByRole("region", { name: "Favorite presets" });
+    const allSection = screen.getByRole("region", { name: "All presets" });
+
+    expect(within(recentSection).getByText("Baseline Preset")).toBeInTheDocument();
+    expect(within(favoriteSection).getByText("Encoded Preset")).toBeInTheDocument();
+    expect(within(allSection).getByText("All presets are already represented in your recent or favorite sections."))
+      .toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove Encoded Preset from favorites" }));
+
+    expect(fixtures.setUserPreference).toHaveBeenCalledWith("favoritePresetIds", []);
+    expect(screen.getByRole("button", { name: "Add Encoded Preset to favorites" })).toBeInTheDocument();
   });
 });

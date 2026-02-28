@@ -1,16 +1,29 @@
 const STORAGE_KEY = "promptforge-user-prefs";
+const MAX_PRESET_ID_PREFERENCES = 24;
 
 export interface UserPreferences {
   theme: "light" | "dark";
   webSearchEnabled: boolean;
   showAdvancedControls: boolean;
+  recentlyUsedPresetIds: string[];
+  favoritePresetIds: string[];
 }
 
 const defaults: UserPreferences = {
   theme: "light",
   webSearchEnabled: false,
   showAdvancedControls: false,
+  recentlyUsedPresetIds: [],
+  favoritePresetIds: [],
 };
+
+function normalizePresetIdPreference(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const ids = value
+    .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+    .filter(Boolean);
+  return Array.from(new Set(ids)).slice(0, MAX_PRESET_ID_PREFERENCES);
+}
 
 function load(): UserPreferences {
   if (typeof window === "undefined") return { ...defaults };
@@ -22,6 +35,8 @@ function load(): UserPreferences {
       theme: parsed.theme === "dark" ? "dark" : "light",
       webSearchEnabled: typeof parsed.webSearchEnabled === "boolean" ? parsed.webSearchEnabled : defaults.webSearchEnabled,
       showAdvancedControls: typeof parsed.showAdvancedControls === "boolean" ? parsed.showAdvancedControls : defaults.showAdvancedControls,
+      recentlyUsedPresetIds: normalizePresetIdPreference(parsed.recentlyUsedPresetIds),
+      favoritePresetIds: normalizePresetIdPreference(parsed.favoritePresetIds),
     };
   } catch {
     return { ...defaults };
