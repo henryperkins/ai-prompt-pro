@@ -124,6 +124,9 @@ Set `REQUIRE_PROVIDER_CONFIG=true` to disable step 3 and fail fast instead of fa
 | `ALLOWED_ORIGINS` | `*` | Comma-separated list of allowed browser origins |
 | `REQUIRE_PROVIDER_CONFIG` | `false` | If `true`, startup fails unless provider config is resolved from `~/.codex/config.toml` or `CODEX_CONFIG_JSON` |
 | `FUNCTION_PUBLIC_API_KEY` | _(none)_ | Optional publishable key accepted for unauthenticated calls |
+| `STRICT_PUBLIC_API_KEY` | `true` | Require exact match with configured public key values; if `false`, allows publishable-format fallback when no key is configured (not recommended) |
+| `TRUST_PROXY` | `false` | If `true`, honors forwarded IP headers for rate limiting/auth context |
+| `TRUSTED_PROXY_IPS` | _(none)_ | Optional JSON array or comma-delimited list of trusted proxy source IPs when `TRUST_PROXY=true` |
 | `ENHANCE_WS_INITIAL_MESSAGE_TIMEOUT_MS` | `5000` | Time allowed for first websocket message before the socket is closed |
 | `ENHANCE_WS_MAX_PAYLOAD_BYTES` | `65536` | Maximum websocket message payload size in bytes |
 | `ENHANCE_WS_MAX_CONNECTIONS_PER_IP` | `10` | Maximum concurrent `/enhance/ws` connections allowed per client IP |
@@ -134,6 +137,7 @@ Set `REQUIRE_PROVIDER_CONFIG=true` to disable step 3 and fail fast instead of fa
 | `MAX_INFERENCE_PROMPT_CHARS` | `12000` | Maximum inference prompt length |
 | `MAX_URL_CHARS` | `2048` | Maximum extract-url input URL length |
 | `EXTRACT_FETCH_TIMEOUT_MS` | `15000` | Timeout for page/OpenAI extraction calls |
+| `EXTRACT_FETCH_MAX_REDIRECTS` | `5` | Maximum redirects followed during `/extract-url` fetch (each hop re-validates public-network target) |
 | `EXTRACT_MAX_RESPONSE_BYTES` | `1048576` | Max downloaded page size (bytes) |
 | `EXTRACT_MODEL` | Inherits `CODEX_MODEL`/provider model (or `gpt-4.1-mini` for non-Azure) | OpenAI model for URL extraction summarization |
 | `SHUTDOWN_DRAIN_TIMEOUT_MS` | `10000` | Time to wait for in-flight connections to drain before forced exit on SIGTERM/SIGINT |

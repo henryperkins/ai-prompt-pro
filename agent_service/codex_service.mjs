@@ -4,6 +4,7 @@ import process from "node:process";
 import { Codex } from "@openai/codex-sdk";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { WebSocketServer } from "ws";
+import { isConfiguredPublicApiKey as matchesConfiguredPublicApiKey } from "./public-api-key.mjs";
 import {
   buildEnhancementMetaPrompt,
   detectEnhancementContext,
@@ -19,6 +20,15 @@ import {
   isAzureProvider,
   resolveProviderConfig,
 } from "./codex-config.mjs";
+import {
+  assertPublicHttpTarget,
+  createUrlNotAllowedError,
+  isPrivateHost,
+  isRedirectStatus,
+  isUrlNotAllowedError,
+  normalizeIpAddress,
+  resolveClientIp,
+} from "./network-security.mjs";
 import { runGuardedAsync } from "./async-guard.mjs";
 import { isPayloadTooLargeError, readBodyJsonWithLimit } from "./http-body.mjs";
 import { computeStreamTextUpdate, extractItemText } from "./stream-text.mjs";
@@ -558,6 +568,23 @@ const CORS_CONFIG = (() => {
   return { mode: "set", origins };
 })();
 
+const STRICT_PUBLIC_API_KEY = normalizeBool(process.env.STRICT_PUBLIC_API_KEY, true);
+const TRUST_PROXY = normalizeBool(process.env.TRUST_PROXY, false);
+const TRUSTED_PROXY_IPS = new Set(
+  (parseStringArrayEnv("TRUSTED_PROXY_IPS") || [])
+    .map((value) => normalizeIpAddress(value))
+    .filter((value) => typeof value === "string" && value.length > 0),
+);
+const EXTRACT_FETCH_MAX_REDIRECTS = parsePositiveIntegerEnv("EXTRACT_FETCH_MAX_REDIRECTS", 5);
+
+if (!STRICT_PUBLIC_API_KEY) {
+  logEvent("warn", "strict_public_api_key_disabled", {
+    error_code: "auth_config_weak_public_key_matching",
+    message:
+      "STRICT_PUBLIC_API_KEY is disabled. Publishable-format keys may be accepted without explicit configuration.",
+  });
+}
+
 const AUTH_CONFIG = (() => {
   const neonAuthUrl = normalizeNeonAuthUrl(normalizeEnvValue("NEON_AUTH_URL"));
   const neonJwksUrl = normalizeEnvValue("NEON_JWKS_URL")
@@ -815,16 +842,26 @@ function resolveCors(req) {
   return { ok: true, headers: baseCorsHeaders(origin), origin };
 }
 
-function getClientIp(req) {
-  const forwardedFor = headerValue(req, "x-forwarded-for");
-  if (forwardedFor) {
-    const [firstHop] = forwardedFor.split(",");
-    if (firstHop?.trim()) return firstHop.trim();
+function getClientIp(req, requestContext) {
+  const resolvedIp = resolveClientIp({
+    forwardedFor: headerValue(req, "x-forwarded-for"),
+    realIp: headerValue(req, "x-real-ip"),
+    socketRemoteAddress: req?.socket?.remoteAddress,
+    trustProxy: TRUST_PROXY,
+    trustedProxyIps: TRUSTED_PROXY_IPS,
+  });
+
+  if (resolvedIp.ignoredForwarded && resolvedIp.forwardedIp) {
+    logEvent("warn", "forwarded_ip_ignored", cleanLogFields({
+      request_id: requestContext?.requestId,
+      endpoint: requestContext?.endpoint,
+      remote_ip: resolvedIp.socketIp,
+      forwarded_ip: resolvedIp.forwardedIp,
+      reason: TRUST_PROXY ? "untrusted_proxy" : "trust_proxy_disabled",
+    }));
   }
 
-  const realIp = headerValue(req, "x-real-ip");
-  if (realIp?.trim()) return realIp.trim();
-  return "unknown";
+  return resolvedIp.ip;
 }
 
 function parseBearerToken(req) {
@@ -833,21 +870,11 @@ function parseBearerToken(req) {
   return match?.[1]?.trim();
 }
 
-function isPublishableKeyLike(value) {
-  if (typeof value !== "string") return false;
-  const trimmed = value.trim();
-  if (!trimmed) return false;
-  if (trimmed.startsWith("sb_publishable_")) return true;
-  if (trimmed.startsWith("pk_live_") || trimmed.startsWith("pk_test_")) return true;
-  return false;
-}
-
 function isConfiguredPublicApiKey(value) {
-  if (typeof value !== "string") return false;
-  const trimmed = value.trim();
-  if (!trimmed) return false;
-  if (AUTH_CONFIG.configuredKeys.has(trimmed)) return true;
-  return AUTH_CONFIG.configuredKeys.size === 0 && isPublishableKeyLike(trimmed);
+  return matchesConfiguredPublicApiKey(value, {
+    configuredKeys: AUTH_CONFIG.configuredKeys,
+    strict: STRICT_PUBLIC_API_KEY,
+  });
 }
 
 function looksLikeJwt(value) {
@@ -1094,10 +1121,10 @@ function authTemporarilyUnavailableResult(apiKey, clientIp, bearerToken) {
   };
 }
 
-async function requireAuthenticatedUser(req) {
+async function requireAuthenticatedUser(req, requestContext) {
   const bearerToken = parseBearerToken(req);
   const apiKey = (headerValue(req, "apikey") || "").trim();
-  const clientIp = getClientIp(req);
+  const clientIp = getClientIp(req, requestContext);
 
   if (!bearerToken) {
     const publicApiResult = buildPublicApiKeyAuthResult(apiKey, clientIp);
@@ -1173,7 +1200,7 @@ async function requireAuthenticatedUser(req) {
   };
 }
 
-async function authenticateRequestContext(req) {
+async function authenticateRequestContext(req, requestContext) {
   const providedServiceToken = (headerValue(req, "x-agent-token") || "").trim();
   if (providedServiceToken) {
     if (!SERVICE_CONFIG.token || providedServiceToken !== SERVICE_CONFIG.token) {
@@ -1187,11 +1214,11 @@ async function authenticateRequestContext(req) {
       ok: true,
       userId: "service",
       isPublicKey: false,
-      rateKey: `service:${getClientIp(req)}`,
+      rateKey: `service:${getClientIp(req, requestContext)}`,
     };
   }
 
-  return requireAuthenticatedUser(req);
+  return requireAuthenticatedUser(req, requestContext);
 }
 
 function acquireEnhanceWebSocketConnectionSlot(clientIp) {
@@ -1607,47 +1634,6 @@ function inferBuilderFieldUpdates(prompt, currentFields, lockMetadata) {
   return { inferredUpdates, inferredFields, suggestionChips, confidence };
 }
 
-function isPrivateHost(hostname) {
-  if (
-    hostname === "metadata.google.internal"
-    || hostname === "metadata.google"
-    || hostname.endsWith(".internal")
-  ) {
-    return true;
-  }
-
-  const bare = hostname.startsWith("[") && hostname.endsWith("]")
-    ? hostname.slice(1, -1)
-    : hostname;
-  if (
-    bare === "::1"
-    || bare === "::"
-    || bare.startsWith("fe80:")
-    || bare.startsWith("fc00:")
-    || bare.startsWith("fd")
-  ) {
-    return true;
-  }
-
-  const ipv4Match = bare.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-  if (ipv4Match) {
-    const [, a, b] = ipv4Match.map(Number);
-    if (a === 127) return true;
-    if (a === 10) return true;
-    if (a === 172 && b >= 16 && b <= 31) return true;
-    if (a === 192 && b === 168) return true;
-    if (a === 169 && b === 254) return true;
-    if (a === 0) return true;
-    return false;
-  }
-
-  if (hostname === "localhost" || hostname.endsWith(".localhost")) {
-    return true;
-  }
-
-  return false;
-}
-
 function responseMimeType(resp) {
   const ct = resp.headers.get("content-type") || "";
   return ct.split(";")[0].trim().toLowerCase();
@@ -1809,11 +1795,10 @@ async function fetchPageWithHeaderFallback(url, timeoutMs) {
 
   for (const headers of attempts) {
     try {
-      const response = await fetchWithTimeout(
+      const response = await fetchWithSafeRedirects(
         url,
         {
           headers,
-          redirect: "follow",
         },
         timeoutMs,
       );
@@ -1831,6 +1816,44 @@ async function fetchPageWithHeaderFallback(url, timeoutMs) {
 
   if (lastResponse) return lastResponse;
   throw lastError || new Error("Failed to fetch URL.");
+}
+
+async function fetchWithSafeRedirects(url, options, timeoutMs) {
+  let currentUrl = url;
+  let redirectCount = 0;
+
+  while (true) {
+    await assertPublicHttpTarget(currentUrl);
+    const response = await fetchWithTimeout(
+      currentUrl,
+      {
+        ...options,
+        redirect: "manual",
+      },
+      timeoutMs,
+    );
+
+    if (!isRedirectStatus(response.status)) {
+      return response;
+    }
+
+    const location = response.headers.get("location");
+    if (!location) {
+      return response;
+    }
+
+    if (redirectCount >= EXTRACT_FETCH_MAX_REDIRECTS) {
+      await response.body?.cancel().catch(() => undefined);
+      throw createUrlNotAllowedError(
+        `Too many redirects while fetching URL. Maximum ${EXTRACT_FETCH_MAX_REDIRECTS} redirects allowed.`,
+      );
+    }
+
+    const nextUrl = new URL(location, currentUrl);
+    await response.body?.cancel().catch(() => undefined);
+    currentUrl = nextUrl.toString();
+    redirectCount += 1;
+  }
 }
 
 function parseInputUrl(input) {
@@ -2451,7 +2474,7 @@ function classifyHttpAuthErrorCode(status, message) {
 }
 
 async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
-  const clientIp = getClientIp(request);
+  const clientIp = getClientIp(request, requestContext);
   if (!acquireEnhanceWebSocketConnectionSlot(clientIp)) {
     setRequestError(
       requestContext,
@@ -2566,7 +2589,7 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
           request,
           extractWebSocketAuthHeadersFromPayload(rawAuthPayload),
         );
-        const auth = await authenticateRequestContext(req);
+        const auth = await authenticateRequestContext(req, requestContext);
         if (!auth.ok) {
           setRequestError(
             requestContext,
@@ -2705,7 +2728,7 @@ function checkEnhanceRateLimits(auth, clientIp) {
 }
 
 async function authenticateRequest(req, res, corsHeaders, requestContext) {
-  const auth = await authenticateRequestContext(req);
+  const auth = await authenticateRequestContext(req, requestContext);
   if (!auth.ok) {
     setRequestError(
       requestContext,
@@ -2726,7 +2749,7 @@ async function handleEnhance(req, res, body, corsHeaders, requestContext) {
   const auth = await authenticateRequest(req, res, corsHeaders, requestContext);
   if (!auth) return;
 
-  const clientIp = getClientIp(req);
+  const clientIp = getClientIp(req, requestContext);
   const rateLimit = checkEnhanceRateLimits(auth, clientIp);
   if (!rateLimit.ok) {
     setRequestError(requestContext, "rate_limited", rateLimit.error, rateLimit.status);
@@ -2751,7 +2774,7 @@ async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
   const auth = await authenticateRequest(req, res, corsHeaders, requestContext);
   if (!auth) return;
 
-  const clientIp = getClientIp(req);
+  const clientIp = getClientIp(req, requestContext);
   if (!enforceRateLimit(res, corsHeaders, {
     scope: "extract-minute",
     key: `${auth.rateKey}:${clientIp}`,
@@ -2813,6 +2836,17 @@ async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
   } catch (error) {
     if (isTimeoutError(error)) {
       json(res, 504, { error: "Timed out while fetching the URL." }, corsHeaders);
+      return;
+    }
+    if (isUrlNotAllowedError(error)) {
+      json(
+        res,
+        400,
+        {
+          error: toErrorMessage(error),
+        },
+        corsHeaders,
+      );
       return;
     }
     throw error;
@@ -2917,7 +2951,7 @@ async function handleInferBuilderFields(req, res, body, corsHeaders, requestCont
   const auth = await authenticateRequest(req, res, corsHeaders, requestContext);
   if (!auth) return;
 
-  const clientIp = getClientIp(req);
+  const clientIp = getClientIp(req, requestContext);
   if (!enforceRateLimit(res, corsHeaders, {
     scope: "infer-minute",
     key: `${auth.rateKey}:${clientIp}`,
@@ -2998,6 +3032,8 @@ async function requestHandler(req, res) {
       provider_base_url: OPENAI_API_BASE_URL,
       model: DEFAULT_THREAD_OPTIONS.model || null,
       sandbox_mode: DEFAULT_THREAD_OPTIONS.sandboxMode || null,
+      strict_public_api_key: STRICT_PUBLIC_API_KEY,
+      trust_proxy: TRUST_PROXY,
     });
     return;
   }
@@ -3175,6 +3211,9 @@ server.listen(SERVICE_CONFIG.port, SERVICE_CONFIG.host, () => {
     model: DEFAULT_THREAD_OPTIONS.model || null,
     extract_model: EXTRACT_MODEL,
     sandbox_mode: DEFAULT_THREAD_OPTIONS.sandboxMode || null,
+    strict_public_api_key: STRICT_PUBLIC_API_KEY,
+    trust_proxy: TRUST_PROXY,
+    trusted_proxy_ip_count: TRUSTED_PROXY_IPS.size,
   });
 });
 
