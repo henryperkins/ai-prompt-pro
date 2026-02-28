@@ -261,6 +261,46 @@ describe("Index web search streaming", () => {
     });
   });
 
+  it("keeps streamed prompt text when metadata arrives after clean deltas", async () => {
+    mocks.streamEnhance.mockImplementation(
+      ({
+        onDelta,
+        onEvent,
+        onDone,
+      }: {
+        onDelta: (text: string) => void;
+        onEvent?: (event: EnhanceStreamEvent) => void;
+        onDone?: () => void;
+      }) => {
+        onDelta("Streaming prompt output");
+        onEvent?.({
+          eventType: "enhance/metadata",
+          responseType: null,
+          threadId: "thread_1",
+          turnId: "turn_1",
+          itemId: null,
+          itemType: null,
+          payload: {
+            event: "enhance/metadata",
+            type: "enhance.metadata",
+            payload: {
+              enhanced_prompt: "Canonical prompt output",
+            },
+          },
+        });
+        onDone?.();
+      },
+    );
+
+    await renderIndex();
+
+    fireEvent.click(screen.getByRole("button", { name: "enhance" }));
+
+    await waitFor(() => {
+      expect(mocks.setEnhancedPrompt).toHaveBeenLastCalledWith("Streaming prompt output");
+    });
+  });
+
   it("aborts an in-flight stream when the page unmounts", async () => {
     let receivedSignal: AbortSignal | undefined;
     mocks.streamEnhance.mockImplementation(({ signal }: { signal?: AbortSignal }) => {

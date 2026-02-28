@@ -23,6 +23,14 @@ export function extractTextValue(value) {
     extractTextFromContentArray(source.output_text) ||
     (typeof source.content === "string" && source.content) ||
     extractTextFromContentArray(source.content) ||
+    (typeof source.summary === "string" && source.summary) ||
+    extractTextFromContentArray(source.summary) ||
+    (typeof source.reasoning_summary === "string" && source.reasoning_summary) ||
+    extractTextFromContentArray(source.reasoning_summary) ||
+    (typeof source.reasoningSummary === "string" && source.reasoningSummary) ||
+    extractTextFromContentArray(source.reasoningSummary) ||
+    (typeof source.delta === "string" && source.delta) ||
+    extractTextFromContentArray(source.delta) ||
     null
   );
 }
@@ -34,6 +42,9 @@ export function extractItemText(item) {
     extractTextValue(source.text) ||
     extractTextValue(source.output_text) ||
     extractTextValue(source.content) ||
+    extractTextValue(source.summary) ||
+    extractTextValue(source.reasoning_summary) ||
+    extractTextValue(source.reasoningSummary) ||
     extractTextValue(source.payload) ||
     ""
   );

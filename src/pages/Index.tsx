@@ -126,6 +126,7 @@ const DEBUG_ENHANCE_EVENTS_KEY = "promptforge:debug-enhance-events";
 const DEBUG_ENHANCE_EVENTS_MAX = 200;
 const DEBUG_ENHANCE_PAYLOAD_PREVIEW_CHARS = 1200;
 const ENHANCED_PROMPT_SOURCES_SEPARATOR = /\n---\n\s*Sources:\s*\n/i;
+const ENHANCED_PROMPT_JSON_ARTIFACT_PATTERN = /"enhanced_prompt"\s*:/i;
 const REASONING_ITEM_TYPES = new Set([
   "reasoning",
   "reasoning_summary",
@@ -323,6 +324,19 @@ function splitEnhancedPromptAndSources(input: string): { promptText: string; sou
     promptText,
     sources,
   };
+}
+
+function shouldPreferMetadataPrompt(currentOutput: string, metadataPrompt: string): boolean {
+  const normalizedCurrent = currentOutput.trim();
+  const normalizedMetadata = metadataPrompt.trim();
+  if (!normalizedMetadata) return false;
+  if (!normalizedCurrent) return true;
+  if (normalizedCurrent === normalizedMetadata) return false;
+
+  return (
+    normalizedCurrent.startsWith("{")
+    && ENHANCED_PROMPT_JSON_ARTIFACT_PATTERN.test(normalizedCurrent)
+  );
 }
 
 function extractEnhancedPromptFromMetadataEvent(payload: unknown): string | null {
@@ -911,6 +925,7 @@ const Index = () => {
 
       let accumulated = "";
       let hasReceivedDelta = false;
+      let hasReceivedStreamSignal = false;
       const reasoningByItemId = new Map<string, string>();
       const reasoningItemOrder: string[] = [];
       const REASONING_FALLBACK_ITEM_ID = "__reasoning_summary__";
@@ -963,10 +978,11 @@ const Index = () => {
         signal: streamAbortController.signal,
         onDelta: (text) => {
           if (streamToken !== enhanceStreamToken.current) return;
-          if (!hasReceivedDelta) {
-            hasReceivedDelta = true;
+          if (!hasReceivedStreamSignal) {
+            hasReceivedStreamSignal = true;
             setEnhancePhase("streaming");
           }
+          hasReceivedDelta = true;
           accumulated += text;
           applyEnhancedOutput(accumulated);
         },
@@ -981,13 +997,28 @@ const Index = () => {
 
           const metadataPrompt = extractEnhancedPromptFromMetadataEvent(event.payload);
           if (metadataPrompt) {
-            accumulated = metadataPrompt;
-            applyEnhancedOutput(metadataPrompt, true);
+            const shouldApplyMetadata =
+              !hasReceivedDelta
+              || shouldPreferMetadataPrompt(accumulated, metadataPrompt);
+            if (shouldApplyMetadata) {
+              accumulated = metadataPrompt;
+              applyEnhancedOutput(metadataPrompt, true);
+              hasReceivedDelta = true;
+            } else {
+              const { sources } = splitEnhancedPromptAndSources(metadataPrompt);
+              if (sources.length > 0) {
+                setWebSearchSources(sources);
+              }
+            }
             return;
           }
 
           const chunk = extractReasoningSummaryChunk(event, event.payload);
           if (!chunk?.text) return;
+          if (!hasReceivedStreamSignal) {
+            hasReceivedStreamSignal = true;
+            setEnhancePhase("streaming");
+          }
 
           const reasoningItemId = chunk.itemId || REASONING_FALLBACK_ITEM_ID;
           if (!reasoningByItemId.has(reasoningItemId)) {

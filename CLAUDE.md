@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-AI Prompt Pro - Build, enhance, and share AI prompts with a structured prompt builder, a private library, and a public community feed.
+PromptForge (repo: ai-prompt-pro) — Build, enhance, and share AI prompts with a structured prompt builder, a private library, and a public community feed.
 
 - Production: `https://prompt.lakefrontdigital.io`
 - Frontend: Vite + React + TypeScript + Tailwind + shadcn/ui (migrating to Untitled UI)
@@ -21,13 +21,13 @@ npm run build            # Production build to dist/
 npm run preview          # Serve built app locally
 npm run lint             # Run ESLint on ts/tsx sources
 npm test                 # Run Vitest once
-npm run test:watch       # Run Vitest in watch mode
-npm run test:mobile     # Run Playwright mobile E2E checks
-npm run test:rls        # Run Neon RLS-focused tests
-npm run check:prod      # pre-merge gate (design-system checks → lint → test:unit → build → token-runtime)
-npm run agent:codex     # Run local Codex SDK agent service
 npm run test:unit        # Vitest excluding RLS integration tests (used by check:prod)
+npm run test:watch       # Run Vitest in watch mode
+npm run test:mobile      # Run Playwright mobile E2E checks
+npm run test:rls         # Run Neon RLS-focused tests (requires NEON_SERVICE_ROLE_KEY)
+npm run check:prod       # pre-merge gate (docs-freshness → design-system gates → lint → test:unit → build → token-runtime)
 npm run check:design-system  # Build + all design-system lint gates
+npm run agent:codex      # Run local Codex SDK agent service
 ```
 
 Run a single test file:
@@ -38,10 +38,13 @@ npx vitest run src/test/persistence.test.ts
 ## Architecture
 
 ### Frontend (Vite + React + TypeScript)
+- Brand copy locked in `src/lib/brand-copy.ts` (name: PromptForge, brand line, tagline, pillars).
 - Entry point: `src/pages/Index.tsx` → uses `usePromptBuilder` hook to manage prompt config, templates, and versions.
 - `usePromptBuilder` is composed from `useContextConfig` (context field updaters), `useDraftPersistence` (dirty state / autosave), plus pure helpers in `prompt-builder-cache.ts` and `prompt-builder-remix.ts`.
 - Prompt composition and quality scoring: `src/lib/prompt-builder.ts` (`buildPrompt`, `scorePrompt`) and `src/lib/section-health.ts` (`getSectionHealth`).
-- Context field types and defaults live in `src/lib/context-types.ts`.
+- Context field types, defaults (`defaultContextConfig`), and `buildContextBlock` live in `src/lib/context-types.ts`.
+- Adding a new context field requires updating: `defaultContextConfig` and `buildContextBlock` in `src/lib/context-types.ts`, `scorePrompt` in `src/lib/prompt-builder.ts`, `getSectionHealth` in `src/lib/section-health.ts`, and `normalizeTemplateConfig` in `src/lib/template-store.ts`.
+- Routes: Builder (`/`), Presets (`/presets`), Community (`/community`), Library (`/library`), History (`/history`), Profile (`/profile`), plus Contact, Privacy, Terms, Support Inbox, Feed, and Component Showcase pages.
 
 ### Persistence (dual-path)
 - `src/lib/persistence.ts`: authenticated users → Neon Data API (PostgREST); signed-out users → localStorage.
@@ -52,6 +55,7 @@ npx vitest run src/test/persistence.test.ts
 ### Agent service
 - `agent_service/codex_service.mjs`: Node service using `@openai/codex-sdk` that streams SSE deltas for prompt enhancement.
 - Frontend calls it via `streamEnhance` / `extractUrl` in `src/lib/ai-client.ts`.
+- Deployed via Azure Web App (`main_ai-prompt-pro-agent.yml` workflow).
 
 ### Auth
 - Neon Auth (Better Auth) via `@neondatabase/neon-js` – initialized in `src/integrations/neon/client.ts`.
@@ -60,24 +64,32 @@ npx vitest run src/test/persistence.test.ts
 ## Key Directories
 
 - `src/components/`: feature UI components
+- `src/components/base/`: UUI core components (buttons, input, select, checkbox, avatar, badges, tooltip, dialog, drawer, tabs, textarea, tags, progress-indicators, button-group, form, label)
 - `src/components/base/primitives/`: shared Radix/shadcn-compatible primitives
-- `src/components/base/`: Untitled UI core components (migration target)
-- `src/components/foundations/`: UUI design tokens, logos, featured icons
-- `src/components/marketing/`: UUI marketing components (footers, headers)
+- `src/components/application/`: UUI application components (activity-feeds, code-snippet, lists, progress-steps, tables)
+- `src/components/foundations/`: UUI design tokens, logos, payment-icons
+- `src/components/marketing/`: UUI marketing components (footers, headers, contact)
+- `src/components/community/`: Community feed, post cards, comments, profile hero, report dialog
+- `src/components/fantasy/`: PromptForge fantasy theme components (PFButton, PFPanel, PFQualityGauge, etc.)
+- `src/components/icons/`: OAuth and custom icon components
 - `src/pages/`: route-level screens
 - `src/hooks/`: reusable stateful logic
 - `src/lib/`: domain logic/helpers (prompt-builder, persistence, ai-client, etc.)
+- `src/lib/utils/`: utility functions (`cx.ts`, `icon-slot.tsx`, `is-react-component.ts`, `countries.tsx`)
+- `src/styles/`: global CSS, theme tokens, typography, UUI compatibility, fantasy theme
 - `src/test/`: Vitest tests
 - `playwright/`: Playwright mobile E2E coverage + viewport baselines
 - `supabase/migrations/`: SQL migrations
 - `agent_service/`: Codex SDK service for prompt enhancement
-- `docs/`: specs and runbooks
-- `scripts/`: design-system lint gates (legacy-import checks, token-drift, Phosphor-icon guardrails)
+- `docs/`: specs, runbooks, QA checklists, and design reviews
+- `scripts/`: design-system lint gates (legacy-import checks, legacy-ds-props, primitive-ds-imports, Phosphor-icon guardrails, token-runtime drift, docs-freshness)
+- `warcraft/`: PromptForge fantasy design tokens and theme utilities
+- `.storybook/`: Storybook configuration for component development
 
 ## Feature Flags
 
 - `VITE_COMMUNITY_MOBILE_ENHANCEMENTS` - gates mobile-specific Community behaviors (filter drawer, comment thread drawers)
-- `VITE_BUILDER_REDESIGN_PHASE{1..4}` - builder redesign phases
+- `VITE_BUILDER_REDESIGN_PHASE{1..4}` - builder redesign phases (all default `true`)
 - `VITE_LAUNCH_EXPERIMENT_HERO_COPY` - A/B hero copy experiment
 - `VITE_LAUNCH_EXPERIMENT_PRIMARY_CTA` - A/B primary CTA experiment
 - Feature flag implementation in `src/lib/feature-flags.ts`
@@ -94,6 +106,8 @@ npx vitest run src/test/persistence.test.ts
 - Hooks: `useXxx` (`usePromptBuilder.ts`)
 - Utilities: kebab-case (`template-store.ts`)
 - Test files: `{module}.test.ts(x)` in `src/test/`
+- Primary icon library: `@phosphor-icons/react`; UUI icons: `@untitledui/icons`
+- Use semantic color tokens — never raw Tailwind color scales
 
 ## Environment Variables
 
@@ -102,9 +116,15 @@ Key frontend vars (see `.env.example` for full list):
 - `VITE_AGENT_SERVICE_URL` (required for Enhance/Extract/Infer features)
 - `VITE_ENHANCE_TRANSPORT` (`auto` | `sse` | `ws`)
 
+Key agent service vars:
+- `OPENAI_API_KEY` / `AZURE_OPENAI_API_KEY`, `AGENT_SERVICE_TOKEN`
+- `CODEX_CONFIG_JSON`, `CODEX_MODEL`, `CODEX_MODEL_REASONING_EFFORT`
+- Rate limits: `ENHANCE_PER_MINUTE`, `ENHANCE_PER_DAY`, `EXTRACT_PER_MINUTE`, `EXTRACT_PER_DAY`, `INFER_PER_MINUTE`, `INFER_PER_DAY`
+
 ## Deployment
 
 - Azure Static Web Apps via `.github/workflows/azure-static-web-apps-gentle-dune-075b4710f.yml`
+- Agent service via `.github/workflows/main_ai-prompt-pro-agent.yml`
 - SWA CLI config: `swa-cli.config.json`
 - Runtime routing: `public/staticwebapp.config.json`
 - Additional CI: `codeql.yml` (security scanning), `neon-pr-branches.yml` (preview DB branches)
@@ -120,10 +140,14 @@ The app is migrating from shadcn/ui (Radix) to **Untitled UI** (React Aria + Tai
 
 ```
 src/components/
-├── base/           # UUI core components (Button, Input, Select, Checkbox, Avatar, Badge, Tooltip, etc.)
+├── base/           # UUI core components (Button, Input, Select, Checkbox, Avatar, Badge, Tooltip, Dialog, Drawer, Tabs, Textarea, Tags, ProgressIndicators, ButtonGroup, Form, Label)
 ├── base/primitives # Radix/shadcn-compatible primitives
-├── foundations/    # UUI design tokens, logos, featured icons
-├── marketing/     # UUI marketing components (footers, headers, CTAs)
+├── application/    # UUI application components (activity-feeds, code-snippet, lists, progress-steps, tables)
+├── foundations/    # UUI design tokens, logos, payment-icons
+├── marketing/     # UUI marketing components (footers, headers, contact)
+├── community/     # Community feed, post cards, comments, profile
+├── fantasy/       # PromptForge fantasy theme components
+├── icons/         # OAuth and custom icons
 └── ...            # App-specific feature components
 ```
 
