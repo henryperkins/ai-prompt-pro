@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   sanitizeEnhanceThreadOptions,
   extractThreadOptions,
+  mergeEnhanceThreadOptions,
 } from "../../agent_service/thread-options.mjs";
 
 describe("sanitizeEnhanceThreadOptions", () => {
@@ -82,5 +83,27 @@ describe("extractThreadOptions", () => {
   it("returns sanitized options for valid input", () => {
     const result = extractThreadOptions({ modelReasoningEffort: "medium" });
     expect(result).toEqual({ modelReasoningEffort: "medium" });
+  });
+});
+
+describe("mergeEnhanceThreadOptions", () => {
+  it("drops default webSearchMode when a request explicitly sets webSearchEnabled", () => {
+    expect(mergeEnhanceThreadOptions(
+      { modelReasoningEffort: "high", webSearchMode: "live" },
+      { webSearchEnabled: false },
+    )).toEqual({
+      modelReasoningEffort: "high",
+      webSearchEnabled: false,
+    });
+  });
+
+  it("retains default webSearchMode when the request does not override web search", () => {
+    expect(mergeEnhanceThreadOptions(
+      { modelReasoningEffort: "high", webSearchMode: "cached" },
+      { modelReasoningEffort: "medium" },
+    )).toEqual({
+      modelReasoningEffort: "medium",
+      webSearchMode: "cached",
+    });
   });
 });

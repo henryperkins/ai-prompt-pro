@@ -13,7 +13,7 @@ import {
   pickPrimaryAgentMessageText,
   postProcessEnhancementResponse,
 } from "./enhancement-pipeline.mjs";
-import { extractThreadOptions } from "./thread-options.mjs";
+import { extractThreadOptions, mergeEnhanceThreadOptions } from "./thread-options.mjs";
 import {
   loadCodexConfig,
   resolveApiKey,
@@ -32,6 +32,11 @@ import {
 import { runGuardedAsync } from "./async-guard.mjs";
 import { isPayloadTooLargeError, readBodyJsonWithLimit } from "./http-body.mjs";
 import { computeStreamTextUpdate, extractItemText } from "./stream-text.mjs";
+import {
+  classifyStreamFailure,
+  isRateLimitMessage,
+  resolveRequestCompletionStatus,
+} from "./stream-errors.mjs";
 
 // ---------------------------------------------------------------------------
 // Resolve provider from ~/.codex/config.toml (preferred) or CODEX_CONFIG_JSON.
@@ -296,11 +301,11 @@ function completeRequestContext(requestContext, statusCode) {
   if (!requestContext || requestContext.completed) return;
   requestContext.completed = true;
   const durationMs = Math.max(0, Date.now() - requestContext.startedAt);
-  const resolvedStatus = Number.isFinite(statusCode)
-    ? statusCode
-    : Number.isFinite(requestContext.statusCode)
-      ? requestContext.statusCode
-      : 500;
+  const resolvedStatus = resolveRequestCompletionStatus({
+    transportStatusCode: statusCode,
+    requestStatusCode: requestContext.statusCode,
+    errorCode: requestContext.errorCode,
+  });
   const resolvedErrorCode = requestContext.errorCode || inferErrorCodeFromStatus(resolvedStatus);
   const basePayload = cleanLogFields({
     request_id: requestContext.requestId,
@@ -1992,7 +1997,7 @@ function isRateLimitError(err) {
 function isRateLimitTurnFailure(event) {
   if (event?.type !== "turn.failed") return false;
   const msg = event.error?.message ?? "";
-  return /(^|\b)429(\b|$)|rate.limit|too many requests|throttl/i.test(msg);
+  return isRateLimitMessage(msg);
 }
 
 function sleep(ms) {
@@ -2103,7 +2108,7 @@ function buildEnhanceStreamRequest(body) {
   }
 
   const requestThreadOptions = extractThreadOptions(requestBody.thread_options || requestBody.threadOptions);
-  const threadOptions = { ...DEFAULT_THREAD_OPTIONS, ...requestThreadOptions };
+  const threadOptions = mergeEnhanceThreadOptions(DEFAULT_THREAD_OPTIONS, requestThreadOptions);
   const builderMode = parseEnhancementRequestMode(requestBody);
   const builderFields = parseEnhancementRequestBuilderFields(requestBody);
   const enhancementContext = detectEnhancementContext(prompt, {
@@ -2204,31 +2209,46 @@ async function runEnhanceTurnStream(requestData, options) {
 
       if (event.type === "turn.failed") {
         turnFailed = true;
-        const failureMessage = toErrorMessage(event.error);
-        const failureCode = /(^|\b)429(\b|$)|rate.limit|too many requests|throttl/i.test(failureMessage.toLowerCase())
-          ? "rate_limited"
-          : "service_error";
-        setRequestError(requestContext, failureCode, failureMessage);
+        const failure = classifyStreamFailure(event.error, {
+          defaultCode: "service_error",
+          defaultStatus: 503,
+        });
+        setRequestError(requestContext, failure.code, failure.message, failure.status);
         emit({
           event: "turn.failed",
           type: "turn.failed",
           turn_id: turnId,
           thread_id: activeThreadId,
-          error: failureMessage,
+          error: {
+            message: failure.message,
+            code: failure.code,
+            status: failure.status,
+          },
+          code: failure.code,
+          status: failure.status,
         });
         continue;
       }
 
       if (event.type === "error") {
         turnError = true;
-        const threadErrorMessage = toErrorMessage(event.message);
-        setRequestError(requestContext, "service_error", threadErrorMessage);
+        const failure = classifyStreamFailure({ message: event.message }, {
+          defaultCode: "service_error",
+          defaultStatus: 503,
+        });
+        setRequestError(requestContext, failure.code, failure.message, failure.status);
         emit({
           event: "thread.error",
           type: "error",
           turn_id: turnId,
           thread_id: activeThreadId,
-          error: threadErrorMessage,
+          error: {
+            message: failure.message,
+            code: failure.code,
+            status: failure.status,
+          },
+          code: failure.code,
+          status: failure.status,
         });
         continue;
       }
@@ -2419,15 +2439,19 @@ async function runEnhanceTurnStream(requestData, options) {
       });
     }
   } catch (error) {
-    setRequestError(requestContext, "service_error", toErrorMessage(error), 500);
+    const failure = classifyStreamFailure({ message: toErrorMessage(error) }, {
+      defaultCode: "service_error",
+      defaultStatus: 500,
+    });
+    setRequestError(requestContext, failure.code, failure.message, failure.status);
     if (!isClosed()) {
-      const message = toErrorMessage(error);
       emit({
         event: "turn/error",
         type: "turn/error",
         turn_id: turnId,
-        error: message,
-        code: "service_error",
+        error: failure.message,
+        code: failure.code,
+        status: failure.status,
       });
     }
   }
@@ -2572,10 +2596,16 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
         controller.abort("Client disconnected");
       }
       const closeStatus = Number.isFinite(requestContext?.statusCode)
-        ? requestContext.statusCode
-        : requestContext?.errorCode
-          ? 400
-          : 200;
+        ? resolveRequestCompletionStatus({
+          transportStatusCode: 200,
+          requestStatusCode: requestContext.statusCode,
+          errorCode: requestContext?.errorCode,
+        })
+        : resolveRequestCompletionStatus({
+          transportStatusCode: requestContext?.errorCode ? 400 : 200,
+          requestStatusCode: requestContext?.statusCode,
+          errorCode: requestContext?.errorCode,
+        });
       completeRequestContext(requestContext, closeStatus);
     });
 

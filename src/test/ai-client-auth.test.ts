@@ -418,6 +418,83 @@ describe("ai-client auth recovery", () => {
     );
   });
 
+  it("preserves structured turn.failed metadata from the stream", async () => {
+    const body = [
+      `data: ${JSON.stringify({
+        event: "turn.failed",
+        type: "turn.failed",
+        error: {
+          message: "429 Too Many Requests",
+          code: "rate_limit_exceeded",
+          status: 429,
+        },
+      })}`,
+      "",
+      "data: [DONE]",
+      "",
+    ].join("\n");
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(streamingRaw(body));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { streamEnhance } = await import("@/lib/ai-client");
+
+    const onDone = vi.fn();
+    const onError = vi.fn();
+
+    await streamEnhance({
+      prompt: "Improve this",
+      onDelta: vi.fn(),
+      onDone,
+      onError,
+    });
+
+    expect(onDone).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "rate_limited",
+        status: 429,
+        message: "429 Too Many Requests",
+      }),
+    );
+  });
+
+  it("treats a stream without a done marker as an interrupted request", async () => {
+    const body = [
+      `data: ${JSON.stringify({
+        event: "item/agent_message/delta",
+        type: "response.output_text.delta",
+        item_id: "item_1",
+        item_type: "agent_message",
+        delta: "partial output",
+      })}`,
+      "",
+    ].join("\n");
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(streamingRaw(body));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { streamEnhance } = await import("@/lib/ai-client");
+
+    const onDone = vi.fn();
+    const onError = vi.fn();
+
+    await streamEnhance({
+      prompt: "Improve this",
+      onDelta: vi.fn(),
+      onDone,
+      onError,
+    });
+
+    expect(onDone).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "network_unavailable",
+        message: "Enhancement stream ended before completion. Please try again.",
+      }),
+    );
+  });
+
   it("surfaces non-retryable getSession errors", async () => {
     mocks.getSession.mockResolvedValue({
       data: { session: null },

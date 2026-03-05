@@ -301,6 +301,63 @@ describe("Index web search streaming", () => {
     });
   });
 
+  it("replaces prior streamed text when a completed output item rewrites the result", async () => {
+    mocks.streamEnhance.mockImplementation(
+      ({
+        onDelta,
+        onEvent,
+        onDone,
+      }: {
+        onDelta: (text: string) => void;
+        onEvent?: (event: EnhanceStreamEvent) => void;
+        onDone?: () => void;
+      }) => {
+        onEvent?.({
+          eventType: "item/agent_message/delta",
+          responseType: "response.output_text.delta",
+          threadId: "thread_1",
+          turnId: "turn_1",
+          itemId: "item_agent_1",
+          itemType: "agent_message",
+          payload: {
+            event: "item/agent_message/delta",
+            type: "response.output_text.delta",
+            item_id: "item_agent_1",
+            item_type: "agent_message",
+            delta: "foo",
+            item: { id: "item_agent_1", type: "agent_message", text: "foo" },
+          },
+        });
+        onDelta("foo");
+        onEvent?.({
+          eventType: "item/completed",
+          responseType: "response.output_text.done",
+          threadId: "thread_1",
+          turnId: "turn_1",
+          itemId: "item_agent_1",
+          itemType: "agent_message",
+          payload: {
+            event: "item/completed",
+            type: "response.output_text.done",
+            item_id: "item_agent_1",
+            item_type: "agent_message",
+            payload: { text: "bar" },
+            item: { id: "item_agent_1", type: "agent_message", text: "bar" },
+          },
+        });
+        onDone?.();
+      },
+    );
+
+    await renderIndex();
+
+    fireEvent.click(screen.getByRole("button", { name: "enhance" }));
+
+    await waitFor(() => {
+      expect(mocks.setEnhancedPrompt).toHaveBeenLastCalledWith("bar");
+    });
+  });
+
   it("aborts an in-flight stream when the page unmounts", async () => {
     let receivedSignal: AbortSignal | undefined;
     mocks.streamEnhance.mockImplementation(({ signal }: { signal?: AbortSignal }) => {

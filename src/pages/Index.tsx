@@ -29,6 +29,10 @@ import {
 } from "@/lib/builder-inference";
 import { getSectionHealth, type SectionHealthState } from "@/lib/section-health";
 import { buildPrompt, defaultConfig, hasBuilderFieldInput, hasPromptInput } from "@/lib/prompt-builder";
+import {
+  applyEnhanceOutputEvent,
+  createEnhanceOutputStreamState,
+} from "@/lib/enhance-output-stream";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { loadPost, loadProfilesByIds } from "@/lib/community";
@@ -940,9 +944,11 @@ const Index = () => {
       let accumulated = "";
       let hasReceivedDelta = false;
       let hasReceivedStreamSignal = false;
+      let hasStructuredOutput = false;
       const reasoningByItemId = new Map<string, string>();
       const reasoningItemOrder: string[] = [];
       const REASONING_FALLBACK_ITEM_ID = "__reasoning_summary__";
+      const outputState = createEnhanceOutputStreamState();
       const debugEnhanceEvents = isEnhanceDebugEnabled();
       const debugEventStore =
         debugEnhanceEvents && typeof window !== "undefined"
@@ -992,6 +998,7 @@ const Index = () => {
         signal: streamAbortController.signal,
         onDelta: (text) => {
           if (streamToken !== enhanceStreamToken.current) return;
+          if (hasStructuredOutput) return;
           if (!hasReceivedStreamSignal) {
             hasReceivedStreamSignal = true;
             setEnhancePhase("streaming");
@@ -1007,6 +1014,23 @@ const Index = () => {
             if (debugEventStore.length > DEBUG_ENHANCE_EVENTS_MAX) {
               debugEventStore.splice(0, debugEventStore.length - DEBUG_ENHANCE_EVENTS_MAX);
             }
+          }
+
+          const outputUpdate = applyEnhanceOutputEvent(outputState, {
+            eventType: event.eventType,
+            responseType: event.responseType,
+            itemId: event.itemId,
+            itemType: event.itemType,
+          }, event.payload);
+          if (outputUpdate.didHandle) {
+            hasStructuredOutput = true;
+            if (!hasReceivedStreamSignal) {
+              hasReceivedStreamSignal = true;
+              setEnhancePhase("streaming");
+            }
+            accumulated = outputUpdate.text;
+            hasReceivedDelta = accumulated.length > 0;
+            applyEnhancedOutput(accumulated);
           }
 
           const metadataPrompt = extractEnhancedPromptFromMetadataEvent(event.payload);

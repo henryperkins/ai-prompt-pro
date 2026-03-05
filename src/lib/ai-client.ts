@@ -280,6 +280,16 @@ function timeoutMessage(name: "enhance-prompt" | "extract-url" | "infer-builder-
   return "Inference timed out. Please try again.";
 }
 
+function interruptedStreamMessage(name: "enhance-prompt" | "extract-url" | "infer-builder-fields"): string {
+  if (name === "enhance-prompt") {
+    return "Enhancement stream ended before completion. Please try again.";
+  }
+  if (name === "extract-url") {
+    return "URL extraction stream ended before completion. Please try again.";
+  }
+  return "Inference stream ended before completion. Please try again.";
+}
+
 function errorCodeFromStatus(status: number | undefined): AIClientErrorCode {
   if (status === 401) return "auth_session_invalid";
   if (status === 429) return "rate_limited";
@@ -1518,6 +1528,15 @@ export async function streamEnhance({
 
     if (terminalError) {
       onError(terminalError);
+      return;
+    }
+
+    if (!streamDone) {
+      onError(new AIClientError({
+        message: interruptedStreamMessage("enhance-prompt"),
+        code: "network_unavailable",
+        retryable: true,
+      }));
       return;
     }
 

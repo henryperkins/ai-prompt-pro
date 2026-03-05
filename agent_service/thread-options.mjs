@@ -36,3 +36,19 @@ export function extractThreadOptions(input) {
   }
   return result.value;
 }
+
+export function mergeEnhanceThreadOptions(defaultOptions, requestOptions) {
+  const merged = {
+    ...(defaultOptions || {}),
+    ...(requestOptions || {}),
+  };
+
+  if (
+    requestOptions
+    && Object.prototype.hasOwnProperty.call(requestOptions, "webSearchEnabled")
+  ) {
+    delete merged.webSearchMode;
+  }
+
+  return merged;
+}
