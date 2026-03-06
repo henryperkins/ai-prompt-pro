@@ -1,2 +1,2 @@
-export * from "./avatar-online-indicator";
-export * from "./verified-tick";
+export { AvatarOnlineIndicator } from "./avatar-online-indicator";
+export { VerifiedTick } from "./verified-tick";

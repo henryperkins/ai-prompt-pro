@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
-import { ThemeProvider } from "@/hooks/useTheme";
+import { ThemeProvider } from "@/hooks/theme-provider";
 import { defaultConfig } from "@/lib/prompt-builder";
 
 const mocks = vi.hoisted(() => ({

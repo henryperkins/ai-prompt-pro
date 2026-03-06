@@ -5,7 +5,7 @@ import { Avatar } from "@/components/base/avatar/avatar";
 import { cx } from "@/lib/utils/cx";
 import { renderIconSlot } from "@/lib/utils/icon-slot";
 import type { SelectItemType } from "./select";
-import { SelectContext } from "./select";
+import { SelectContext } from "./select-shared";
 import { Check } from "@phosphor-icons/react";
 
 const sizes = {

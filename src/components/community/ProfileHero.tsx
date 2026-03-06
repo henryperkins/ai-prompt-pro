@@ -1,7 +1,7 @@
 import { format } from "date-fns";
-import type { CommunityPost, FollowStats, ProfileActivityStats, CommunityProfile } from "@/lib/community";
+import type { FollowStats, ProfileActivityStats, CommunityProfile } from "@/lib/community";
 import { getInitials } from "@/lib/utils/get-initials";
-import { getCommunityPostRarity, type PromptForgeRarity } from "@/lib/community-rarity";
+import type { PromptForgeRarity } from "@/lib/community-rarity";
 import { Avatar } from "@/components/base/avatar";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
@@ -47,18 +47,6 @@ const RARITY_BADGE_COLOR: Record<PromptForgeRarity, string> = {
   epic: "border-pf-ember/50 bg-pf-ember/12 text-pf-ember",
   legendary: "border-pf-gold/50 bg-pf-gold/12 text-pf-gold",
 };
-
-export function getBestRarityFromPosts(posts: CommunityPost[]): PromptForgeRarity {
-  const order: PromptForgeRarity[] = ["common", "rare", "epic", "legendary"];
-  let best: PromptForgeRarity = "common";
-  for (const post of posts) {
-    const rarity = getCommunityPostRarity(post);
-    if (order.indexOf(rarity) > order.indexOf(best)) {
-      best = rarity;
-    }
-  }
-  return best;
-}
 
 const STAT_CELLS: Array<{
   key: keyof ProfileActivityStats;

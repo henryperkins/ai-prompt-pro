@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { AuthProvider } from "@/hooks/auth-provider";
+import { useAuth } from "@/hooks/useAuth";
 
 const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),

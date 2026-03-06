@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
-import { ThemeProvider } from "@/hooks/useTheme";
+import { ThemeProvider } from "@/hooks/theme-provider";
 import History from "@/pages/History";
 
 const mocks = vi.hoisted(() => ({

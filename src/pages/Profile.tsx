@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { CommunityFeed } from "@/components/community/CommunityFeed";
-import { ProfileHero, getBestRarityFromPosts } from "@/components/community/ProfileHero";
+import { ProfileHero } from "@/components/community/ProfileHero";
+import { getBestRarityFromPosts } from "@/components/community/profile-rarity";
 import { PageShell } from "@/components/PageShell";
 import { Button } from "@/components/base/buttons/button";
 import { StateCard } from "@/components/base/state-card";

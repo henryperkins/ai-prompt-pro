@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
-import { ThemeProvider, useTheme } from "@/hooks/useTheme";
+import { ThemeProvider } from "@/hooks/theme-provider";
+import { useTheme } from "@/hooks/useTheme";
 import { resetPreferencesCache } from "@/lib/user-preferences";
 
 function ThemeProbe() {

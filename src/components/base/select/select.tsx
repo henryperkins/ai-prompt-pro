@@ -1,5 +1,4 @@
 import type { ReactNode, Ref, RefAttributes } from "react";
-import { createContext } from "react";
 import type { SelectProps as AriaSelectProps } from "react-aria-components";
 import { Button as AriaButton, ListBox as AriaListBox, Select as AriaSelect, SelectValue as AriaSelectValue } from "react-aria-components";
 import { Avatar } from "@/components/base/avatar/avatar";
@@ -10,6 +9,7 @@ import { renderIconSlot, type IconSlot } from "@/lib/utils/icon-slot";
 import { ComboBox } from "./combobox";
 import { Popover } from "./popover";
 import { SelectItem } from "./select-item";
+import { SelectContext, selectSizes } from "./select-shared";
 import { CaretDown as ChevronDown } from "@phosphor-icons/react";
 
 type SelectIconProps = { className?: string; "data-icon"?: string | boolean; "aria-hidden"?: boolean };
@@ -48,11 +48,6 @@ interface SelectValueProps {
     placeholderIcon?: IconSlot<SelectIconProps>;
 }
 
-export const sizes = {
-    sm: { root: "py-2 px-3", shortcut: "pr-2.5" },
-    md: { root: "py-2.5 px-3.5", shortcut: "pr-3" },
-};
-
 const SelectValue = ({ isOpen, isFocused, isDisabled, size, placeholder, placeholderIcon, ref }: SelectValueProps) => {
     return (
         <AriaButton
@@ -71,7 +66,7 @@ const SelectValue = ({ isOpen, isFocused, isDisabled, size, placeholder, placeho
                     // Icon styles
                     "*:data-icon:size-5 *:data-icon:shrink-0 *:data-icon:text-muted-foreground in-disabled:*:data-icon:text-muted-foreground/70",
 
-                    sizes[size].root,
+                    selectSizes[size].root,
                 )}
             >
                 {(state) => {
@@ -104,8 +99,6 @@ const SelectValue = ({ isOpen, isFocused, isDisabled, size, placeholder, placeho
         </AriaButton>
     );
 };
-
-export const SelectContext = createContext<{ size: "sm" | "md" }>({ size: "sm" });
 
 const Select = ({ placeholder = "Select", placeholderIcon, size = "sm", children, items, label, hint, tooltip, className, ...rest }: SelectProps) => {
     return (

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
-import { Badge, badgeVariants } from "@/components/base/badges/badges";
+import { Badge } from "@/components/base/badges/badges";
+import { badgeVariants } from "@/components/base/badges/badge-variants";
 import { interviewQuestions } from "@/lib/context-types";
 import type { InterviewAnswer } from "@/lib/context-types";
 import { cx } from "@/lib/utils/cx";

@@ -3,8 +3,8 @@ import { Toaster } from "@/components/base/toaster";
 import { Toaster as Sonner } from "@/components/base/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/hooks/useAuth";
-import { ThemeProvider } from "@/hooks/useTheme";
+import { AuthProvider } from "@/hooks/auth-provider";
+import { ThemeProvider } from "@/hooks/theme-provider";
 import {
   BuilderRouteFallback,
   CommunityRouteFallback,
