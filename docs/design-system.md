@@ -47,6 +47,43 @@ Phase 3 status (completed February 22, 2026):
   - `scripts/check-no-primitive-ds-imports.mjs`
   - `scripts/check-no-legacy-ds-props.mjs`
   - `scripts/check-no-literal-colors.mjs`
+  - `scripts/check-no-deprecated-ds-bridges.mjs`
+
+## 1.1) Canonical Surface (Use This, Not That)
+
+Canonical public imports:
+
+- Button: `@/components/base/buttons/button`
+- Input: `@/components/base/input/input`
+- Badge: `@/components/base/badges/badges`
+- Avatar: `@/components/base/avatar`
+- Checkbox: `@/components/base/checkbox`
+- Dialog: `@/components/base/dialog`
+- Drawer: `@/components/base/drawer`
+- Tabs: `@/components/base/tabs`
+- Textarea: `@/components/base/textarea` (prefer `TextArea`; legacy `Textarea` remains temporary)
+
+Use this, not that:
+
+| Concern | Use this | Not that |
+| --- | --- | --- |
+| DS component entrypoints | `@/components/base/*` public entrypoints | `@/components/base/primitives/*` in feature/app code |
+| Avatar | `@/components/base/avatar` | `@/components/base/avatar/avatar` |
+| Checkbox | `@/components/base/checkbox` | `@/components/base/checkbox/checkbox` |
+| Textarea | `TextArea` from `@/components/base/textarea` | `TextArea` from `@/components/base/textarea/textarea` |
+| Class merge helper | `cx` from `@/lib/utils/cx` | `cn` from `@/lib/utils` |
+| Theme preference values | `"default"` / `"midnight"` | `"light"` / `"dark"` in new logic or UX copy |
+
+## 1.2) Theme Model and Compatibility Aliases
+
+- PromptForge is dark-first:
+  - `:root` = standard brand theme (`data-theme="default"`)
+  - `:root[data-theme="midnight"]` = deeper alternate theme
+- Runtime state and persistence use only semantic values: `default`, `midnight`.
+- Compatibility aliases remain temporary:
+  - CSS selectors: `.dark`, `.dark-mode`
+  - Legacy stored values: `"light"`, `"dark"` (normalized at load)
+- New product copy and new feature logic must use standard/midnight wording.
 
 ---
 
@@ -261,7 +298,7 @@ Border usage rules:
 
 - Keep interactive hit areas independent from decorative frame assets.
 - Avoid decorative borders on dense form regions and long text blocks.
-- Verify border contrast in both light and dark themes before release.
+- Verify border contrast in both standard and midnight themes before release.
 
 ---
 
@@ -342,7 +379,7 @@ Use this checklist for iOS-facing releases and major UI refactors. It consolidat
 
 - [ ] Use semantic tokens only for UI color in app code (no one-off hex/rgb in components).
 - [ ] Keep semantic intent stable (`--primary` for emphasis, `--muted` for supporting surfaces, etc.); avoid reusing one color token for conflicting meanings.
-- [ ] Validate light and dark variants for all tokens used in foreground/background pairs.
+- [ ] Validate both standard and midnight variants for all tokens used in foreground/background pairs.
 - [ ] Validate increased-contrast readability for key interactions (button labels, links, status chips, destructive actions).
 - [ ] Do not rely on color alone for state or meaning; pair with text, iconography, or shape.
 - [ ] Keep high-emphasis tinted controls limited per surface (single primary action by default).
