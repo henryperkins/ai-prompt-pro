@@ -50,7 +50,7 @@ interface CommunityFeedProps {
 
 function LoadingCard() {
   return (
-    <Card className="pf-card space-y-3 border-border/80 bg-card/85 p-4">
+    <Card className="pf-card space-y-3.5 border-border/80 bg-card/90 p-4">
       <div className="flex items-center gap-2">
         <Skeleton className="h-8 w-8 rounded-full" />
         <div className="space-y-1">
@@ -209,7 +209,7 @@ export function CommunityFeed({
   if (errorMessage) {
     const title =
       errorType === "auth"
-        ? "Sign in to access this community view"
+        ? "Sign in to view community posts"
         : errorType === "not_found"
           ? "Community content could not be found"
           : errorType === "network"
@@ -217,9 +217,23 @@ export function CommunityFeed({
             : errorType === "backend_unconfigured"
               ? "Community backend is not configured"
               : "Couldn’t load community feed";
+    const description =
+      errorType === "auth"
+        ? "Sign in from Builder to load your personalized feed and interactions."
+        : errorType === "network"
+          ? "Check your connection and try again."
+          : errorType === "backend_unconfigured"
+            ? "Community services are not enabled yet. Finish setup, then retry."
+            : errorMessage;
+    const primaryAction =
+      errorType === "auth"
+        ? { label: "Go to Builder", to: "/" }
+        : onRetry
+          ? { label: "Retry", onClick: onRetry }
+          : { label: "Go to Builder", to: "/" };
     const secondaryAction =
       errorType === "auth"
-        ? { label: "Go to Builder and sign in", to: "/" }
+        ? { label: "Open Library", to: "/library" }
         : errorType === "not_found"
           ? { label: "Return to community", to: "/community" }
           : { label: "Open Library", to: "/library" };
@@ -229,8 +243,8 @@ export function CommunityFeed({
         <StateCard
           variant="error"
           title={title}
-          description={errorMessage}
-          primaryAction={onRetry ? { label: "Retry", onClick: onRetry } : { label: "Go to Builder", to: "/" }}
+          description={description}
+          primaryAction={primaryAction}
           secondaryAction={secondaryAction}
         />
       </div>
@@ -241,8 +255,8 @@ export function CommunityFeed({
     return (
       <StateCard
         variant="empty"
-        title="No posts match."
-        description="Try another filter or share a prompt."
+        title="No posts match these filters"
+        description="Try a different search, sort option, or category."
         primaryAction={{ label: "Share your first prompt", to: "/" }}
         secondaryAction={{ label: "Open Library", to: "/library" }}
       />
@@ -250,17 +264,17 @@ export function CommunityFeed({
   }
 
   return (
-    <div
-      className={cx(
-        "community-feed-grid grid grid-cols-1 gap-3 lg:grid-cols-2",
-        hasSelectedPost && "community-feed-grid--focus-mode",
-      )}
-    >
+    <div className={cx("community-feed-grid grid grid-cols-1 gap-4 lg:grid-cols-2", hasSelectedPost && "community-feed-grid--focus-mode")}>
       {renderedPosts}
       {hasMore && (
         <div className="space-y-2 py-2 lg:col-span-2">
-          <div ref={sentinelRef} className="flex justify-center py-2" aria-hidden="true">
-            {isLoadingMore && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
+          <div ref={sentinelRef} className="flex min-h-8 justify-center py-2" aria-hidden="true">
+            {isLoadingMore && (
+              <p className="type-help inline-flex items-center gap-1.5 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading more posts...
+              </p>
+            )}
           </div>
           {onLoadMore && (
             <div className="flex justify-center">
@@ -268,11 +282,11 @@ export function CommunityFeed({
                 type="button"
                 variant="secondary"
                 size="sm"
-                className="type-button-label h-11 px-4 sm:h-9 sm:px-3"
+                className="type-button-label h-11 px-4 sm:h-10 sm:px-3"
                 onClick={onLoadMore}
                 disabled={isLoadingMore}
               >
-                {isLoadingMore ? "Loading…" : "Load more"}
+                {isLoadingMore ? "Loading..." : "Load more"}
               </Button>
             </div>
           )}

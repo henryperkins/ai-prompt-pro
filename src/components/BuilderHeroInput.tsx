@@ -36,15 +36,17 @@ export function BuilderHeroInput({
 
   return (
     <Card className="border-border/70 bg-card/80 p-3 sm:p-4">
-      <div className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <label htmlFor={promptInputId} className="text-sm font-medium text-foreground">
-            What should the model do?
-          </label>
-          <div className="flex items-center gap-2">
-            <span id={promptInputMetaId} className="text-xs text-muted-foreground">
+      <div className="space-y-3.5">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <label htmlFor={promptInputId} className="text-sm font-medium text-foreground">
+              What should the model do?
+            </label>
+            <span id={promptInputMetaId} className="text-sm text-muted-foreground">
               {value.length} chars
             </span>
+          </div>
+          <div className="flex flex-wrap items-center justify-end gap-2">
             {onResetAll && (
               <Button
                 type="button"
@@ -52,7 +54,7 @@ export function BuilderHeroInput({
                 size="sm"
                 onClick={onResetAll}
                 aria-label="Reset all builder fields"
-                className="interactive-chip h-11 gap-1 px-3 text-sm sm:h-9 sm:px-2 sm:text-sm"
+                className="interactive-chip h-11 gap-1 px-3 text-sm sm:h-10 sm:px-2.5 sm:text-sm"
               >
                 Reset all
               </Button>
@@ -64,7 +66,7 @@ export function BuilderHeroInput({
                 size="sm"
                 onClick={onClear}
                 aria-label="Clear prompt text"
-                className="interactive-chip h-11 gap-1 px-3 text-sm sm:h-9 sm:px-2 sm:text-sm"
+                className="interactive-chip h-11 gap-1 px-3 text-sm sm:h-10 sm:px-2.5 sm:text-sm"
               >
                 <RotateCcw className="w-3 h-3" />
                 Clear
@@ -93,7 +95,7 @@ export function BuilderHeroInput({
                 type="button"
                 variant="tertiary"
                 size="sm"
-                className="h-11 px-3 text-sm sm:h-9 sm:px-2 sm:text-sm"
+                className="h-11 px-3 text-sm sm:h-10 sm:px-2.5 sm:text-sm"
                 onClick={onResetInferred}
               >
                 Reset AI details
@@ -110,7 +112,7 @@ export function BuilderHeroInput({
           {phase3Enabled && (
             <div className="mt-2 space-y-2">
               {isInferringSuggestions && (
-                <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <p className="flex items-center gap-1.5 text-sm text-foreground/85">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   Generating suggestions...
                 </p>
@@ -124,7 +126,7 @@ export function BuilderHeroInput({
                       type="button"
                       variant="secondary"
                       size="sm"
-                      className="h-11 px-2 text-sm sm:h-9 sm:text-sm"
+                      className="h-11 px-2.5 text-sm sm:h-10 sm:text-sm"
                       onClick={() => onApplySuggestion?.(chip)}
                     >
                       {chip.label}

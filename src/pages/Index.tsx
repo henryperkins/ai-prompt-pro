@@ -1598,13 +1598,13 @@ const Index = () => {
       )}
       {/* Hero — compact on mobile */}
       <div
-        className="pf-gilded-frame pf-hero-surface mb-4 px-4 py-5 text-center sm:mb-8 sm:px-6 sm:py-7"
+        className="pf-gilded-frame pf-hero-surface mb-4 px-4 py-4 text-center sm:mb-8 sm:px-6 sm:py-6"
         data-testid="builder-hero"
       >
-        <h1 className="pf-text-display mb-1 text-2xl font-bold tracking-tight text-pf-parchment/95 sm:mb-2 sm:text-3xl md:text-4xl">
+        <h1 className="pf-text-display mb-1 text-[1.75rem] font-bold tracking-tight text-pf-parchment/95 sm:mb-2 sm:text-3xl md:text-4xl">
           {heroCopy.headline}
         </h1>
-        <p className="mx-auto max-w-2xl text-sm text-pf-parchment/80 sm:text-base">
+        <p className="mx-auto max-w-2xl text-sm text-pf-parchment/90 sm:text-base">
           {heroCopy.subhead}
         </p>
         <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
@@ -1718,7 +1718,7 @@ const Index = () => {
                       type="button"
                       size="sm"
                       variant="secondary"
-                      className="h-11 text-sm sm:h-9 sm:text-sm"
+                      className="h-11 text-sm sm:h-10 sm:text-sm"
                       onClick={() => persistedSetShowAdvancedControls(true)}
                     >
                       Show advanced controls
@@ -2009,11 +2009,11 @@ const Index = () => {
             aria-label="Open output preview"
             data-testid="builder-mobile-preview-trigger"
           >
-            <div className="type-label-caps flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <div className="type-label-caps flex items-center gap-1.5 text-[0.8125rem] font-medium text-foreground/85">
               <Eye className="h-3.5 w-3.5" />
               Live preview
             </div>
-            <p className="mt-1 max-h-10 overflow-hidden whitespace-pre-line font-mono text-xs leading-5 text-foreground/90">
+            <p className="mt-1 line-clamp-2 whitespace-pre-line text-[0.8125rem] leading-5 text-foreground/92">
               {mobilePreviewText}
             </p>
           </button>

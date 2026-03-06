@@ -110,13 +110,13 @@ describe("Community following tab", () => {
     expect(mocks.loadFeed).not.toHaveBeenCalled();
 
     const searchInput = screen.getByRole("textbox", { name: "Search community posts" });
-    expect(searchInput).toHaveAttribute("placeholder", "Search is available in the For You tab");
+    expect(searchInput).toHaveAttribute("placeholder", "Switch to For You to search posts");
     const sortButtons = screen.getAllByTestId("community-sort-button");
     expect(sortButtons.length).toBeGreaterThan(0);
     sortButtons.forEach((button) => expect(button).toBeDisabled());
 
     expect(
-      screen.getByText("Search, sort, and category filters apply to the For You tab."),
+      screen.getByText("Search, sort, and category filters are available in the For You tab."),
     ).toBeInTheDocument();
   });
 });

@@ -26,7 +26,7 @@ export function PageShell({ children, mainClassName }: PageShellProps) {
       >
         {children}
       </main>
-      <footer className="pf-shell-footer border-t border-border/70 bg-card/55">
+      <footer className="pf-shell-footer hidden border-t border-border/70 bg-card/55 sm:block">
         <div className="container mx-auto flex flex-col items-center justify-between gap-2 px-4 py-2 sm:flex-row sm:gap-4">
           <Link
             to="/"
@@ -65,7 +65,7 @@ export function PageHero({ title, subtitle, eyebrow, className }: PageHeroProps)
   return (
     <div
       className={cx(
-        "pf-gilded-frame pf-hero-surface mb-4 px-4 py-5 text-center sm:mb-6 sm:px-6 sm:py-7",
+        "pf-gilded-frame pf-hero-surface mb-4 px-4 py-4 text-center sm:mb-6 sm:px-6 sm:py-6",
         className
       )}
     >
@@ -79,9 +79,9 @@ export function PageHero({ title, subtitle, eyebrow, className }: PageHeroProps)
         />
       </div>
       {eyebrow && <p className="ui-section-label text-primary">{eyebrow}</p>}
-      <h1 className="page-hero-title type-screen-title pf-text-display text-2xl font-bold text-foreground sm:text-3xl">{title}</h1>
+      <h1 className="page-hero-title type-screen-title pf-text-display text-xl font-bold text-foreground sm:text-3xl">{title}</h1>
       {subtitle && (
-        <p className="page-hero-subtitle type-screen-subtitle mx-auto mt-1 max-w-2xl text-sm text-muted-foreground sm:text-base">
+        <p className="page-hero-subtitle type-screen-subtitle mx-auto mt-1.5 max-w-2xl text-sm text-muted-foreground sm:text-base">
           {subtitle}
         </p>
       )}

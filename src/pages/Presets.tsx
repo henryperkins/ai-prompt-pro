@@ -60,19 +60,19 @@ function PresetCard({
   ].filter(Boolean) as string[];
 
   return (
-    <Card className={cx("interactive-card pf-card group h-full overflow-hidden border", skin.card)}>
-      <div className="flex h-full flex-col space-y-2 p-3 sm:p-4">
+    <Card className={cx("interactive-card pf-card group h-full overflow-hidden border border-border/75 bg-card/90", skin.card)}>
+      <div className="flex h-full flex-col space-y-3 p-4 sm:p-5">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 flex-wrap min-w-0">
-            <span className={cx("inline-flex h-8 w-8 items-center justify-center rounded-full text-sm", skin.iconWrap)}>
+            <span className={cx("inline-flex h-9 w-9 items-center justify-center rounded-full text-sm", skin.iconWrap)}>
               {categoryIcons[template.category] ?? categoryIcons.general}
             </span>
-            <h3 className="text-sm font-semibold text-primary_on-brand">{template.name}</h3>
+            <h3 className="text-base font-semibold text-primary_on-brand">{template.name}</h3>
             <Badge
               variant="pill"
               size="sm"
               className={cx(
-                "border border-border/60 bg-background/70 text-secondary_on-brand ring-transparent capitalize",
+                "h-7 border border-border/65 bg-background/72 px-2.5 text-secondary_on-brand ring-transparent capitalize",
                 skin.badge,
               )}
             >
@@ -83,7 +83,7 @@ function PresetCard({
             type="button"
             variant="tertiary"
             size="sm"
-            className="h-8 w-8 p-0 text-base"
+            className="h-11 w-11 p-0 text-base sm:h-10 sm:w-10"
             aria-label={isFavorite ? `Remove ${template.name} from favorites` : `Add ${template.name} to favorites`}
             onClick={() => onToggleFavorite(template.id)}
           >
@@ -91,9 +91,9 @@ function PresetCard({
           </Button>
         </div>
 
-        <p className="line-clamp-2 text-sm leading-relaxed text-secondary_on-brand">{template.description}</p>
+        <p className="line-clamp-2 text-[0.9375rem] leading-relaxed text-secondary_on-brand">{template.description}</p>
 
-        <p className="line-clamp-2 text-xs leading-relaxed text-tertiary_on-brand">
+        <p className="line-clamp-2 text-sm leading-relaxed text-tertiary_on-brand">
           <span className="font-medium text-secondary_on-brand">Starter:</span> {template.starterPrompt}
         </p>
 
@@ -103,7 +103,7 @@ function PresetCard({
               key={f}
               variant="pill"
               size="sm"
-              className="border border-border/60 bg-background/65 text-secondary_on-brand ring-transparent"
+              className="border border-border/60 bg-background/65 text-secondary_on-brand ring-transparent text-xs"
             >
               {f}
             </Badge>
@@ -116,7 +116,7 @@ function PresetCard({
             variant="primary"
             size="sm"
             aria-label={`Use ${template.name} preset`}
-            className="h-10 w-full gap-1.5 text-sm font-semibold sm:h-9 sm:w-auto"
+            className="h-11 w-full gap-1.5 text-sm font-semibold sm:h-10"
             onClick={() => {
               trackBuilderEvent("preset_clicked", {
                 presetId: template.id,
@@ -226,36 +226,47 @@ const Presets = () => {
         className="pf-gilded-frame pf-hero-surface"
       />
 
-      <div className="mx-auto max-w-4xl space-y-4">
+      <div className="mx-auto max-w-4xl space-y-5">
         <Input
           value={query}
           onChange={handleQueryChange}
           placeholder="Search presets..."
           aria-label="Search presets"
           icon={Search}
-          className="h-11 sm:h-10"
+          inputClassName="h-12 text-base"
+          wrapperClassName="bg-card/90 ring-border/80"
         />
 
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter presets by category">
-          {categories.map((cat) => (
-            <Button
-              key={cat}
-              variant={activeCategory === cat ? "primary" : "secondary"}
-              size="sm"
-              onClick={() => setActiveCategory(cat)}
-              aria-pressed={activeCategory === cat}
-              className="interactive-chip h-11 gap-1.5 rounded-full px-3 text-sm capitalize sm:h-9 sm:text-sm"
-            >
-              {cat !== "all" && (
-                <span className="text-sm">{categoryIcons[cat as PromptCategory] ?? ""}</span>
-              )}
-              {cat === "all" ? "All" : categoryLabels[cat as PromptCategory] ?? cat}
-            </Button>
-          ))}
+        <div className="pf-panel rounded-xl border border-border/75 bg-card/85 p-2.5">
+          <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]" role="group" aria-label="Filter presets by category">
+            {categories.map((cat) => {
+              const isActive = activeCategory === cat;
+              return (
+                <Button
+                  key={cat}
+                  variant={isActive ? "primary" : "secondary"}
+                  size="sm"
+                  onClick={() => setActiveCategory(cat)}
+                  aria-pressed={isActive}
+                  className={cx(
+                    "interactive-chip h-11 shrink-0 gap-1.5 rounded-full px-3.5 text-sm capitalize sm:h-10 sm:text-sm",
+                    isActive
+                      ? "border border-primary/35 bg-primary/12"
+                      : "border border-border/70 bg-background/65",
+                  )}
+                >
+                  {cat !== "all" && (
+                    <span className="text-sm">{categoryIcons[cat as PromptCategory] ?? ""}</span>
+                  )}
+                  {cat === "all" ? "All" : categoryLabels[cat as PromptCategory] ?? cat}
+                </Button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-          <p className="text-muted-foreground" aria-live="polite" data-testid="preset-results-summary">
+          <p className="text-foreground/85" aria-live="polite" data-testid="preset-results-summary">
             Showing <span className="font-semibold text-foreground">{rankedFiltered.length}</span> of {templates.length} presets
             {activeCategory !== "all" ? ` in ${activeCategoryLabel}` : ""}
             {hasQuery ? ` matching “${query.trim()}”` : ""}
@@ -265,7 +276,7 @@ const Presets = () => {
               type="button"
               variant="tertiary"
               size="sm"
-              className="h-9 text-sm"
+              className="h-11 text-sm sm:h-10"
               onClick={clearFilters}
             >
               Clear filters
@@ -282,7 +293,7 @@ const Presets = () => {
                   type="button"
                   variant="secondary"
                   size="sm"
-                  className="h-9"
+                  className="h-11 sm:h-10"
                   onClick={clearFilters}
                 >
                   Clear filters
@@ -292,7 +303,7 @@ const Presets = () => {
           </Card>
         ) : hasActiveFilters ? (
           <section aria-label="All presets">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {allSectionTemplates.map((template) => (
                 <PresetCard
                   key={template.id}
@@ -304,11 +315,11 @@ const Presets = () => {
             </div>
           </section>
         ) : (
-          <div className="space-y-5">
+          <div className="space-y-6">
             {recentSectionTemplates.length > 0 && (
               <section aria-label="Recent presets" className="space-y-2">
-                <h2 className="text-sm font-semibold text-foreground">Recent</h2>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <h2 className="text-base font-semibold text-foreground">Recent</h2>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   {recentSectionTemplates.map((template) => (
                     <PresetCard
                       key={template.id}
@@ -323,8 +334,8 @@ const Presets = () => {
 
             {favoriteSectionTemplates.length > 0 && (
               <section aria-label="Favorite presets" className="space-y-2">
-                <h2 className="text-sm font-semibold text-foreground">Favorites</h2>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <h2 className="text-base font-semibold text-foreground">Favorites</h2>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   {favoriteSectionTemplates.map((template) => (
                     <PresetCard
                       key={template.id}
@@ -338,9 +349,9 @@ const Presets = () => {
             )}
 
             <section aria-label="All presets" className="space-y-2">
-              <h2 className="text-sm font-semibold text-foreground">All presets</h2>
+              <h2 className="text-base font-semibold text-foreground">All presets</h2>
               {allSectionTemplates.length > 0 ? (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   {allSectionTemplates.map((template) => (
                     <PresetCard
                       key={template.id}

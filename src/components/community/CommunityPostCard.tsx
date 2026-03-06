@@ -134,7 +134,7 @@ function CommunityPostCardComponent({
       data-selected={isSelected ? "true" : "false"}
       data-state={isSelected ? "selected" : "idle"}
       className={cx(
-        "community-feed-card interactive-card pf-card overflow-hidden border-border/80 bg-card/85 p-3 sm:p-4",
+        "community-feed-card interactive-card pf-card overflow-hidden border-border/80 bg-card/90 p-4 sm:p-5",
         isSelected && "community-feed-card--selected ring-1 ring-primary/35",
         isDeemphasized && "community-feed-card--deemphasized",
         getCommunityPostRarityClass(post, isFeatured),
@@ -145,7 +145,7 @@ function CommunityPostCardComponent({
         ...(isFeatured ? { borderColor: "hsl(var(--primary) / 0.35)" } : {}),
       }}
     >
-      <div className={cx("space-y-3", isMobile && "space-y-2.5")}>
+      <div className={cx("space-y-3.5", isMobile && "space-y-3")}>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
           <div className="flex min-w-0 items-center gap-2">
             <Avatar size="sm" src={authorAvatarUrl ?? undefined} alt={authorName} initials={getInitials(authorName)} />
@@ -159,25 +159,25 @@ function CommunityPostCardComponent({
                     type="button"
                     size="sm"
                     variant={followingUserIds?.has(post.authorId) ? "secondary" : "primary"}
-                    className="type-button-label h-7 min-w-11 px-2.5 text-xs leading-none"
+                    className="type-button-label h-9 min-w-11 px-3 text-[0.8125rem] leading-none sm:h-8"
                     onClick={() => onToggleFollow(post.authorId, followingUserIds?.has(post.authorId) ?? false)}
                   >
                     {followingUserIds?.has(post.authorId) ? "Following" : "Follow"}
                   </Button>
                 )}
               </div>
-              <p className="type-timestamp text-muted-foreground">{createdAgo}</p>
+              <p className="type-timestamp text-foreground/75">{createdAgo}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-1 self-start sm:self-auto sm:justify-end">
             {post.targetModel && (
-              <Badge variant="modern" className="type-chip h-6 px-2 font-mono sm:h-5 sm:px-1.5">
+              <Badge variant="modern" className="type-chip h-7 px-2.5 font-mono sm:h-6 sm:px-2">
                 {post.targetModel}
               </Badge>
             )}
             <Badge
               variant="modern"
-              className="type-chip h-6 border border-border bg-background px-2 text-foreground capitalize sm:h-5 sm:px-1.5"
+              className="type-chip h-7 border border-border bg-background px-2.5 text-foreground capitalize sm:h-6 sm:px-2"
             >
               {post.category}
             </Badge>
@@ -188,7 +188,7 @@ function CommunityPostCardComponent({
                     type="button"
                     variant="tertiary"
                     size="sm"
-                    className="h-8 w-8"
+                    className="h-11 w-11 sm:h-9 sm:w-9"
                     aria-label="Open moderation actions"
                   >
                     <MoreHorizontal className="h-4 w-4" />
@@ -232,7 +232,7 @@ function CommunityPostCardComponent({
         </div>
 
         {post.remixedFrom && (
-          <div className="type-meta rounded-md border border-primary/20 bg-primary/10 px-2.5 py-1.5 text-primary">
+          <div className="type-meta rounded-md border border-primary/25 bg-primary/12 px-2.5 py-1.5 text-primary">
             <span className="font-medium">Remixed from:</span> {parentPostTitle || "another community prompt"}
           </div>
         )}
@@ -254,7 +254,7 @@ function CommunityPostCardComponent({
             {post.title}
           </h3>
           {post.useCase && (
-            <p className="type-post-body type-prose-measure type-wrap-safe mt-1 line-clamp-3 text-foreground/90">
+            <p className="type-post-body type-prose-measure type-wrap-safe mt-1.5 line-clamp-3 text-foreground/95">
               {post.useCase}
             </p>
           )}
@@ -292,7 +292,7 @@ function CommunityPostCardComponent({
           </div>
         )}
 
-        <div className="type-meta flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-2 text-muted-foreground">
+        <div className="type-meta flex flex-wrap items-center justify-between gap-2.5 border-t border-border/65 pt-3 text-foreground/80">
           <div className="flex flex-wrap items-center gap-3">
             <TooltipProvider delayDuration={150}>
               <Tooltip>
@@ -312,7 +312,7 @@ function CommunityPostCardComponent({
               {post.remixCount}
             </span>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             {onSaveToLibrary && (
               <Button
                 type="button"
@@ -343,7 +343,7 @@ function CommunityPostCardComponent({
                     type="button"
                     variant="tertiary"
                     size="sm"
-                    className="type-button-label utility-action-button h-11 w-11 p-0 sm:h-9 sm:w-9"
+                    className="type-button-label utility-action-button h-11 w-11 p-0 sm:h-10 sm:w-10"
                     aria-label="More actions"
                     data-testid="community-card-overflow"
                   >
@@ -379,7 +379,7 @@ function CommunityPostCardComponent({
 
         <div
           className={cx(
-            "type-meta gap-2 text-muted-foreground",
+            "type-meta gap-2.5 text-foreground/80",
             isMobile ? "flex flex-wrap items-center" : "flex flex-wrap items-center",
           )}
         >
@@ -430,10 +430,10 @@ function CommunityPostCardComponent({
           </Button>
         </div>
 
-        <div className="type-meta flex flex-wrap items-center gap-2 text-muted-foreground">
+        <div className="type-meta flex flex-wrap items-center gap-2 text-foreground/80">
           <span
             aria-label={ratingSummaryAriaLabel}
-            className="inline-flex items-center gap-1.5 rounded-full border border-border/65 bg-background/65 px-2 py-1"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/70 px-2.5 py-1.5"
           >
             <Star
               className={cx(

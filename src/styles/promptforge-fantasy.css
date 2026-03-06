@@ -31,15 +31,15 @@
   --pf-radius-lg: 26px;
   --pf-radius-xl: 32px;
 
-  --pf-shadow-card: 0 18px 40px rgba(0, 0, 0, 0.45);
-  --pf-shadow-elevated: 0 26px 70px rgba(0, 0, 0, 0.55);
+  --pf-shadow-card: 0 12px 28px rgba(0, 0, 0, 0.36);
+  --pf-shadow-elevated: 0 18px 44px rgba(0, 0, 0, 0.46);
   --pf-inner-bevel:
     inset 0 1px 0 rgba(230, 225, 213, 0.12),
     inset 0 -1px 0 rgba(0, 0, 0, 0.35);
 
-  --pf-glow-arcane: 0 0 24px rgba(18, 200, 181, 0.28);
-  --pf-glow-ember: 0 0 28px rgba(255, 122, 24, 0.22);
-  --pf-glow-gold: 0 0 28px rgba(214, 166, 64, 0.18);
+  --pf-glow-arcane: 0 0 18px rgba(18, 200, 181, 0.2);
+  --pf-glow-ember: 0 0 22px rgba(255, 122, 24, 0.18);
+  --pf-glow-gold: 0 0 22px rgba(214, 166, 64, 0.16);
 
   --pf-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --pf-fast: 140ms;
@@ -80,7 +80,7 @@
 .pf-gilded-frame {
   position: relative;
   border-radius: var(--pf-radius-lg);
-  border: 1px solid rgba(var(--pf-gold-rgb) / 0.55);
+  border: 1px solid rgba(var(--pf-gold-rgb) / 0.42);
   box-shadow: var(--pf-shadow-card);
   background: linear-gradient(180deg, rgba(18, 24, 32, 0.92), rgba(11, 15, 20, 0.92));
   overflow: hidden;
@@ -92,9 +92,9 @@
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(600px 260px at 25% 20%, rgba(var(--pf-arcane-rgb) / 0.16), transparent 60%),
-    radial-gradient(700px 340px at 80% 0%, rgba(var(--pf-gold-rgb) / 0.11), transparent 62%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.14));
+    radial-gradient(600px 260px at 25% 20%, rgba(var(--pf-arcane-rgb) / 0.12), transparent 60%),
+    radial-gradient(700px 340px at 80% 0%, rgba(var(--pf-gold-rgb) / 0.09), transparent 62%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.028), rgba(0, 0, 0, 0.11));
 }
 
 .pf-hero-surface {
@@ -108,7 +108,7 @@
   inset: 0;
   pointer-events: none;
   background-image:
-    linear-gradient(120deg, rgba(0, 0, 0, 0.56), rgba(0, 0, 0, 0.2) 35%, rgba(0, 0, 0, 0.58)),
+    linear-gradient(120deg, rgba(0, 0, 0, 0.66), rgba(0, 0, 0, 0.26) 35%, rgba(0, 0, 0, 0.68)),
     radial-gradient(580px 240px at 12% -10%, rgba(var(--pf-gold-rgb) / 0.18), transparent 62%),
     radial-gradient(520px 220px at 85% 0%, rgba(var(--pf-arcane-rgb) / 0.18), transparent 58%),
     var(--pf-hero-image);
@@ -121,7 +121,7 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.1;
+  opacity: 0.06;
   background-image: var(--pf-rune-image);
   background-size: 680px 680px;
   background-position: center;
@@ -144,17 +144,17 @@
 }
 
 .pf-hero-surface .page-hero-subtitle {
-  color: rgba(var(--pf-parchment-rgb) / 0.84);
+  color: rgba(var(--pf-parchment-rgb) / 0.92);
   text-shadow: 0 1px 10px rgba(0, 0, 0, 0.46);
 }
 
 .pf-panel {
   position: relative;
   border-radius: var(--pf-radius-lg);
-  border: 1px solid rgba(var(--pf-gold-rgb) / 0.28);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(var(--pf-gold-rgb) / 0.22);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.24);
   background:
-    radial-gradient(700px 250px at 25% 0%, rgba(var(--pf-arcane-rgb) / 0.07), transparent 65%),
+    radial-gradient(700px 250px at 25% 0%, rgba(var(--pf-arcane-rgb) / 0.05), transparent 65%),
     linear-gradient(180deg, rgba(18, 24, 32, 0.94), rgba(11, 15, 20, 0.94));
   overflow: hidden;
 }
@@ -164,7 +164,7 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(0, 0, 0, 0.16));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.022), rgba(0, 0, 0, 0.12));
   box-shadow: var(--pf-inner-bevel);
 }
 
@@ -256,8 +256,8 @@
 .pf-card {
   border-radius: var(--pf-radius-lg);
   background: linear-gradient(180deg, rgba(18, 24, 32, 0.92), rgba(11, 15, 20, 0.94));
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(var(--pf-slate-rgb) / 0.7);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.26);
+  border: 1px solid rgba(var(--pf-slate-rgb) / 0.62);
   transition:
     transform var(--pf-fast) var(--pf-ease),
     box-shadow var(--pf-fast) var(--pf-ease),
@@ -495,7 +495,8 @@
 }
 
 .pf-community-toolbar {
-  border: 1px solid color-mix(in srgb, hsl(var(--border)) 82%, rgba(var(--pf-gold-rgb) / 0.2));
+  border: 1px solid color-mix(in srgb, hsl(var(--border)) 88%, rgba(var(--pf-gold-rgb) / 0.18));
+  background-color: hsl(var(--muted) / 0.24);
 }
 
 .pf-community-popover {
@@ -509,6 +510,18 @@
   border-color: color-mix(in srgb, hsl(var(--border)) 75%, rgba(var(--pf-arcane-rgb) / 0.25));
   background:
     linear-gradient(180deg, hsl(var(--card) / 0.88), hsl(var(--card) / 0.78));
+}
+
+@media (max-width: 640px) {
+  .pf-gilded-frame {
+    border-radius: var(--pf-radius-md);
+  }
+
+  .pf-hero-surface .page-hero-title,
+  .pf-hero-surface .page-hero-subtitle {
+    max-width: 26ch;
+    margin-inline: auto;
+  }
 }
 
 /* Rarity pulse animations — subtle ambient glow for high-engagement cards */

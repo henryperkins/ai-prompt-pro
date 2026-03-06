@@ -652,15 +652,15 @@ const Community = () => {
         />
 
         <div
-          className="pf-panel relative z-20 mb-3 overflow-visible rounded-xl border-2 border-border/90 bg-card/85 shadow-sm focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
+          className="pf-panel relative z-20 mb-4 overflow-visible rounded-xl border border-border/90 bg-card/90 shadow-sm focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
           data-testid="community-search-shell"
         >
-          <div className="p-2 sm:p-0">
+          <div className="p-2.5 sm:p-0">
             <div className="relative">
               <label htmlFor="community-feed-search" className="sr-only">
                 Search community posts
               </label>
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-muted-foreground" />
               <InputBase
                 id="community-feed-search"
                 value={queryInput}
@@ -679,10 +679,10 @@ const Community = () => {
                 }}
                 placeholder={
                   isFollowingMode
-                    ? "Search is available in the For You tab"
+                    ? "Switch to For You to search posts"
                     : "Search by title, use case, or context keyword"
                 }
-                inputClassName="type-input h-11 border-0 bg-transparent pl-9 shadow-none"
+                inputClassName="type-input h-12 border-0 bg-transparent pl-9 shadow-none"
                 wrapperClassName="bg-transparent shadow-none ring-0"
                 isDisabled={isFollowingMode}
                 aria-expanded={showCategorySuggestions}
@@ -694,7 +694,7 @@ const Community = () => {
                 type="button"
                 variant="secondary"
                 size="sm"
-                className="type-button-label mt-2 h-11 w-full items-center justify-between px-3 max-[320px]:mt-1 max-[320px]:h-10"
+                className="type-button-label mt-2 h-11 w-full items-center justify-between px-3"
                 onClick={() => {
                   trackFirstMeaningfulAction("filter_drawer_opened");
                   setMobileCategorySheetOpen(true);
@@ -752,21 +752,21 @@ const Community = () => {
           )}
         </div>
 
-        <div className="mb-4 space-y-3">
-          <fieldset className="space-y-1.5">
-            <legend className="type-meta mb-1 font-semibold uppercase tracking-wider text-muted-foreground">
+        <div className="mb-5 space-y-4">
+          <fieldset className="space-y-2">
+            <legend className="type-meta mb-1 font-semibold uppercase tracking-wider text-foreground/85">
               Feed
             </legend>
-            <div className="flex rounded-lg bg-muted p-1">
+            <div className="flex rounded-xl border border-border/70 bg-muted/60 p-1">
               <button
                 type="button"
                 onClick={() => setFeedMode("for_you")}
                 aria-pressed={feedMode === "for_you"}
                 className={cx(
-                  "type-tab-label flex-1 rounded-md px-3 py-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+                  "type-tab-label h-11 flex-1 rounded-lg px-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
                   feedMode === "for_you"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
+                    ? "border border-primary/35 bg-primary/12 text-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-background/65 hover:text-foreground",
                 )}
               >
                 For You
@@ -776,24 +776,24 @@ const Community = () => {
                 onClick={() => setFeedMode("following")}
                 aria-pressed={feedMode === "following"}
                 className={cx(
-                  "type-tab-label flex-1 rounded-md px-3 py-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+                  "type-tab-label h-11 flex-1 rounded-lg px-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
                   feedMode === "following"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
+                    ? "border border-primary/35 bg-primary/12 text-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-background/65 hover:text-foreground",
                 )}
               >
                 Following
               </button>
             </div>
             {isFollowingMode && (
-              <p className="type-help text-muted-foreground">
-                Search, sort, and category filters apply to the For You tab.
+              <p className="type-help text-foreground/80">
+                Search, sort, and category filters are available in the For You tab.
               </p>
             )}
           </fieldset>
 
-          <fieldset className="space-y-1.5">
-            <legend className="type-meta mb-1 font-semibold uppercase tracking-wider text-muted-foreground">
+          <fieldset className="space-y-2">
+            <legend className="type-meta mb-1 font-semibold uppercase tracking-wider text-foreground/85">
               Sort
             </legend>
             <div className="pf-community-toolbar grid grid-cols-2 gap-2 sm:flex sm:rounded-lg sm:bg-muted sm:p-1">
@@ -809,11 +809,11 @@ const Community = () => {
                   aria-pressed={sort === option.value}
                   data-testid="community-sort-button"
                   className={cx(
-                    "type-tab-label h-11 rounded-md px-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 sm:h-10 sm:flex-1 sm:px-2",
+                    "type-tab-label h-11 rounded-lg px-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 sm:h-11 sm:flex-1 sm:px-2.5",
                     isFollowingMode && "cursor-not-allowed opacity-60",
                     sort === option.value
-                      ? "bg-background text-foreground shadow-sm"
-                      : "bg-muted text-muted-foreground hover:text-foreground sm:bg-transparent",
+                      ? "border border-primary/35 bg-primary/12 text-foreground shadow-sm"
+                      : "bg-muted/75 text-muted-foreground hover:bg-background/65 hover:text-foreground sm:bg-transparent",
                   )}
                 >
                   {option.label}
