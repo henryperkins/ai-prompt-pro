@@ -1,0 +1,192 @@
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 213 29% 6%;
+    --foreground: 42 25% 87%;
+
+    --card: 212 25% 15%;
+    --card-foreground: 42 25% 87%;
+
+    --popover: 212 25% 15%;
+    --popover-foreground: 42 25% 87%;
+
+    --primary: 174 83% 43%;
+    --primary-foreground: 213 29% 6%;
+
+    --secondary: 210 21% 23%;
+    --secondary-foreground: 42 25% 87%;
+
+    --muted: 210 21% 18%;
+    --muted-foreground: 37 11% 68%;
+
+    --accent: 41 65% 55%;
+    --accent-foreground: 213 29% 6%;
+
+    --destructive: 25 100% 55%;
+    --destructive-foreground: 213 29% 6%;
+    --destructive-strong: 0 70% 42%;
+
+    --border: 210 21% 23%;
+    --input: 210 21% 23%;
+    --ring: 174 83% 43%;
+
+    /* Align Tailwind v4 semantic utility variables with shadcn-style tokens. */
+    --background-color-primary: hsl(var(--primary));
+    --background-color-primary-solid: hsl(var(--primary));
+    --background-color-primary_hover: hsl(var(--primary) / 0.92);
+    --text-color-primary: hsl(var(--primary));
+    --border-color-primary: hsl(var(--primary));
+    --ring-color-primary: hsl(var(--primary));
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 212 25% 13%;
+
+    --sidebar-foreground: 42 25% 87%;
+
+    --sidebar-primary: 174 83% 43%;
+
+    --sidebar-primary-foreground: 213 29% 6%;
+
+    --sidebar-accent: 210 21% 20%;
+
+    --sidebar-accent-foreground: 42 25% 87%;
+
+    --sidebar-border: 210 21% 23%;
+
+    --sidebar-ring: 174 83% 43%;
+
+    --chart-1: 174 83% 43%;
+
+    --chart-2: 41 65% 55%;
+
+    --chart-3: 25 100% 55%;
+
+    --chart-4: 176 83% 23%;
+
+    --chart-5: 39 62% 45%;
+
+    --font-sans: var(--pf-font-body);
+
+    --font-serif: var(--pf-font-display);
+
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+    --type-2xs-size: 0.6875rem;
+    --type-2xs-line: 1rem;
+    --type-xs-size: 0.75rem;
+    --type-xs-line: 1.125rem;
+    --type-sm-size: 0.875rem;
+    --type-sm-line: 1.375rem;
+    --type-base-size: 1rem;
+    --type-base-line: 1.5rem;
+    --type-lg-size: 1.125rem;
+    --type-lg-line: 1.625rem;
+    --type-xl-size: 1.25rem;
+    --type-xl-line: 1.75rem;
+    --type-2xl-size: 1.5rem;
+    --type-2xl-line: 2rem;
+    --type-3xl-size: 1.875rem;
+    --type-3xl-line: 2.25rem;
+    --type-4xl-size: 2.25rem;
+    --type-4xl-line: 2.625rem;
+    --type-5xl-size: 3rem;
+    --type-5xl-line: 1.1;
+    --type-label-caps-tracking: 0.04em;
+    --type-label-shortcut-tracking: 0.08em;
+
+    --shadow-2xs: 0 1px 2px 0px hsl(0 0% 0% / 0.05);
+
+    --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+
+    --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
+
+    --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 2px 4px -1px hsl(0 0% 0% / 0.1);
+
+    --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 4px 6px -1px hsl(0 0% 0% / 0.1);
+
+    --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 8px 10px -1px hsl(0 0% 0% / 0.1);
+
+    --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+
+    --tracking-normal: 0em;
+
+    --spacing: 0.25rem;
+
+    --delight-warm: 41 65% 55%;
+    --delight-cool: 174 83% 43%;
+    --delight-glow: 25 100% 55%;
+    --delight-surface: 212 25% 15%;
+    --motion-snap: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --textarea-resize-handle-bg:
+      url("data:image/svg+xml,%3Csvg%20width='18'%20height='18'%20viewBox='0%200%2018%2018'%20fill='none'%20xmlns='http://www.w3.org/2000/svg'%3E%3Cpath%20d='M10%202L2%2010'%20stroke='%23D5D7DA'%20stroke-linecap='round'/%3E%3Cpath%20d='M11%207L7%2011'%20stroke='%23D5D7DA'%20stroke-linecap='round'/%3E%3C/svg%3E");
+  }
+
+  .dark {
+    --background: 213 32% 4%;
+    --foreground: 42 25% 90%;
+
+    --card: 212 28% 12%;
+    --card-foreground: 42 25% 90%;
+
+    --popover: 212 28% 12%;
+    --popover-foreground: 42 25% 90%;
+
+    --primary: 174 83% 48%;
+    --primary-foreground: 213 29% 6%;
+
+    --secondary: 210 22% 20%;
+    --secondary-foreground: 42 25% 90%;
+
+    --muted: 210 21% 16%;
+    --muted-foreground: 37 11% 70%;
+
+    --accent: 41 65% 52%;
+    --accent-foreground: 213 29% 6%;
+
+    --destructive: 25 100% 52%;
+    --destructive-foreground: 213 29% 6%;
+    --destructive-strong: 0 68% 40%;
+
+    --border: 210 21% 20%;
+    --input: 210 21% 20%;
+    --ring: 174 83% 48%;
+
+    /* Keep primary utility mappings consistent in dark mode. */
+    --background-color-primary: hsl(var(--primary));
+    --background-color-primary-solid: hsl(var(--primary));
+    --background-color-primary_hover: hsl(var(--primary) / 0.9);
+    --text-color-primary: hsl(var(--primary));
+    --border-color-primary: hsl(var(--primary));
+    --ring-color-primary: hsl(var(--primary));
+    --sidebar-background: 212 28% 10%;
+    --sidebar-foreground: 42 25% 90%;
+    --sidebar-primary: 174 83% 48%;
+    --sidebar-primary-foreground: 213 29% 6%;
+    --sidebar-accent: 210 21% 16%;
+    --sidebar-accent-foreground: 42 25% 90%;
+    --sidebar-border: 210 21% 20%;
+    --sidebar-ring: 174 83% 48%;
+    --chart-1: 174 83% 48%;
+    --chart-2: 41 65% 52%;
+    --chart-3: 25 100% 52%;
+    --chart-4: 176 83% 23%;
+    --chart-5: 39 62% 45%;
+    --shadow-2xs: 0 1px 2px 0px hsl(0 0% 0% / 0.05);
+    --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+    --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
+    --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 2px 4px -1px hsl(0 0% 0% / 0.1);
+    --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 4px 6px -1px hsl(0 0% 0% / 0.1);
+    --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 8px 10px -1px hsl(0 0% 0% / 0.1);
+    --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+    --delight-warm: 41 65% 52%;
+    --delight-cool: 174 83% 48%;
+    --delight-glow: 25 100% 52%;
+    --delight-surface: 212 28% 12%;
+    --textarea-resize-handle-bg:
+      url("data:image/svg+xml,%3Csvg%20width='18'%20height='18'%20viewBox='0%200%2018%2018'%20fill='none'%20xmlns='http://www.w3.org/2000/svg'%3E%3Cpath%20d='M10%202L2%2010'%20stroke='%23373A41'%20stroke-linecap='round'/%3E%3Cpath%20d='M11%207L7%2011'%20stroke='%23373A41'%20stroke-linecap='round'/%3E%3C/svg%3E");
+  }
+}

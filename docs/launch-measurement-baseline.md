@@ -8,7 +8,7 @@ Last updated: 2026-02-26
 Track awareness, activation, and retention from day one of launch.
 
 ## UTM Convention
-Use `src/lib/launch-utm.ts` to create tracked URLs consistently.
+Create tracked URLs consistently using the convention below.
 
 Required params:
 - `utm_source`

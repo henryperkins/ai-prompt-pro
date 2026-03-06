@@ -1,8 +1,11 @@
 @import "tailwindcss";
 @config "../../tailwind.config.ts";
 @import "./typography.css";
-@import "./theme.css";
-@import "../index.css";
+@import "./legacy-utility-tokens.css";
+@import "./tokens.css";
+@import "./base.css";
+@import "./components.css";
+@import "./community.css";
 @import "./promptforge-fantasy.css";
 
 /* Explicit source registration keeps class detection stable for non-standard paths. */
@@ -37,38 +40,4 @@
   transition-property: inherit;
   transition-duration: inherit;
   transition-timing-function: inherit;
-}
-
-html,
-body {
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  -webkit-font-variant-ligatures: contextual;
-  font-variant-ligatures: contextual;
-  -webkit-font-kerning: normal;
-  font-kerning: normal;
-}
-
-/* Hide the default expand arrow on Safari. */
-details summary::-webkit-details-marker {
-  display: none;
-}
-
-/* Hide default arrows from number inputs. */
-/* Chrome, Safari, Edge, Opera */
-input::-webkit-outer-spin-button,
-input::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-/* Firefox */
-input[type="number"] {
-  -moz-appearance: textfield;
-}
-
-/* Hide the default clear button (X) from search inputs. */
-input[type="search"]::-webkit-search-cancel-button {
-  -webkit-appearance: none;
 }

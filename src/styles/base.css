@@ -1,0 +1,174 @@
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+    font-size: var(--type-sm-size);
+    line-height: var(--type-sm-line);
+    background-image:
+      radial-gradient(1100px 520px at -6% -12%, hsl(var(--delight-warm) / 0.17), transparent 58%),
+      radial-gradient(900px 500px at 102% -8%, hsl(var(--delight-cool) / 0.12), transparent 56%),
+      linear-gradient(180deg, hsl(var(--background)), hsl(var(--background)));
+    background-attachment: fixed;
+  }
+
+  @media (max-width: 767px) {
+    body {
+      background-attachment: scroll;
+    }
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--pf-font-display), var(--font-serif);
+    color: hsl(var(--foreground));
+  }
+
+  h1 {
+    font-size: var(--type-3xl-size);
+    line-height: var(--type-3xl-line);
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+
+  h2 {
+    font-size: var(--type-2xl-size);
+    line-height: var(--type-2xl-line);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+
+  h3 {
+    font-size: var(--type-xl-size);
+    line-height: var(--type-xl-line);
+    font-weight: 600;
+  }
+
+  h4 {
+    font-size: var(--type-lg-size);
+    line-height: var(--type-lg-line);
+    font-weight: 600;
+  }
+
+  h5,
+  h6 {
+    font-size: var(--type-base-size);
+    line-height: var(--type-base-line);
+    font-weight: 600;
+  }
+
+  p,
+  li,
+  dt,
+  dd,
+  blockquote,
+  label,
+  input,
+  textarea,
+  select,
+  button {
+    font-size: var(--type-sm-size);
+    line-height: var(--type-sm-line);
+  }
+
+  small {
+    font-size: var(--type-xs-size);
+    line-height: var(--type-xs-line);
+  }
+
+  code,
+  pre,
+  kbd,
+  samp {
+    font-family: var(--font-mono);
+    font-size: var(--type-xs-size);
+    line-height: var(--type-xs-line);
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (min-width: 640px) {
+    body {
+      font-size: var(--type-base-size);
+      line-height: var(--type-base-line);
+    }
+
+    h1 {
+      font-size: var(--type-4xl-size);
+      line-height: var(--type-4xl-line);
+    }
+
+    h2 {
+      font-size: var(--type-3xl-size);
+      line-height: var(--type-3xl-line);
+    }
+
+    p,
+    li,
+    dt,
+    dd,
+    blockquote,
+    label,
+    input,
+    textarea,
+    select,
+    button {
+      font-size: var(--type-base-size);
+      line-height: var(--type-base-line);
+    }
+  }
+
+  :where(a,
+    button,
+    input,
+    textarea,
+    select,
+    [role="button"],
+    [role="tab"],
+    [role="menuitem"],
+    [tabindex]):focus-visible {
+    outline: 2px solid hsl(var(--ring) / 0.85);
+    outline-offset: 2px;
+  }
+
+  html,
+  body {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-font-variant-ligatures: contextual;
+    font-variant-ligatures: contextual;
+    -webkit-font-kerning: normal;
+    font-kerning: normal;
+  }
+
+  /* Hide the default expand arrow on Safari. */
+  details summary::-webkit-details-marker {
+    display: none;
+  }
+
+  /* Hide default arrows from number inputs. */
+  /* Chrome, Safari, Edge, Opera */
+  input::-webkit-outer-spin-button,
+  input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  /* Firefox */
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+
+  /* Hide the default clear button (X) from search inputs. */
+  input[type="search"]::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+  }
+}

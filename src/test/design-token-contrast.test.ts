@@ -76,7 +76,7 @@ function contrastRatio(first: [number, number, number], second: [number, number,
 }
 
 describe("design token contrast", () => {
-  const css = readFileSync("src/index.css", "utf8");
+  const css = readFileSync("src/styles/tokens.css", "utf8");
   const lightThemeVars = extractVariables(extractBlock(css, ":root"));
   const darkThemeVars = extractVariables(extractBlock(css, ".dark"));
   const requiredPairs: Array<[string, string]> = [

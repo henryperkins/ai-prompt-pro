@@ -76,7 +76,7 @@ npx vitest run src/test/persistence.test.ts
 - `src/hooks/`: reusable stateful logic
 - `src/lib/`: domain logic/helpers (prompt-builder, persistence, ai-client, etc.)
 - `src/lib/utils/`: utility functions (`cx.ts`, `icon-slot.tsx`, `is-react-component.ts`, `countries.tsx`)
-- `src/styles/`: global CSS, theme tokens, typography, UUI compatibility, fantasy theme
+- `src/styles/`: runtime CSS entrypoint plus token, base, shared component, community typography, legacy utility-token, and fantasy theme layers
 - `src/test/`: Vitest tests
 - `playwright/`: Playwright mobile E2E coverage + viewport baselines
 - `supabase/migrations/`: SQL migrations
@@ -206,4 +206,4 @@ src/components/
 
 ### Brand Color Customization
 
-UUI uses a brand color scale from 25–950 in `src/styles/theme.css` via `--color-brand-*` CSS variables. Update these to change the entire brand palette across light and dark modes.
+UUI uses a brand color scale from 25–950 in `src/styles/legacy-utility-tokens.css` via `--color-brand-*` CSS variables. Update these to change the entire brand palette across light and dark modes.

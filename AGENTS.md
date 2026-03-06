@@ -13,7 +13,7 @@ Manual QA checklists and specs live in `docs/`.
 Design-system lint gates live in `scripts/` (legacy-import checks, legacy-ds-props, primitive-ds-imports, Phosphor-icon guardrails, token-runtime drift, docs-freshness).  
 Static assets go in `public/`; build output is `dist/` (generated, do not edit manually).  
 Storybook config in `.storybook/` for component development.  
-Styles in `src/styles/` (`globals.css`, `theme.css`, `typography.css`, `untitled-compat.css`, `promptforge-fantasy.css`).
+Styles in `src/styles/` (`globals.css`, `tokens.css`, `base.css`, `components.css`, `community.css`, `legacy-utility-tokens.css`, `typography.css`, `promptforge-fantasy.css`; `theme.css` and `untitled-compat.css` are compatibility/transitional files).
 
 ## Build, Test, and Development Commands
 - `npm run dev`: start frontend dev server (Vite, `localhost:8080`).
@@ -54,4 +54,3 @@ Feature flag implementation in `src/lib/feature-flags.ts`.
 ## Commit & Pull Request Guidelines
 Recent history mixes terse messages and scoped prefixes (for example, `ci: ...`). Prefer clear imperative commits with optional scope: `ui: improve community post card spacing`. Avoid vague messages like `up` or `Changes`.  
 PRs should include: what changed, why, test commands run, screenshots for UI updates, and any env/secret impacts.
-

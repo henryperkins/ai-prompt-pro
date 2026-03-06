@@ -1,21 +1,26 @@
 # PromptForge Design System
 
-Last updated: 2026-02-26
+Last updated: 2026-03-06
 
 ## 1) System Overview
 
 This project uses a **token-first design system** built on:
 
-- CSS custom properties in `:root` and `.dark` (source of truth)
+- CSS custom properties in `src/styles/tokens.css` (`:root` and `.dark` are the source of truth)
 - Tailwind theme extensions mapped to those tokens
 - Radix + shadcn-style UI primitives standardized for typography, spacing, and interaction
 
 Primary source files:
 
-- `src/index.css`
-- `src/styles/globals.css`
-- `src/styles/untitled-compat.css` (transitional legacy token aliases, not currently imported at runtime)
+- `src/styles/globals.css` (runtime entrypoint imported by the app)
+- `src/styles/tokens.css` (semantic tokens, type scale, shadows, dark-mode overrides)
+- `src/styles/base.css` (global element rules and browser resets)
+- `src/styles/components.css` (shared component, layout, and motion classes)
+- `src/styles/community.css` (community typography roles)
+- `src/styles/legacy-utility-tokens.css` (runtime utility-token compatibility layer)
 - `src/styles/typography.css`
+- `src/styles/promptforge-fantasy.css`
+- `src/styles/untitled-compat.css` (transitional legacy token aliases, not currently imported at runtime)
 - `tailwind.config.ts`
 - `src/components/base/*` (canonical Untitled UI React components)
 - `src/components/base/primitives/*` (legacy wrappers for non-targeted primitives)
@@ -23,8 +28,10 @@ Primary source files:
 
 Legacy note:
 
-- `src/styles/theme.css` is imported via `src/styles/globals.css` as part of the runtime style stack.
+- `src/styles/legacy-utility-tokens.css` is imported via `src/styles/globals.css` as part of the runtime style stack.
+- `src/styles/theme.css` is now a compatibility shim that re-exports `src/styles/legacy-utility-tokens.css`.
 - `src/styles/untitled-compat.css` is intentionally not part of the runtime style stack.
+- `src/index.css` is now a compatibility shim; import `src/styles/globals.css` directly for runtime usage.
 
 Phase 3 status (completed February 22, 2026):
 
@@ -306,11 +313,11 @@ Compact mode is supported via:
 
 When evolving the design system, use this order:
 
-1. **Token values**: `src/index.css`
+1. **Token values**: `src/styles/tokens.css`
 2. **Brand assets**: `public/brand/*`
-3. **Tailwind mapping**: `tailwind.config.ts`
+3. **Tailwind mapping**: `tailwind.config.ts`, `src/styles/legacy-utility-tokens.css`
 4. **Canonical component contracts**: `src/components/base/*`
-5. **Feature-specific semantic classes**: e.g., community type roles in `src/index.css`
+5. **Feature-specific semantic classes**: e.g., community type roles in `src/styles/community.css`
 
 Avoid direct hardcoded `px` typography values and avoid bypassing primitives unless strictly necessary.
 
@@ -338,10 +345,10 @@ Use this checklist for iOS-facing releases and major UI refactors. It consolidat
 
 Implementation map:
 
-- Token source: `src/index.css`
+- Token source: `src/styles/tokens.css`
 - Tailwind color mapping: `tailwind.config.ts`
 - Primitive usage enforcement: `src/components/base/primitives/*`
-- Brand/delight accents: `src/index.css` (`--delight-*`)
+- Brand/delight accents: `src/styles/tokens.css` (`--delight-*`)
 
 ### 11.2 Typography Checklist (HIG Typography)
 
@@ -355,10 +362,10 @@ Implementation map:
 
 Implementation map:
 
-- Typography tokens and base rules: `src/index.css`
+- Typography tokens and base rules: `src/styles/tokens.css`, `src/styles/base.css`
 - Tailwind font families and sizing hooks: `tailwind.config.ts`
 - Primitive label/input/button text contracts: `src/components/base/primitives/*`
-- Community-specific roles: `.community-typography` rules in `src/index.css`
+- Community-specific roles: `.community-typography` rules in `src/styles/community.css`
 
 ### 11.3 Layout and Adaptivity Checklist (HIG Layout)
 
@@ -373,7 +380,7 @@ Implementation map:
 
 Implementation map:
 
-- Layout tokens and spacing primitives: `src/index.css`
+- Layout tokens and spacing primitives: `src/styles/tokens.css`, `src/styles/base.css`, `src/styles/components.css`
 - Responsive breakpoint contracts: `tailwind.config.ts`, `src/components/base/primitives/*`
 - Route-level composition and content hierarchy: `src/pages/*`
 - Mobile viewport regression checks: `playwright/community.mobile.spec.ts`
@@ -427,7 +434,7 @@ Implementation map:
 
 When Apple guidance changes, update this section and the underlying implementation in this order:
 
-1. `src/index.css` token/model updates
+1. `src/styles/tokens.css`, `src/styles/base.css`, and `src/styles/components.css` updates
 2. `tailwind.config.ts` semantic mapping updates
 3. `src/components/base/primitives/*` primitive contract updates
 4. Feature-level semantics in `src/pages/*`, `src/hooks/*`, `src/lib/*`
