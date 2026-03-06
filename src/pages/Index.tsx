@@ -179,21 +179,44 @@ function isReasoningSummaryEvent(meta: EnhanceStreamEvent, payload: unknown): bo
   return false;
 }
 
+function hasDeltaFieldValue(value: unknown): boolean {
+  if (typeof value === "string") return value.length > 0;
+  if (Array.isArray(value)) return value.length > 0;
+  return Boolean(value && typeof value === "object");
+}
+
+function hasExplicitReasoningDelta(payload: unknown): boolean {
+  if (!payload || typeof payload !== "object") return false;
+  const data = payload as {
+    delta?: unknown;
+    item?: { delta?: unknown } | null;
+    payload?: { delta?: unknown } | null;
+  };
+  return (
+    hasDeltaFieldValue(data.delta)
+    || hasDeltaFieldValue(data.item?.delta)
+    || hasDeltaFieldValue(data.payload?.delta)
+  );
+}
+
 function extractReasoningSummaryChunk(
   meta: EnhanceStreamEvent,
   payload: unknown,
 ): { text: string; isDelta: boolean; itemId: string | null } | null {
   if (!isReasoningSummaryEvent(meta, payload)) return null;
-  const deltaText = extractCodexDeltaText(payload);
-  if (deltaText) return { text: deltaText, isDelta: true, itemId: meta.itemId };
+  const eventToken = `${normalizeCodexToken(meta.eventType)} ${normalizeCodexToken(meta.responseType)}`;
+  const isDeltaEvent = eventToken.includes("delta");
+  const hasExplicitDelta = hasExplicitReasoningDelta(payload);
+  if (isDeltaEvent || hasExplicitDelta) {
+    const deltaText = extractCodexDeltaText(payload);
+    if (deltaText) return { text: deltaText, isDelta: true, itemId: meta.itemId };
+  }
 
   const directText = extractCodexReasoningText(payload);
 
   if (!directText) return null;
 
-  const eventToken = `${normalizeCodexToken(meta.eventType)} ${normalizeCodexToken(meta.responseType)}`;
-  const isDelta = eventToken.includes("delta");
-  return { text: directText, isDelta, itemId: meta.itemId };
+  return { text: directText, isDelta: isDeltaEvent, itemId: meta.itemId };
 }
 
 function stripJsonCodeFence(text: string): string {

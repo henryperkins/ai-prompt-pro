@@ -131,4 +131,36 @@ describe("enhance output stream state", () => {
       text: "",
     });
   });
+
+  it("appends delta-only item updates instead of replacing accumulated output", () => {
+    const state = createEnhanceOutputStreamState();
+
+    expect(applyEnhanceOutputEvent(state, {
+      eventType: "item.updated",
+      responseType: "item.updated",
+      itemId: "item_raw_2",
+      itemType: "agent_message",
+    }, {
+      event: "item.updated",
+      type: "item.updated",
+      item: { id: "item_raw_2", type: "agent_message", delta: "foo" },
+    })).toEqual({
+      didHandle: true,
+      text: "foo",
+    });
+
+    expect(applyEnhanceOutputEvent(state, {
+      eventType: "item.updated",
+      responseType: "item.updated",
+      itemId: "item_raw_2",
+      itemType: "agent_message",
+    }, {
+      event: "item.updated",
+      type: "item.updated",
+      item: { id: "item_raw_2", type: "agent_message", delta: "bar" },
+    })).toEqual({
+      didHandle: true,
+      text: "foobar",
+    });
+  });
 });

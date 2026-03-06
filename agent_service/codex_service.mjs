@@ -1509,6 +1509,20 @@ function hasText(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+const AGENT_MESSAGE_ITEM_TYPES = new Set([
+  "agent_message",
+  "assistant_message",
+  "message",
+  "output_text",
+  "text",
+  "enhancement",
+]);
+
+function isAgentMessageItemType(itemType) {
+  if (typeof itemType !== "string") return false;
+  return AGENT_MESSAGE_ITEM_TYPES.has(itemType.trim().toLowerCase());
+}
+
 function hasListValue(values) {
   return Array.isArray(values) && values.some((value) => hasText(value));
 }

@@ -24,6 +24,8 @@ export function WebSearchActivityIndicator({
       setVisible(true);
       setFading(false);
     } else if (phase === "completed") {
+      setVisible(true);
+      setFading(false);
       const timer = setTimeout(() => setFading(true), FADE_OUT_DELAY_MS);
       return () => clearTimeout(timer);
     } else if (phase === "idle") {

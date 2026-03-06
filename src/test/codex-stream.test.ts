@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+    extractCodexDirectText,
     extractCodexDeltaText,
     extractCodexReasoningText,
     hasCodexSessionProgress,
@@ -35,6 +36,18 @@ describe("codex stream helpers", () => {
                 delta: { content: [{ text: "hello" }] },
             },
         })).toBe("hello");
+    });
+
+    it("does not treat item.delta-only payloads as full output text", () => {
+        expect(extractCodexDirectText({
+            event: "item.updated",
+            type: "item.updated",
+            item: {
+                id: "item_1",
+                type: "agent_message",
+                delta: "bar",
+            },
+        })).toBeNull();
     });
 
     it("extracts reasoning summaries from nested raw item content", () => {

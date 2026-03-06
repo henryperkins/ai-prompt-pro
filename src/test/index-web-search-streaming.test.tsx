@@ -565,6 +565,46 @@ describe("Index web search streaming", () => {
     });
   });
 
+  it("appends reasoning summary from raw item.updated delta payloads", async () => {
+    mocks.streamEnhance.mockImplementation(
+      ({
+        onEvent,
+        onDone,
+      }: {
+        onEvent?: (event: EnhanceStreamEvent) => void;
+        onDone?: () => void;
+      }) => {
+        onEvent?.({
+          eventType: "item.updated",
+          responseType: "response.output_item.updated",
+          threadId: "thread_1",
+          turnId: "turn_1",
+          itemId: "item_reasoning_raw_delta_1",
+          itemType: "reasoning",
+          payload: { item: { id: "item_reasoning_raw_delta_1", type: "reasoning", delta: "Draft " } },
+        });
+        onEvent?.({
+          eventType: "item.updated",
+          responseType: "response.output_item.updated",
+          threadId: "thread_1",
+          turnId: "turn_1",
+          itemId: "item_reasoning_raw_delta_1",
+          itemType: "reasoning",
+          payload: { item: { id: "item_reasoning_raw_delta_1", type: "reasoning", delta: "summary." } },
+        });
+        onDone?.();
+      },
+    );
+
+    await renderIndex();
+
+    fireEvent.click(screen.getByRole("button", { name: "enhance" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("reasoning-summary").textContent).toBe("Draft summary.");
+    });
+  });
+
   it("streams reasoning summary from reasoning delta event envelopes", async () => {
     mocks.streamEnhance.mockImplementation(
       ({

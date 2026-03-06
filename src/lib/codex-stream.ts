@@ -10,6 +10,10 @@ export interface CodexStreamEventMeta {
 type CodexStreamEventLike = Pick<CodexStreamEventMeta, "eventType" | "responseType">;
 type CodexOutputEventLike = Pick<CodexStreamEventMeta, "eventType" | "responseType" | "itemType">;
 type TextPath = readonly string[];
+type CodexTextExtractionOptions = {
+    additionalObjectKeys?: readonly string[];
+    includeDeltaContent?: boolean;
+};
 
 const RENDERABLE_OUTPUT_ITEM_TYPES = new Set([
     "agent_message",
@@ -198,7 +202,10 @@ export function readCodexEventMeta(payload: unknown): CodexStreamEventMeta {
     return { eventType, responseType, threadId, turnId, itemId, itemType };
 }
 
-export function extractCodexTextValue(value: unknown): string | null {
+export function extractCodexTextValue(
+    value: unknown,
+    options: { includeDeltaContent?: boolean } = {},
+): string | null {
     if (typeof value === "string" && value) return value;
     if (!value || typeof value !== "object") return null;
 
@@ -212,13 +219,13 @@ export function extractCodexTextValue(value: unknown): string | null {
     if (typeof obj.text === "string" && obj.text) return obj.text;
     if (typeof obj.content === "string" && obj.content) return obj.content;
     if (typeof obj.output_text === "string" && obj.output_text) return obj.output_text;
-    if (typeof obj.delta === "string" && obj.delta) return obj.delta;
+    if (options.includeDeltaContent !== false && typeof obj.delta === "string" && obj.delta) return obj.delta;
     return null;
 }
 
 export function extractCodexTextFromContent(
     value: unknown,
-    options: { additionalObjectKeys?: readonly string[] } = {},
+    options: CodexTextExtractionOptions = {},
 ): string | null {
     if (typeof value === "string" && value) return value;
     if (!value) return null;
@@ -233,10 +240,13 @@ export function extractCodexTextFromContent(
     if (typeof value !== "object") return null;
 
     const obj = value as Record<string, unknown>;
-    const directText = extractCodexTextValue(obj);
+    const directText = extractCodexTextValue(obj, {
+        includeDeltaContent: options.includeDeltaContent,
+    });
     if (directText) return directText;
 
-    const contentKeys = [...DEFAULT_TEXT_CONTENT_KEYS, ...(options.additionalObjectKeys ?? [])];
+    const contentKeys = [...DEFAULT_TEXT_CONTENT_KEYS, ...(options.additionalObjectKeys ?? [])]
+        .filter((key) => options.includeDeltaContent !== false || key !== "delta");
     for (const key of contentKeys) {
         const nested = extractCodexTextFromContent(obj[key], options);
         if (nested) return nested;
@@ -257,11 +267,13 @@ function readPathValue(source: unknown, path: TextPath): unknown {
 function extractTextAtPaths(
     source: unknown,
     paths: readonly TextPath[],
-    options: { additionalObjectKeys?: readonly string[] } = {},
+    options: CodexTextExtractionOptions = {},
 ): string | null {
     for (const path of paths) {
         const value = readPathValue(source, path);
-        const text = extractCodexTextValue(value) || extractCodexTextFromContent(value, options);
+        const text = extractCodexTextValue(value, {
+            includeDeltaContent: options.includeDeltaContent,
+        }) || extractCodexTextFromContent(value, options);
         if (text) return text;
     }
 
@@ -273,7 +285,9 @@ export function extractCodexDeltaText(payload: unknown): string | null {
 }
 
 export function extractCodexDirectText(payload: unknown): string | null {
-    return extractTextAtPaths(payload, DIRECT_TEXT_PATHS);
+    return extractTextAtPaths(payload, DIRECT_TEXT_PATHS, {
+        includeDeltaContent: false,
+    });
 }
 
 export function extractCodexReasoningText(payload: unknown): string | null {
