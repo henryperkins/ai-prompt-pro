@@ -22,7 +22,7 @@ jobs:
       - name: Set up Node.js version
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
 
       - name: Install production dependencies
         run: npm ci --omit=dev
@@ -69,7 +69,7 @@ jobs:
           az webapp config set \
             --resource-group rg-ai-prompt-pro \
             --name ai-prompt-pro-agent \
-            --linux-fx-version "NODE|20-lts" \
+            --linux-fx-version "NODE|24-lts" \
             --startup-file "node agent_service/codex_service.mjs"
           az webapp config appsettings set \
             --resource-group rg-ai-prompt-pro \
