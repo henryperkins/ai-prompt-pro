@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { CommunityFeed } from "@/components/community/CommunityFeed";
 import { CommunityReportDialog } from "@/components/community/CommunityReportDialog";
 import { PageHero, PageShell } from "@/components/PageShell";
 import { Button } from "@/components/base/buttons/button";
+import { Card } from "@/components/base/card";
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/base/drawer";
 import { InputBase } from "@/components/base/input/input";
 import { ScrollArea } from "@/components/base/scroll-area";
@@ -69,6 +70,7 @@ interface CommunityReportTarget {
 }
 
 const Community = () => {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const feedMode = (searchParams.get("tab") === "following" ? "following" : "for_you") as "for_you" | "following";
   const isFollowingMode = feedMode === "following";
@@ -125,6 +127,14 @@ const Community = () => {
   const categoryPanelId = "community-search-categories";
   const selectedCategoryLabel =
     CATEGORY_OPTIONS.find((option) => option.value === category)?.label ?? "All";
+  const showAuthDiscoveryState = !user && !loading && posts.length === 0 && errorState?.kind === "auth";
+  const communitySubtitle = showAuthDiscoveryState
+    ? isFollowingMode
+      ? "Following is personalized. Sign in from the header to load the people and prompts you follow."
+      : "Public browsing is unavailable in this environment. Sign in from the header to open the remix feed, vote, and save prompts."
+    : !user
+      ? "Browse proven prompts when public access is available. Sign in to vote, follow, and remix with clear attribution."
+      : "Browse proven prompts, review context, and remix with clear attribution.";
 
   const { newCount: newPostCount, dismiss: dismissNewPosts } = useNewPostsIndicator({
     enabled: Boolean(user) && !isFollowingMode,
@@ -647,181 +657,221 @@ const Community = () => {
         <PageHero
           eyebrow={brandCopy.brandLine}
           title="Community Remix Feed"
-          subtitle="Browse proven prompts, review context, and remix with clear attribution."
+          subtitle={communitySubtitle}
           className="pf-gilded-frame pf-hero-surface"
         />
 
-        <div
-          className="pf-panel relative z-20 mb-4 overflow-visible rounded-xl border border-border/90 bg-card/90 shadow-sm focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
-          data-testid="community-search-shell"
-        >
-          <div className="p-2.5 sm:p-0">
-            <div className="relative">
-              <label htmlFor="community-feed-search" className="sr-only">
-                Search community posts
-              </label>
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-muted-foreground" />
-              <InputBase
-                id="community-feed-search"
-                value={queryInput}
-                onChange={setQueryInput}
-                onFocus={() => {
-                  if (!mobileEnhancementsEnabled) setIsSearchFocused(true);
-                }}
-                onBlur={() => {
-                  if (!mobileEnhancementsEnabled) setIsSearchFocused(false);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Escape") {
-                    setIsSearchFocused(false);
-                    (event.target as HTMLInputElement).blur();
-                  }
-                }}
-                placeholder={
-                  isFollowingMode
-                    ? "Switch to For You to search posts"
-                    : "Search by title, use case, or context keyword"
-                }
-                inputClassName="type-input h-12 border-0 bg-transparent pl-9 shadow-none"
-                wrapperClassName="bg-transparent shadow-none ring-0"
-                isDisabled={isFollowingMode}
-                aria-expanded={showCategorySuggestions}
-                aria-controls={showCategorySuggestions ? categoryPanelId : undefined}
-              />
-            </div>
-            {mobileEnhancementsEnabled && !isFollowingMode && (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                className="type-button-label mt-2 h-11 w-full items-center justify-between px-3"
-                onClick={() => {
-                  trackFirstMeaningfulAction("filter_drawer_opened");
-                  setMobileCategorySheetOpen(true);
-                }}
-                data-testid="community-filter-trigger"
-              >
-                <span>Filter</span>
-                <span className="type-meta type-wrap-safe max-w-[65%] text-right text-muted-foreground">
-                  {selectedCategoryLabel}
-                </span>
-              </Button>
-            )}
-          </div>
-
-          {showCategorySuggestions && (
+        {!showAuthDiscoveryState && (
+          <>
             <div
-              id={categoryPanelId}
-              className="pf-community-popover type-post-body absolute left-0 right-0 top-full z-20 mt-2 rounded-xl border border-border/70 bg-popover p-2 shadow-lg"
-              role="group"
-              aria-label="Category filters"
+              className="pf-panel relative z-20 mb-4 overflow-visible rounded-xl border border-border/90 bg-card/90 shadow-sm focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
+              data-testid="community-search-shell"
             >
-              <div className="type-label-caps type-reply-label flex items-center justify-between px-2 py-1 text-muted-foreground">
-                <span>Categories</span>
-                <span>Action</span>
+              <div className="p-2.5 sm:p-0">
+                <div className="relative">
+                  <label htmlFor="community-feed-search" className="sr-only">
+                    Search community posts
+                  </label>
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-muted-foreground" />
+                  <InputBase
+                    id="community-feed-search"
+                    value={queryInput}
+                    onChange={setQueryInput}
+                    onFocus={() => {
+                      if (!mobileEnhancementsEnabled) setIsSearchFocused(true);
+                    }}
+                    onBlur={() => {
+                      if (!mobileEnhancementsEnabled) setIsSearchFocused(false);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Escape") {
+                        setIsSearchFocused(false);
+                        (event.target as HTMLInputElement).blur();
+                      }
+                    }}
+                    placeholder={
+                      isFollowingMode
+                        ? "Switch to For You to search posts"
+                        : "Search by title, use case, or context keyword"
+                    }
+                    inputClassName="type-input h-12 border-0 bg-transparent pl-9 shadow-none"
+                    wrapperClassName="bg-transparent shadow-none ring-0"
+                    isDisabled={isFollowingMode}
+                    aria-expanded={showCategorySuggestions}
+                    aria-controls={showCategorySuggestions ? categoryPanelId : undefined}
+                  />
+                </div>
+                {mobileEnhancementsEnabled && !isFollowingMode && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="type-button-label mt-2 h-11 w-full items-center justify-between px-3"
+                    onClick={() => {
+                      trackFirstMeaningfulAction("filter_drawer_opened");
+                      setMobileCategorySheetOpen(true);
+                    }}
+                    data-testid="community-filter-trigger"
+                  >
+                    <span>Filter</span>
+                    <span className="type-meta type-wrap-safe max-w-[65%] text-right text-muted-foreground">
+                      {selectedCategoryLabel}
+                    </span>
+                  </Button>
+                )}
               </div>
-              <div className="mt-1 flex flex-col gap-1">
-                {CATEGORY_OPTIONS.map((option) => {
-                  const isSelected = category === option.value;
-                  return (
+
+              {showCategorySuggestions && (
+                <div
+                  id={categoryPanelId}
+                  className="pf-community-popover type-post-body absolute left-0 right-0 top-full z-20 mt-2 rounded-xl border border-border/70 bg-popover p-2 shadow-lg"
+                  role="group"
+                  aria-label="Category filters"
+                >
+                  <div className="type-label-caps type-reply-label flex items-center justify-between px-2 py-1 text-muted-foreground">
+                    <span>Categories</span>
+                    <span>Action</span>
+                  </div>
+                  <div className="mt-1 flex flex-col gap-1">
+                    {CATEGORY_OPTIONS.map((option) => {
+                      const isSelected = category === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          aria-pressed={isSelected}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => setCategory(option.value)}
+                          className={cx(
+                            "type-tab-label flex min-h-11 items-center justify-between rounded-md px-2 py-2 transition-colors sm:min-h-10",
+                            isSelected
+                              ? "bg-accent text-accent-foreground"
+                              : "text-foreground hover:bg-muted",
+                          )}
+                        >
+                          <span>{option.label}</span>
+                          <span className="type-meta text-muted-foreground">
+                            {isSelected ? "Selected" : "Filter"}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="type-help px-2 pt-2 text-muted-foreground">
+                    Current: <span className="font-medium text-foreground">{selectedCategoryLabel}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="mb-5 space-y-4">
+              <fieldset className="space-y-2">
+                <legend className="type-meta mb-1 font-semibold uppercase tracking-wider text-foreground/85">
+                  Feed
+                </legend>
+                <div className="flex rounded-xl border border-border/70 bg-muted/60 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setFeedMode("for_you")}
+                    aria-pressed={feedMode === "for_you"}
+                    className={cx(
+                      "type-tab-label h-11 flex-1 rounded-lg px-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+                      feedMode === "for_you"
+                        ? "border border-primary/35 bg-primary/12 text-foreground shadow-sm"
+                        : "text-muted-foreground hover:bg-background/65 hover:text-foreground",
+                    )}
+                  >
+                    For You
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFeedMode("following")}
+                    aria-pressed={feedMode === "following"}
+                    className={cx(
+                      "type-tab-label h-11 flex-1 rounded-lg px-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+                      feedMode === "following"
+                        ? "border border-primary/35 bg-primary/12 text-foreground shadow-sm"
+                        : "text-muted-foreground hover:bg-background/65 hover:text-foreground",
+                    )}
+                  >
+                    Following
+                  </button>
+                </div>
+                {isFollowingMode && (
+                  <p className="type-help text-foreground/80">
+                    Search, sort, and category filters are available in the For You tab.
+                  </p>
+                )}
+              </fieldset>
+
+              <fieldset className="space-y-2">
+                <legend className="type-meta mb-1 font-semibold uppercase tracking-wider text-foreground/85">
+                  Sort
+                </legend>
+                <div className="pf-community-toolbar grid grid-cols-2 gap-2 sm:flex sm:rounded-lg sm:bg-muted sm:p-1">
+                  {SORT_OPTIONS.map((option) => (
                     <button
                       key={option.value}
                       type="button"
-                      aria-pressed={isSelected}
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => setCategory(option.value)}
+                      disabled={isFollowingMode}
+                      onClick={() => {
+                        setSort(option.value);
+                        trackFirstMeaningfulAction("sort_changed", { sort: option.value });
+                      }}
+                      aria-pressed={sort === option.value}
+                      data-testid="community-sort-button"
                       className={cx(
-                        "type-tab-label flex min-h-11 items-center justify-between rounded-md px-2 py-2 transition-colors sm:min-h-10",
-                        isSelected
-                          ? "bg-accent text-accent-foreground"
-                          : "text-foreground hover:bg-muted",
+                        "type-tab-label h-11 rounded-lg px-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 sm:h-11 sm:flex-1 sm:px-2.5",
+                        isFollowingMode && "cursor-not-allowed opacity-60",
+                        sort === option.value
+                          ? "border border-primary/35 bg-primary/12 text-foreground shadow-sm"
+                          : "bg-muted/75 text-muted-foreground hover:bg-background/65 hover:text-foreground sm:bg-transparent",
                       )}
                     >
-                      <span>{option.label}</span>
-                      <span className="type-meta text-muted-foreground">
-                        {isSelected ? "Selected" : "Filter"}
-                      </span>
+                      {option.label}
                     </button>
-                  );
-                })}
-              </div>
-              <div className="type-help px-2 pt-2 text-muted-foreground">
-                Current: <span className="font-medium text-foreground">{selectedCategoryLabel}</span>
-              </div>
+                  ))}
+                </div>
+              </fieldset>
             </div>
-          )}
-        </div>
+          </>
+        )}
 
-        <div className="mb-5 space-y-4">
-          <fieldset className="space-y-2">
-            <legend className="type-meta mb-1 font-semibold uppercase tracking-wider text-foreground/85">
-              Feed
-            </legend>
-            <div className="flex rounded-xl border border-border/70 bg-muted/60 p-1">
-              <button
-                type="button"
-                onClick={() => setFeedMode("for_you")}
-                aria-pressed={feedMode === "for_you"}
-                className={cx(
-                  "type-tab-label h-11 flex-1 rounded-lg px-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
-                  feedMode === "for_you"
-                    ? "border border-primary/35 bg-primary/12 text-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-background/65 hover:text-foreground",
-                )}
-              >
-                For You
-              </button>
-              <button
-                type="button"
-                onClick={() => setFeedMode("following")}
-                aria-pressed={feedMode === "following"}
-                className={cx(
-                  "type-tab-label h-11 flex-1 rounded-lg px-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
-                  feedMode === "following"
-                    ? "border border-primary/35 bg-primary/12 text-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-background/65 hover:text-foreground",
-                )}
-              >
-                Following
-              </button>
-            </div>
-            {isFollowingMode && (
-              <p className="type-help text-foreground/80">
-                Search, sort, and category filters are available in the For You tab.
+        {showAuthDiscoveryState && (
+          <div className="mb-6 grid gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]" data-testid="community-auth-discovery">
+            <Card className="pf-panel border-border/80 bg-card/90 p-4 sm:p-5">
+              <p className="ui-section-label text-primary">Community access</p>
+              <h2 className="mt-2 text-lg font-semibold text-foreground sm:text-xl">
+                Sign in to unlock the remix feed
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                {isFollowingMode
+                  ? "Following is personalized. Sign in to load the authors you follow, jump into comment threads, and keep your feed in sync."
+                  : "This environment is currently requiring authentication before community data can load. Sign in from the header to browse prompts, vote, save remixes, and follow authors."}
               </p>
-            )}
-          </fieldset>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button type="button" variant="primary" size="sm" className="h-11 px-4 text-sm" onClick={() => navigate("/")}>
+                  Open Builder
+                </Button>
+                <Button type="button" variant="secondary" size="sm" className="h-11 px-4 text-sm" onClick={() => navigate("/presets")}>
+                  Browse Presets
+                </Button>
+                <Button type="button" variant="secondary" size="sm" className="h-11 px-4 text-sm" onClick={() => navigate("/library")}>
+                  Open Library
+                </Button>
+              </div>
+            </Card>
 
-          <fieldset className="space-y-2">
-            <legend className="type-meta mb-1 font-semibold uppercase tracking-wider text-foreground/85">
-              Sort
-            </legend>
-            <div className="pf-community-toolbar grid grid-cols-2 gap-2 sm:flex sm:rounded-lg sm:bg-muted sm:p-1">
-              {SORT_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  disabled={isFollowingMode}
-                  onClick={() => {
-                    setSort(option.value);
-                    trackFirstMeaningfulAction("sort_changed", { sort: option.value });
-                  }}
-                  aria-pressed={sort === option.value}
-                  data-testid="community-sort-button"
-                  className={cx(
-                    "type-tab-label h-11 rounded-lg px-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 sm:h-11 sm:flex-1 sm:px-2.5",
-                    isFollowingMode && "cursor-not-allowed opacity-60",
-                    sort === option.value
-                      ? "border border-primary/35 bg-primary/12 text-foreground shadow-sm"
-                      : "bg-muted/75 text-muted-foreground hover:bg-background/65 hover:text-foreground sm:bg-transparent",
-                  )}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-        </div>
+            <Card className="border-border/80 bg-card/85 p-4 sm:p-5">
+              <p className="ui-section-label text-primary">What you get after sign in</p>
+              <ul className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground">
+                <li>Save public prompts to your library and remix them with attribution.</li>
+                <li>Vote, rate, and comment on prompts instead of landing in a dead-end error state.</li>
+                <li>Switch to Following for a personalized feed once your account is connected.</li>
+              </ul>
+            </Card>
+          </div>
+        )}
 
         {mobileEnhancementsEnabled && !isFollowingMode && (
           <Drawer open={mobileCategorySheetOpen} onOpenChange={setMobileCategorySheetOpen}>
@@ -890,38 +940,40 @@ const Community = () => {
           </div>
         )}
 
-        <CommunityFeed
-          posts={visiblePosts}
-          loading={loading}
-          errorMessage={errorState?.message}
-          errorType={errorState?.kind}
-          authorById={authorById}
-          parentTitleById={parentTitleById}
-          onCopyPrompt={handleCopyPrompt}
-          onToggleVote={handleToggleVote}
-          voteStateByPost={voteStateByPost}
-          onCommentAdded={handleCommentAdded}
-          onCommentThreadOpen={handleCommentThreadOpen}
-          onSharePost={handleSharePost}
-          onSaveToLibrary={handleSaveToLibrary}
-          followingUserIds={followingUserIds}
-          onToggleFollow={handleToggleFollow}
-          canVote={Boolean(user)}
-          canRate={Boolean(user)}
-          ratingByPost={ratingByPost}
-          onRatePrompt={handleRatePrompt}
-          currentUserId={user?.id ?? null}
-          blockedUserIds={blockedUserIds}
-          onReportPost={handleReportPost}
-          onReportComment={handleReportComment}
-          onBlockUser={handleBlockUser}
-          onUnblockUser={handleUnblockUser}
-          onTagClick={handleTagClick}
-          hasMore={hasMore}
-          isLoadingMore={isLoadingMore}
-          onLoadMore={handleLoadMore}
-          onRetry={handleRetry}
-        />
+        {!showAuthDiscoveryState && (
+          <CommunityFeed
+            posts={visiblePosts}
+            loading={loading}
+            errorMessage={errorState?.message}
+            errorType={errorState?.kind}
+            authorById={authorById}
+            parentTitleById={parentTitleById}
+            onCopyPrompt={handleCopyPrompt}
+            onToggleVote={handleToggleVote}
+            voteStateByPost={voteStateByPost}
+            onCommentAdded={handleCommentAdded}
+            onCommentThreadOpen={handleCommentThreadOpen}
+            onSharePost={handleSharePost}
+            onSaveToLibrary={handleSaveToLibrary}
+            followingUserIds={followingUserIds}
+            onToggleFollow={handleToggleFollow}
+            canVote={Boolean(user)}
+            canRate={Boolean(user)}
+            ratingByPost={ratingByPost}
+            onRatePrompt={handleRatePrompt}
+            currentUserId={user?.id ?? null}
+            blockedUserIds={blockedUserIds}
+            onReportPost={handleReportPost}
+            onReportComment={handleReportComment}
+            onBlockUser={handleBlockUser}
+            onUnblockUser={handleUnblockUser}
+            onTagClick={handleTagClick}
+            hasMore={hasMore}
+            isLoadingMore={isLoadingMore}
+            onLoadMore={handleLoadMore}
+            onRetry={handleRetry}
+          />
+        )}
 
         <CommunityReportDialog
           open={reportTarget !== null}

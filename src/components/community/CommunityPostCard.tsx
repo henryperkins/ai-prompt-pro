@@ -411,7 +411,7 @@ function CommunityPostCardComponent({
             type="button"
             variant="tertiary"
             size="sm"
-            className="type-button-label interactive-chip h-11 gap-1.5 px-3 sm:h-9 sm:px-2.5"
+            className="type-button-label interactive-chip h-11 min-w-11 gap-1.5 px-3 sm:h-9 sm:min-w-9 sm:px-2.5"
             aria-label={post.commentCount > 0 ? `Comments ${post.commentCount}` : "Comments"}
             onClick={() => {
               if (useMobileCommentsDrawer) {

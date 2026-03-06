@@ -59,7 +59,7 @@ export const ContactSimpleForm = () => {
     };
 
     return (
-        <section className="bg-muted/40 py-16 md:py-24">
+        <section className="bg-muted/40 py-16 pb-[calc(11rem+env(safe-area-inset-bottom))] md:py-24 md:pb-24">
             <div className="mx-auto w-full max-w-5xl px-4 md:px-8">
                 <div className="mx-auto flex w-full max-w-3xl flex-col items-center text-center">
                     <span className="text-sm font-semibold text-primary md:text-base">Contact us</span>
@@ -70,7 +70,7 @@ export const ContactSimpleForm = () => {
                 <Form
                     onSubmit={(event) => void handleSubmit(event)}
                     aria-busy={isSubmitting}
-                    className="mx-auto mt-12 flex w-full max-w-2xl flex-col gap-8 md:mt-16"
+                    className="mx-auto mt-12 flex w-full max-w-2xl flex-col gap-8 pb-[calc(6rem+env(safe-area-inset-bottom))] md:mt-16 md:pb-0"
                 >
                     <div className="flex flex-col gap-6">
                         <div className="flex flex-col gap-x-8 gap-y-6 md:flex-row">

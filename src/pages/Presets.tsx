@@ -67,7 +67,7 @@ function PresetCard({
             <span className={cx("inline-flex h-9 w-9 items-center justify-center rounded-full text-sm", skin.iconWrap)}>
               {categoryIcons[template.category] ?? categoryIcons.general}
             </span>
-            <h3 className="text-base font-semibold text-primary_on-brand">{template.name}</h3>
+            <h3 className="text-base font-semibold text-foreground">{template.name}</h3>
             <Badge
               variant="pill"
               size="sm"
@@ -91,10 +91,10 @@ function PresetCard({
           </Button>
         </div>
 
-        <p className="line-clamp-2 text-[0.9375rem] leading-relaxed text-secondary_on-brand">{template.description}</p>
+        <p className="line-clamp-2 text-[0.9375rem] leading-relaxed text-foreground/92">{template.description}</p>
 
-        <p className="line-clamp-2 text-sm leading-relaxed text-tertiary_on-brand">
-          <span className="font-medium text-secondary_on-brand">Starter:</span> {template.starterPrompt}
+        <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+          <span className="font-medium text-foreground/92">Starter:</span> {template.starterPrompt}
         </p>
 
         <div className="flex flex-wrap gap-1.5">
@@ -103,7 +103,7 @@ function PresetCard({
               key={f}
               variant="pill"
               size="sm"
-              className="border border-border/60 bg-background/65 text-secondary_on-brand ring-transparent text-xs"
+              className="border border-border/60 bg-background/75 text-foreground/85 ring-transparent text-xs"
             >
               {f}
             </Badge>

@@ -18,6 +18,7 @@ interface BuilderMobileMetric {
   width: number;
   viewportHeight: number;
   hasHorizontalOverflow: boolean;
+  stickyBarHeightPx: number;
   stickyOverlapWithBottomNavPx: number;
   stickyControlsGapPx: number;
   controlsUnder44px: Array<{ testId: string; width: number; height: number }>;
@@ -67,11 +68,13 @@ test("captures Builder mobile sticky-bar ergonomics at 360-430px widths", async 
 
       const stickyOverlapWithBottomNavPx =
         stickyRect && navRect ? Math.max(0, Math.round(stickyRect.bottom - navRect.top)) : 0;
+      const stickyBarHeightPx = stickyRect ? Math.round(stickyRect.height) : 0;
       const stickyControlsGapPx =
         webRect && enhanceRect ? Math.max(0, Math.round(enhanceRect.left - webRect.right)) : 0;
 
       return {
         hasHorizontalOverflow: document.documentElement.scrollWidth > window.innerWidth,
+        stickyBarHeightPx,
         stickyOverlapWithBottomNavPx,
         stickyControlsGapPx,
         controlsUnder44px,
@@ -82,6 +85,7 @@ test("captures Builder mobile sticky-bar ergonomics at 360-430px widths", async 
       width,
       viewportHeight: VIEWPORT_HEIGHT,
       hasHorizontalOverflow: metrics.hasHorizontalOverflow,
+      stickyBarHeightPx: metrics.stickyBarHeightPx,
       stickyOverlapWithBottomNavPx: metrics.stickyOverlapWithBottomNavPx,
       stickyControlsGapPx: metrics.stickyControlsGapPx,
       controlsUnder44px: metrics.controlsUnder44px,
@@ -105,6 +109,10 @@ test("captures Builder mobile sticky-bar ergonomics at 360-430px widths", async 
     expect(metric.hasHorizontalOverflow, `width ${metric.width} should not overflow horizontally`).toBeFalsy();
     expect(metric.controlsUnder44px, `width ${metric.width} has controls below 44px`).toEqual([]);
     expect(
+      metric.stickyBarHeightPx,
+      `width ${metric.width} sticky bar should stay compact enough to preserve builder space`,
+    ).toBeLessThanOrEqual(136);
+    expect(
       metric.stickyOverlapWithBottomNavPx,
       `width ${metric.width} has sticky controls overlapping bottom navigation`,
     ).toBe(0);
@@ -119,8 +127,13 @@ test("keeps Builder developer tools menu fully within mobile viewport", async ({
   for (const width of DEVTOOLS_MOBILE_WIDTHS) {
     await page.setViewportSize({ width, height: VIEWPORT_HEIGHT });
     await page.goto("/");
+    await expect(
+      page.getByRole("heading", { name: /Turn rough ideas into quality prompts with context/i }),
+    ).toBeVisible();
 
-    await page.getByRole("textbox", { name: "Your Prompt" }).fill("Plan a weekly engineering sync agenda");
+    await page
+      .getByRole("textbox", { name: /What should the model do\?|Your Prompt/i })
+      .fill("Plan a weekly engineering sync agenda");
     await page.getByTestId("builder-mobile-preview-trigger").click();
 
     const previewDialog = page.getByRole("dialog", { name: /Preview/i });

@@ -1359,14 +1359,14 @@ const Index = () => {
   const mobilePreviewText = useMemo(() => {
     const trimmed = displayPrompt.trim();
     if (!trimmed) {
-      return "Your prompt preview updates as you build. Tap to expand.";
+      return "Preview updates as you build.";
     }
     return trimmed
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter(Boolean)
-      .slice(0, 2)
-      .join("\n");
+      .slice(0, 1)
+      .join(" ");
   }, [displayPrompt]);
   const refineSuggestions = useMemo(() => {
     const suggestions: Array<{ id: BuilderSection; title: string; description: string }> = [];
@@ -1999,21 +1999,21 @@ const Index = () => {
       {/* Mobile: sticky bottom bar */}
       {isMobile && (
         <div
-          className="fixed inset-x-0 bottom-[calc(4.375rem+env(safe-area-inset-bottom)+1px)] sm:bottom-0 z-30 border-t border-border bg-card/95 px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm"
+          className="fixed inset-x-0 bottom-[calc(4.375rem+env(safe-area-inset-bottom)+1px)] sm:bottom-0 z-30 border-t border-border bg-card/95 px-3 pt-1.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] backdrop-blur-sm"
           data-testid="builder-mobile-sticky-bar"
         >
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
-            className="interactive-chip mb-2 w-full rounded-lg border border-border/80 bg-background/70 px-3 py-2 text-left"
+            className="interactive-chip mb-1.5 flex min-h-11 w-full items-center gap-2 rounded-lg border border-border/80 bg-background/70 px-3 py-2 text-left"
             aria-label="Open output preview"
             data-testid="builder-mobile-preview-trigger"
           >
-            <div className="type-label-caps flex items-center gap-1.5 text-[0.8125rem] font-medium text-foreground/85">
+            <div className="type-label-caps flex shrink-0 items-center gap-1.5 text-[0.75rem] font-medium text-foreground/85">
               <Eye className="h-3.5 w-3.5" />
               Live preview
             </div>
-            <p className="mt-1 line-clamp-2 whitespace-pre-line text-[0.8125rem] leading-5 text-foreground/92">
+            <p className="min-w-0 flex-1 truncate text-right text-[0.8125rem] leading-5 text-foreground/92">
               {mobilePreviewText}
             </p>
           </button>

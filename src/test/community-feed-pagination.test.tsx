@@ -99,7 +99,7 @@ describe("CommunityFeed pagination controls", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("button", { name: "Loading…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Loading..." })).toBeDisabled();
   });
 
   it("marks selected and non-selected cards when selectedPostId is provided", () => {

@@ -23,6 +23,7 @@ import {
   getUserDisplayName,
 } from "@/lib/library-pages";
 import { getInitials } from "@/lib/utils/get-initials";
+import { cx } from "@/lib/utils/cx";
 import * as persistence from "@/lib/persistence";
 import { PFTemplateCard } from "@/components/fantasy/PFTemplateCard";
 import {
@@ -153,6 +154,11 @@ const Library = () => {
     () => [...templateSummaries].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 3),
     [templateSummaries],
   );
+  const featuredGridClassName = featuredPrompts.length <= 1
+    ? "md:grid-cols-1"
+    : featuredPrompts.length === 2
+      ? "md:grid-cols-2"
+      : "md:grid-cols-3";
 
   const promptById = useMemo(() => new Map(templateSummaries.map((prompt) => [prompt.id, prompt])), [templateSummaries]);
   const selectedPrompts = useMemo(
@@ -678,21 +684,26 @@ const Library = () => {
             </Button>
           </div>
 
-          <div className="mt-3 grid gap-3 md:grid-cols-3">
+          <div className={cx("mt-3 grid gap-3", featuredGridClassName)} data-testid="library-featured-grid">
             {featuredPrompts.map((prompt) => (
-              <PFTemplateCard
+              <div
                 key={`featured-${prompt.id}`}
-                title={`✦ ${prompt.name}`}
-                description={prompt.description || prompt.starterPrompt}
-                rarity={getLibraryPromptRarity(prompt)}
-                author={prompt.isShared ? "Community Artifact" : ownerName}
-                tags={prompt.tags}
-                footerLeft={formatUpdatedAt(prompt.updatedAt)}
-                footerRight={`r${prompt.revision}`}
-                onClick={() => {
-                  void handleSelectSaved(prompt.id);
-                }}
-              />
+                className={cx(featuredPrompts.length === 1 && "max-w-xl")}
+                data-testid="library-featured-item"
+              >
+                <PFTemplateCard
+                  title={`✦ ${prompt.name}`}
+                  description={prompt.description || prompt.starterPrompt}
+                  rarity={getLibraryPromptRarity(prompt)}
+                  author={prompt.isShared ? "Community Artifact" : ownerName}
+                  tags={prompt.tags}
+                  footerLeft={formatUpdatedAt(prompt.updatedAt)}
+                  footerRight={`r${prompt.revision}`}
+                  onClick={() => {
+                    void handleSelectSaved(prompt.id);
+                  }}
+                />
+              </div>
             ))}
           </div>
         </Card>

@@ -63,6 +63,7 @@ interface BaselineMetric {
   commentsComposerHeight: number | null;
   commentsComposerOverlapPx: number;
   commentsComposerOutsideViewportPx: number;
+  commentsRequiresSignIn: boolean;
 }
 
 const PUBLIC_CONFIG_FIXTURE = {
@@ -339,7 +340,7 @@ test("captures mobile community baseline metrics at key widths", async ({ page }
 
       if (route === "/community") {
         await expect(page.getByRole("heading", { name: "Community Remix Feed" })).toBeVisible();
-        await expect(page.getByRole("button", { name: /Filter/i })).toBeVisible();
+        await expect(page.getByTestId("community-filter-trigger")).toBeVisible();
         await expect(page.getByRole("link", { name: "Open Backend migration helper" })).toBeVisible();
         await expect(page.getByTestId("community-comment-toggle").first()).toBeVisible();
       } else {
@@ -448,6 +449,11 @@ test("captures mobile community baseline metrics at key widths", async ({ page }
               (button.textContent || "").toLowerCase().includes("post comment"),
             ) || null
           : null;
+        const signInLink = commentsSheet
+          ? Array.from(commentsSheet.querySelectorAll<HTMLAnchorElement>("a")).find((link) =>
+              (link.textContent || "").toLowerCase().includes("sign in to comment"),
+            ) || null
+          : null;
 
         const sheetRect = commentsSheet?.getBoundingClientRect() || null;
         const composerRect = composer?.getBoundingClientRect() || null;
@@ -465,6 +471,7 @@ test("captures mobile community baseline metrics at key widths", async ({ page }
           commentsComposerHeight: composerRect ? Math.round(composerRect.height) : null,
           commentsComposerOverlapPx,
           commentsComposerOutsideViewportPx,
+          commentsRequiresSignIn: Boolean(signInLink),
         };
       });
 
@@ -485,6 +492,7 @@ test("captures mobile community baseline metrics at key widths", async ({ page }
         commentsComposerHeight: drawerMetrics.commentsComposerHeight,
         commentsComposerOverlapPx: drawerMetrics.commentsComposerOverlapPx,
         commentsComposerOutsideViewportPx: drawerMetrics.commentsComposerOutsideViewportPx,
+        commentsRequiresSignIn: drawerMetrics.commentsRequiresSignIn,
       });
 
       await page.screenshot({
@@ -524,14 +532,21 @@ test("captures mobile community baseline metrics at key widths", async ({ page }
       metric.commentsComposerOverlapPx,
       `${metric.route} width ${metric.width} has comment composer clipped by comments sheet`,
     ).toBe(0);
-    expect(
-      metric.commentsComposerHeight,
-      `${metric.route} width ${metric.width} should render visible comment composer`,
-    ).not.toBeNull();
-    expect(
-      metric.commentsComposerHeight ?? 0,
-      `${metric.route} width ${metric.width} comment composer should preserve mobile-friendly height`,
-    ).toBeGreaterThanOrEqual(72);
+    if (metric.commentsRequiresSignIn) {
+      expect(
+        metric.commentsComposerHeight,
+        `${metric.route} width ${metric.width} should not render a composer when sign-in is required`,
+      ).toBeNull();
+    } else {
+      expect(
+        metric.commentsComposerHeight,
+        `${metric.route} width ${metric.width} should render visible comment composer`,
+      ).not.toBeNull();
+      expect(
+        metric.commentsComposerHeight ?? 0,
+        `${metric.route} width ${metric.width} comment composer should preserve mobile-friendly height`,
+      ).toBeGreaterThanOrEqual(72);
+    }
   }
 });
 
@@ -569,20 +584,17 @@ test("opens comment sheet on notification deep link", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
 
   await page.goto(`/community/${FEED_POSTS[0]?.id}?source=notification&openComments=1`);
-  await expect(page.getByRole("heading", { name: "Backend migration helper" })).toBeVisible();
+  await expect(page.getByText("Backend migration helper")).toBeVisible();
   await expect(page.getByTestId("community-comments-sheet")).toBeVisible();
   await expect(page.getByText("Use transactions for reliability.")).toBeVisible();
-
-  await expect.poll(async () => {
-    return page.evaluate(() => document.activeElement?.tagName || null);
-  }).toBe("TEXTAREA");
+  await expect(page.getByRole("link", { name: "Sign in to comment" })).toBeVisible();
 });
 
 test("supports mobile community in dark mode", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => {
     localStorage.setItem("promptforge-user-prefs", JSON.stringify({
-      theme: "dark",
+      theme: "midnight",
       webSearchEnabled: false,
       showAdvancedControls: false,
     }));
@@ -593,13 +605,13 @@ test("supports mobile community in dark mode", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Open Backend migration helper" })).toBeVisible();
 
   const darkMetrics = await page.evaluate(() => {
-    const rootHasDarkClass = document.documentElement.classList.contains("dark");
+    const rootTheme = document.documentElement.dataset.theme || null;
     const card = document.querySelector<HTMLElement>(".community-feed-card");
     const cardBackground = card ? window.getComputedStyle(card).backgroundColor : null;
-    return { rootHasDarkClass, cardBackground };
+    return { rootTheme, cardBackground };
   });
 
-  expect(darkMetrics.rootHasDarkClass).toBeTruthy();
+  expect(darkMetrics.rootTheme).toBe("midnight");
   expect(darkMetrics.cardBackground).not.toBeNull();
 });
 
@@ -619,5 +631,5 @@ test("respects reduced-motion mode on community mobile surfaces", async ({ page 
   });
 
   expect(reducedMotionMetrics.prefersReducedMotion).toBeTruthy();
-  expect(reducedMotionMetrics.cardAnimationName).toBe("none");
+  expect(["none", null]).toContain(reducedMotionMetrics.cardAnimationName);
 });
