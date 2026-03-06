@@ -60,6 +60,7 @@ Canonical public imports:
 - Checkbox: `@/components/base/checkbox`
 - Dialog: `@/components/base/dialog`
 - Drawer: `@/components/base/drawer`
+- Table: `@/components/base/table`
 - Tabs: `@/components/base/tabs`
 - Textarea: `@/components/base/textarea` (prefer `TextArea`; legacy `Textarea` remains temporary)
 
@@ -195,6 +196,7 @@ This system standardizes control heights and text density across UI primitives.
 
 - Buttons, toggles, tab triggers use normalized line-height and weight.
 - Inputs/selects/textarea use shared text and focus treatment.
+- Tables should import from `@/components/base/table` (not `@/components/base/primitives/table`) for a stable public surface.
 - Labels use responsive text sizing (`text-sm` -> `sm:text-base`) with consistent line-height.
 - Primitive text sizing should rely on the tokenized Tailwind scale (`text-sm`, `sm:text-base`, etc.) rather than explicit one-off line-height utilities.
 
@@ -470,7 +472,8 @@ Implementation map:
 2. Run `npm test`.
 3. Run `npm run test:mobile`.
 4. Run `npm run build`.
-5. Perform manual checklist pass for sections 11.1 through 11.5.
+5. Run `npm run check:design-system-baseline`.
+6. Perform manual checklist pass for sections 11.1 through 11.5.
 
 ### 11.7 Maintenance Rule
 
@@ -486,3 +489,7 @@ Monitor source updates from:
 
 - `https://developer.apple.com/design/human-interface-guidelines/` ("New and updated")
 - `https://developer.apple.com/app-store/review/guidelines/` (policy changes)
+
+## 12) State Matrix Template
+
+Use `docs/design-system-state-matrix-template.md` when auditing or introducing changes to core primitive states.

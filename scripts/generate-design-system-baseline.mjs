@@ -3,7 +3,10 @@ import path from "node:path";
 import ts from "typescript";
 
 const projectRoot = process.cwd();
-const outputPath = path.join(projectRoot, "docs", "design-system-baseline-inventory.md");
+const defaultOutputPath = path.join(projectRoot, "docs", "design-system-baseline-inventory.md");
+const outputPath = process.env.DESIGN_SYSTEM_BASELINE_OUTPUT_PATH
+  ? path.resolve(projectRoot, process.env.DESIGN_SYSTEM_BASELINE_OUTPUT_PATH)
+  : defaultOutputPath;
 
 const canonicalComponents = [
   { label: "Button", specifier: "@/components/base/buttons/button" },
@@ -15,6 +18,7 @@ const canonicalComponents = [
   { label: "Badge", specifier: "@/components/base/badges/badges" },
   { label: "Dialog", specifier: "@/components/base/dialog" },
   { label: "Drawer", specifier: "@/components/base/drawer" },
+  { label: "Table", specifier: "@/components/base/table" },
 ];
 
 const duplicatePairs = [

@@ -8,7 +8,7 @@ import { getInitials } from "@/lib/utils/get-initials";
 import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/card";
 import { Checkbox } from "@/components/base/checkbox";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/base/primitives/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/base/table";
 import { cx } from "@/lib/utils/cx";
 import {
   CaretLeft as ChevronLeft,

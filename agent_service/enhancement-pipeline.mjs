@@ -110,6 +110,16 @@ const MASTER_META_PROMPT = [
   "These are direct UI fields and may be empty. Use them as first-priority signals before inferring.",
   "{{BUILDER_FIELDS}}",
   "",
+  "## PRIOR SESSION CONTEXT",
+  "Use this to preserve user-approved context across enhancement turns.",
+  "Treat it as supporting context only. The current raw input and current builder fields take priority.",
+  "- Prior context summary:",
+  "{{SESSION_CONTEXT_SUMMARY}}",
+  "- Prior enhanced prompt:",
+  "\"\"\"",
+  "{{SESSION_LATEST_ENHANCED_PROMPT}}",
+  "\"\"\"",
+  "",
   "## 6-PART BUILDER FRAMEWORK",
   "Use all parts. If details are missing, infer minimal practical defaults.",
   "",
@@ -297,6 +307,12 @@ export function detectEnhancementContext(input, options = {}) {
   const builderMode = normalizeBuilderMode(options.builderMode);
   const inputLanguage = detectInputLanguage(prompt);
   const builderFields = normalizeBuilderFields(options.builderFields);
+  const session = {
+    contextSummary: normalizeFieldValue(options.session?.contextSummary ?? options.session?.context_summary),
+    latestEnhancedPrompt: normalizeFieldValue(
+      options.session?.latestEnhancedPrompt ?? options.session?.latest_enhanced_prompt,
+    ),
+  };
 
   return {
     intent,
@@ -310,6 +326,7 @@ export function detectEnhancementContext(input, options = {}) {
     isTooVague: words.length > 0 && words.length < 5,
     structure,
     builderFields,
+    session,
   };
 }
 
@@ -361,6 +378,14 @@ export function buildEnhancementMetaPrompt(userInput, context) {
       joinOrDefault(context.structure.missingSections, "none"),
     )
     .replaceAll("{{BUILDER_FIELDS}}", builderFieldLines)
+    .replaceAll(
+      "{{SESSION_CONTEXT_SUMMARY}}",
+      context.session?.contextSummary || "(none)",
+    )
+    .replaceAll(
+      "{{SESSION_LATEST_ENHANCED_PROMPT}}",
+      context.session?.latestEnhancedPrompt || "(none)",
+    )
     .replaceAll("{{EDGE_CASE_NOTES}}", edgeCaseNotes);
 
   return [template, modeAddon, ...intentAddons].join("\n\n");
@@ -444,6 +469,48 @@ function normalizeAlternatives(value) {
   };
 }
 
+function summarizeSessionField(label, value, maxChars = 220) {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const normalized = trimmed.length > maxChars ? `${trimmed.slice(0, maxChars)}...` : trimmed;
+  return `${label}: ${normalized}`;
+}
+
+export function buildEnhancementSessionContextSummary({
+  partsBreakdown,
+  enhancementsMade,
+  suggestions,
+  detectedContext,
+}) {
+  const lines = [
+    summarizeSessionField("Role", partsBreakdown?.role),
+    summarizeSessionField("Context", partsBreakdown?.context),
+    summarizeSessionField("Task", partsBreakdown?.task),
+    summarizeSessionField("Output format", partsBreakdown?.output_format),
+    summarizeSessionField("Guardrails", partsBreakdown?.guardrails),
+  ].filter((entry) => typeof entry === "string");
+
+  const safeEnhancements = normalizeStringList(enhancementsMade).slice(0, 3);
+  if (safeEnhancements.length > 0) {
+    lines.push(`Enhancements: ${safeEnhancements.join("; ")}`);
+  }
+
+  const safeSuggestions = normalizeStringList(suggestions).slice(0, 2);
+  if (safeSuggestions.length > 0) {
+    lines.push(`Follow-ups: ${safeSuggestions.join("; ")}`);
+  }
+
+  if (Array.isArray(detectedContext?.intent) && detectedContext.intent.length > 0) {
+    lines.push(`Intent: ${detectedContext.intent.join(", ")}`);
+  }
+  if (Array.isArray(detectedContext?.domain) && detectedContext.domain.length > 0) {
+    lines.push(`Domain: ${detectedContext.domain.join(", ")}`);
+  }
+
+  return lines.join("\n").trim();
+}
+
 function countWords(text) {
   return asWords(text).length;
 }
@@ -492,6 +559,12 @@ export function postProcessEnhancementResponse({
   const safeEnhancements = normalizeStringList(parsed?.enhancements_made);
   const safeSuggestions = normalizeStringList(parsed?.suggestions);
   const alternatives = normalizeAlternatives(parsed?.alternative_versions);
+  const sessionContextSummary = buildEnhancementSessionContextSummary({
+    partsBreakdown,
+    enhancementsMade: safeEnhancements,
+    suggestions: safeSuggestions,
+    detectedContext: context,
+  });
 
   return {
     enhanced_prompt: normalizedEnhancedPrompt,
@@ -500,6 +573,7 @@ export function postProcessEnhancementResponse({
     quality_score: qualityScore,
     suggestions: safeSuggestions,
     alternative_versions: alternatives,
+    session_context_summary: sessionContextSummary,
     improvement_delta: enhancementDelta,
     missing_parts: missingParts,
     word_count: {

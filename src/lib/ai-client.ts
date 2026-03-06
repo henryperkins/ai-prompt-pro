@@ -1,4 +1,15 @@
 import { neon } from "@/integrations/neon/client";
+import {
+  abortCodexSession,
+  advanceCodexSessionFromEvent,
+  beginCodexSession,
+  completeCodexSession,
+  createCodexSession,
+  failCodexSession,
+  toCodexSessionRequest,
+  type CodexSession,
+  type CodexSessionTransport,
+} from "@/lib/codex-session";
 
 function normalizeEnvValue(value?: string): string | undefined {
   if (typeof value !== "string") return undefined;
@@ -1256,6 +1267,7 @@ async function streamEnhanceViaWebSocket({
 
 export async function streamEnhance({
   prompt,
+  session,
   threadId,
   threadOptions,
   builderMode,
@@ -1264,10 +1276,12 @@ export async function streamEnhance({
   onDone,
   onError,
   onEvent,
+  onSession,
   signal,
   timeoutMs = ENHANCE_REQUEST_TIMEOUT_MS,
 }: {
   prompt: string;
+  session?: CodexSession | null;
   threadId?: string;
   threadOptions?: EnhanceThreadOptions;
   builderMode?: "quick" | "guided" | "advanced";
@@ -1284,10 +1298,46 @@ export async function streamEnhance({
     itemType: string | null;
     payload: unknown;
   }) => void;
+  onSession?: (session: CodexSession) => void;
   signal?: AbortSignal;
   timeoutMs?: number;
 }) {
   const requestController = new AbortController();
+  let currentSession = createCodexSession(session ?? undefined);
+  const normalizedThreadId = typeof threadId === "string" ? threadId.trim() : "";
+  const resolvedThreadId = currentSession.threadId || normalizedThreadId || null;
+
+  const emitSessionUpdate = (nextSession: CodexSession) => {
+    currentSession = nextSession;
+    onSession?.(nextSession);
+  };
+
+  const markSessionStarted = (transport: CodexSessionTransport) => {
+    emitSessionUpdate(beginCodexSession(currentSession, {
+      threadId: resolvedThreadId,
+      transport,
+    }));
+  };
+
+  const applySessionEvent = (
+    meta: {
+      eventType: string | null;
+      responseType: string | null;
+      threadId: string | null;
+      turnId: string | null;
+      itemId: string | null;
+      itemType: string | null;
+    },
+    payload: unknown,
+    transport: CodexSessionTransport,
+  ) => {
+    emitSessionUpdate(advanceCodexSessionFromEvent(currentSession, {
+      ...meta,
+      payload,
+      transport,
+    }));
+  };
+
   const linkSignalAbort = (sourceSignal?: AbortSignal) => {
     if (!sourceSignal) return () => undefined;
     if (sourceSignal.aborted) {
@@ -1324,10 +1374,11 @@ export async function streamEnhance({
 
   try {
     const payload: Record<string, unknown> = { prompt };
-    const normalizedThreadId = typeof threadId === "string" ? threadId.trim() : "";
-    if (normalizedThreadId) {
-      payload.thread_id = normalizedThreadId;
+    const sessionRequest = toCodexSessionRequest(currentSession);
+    if (resolvedThreadId) {
+      payload.thread_id = resolvedThreadId;
     }
+    if (sessionRequest) payload.session = sessionRequest;
     if (threadOptions && typeof threadOptions === "object") {
       payload.thread_options = threadOptions;
     }
@@ -1349,6 +1400,7 @@ export async function streamEnhance({
       ENHANCE_TRANSPORT_MODE !== "sse"
       && typeof globalThis.WebSocket === "function";
     if (shouldTryWebSocket) {
+      markSessionStarted("ws");
       const resolvedConnectTimeoutMs =
         typeof timeoutMs === "number" && Number.isFinite(timeoutMs) && timeoutMs > 0
           ? Math.max(250, Math.min(ENHANCE_WS_CONNECT_TIMEOUT_MS, Math.floor(timeoutMs * 0.35)))
@@ -1359,14 +1411,19 @@ export async function streamEnhance({
         didTimeout: () => timeoutTriggered,
         connectTimeoutMs: resolvedConnectTimeoutMs,
         onDelta,
-        onEvent,
+        onEvent: (event) => {
+          onEvent?.(event);
+          applySessionEvent(event, event.payload, "ws");
+        },
       });
 
       if (wsResult.outcome === "completed") {
+        emitSessionUpdate(completeCodexSession(currentSession, { transport: "ws" }));
         onDone();
         return;
       }
       if (wsResult.outcome === "aborted") {
+        emitSessionUpdate(abortCodexSession(currentSession, { transport: "ws" }));
         return;
       }
       if (wsResult.outcome === "error") {
@@ -1380,11 +1437,19 @@ export async function streamEnhance({
         ) {
           // Fall through to SSE transport as a compatibility fallback.
         } else {
+          emitSessionUpdate(failCodexSession(currentSession, {
+            code: wsResult.error.code,
+            message: wsResult.error.message,
+          }, { transport: "ws" }));
           onError(wsResult.error);
           return;
         }
       } else if (wsResult.outcome === "fallback") {
         if (ENHANCE_TRANSPORT_MODE === "ws") {
+          emitSessionUpdate(failCodexSession(currentSession, {
+            code: "network_unavailable",
+            message: serviceUnavailableMessage("enhance-prompt"),
+          }, { transport: "ws" }));
           onError(new AIClientError({
             message: serviceUnavailableMessage("enhance-prompt"),
             code: "network_unavailable",
@@ -1397,11 +1462,16 @@ export async function streamEnhance({
       }
     }
 
+    markSessionStarted("sse");
     const resp = await postFunctionWithAuthRecovery("enhance-prompt", payload, {
       signal: requestController.signal,
     });
 
     if (!resp.body) {
+      emitSessionUpdate(failCodexSession(currentSession, {
+        code: "bad_response",
+        message: "No response body from enhancement service.",
+      }, { transport: "sse" }));
       onError(new AIClientError({
         message: "No response body from enhancement service.",
         code: "bad_response",
@@ -1450,6 +1520,7 @@ export async function streamEnhance({
 
           const meta = readSseEventMeta(parsed);
           onEvent?.({ ...meta, payload: parsed });
+          applySessionEvent(meta, parsed, "sse");
 
           if (isItemDeltaEventType(meta.eventType) || isResponseOutputTextDelta(meta.responseType)) {
             if (meta.itemId) deltaItemIds.add(meta.itemId);
@@ -1502,6 +1573,7 @@ export async function streamEnhance({
 
           const meta = readSseEventMeta(parsed);
           onEvent?.({ ...meta, payload: parsed });
+          applySessionEvent(meta, parsed, "sse");
 
           if (isItemDeltaEventType(meta.eventType) || isResponseOutputTextDelta(meta.responseType)) {
             if (meta.itemId) deltaItemIds.add(meta.itemId);
@@ -1527,11 +1599,19 @@ export async function streamEnhance({
     }
 
     if (terminalError) {
+      emitSessionUpdate(failCodexSession(currentSession, {
+        code: terminalError.code,
+        message: terminalError.message,
+      }, { transport: "sse" }));
       onError(terminalError);
       return;
     }
 
     if (!streamDone) {
+      emitSessionUpdate(failCodexSession(currentSession, {
+        code: "network_unavailable",
+        message: interruptedStreamMessage("enhance-prompt"),
+      }, { transport: "sse" }));
       onError(new AIClientError({
         message: interruptedStreamMessage("enhance-prompt"),
         code: "network_unavailable",
@@ -1540,6 +1620,7 @@ export async function streamEnhance({
       return;
     }
 
+    emitSessionUpdate(completeCodexSession(currentSession, { transport: "sse" }));
     onDone();
   } catch (e) {
     const abortReason = requestController.signal.aborted
@@ -1547,10 +1628,19 @@ export async function streamEnhance({
       : null;
     const normalizedError = normalizeClientError("enhance-prompt", abortReason ?? e);
     if (normalizedError.code === "request_aborted") {
+      emitSessionUpdate(abortCodexSession(currentSession, {
+        transport: currentSession.transport,
+      }));
       return;
     }
 
     console.error("Stream error:", normalizedError);
+    emitSessionUpdate(failCodexSession(currentSession, {
+      code: normalizedError.code,
+      message: normalizedError.message,
+    }, {
+      transport: currentSession.transport,
+    }));
     onError(normalizedError);
   } finally {
     unlinkExternalSignal();

@@ -9,6 +9,7 @@ Use this file as the starting point for repo documentation.
 - `docs/design-system.md` - canonical design-system and UI governance reference.
 - `docs/component-adoption.md` - canonical component import and adoption status guide.
 - `docs/design-system-baseline-inventory.md` - generated baseline inventory for DS refactor planning.
+- `docs/design-system-state-matrix-template.md` - reusable state coverage template for core primitives.
 - `docs/neon-cutover-runbook.md` - Neon production operations, validation, and rollback runbook.
 - `docs/typography-regression-checklist.md` - typography validation checks.
 - `docs/community-mobile-qa-checklist.md` - manual mobile QA checks.

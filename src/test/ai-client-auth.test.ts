@@ -827,6 +827,56 @@ describe("ai-client auth recovery", () => {
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
+  it("sends carry-forward Codex session context when provided", async () => {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "valid-token",
+          expires_at: nowSeconds + 3600,
+        },
+      },
+      error: null,
+    });
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(streamingResponse("session-aware"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { streamEnhance } = await import("@/lib/ai-client");
+    const { createCodexSession } = await import("@/lib/codex-session");
+
+    await streamEnhance({
+      prompt: "Improve this",
+      session: createCodexSession({
+        threadId: "thread_session_1",
+        contextSummary: "Keep the prior product, audience, and tone context.",
+        latestEnhancedPrompt: "Previous enhanced prompt body.",
+      }),
+      onDelta: vi.fn(),
+      onDone: vi.fn(),
+      onError: vi.fn(),
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const request = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const body = JSON.parse((request.body as string) || "{}") as {
+      thread_id?: string;
+      session?: {
+        thread_id?: string;
+        context_summary?: string;
+        latest_enhanced_prompt?: string;
+      };
+    };
+
+    expect(body.thread_id).toBe("thread_session_1");
+    expect(body.session).toEqual({
+      thread_id: "thread_session_1",
+      context_summary: "Keep the prior product, audience, and tone context.",
+      latest_enhanced_prompt: "Previous enhanced prompt body.",
+    });
+  });
+
   it("omits empty thread_id and missing thread_options from enhance payload", async () => {
     const nowSeconds = Math.floor(Date.now() / 1000);
 

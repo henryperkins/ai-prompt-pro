@@ -6,6 +6,7 @@ import { BuilderHeroInput } from "@/components/BuilderHeroInput";
 import { BuilderAdjustDetails } from "@/components/BuilderAdjustDetails";
 import { BuilderSourcesAdvanced } from "@/components/BuilderSourcesAdvanced";
 import { BuilderTabs } from "@/components/BuilderTabs";
+import { CodexSessionDrawer } from "@/components/CodexSessionDrawer";
 import { ContextPanel } from "@/components/ContextPanel";
 import { ToneControls } from "@/components/ToneControls";
 import { QualityScore } from "@/components/QualityScore";
@@ -17,6 +18,7 @@ import {
   type AIClientError,
   type EnhanceThreadOptions,
 } from "@/lib/ai-client";
+import { createCodexSession, type CodexSession } from "@/lib/codex-session";
 import {
   applyInferenceUpdates,
   clearAiOwnedFields,
@@ -81,6 +83,7 @@ import {
   Layout as LayoutIcon,
   Sparkle as Sparkles,
   SpinnerGap as Loader2,
+  StackSimple,
   X,
 } from "@phosphor-icons/react";
 
@@ -619,6 +622,7 @@ const Index = () => {
   const presetId = searchParams.get("preset");
   const remixLoadToken = useRef(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [sessionDrawerOpen, setSessionDrawerOpen] = useState(false);
   const [openSections, setOpenSections] = useState<BuilderSection[]>(["builder"]);
   const [isAdjustDetailsOpen, setIsAdjustDetailsOpen] = useState(false);
   const [isSourcesAdvancedOpen, setIsSourcesAdvancedOpen] = useState(false);
@@ -640,6 +644,7 @@ const Index = () => {
   const [webSearchEnabled, setWebSearchEnabled] = useState(() => getUserPreferences().webSearchEnabled);
   const [webSearchSources, setWebSearchSources] = useState<string[]>([]);
   const [reasoningSummary, setReasoningSummary] = useState("");
+  const [enhanceSession, setEnhanceSession] = useState<CodexSession>(() => createCodexSession());
   const [fieldOwnership, setFieldOwnership] = useState<BuilderFieldOwnershipMap>(() =>
     createFieldOwnershipFromConfig(defaultConfig),
   );
@@ -710,6 +715,26 @@ const Index = () => {
     [primaryCtaVariant],
   );
 
+  const clearEnhanceTimers = useCallback(() => {
+    enhancePhaseTimers.current.forEach((timer) => window.clearTimeout(timer));
+    enhancePhaseTimers.current = [];
+  }, []);
+
+  const resetEnhanceSessionState = useCallback(() => {
+    clearEnhanceTimers();
+    enhancePending.current = false;
+    enhanceStartedAt.current = null;
+    enhanceStreamToken.current += 1;
+    enhanceAbortController.current?.abort();
+    enhanceAbortController.current = null;
+    setSessionDrawerOpen(false);
+    setEnhanceSession(createCodexSession());
+    setReasoningSummary("");
+    setWebSearchSources([]);
+    setIsEnhancing(false);
+    setEnhancePhase("idle");
+  }, [clearEnhanceTimers, setIsEnhancing]);
+
   useEffect(() => {
     if (hasTrackedBuilderLoaded.current) return;
     hasTrackedBuilderLoaded.current = true;
@@ -741,13 +766,14 @@ const Index = () => {
   useEffect(() => {
     const restoredPrompt = consumeRestoredVersionPrompt();
     if (!restoredPrompt) return;
+    resetEnhanceSessionState();
     setEnhancedPrompt(restoredPrompt);
     setReasoningSummary("");
     toast({ title: "Version restored", description: "Restored from History." });
     if (isMobile) {
       setDrawerOpen(true);
     }
-  }, [isMobile, setEnhancedPrompt, toast]);
+  }, [isMobile, resetEnhanceSessionState, setEnhancedPrompt, toast]);
 
   useEffect(() => {
     if (!presetId) return;
@@ -760,6 +786,7 @@ const Index = () => {
       setSearchParams((prev) => { prev.delete("preset"); return prev; }, { replace: true });
       return;
     }
+    resetEnhanceSessionState();
     loadTemplate(preset);
     const preferences = getUserPreferences();
     const nextRecentPresetIds = [
@@ -774,7 +801,7 @@ const Index = () => {
     });
     toast({ title: "Preset loaded", description: `"${preset.name}" applied to the builder.` });
     setSearchParams((prev) => { prev.delete("preset"); return prev; }, { replace: true });
-  }, [presetId, loadTemplate, toast, setSearchParams]);
+  }, [presetId, loadTemplate, resetEnhanceSessionState, toast, setSearchParams]);
 
   useEffect(() => {
     if (!remixId) return;
@@ -792,6 +819,7 @@ const Index = () => {
         const [author] = await loadProfilesByIds([post.authorId]);
         if (token !== remixLoadToken.current) return;
 
+        resetEnhanceSessionState();
         startRemix({
           postId: post.id,
           title: post.title,
@@ -813,20 +841,16 @@ const Index = () => {
         });
       }
     })();
-  }, [remixId, remixContext?.postId, startRemix, toast]);
+  }, [remixId, remixContext?.postId, resetEnhanceSessionState, startRemix, toast]);
 
   const handleClearRemix = useCallback(() => {
+    resetEnhanceSessionState();
     clearRemix();
     if (!remixId) return;
     const next = new URLSearchParams(searchParams);
     next.delete("remix");
     setSearchParams(next, { replace: true });
-  }, [clearRemix, remixId, searchParams, setSearchParams]);
-
-  const clearEnhanceTimers = useCallback(() => {
-    enhancePhaseTimers.current.forEach((timer) => window.clearTimeout(timer));
-    enhancePhaseTimers.current = [];
-  }, []);
+  }, [clearRemix, remixId, resetEnhanceSessionState, searchParams, setSearchParams]);
 
   useEffect(() => {
     return () => clearEnhanceTimers();
@@ -848,6 +872,47 @@ const Index = () => {
     },
     [isBuilderRedesignPhase3, updateConfig],
   );
+
+  const handleOpenSessionDrawer = useCallback(() => {
+    if (!isSignedIn) {
+      toast({
+        title: "Sign in required",
+        description: "Sign in to manage Codex session context.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSessionDrawerOpen(true);
+  }, [isSignedIn, toast]);
+
+  const handleUpdateEnhanceSession = useCallback(
+    (updates: Partial<Pick<CodexSession, "contextSummary" | "latestEnhancedPrompt">>) => {
+      setEnhanceSession((previous) =>
+        createCodexSession({
+          ...previous,
+          ...updates,
+          updatedAt: Date.now(),
+        }),
+      );
+    },
+    [],
+  );
+
+  const handleResetEnhanceSession = useCallback(() => {
+    setEnhanceSession(createCodexSession());
+  }, []);
+
+  const handleUseCurrentPromptForSession = useCallback(() => {
+    const promptSnapshot = (enhancedPrompt || builtPrompt).trim();
+    if (!promptSnapshot) return;
+    setEnhanceSession((previous) =>
+      createCodexSession({
+        ...previous,
+        latestEnhancedPrompt: promptSnapshot,
+        updatedAt: Date.now(),
+      }),
+    );
+  }, [builtPrompt, enhancedPrompt]);
 
   const handleApplySuggestionChip = useCallback(
     (chip: BuilderSuggestionChip) => {
@@ -1020,6 +1085,7 @@ const Index = () => {
       };
       streamEnhance({
         prompt: promptForEnhance,
+        session: enhanceSession,
         threadOptions: { ...ENHANCE_THREAD_OPTIONS_BASE, webSearchEnabled },
         builderFields: {
           role: (configForEnhance.customRole || configForEnhance.role || "").trim(),
@@ -1108,6 +1174,10 @@ const Index = () => {
             .trim();
           setReasoningSummary(merged);
         },
+        onSession: (nextSession) => {
+          if (streamToken !== enhanceStreamToken.current) return;
+          setEnhanceSession(createCodexSession(nextSession));
+        },
         onDone: () => {
           if (streamToken !== enhanceStreamToken.current) return;
           if (enhanceAbortController.current === streamAbortController) {
@@ -1162,6 +1232,7 @@ const Index = () => {
   }, [
     clearEnhanceTimers,
     config,
+    enhanceSession,
     enhancedPrompt,
     fieldOwnership,
     isBuilderRedesignPhase1,
@@ -1300,6 +1371,18 @@ const Index = () => {
   const sectionHealth = getSectionHealth(config, score.total);
   const selectedRole = config.customRole || config.role;
   const displayPrompt = enhancedPrompt || builtPrompt;
+  const sessionDrawerSummary = useMemo(() => {
+    if (!isSignedIn) {
+      return "Sign in to manage the Codex session and carry supplemental context across turns.";
+    }
+    if (enhanceSession.contextSummary.trim()) {
+      return "Outside context is ready to carry into the next Codex turn.";
+    }
+    if (enhanceSession.threadId) {
+      return "This builder is already attached to a Codex thread.";
+    }
+    return "Open the drawer to add supplemental context before the next enhancement pass.";
+  }, [enhanceSession.contextSummary, enhanceSession.threadId, isSignedIn]);
   const hasBuiltPrompt = builtPrompt.trim().length > 0;
   const hasOriginalPromptInput = config.originalPrompt.trim().length > 0;
   const hasBuilderDrivenInput = hasBuilderFieldInput(config);
@@ -1368,6 +1451,26 @@ const Index = () => {
       .slice(0, 1)
       .join(" ");
   }, [displayPrompt]);
+  const mobileSessionText = useMemo(() => {
+    if (!isSignedIn) {
+      return "Sign in required";
+    }
+    if (enhanceSession.contextSummary.trim()) {
+      return "Context ready";
+    }
+    if (enhanceSession.latestEnhancedPrompt.trim()) {
+      return "Prompt saved";
+    }
+    if (enhanceSession.threadId) {
+      return "Thread active";
+    }
+    return "Add context";
+  }, [
+    enhanceSession.contextSummary,
+    enhanceSession.latestEnhancedPrompt,
+    enhanceSession.threadId,
+    isSignedIn,
+  ]);
   const refineSuggestions = useMemo(() => {
     const suggestions: Array<{ id: BuilderSection; title: string; description: string }> = [];
     if (sectionHealth.builder !== "complete") {
@@ -1414,8 +1517,14 @@ const Index = () => {
         previewSource,
       });
     }
+    resetEnhanceSessionState();
     clearOriginalPrompt();
-  }, [clearOriginalPrompt, hasUnenhancedPreview, previewSource]);
+  }, [clearOriginalPrompt, hasUnenhancedPreview, previewSource, resetEnhanceSessionState]);
+
+  const handleResetAll = useCallback(() => {
+    resetEnhanceSessionState();
+    resetConfig();
+  }, [resetConfig, resetEnhanceSessionState]);
 
   useEffect(() => {
     if (isBuilderRedesignPhase3) return;
@@ -1464,6 +1573,11 @@ const Index = () => {
     hasSourceOrAdvancedSelections,
     persistedSetShowAdvancedControls,
   ]);
+
+  useEffect(() => {
+    if (isSignedIn || !sessionDrawerOpen) return;
+    setSessionDrawerOpen(false);
+  }, [isSignedIn, sessionDrawerOpen]);
 
   useEffect(() => {
     if (!isBuilderRedesignPhase1) return;
@@ -1656,7 +1770,7 @@ const Index = () => {
                 value={config.originalPrompt}
                 onChange={(value) => updateConfig({ originalPrompt: value })}
                 onClear={handleClearPrompt}
-                onResetAll={resetConfig}
+                onResetAll={handleResetAll}
                 phase3Enabled={isBuilderRedesignPhase3}
                 suggestionChips={suggestionChips}
                 isInferringSuggestions={isInferringSuggestions}
@@ -1758,7 +1872,7 @@ const Index = () => {
                 value={config.originalPrompt}
                 onChange={(v) => updateConfig({ originalPrompt: v })}
                 onClear={handleClearPrompt}
-                onResetAll={resetConfig}
+                onResetAll={handleResetAll}
               />
 
               {showEnhanceFirstCard && (
@@ -1960,6 +2074,43 @@ const Index = () => {
                 }
               />
             <Card className="pf-panel border-border/70 bg-card/80 p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-medium text-foreground">Codex session</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {sessionDrawerSummary}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleOpenSessionDrawer}
+                >
+                  {isSignedIn ? "Open drawer" : "Sign in to use"}
+                </Button>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Badge
+                  variant="pill"
+                  tone={isSignedIn ? (enhanceSession.threadId ? "brand" : "default") : "default"}
+                  className="text-xs"
+                >
+                  {isSignedIn ? (enhanceSession.threadId ? "Thread active" : "New thread") : "Login required"}
+                </Badge>
+                {isSignedIn && enhanceSession.contextSummary.trim() && (
+                  <Badge variant="pill" tone="brand" className="text-xs">
+                    Context saved
+                  </Badge>
+                )}
+                {isSignedIn && enhanceSession.latestEnhancedPrompt.trim() && (
+                  <Badge variant="pill" tone="brand" className="text-xs">
+                    Prompt saved
+                  </Badge>
+                )}
+              </div>
+            </Card>
+            <Card className="pf-panel border-border/70 bg-card/80 p-3">
               <p className="text-xs font-medium text-foreground">Next best action</p>
               <p className="mt-1 text-sm text-muted-foreground">
                 {!hasEnhancedOnce
@@ -2015,6 +2166,21 @@ const Index = () => {
             </div>
             <p className="min-w-0 flex-1 truncate text-right text-[0.8125rem] leading-5 text-foreground/92">
               {mobilePreviewText}
+            </p>
+          </button>
+          <button
+            type="button"
+            onClick={handleOpenSessionDrawer}
+            className="interactive-chip mb-1.5 flex min-h-11 w-full items-center gap-2 rounded-lg border border-border/80 bg-background/70 px-3 py-2 text-left"
+            aria-label="Open Codex session drawer"
+            data-testid="builder-mobile-session-trigger"
+          >
+            <div className="type-label-caps flex shrink-0 items-center gap-1.5 text-[0.75rem] font-medium text-foreground/85">
+              <StackSimple className="h-3.5 w-3.5" />
+              Codex session
+            </div>
+            <p className="min-w-0 flex-1 truncate text-right text-[0.8125rem] leading-5 text-foreground/92">
+              {mobileSessionText}
             </p>
           </button>
 
@@ -2104,6 +2270,18 @@ const Index = () => {
           </DrawerContent>
         </Drawer>
       )}
+
+      <CodexSessionDrawer
+        open={isSignedIn && sessionDrawerOpen}
+        onOpenChange={setSessionDrawerOpen}
+        session={enhanceSession}
+        isEnhancing={isEnhancing}
+        isMobile={isMobile}
+        currentPromptText={displayPrompt}
+        onUpdateSession={handleUpdateEnhanceSession}
+        onResetSession={handleResetEnhanceSession}
+        onUseCurrentPrompt={handleUseCurrentPromptForSession}
+      />
 
       {/* Add bottom padding on mobile for sticky bar */}
       {isMobile && <div className="h-44 sm:h-32" />}

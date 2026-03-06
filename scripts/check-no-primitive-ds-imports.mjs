@@ -8,7 +8,6 @@ const sourceExtensions = new Set([".ts", ".tsx"]);
 const strictMode = process.env.STRICT_PRIMITIVE_IMPORTS === "1";
 const designSystemInternalPrefixes = [
   "src/components/base/",
-  "src/components/application/",
   "src/components/foundations/",
   "src/components/marketing/",
   "src/components/fantasy/",

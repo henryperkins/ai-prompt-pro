@@ -148,6 +148,14 @@ const EXTRACT_URL_CACHE_MAX_ENTRIES = parsePositiveIntegerEnv(
   "EXTRACT_URL_CACHE_MAX_ENTRIES",
   200,
 );
+const MAX_SESSION_CONTEXT_SUMMARY_CHARS = parsePositiveIntegerEnv(
+  "MAX_SESSION_CONTEXT_SUMMARY_CHARS",
+  4_000,
+);
+const MAX_SESSION_LATEST_PROMPT_CHARS = parsePositiveIntegerEnv(
+  "MAX_SESSION_LATEST_PROMPT_CHARS",
+  12_000,
+);
 
 const OPENAI_API_BASE_URL = (CODEX_CONFIG?.baseUrl ? CODEX_CONFIG.baseUrl.replace(/\/+$/, "") : null)
   || process.env.OPENAI_BASE_URL?.trim()
@@ -1425,6 +1433,56 @@ function asNonEmptyString(value) {
   return trimmed ? trimmed : undefined;
 }
 
+function truncateString(value, maxChars) {
+  if (typeof value !== "string") return "";
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  return trimmed.length > maxChars ? trimmed.slice(0, maxChars) : trimmed;
+}
+
+function extractEnhanceSession(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return {
+      threadId: undefined,
+      contextSummary: "",
+      latestEnhancedPrompt: "",
+    };
+  }
+
+  const source = input;
+  return {
+    threadId: asNonEmptyString(source.thread_id) || asNonEmptyString(source.threadId),
+    contextSummary: truncateString(
+      asNonEmptyString(source.context_summary) || asNonEmptyString(source.contextSummary) || "",
+      MAX_SESSION_CONTEXT_SUMMARY_CHARS,
+    ),
+    latestEnhancedPrompt: truncateString(
+      asNonEmptyString(source.latest_enhanced_prompt) || asNonEmptyString(source.latestEnhancedPrompt) || "",
+      MAX_SESSION_LATEST_PROMPT_CHARS,
+    ),
+  };
+}
+
+function buildEnhanceSessionEnvelope({
+  threadId,
+  turnId,
+  status,
+  transport,
+  resumed,
+  contextSummary,
+  latestEnhancedPrompt,
+}) {
+  return {
+    thread_id: threadId || null,
+    turn_id: turnId || null,
+    status,
+    transport,
+    resumed,
+    context_summary: contextSummary || "",
+    latest_enhanced_prompt: latestEnhancedPrompt || "",
+  };
+}
+
 function idFromItem(item) {
   if (!item || typeof item !== "object") return undefined;
   return typeof item.id === "string" ? item.id : undefined;
@@ -2096,10 +2154,29 @@ function buildEnhanceStreamRequest(body) {
     };
   }
 
+  const hasSessionField = Object.prototype.hasOwnProperty.call(requestBody, "session");
+  if (
+    hasSessionField
+    && (
+      !requestBody.session
+      || typeof requestBody.session !== "object"
+      || Array.isArray(requestBody.session)
+    )
+  ) {
+    return {
+      ok: false,
+      status: 400,
+      detail: "session must be an object when provided.",
+    };
+  }
+
+  const requestSession = extractEnhanceSession(requestBody.session);
   const hasThreadIdField = Object.prototype.hasOwnProperty.call(requestBody, "thread_id")
     || Object.prototype.hasOwnProperty.call(requestBody, "threadId");
-  const requestedThreadId = asNonEmptyString(requestBody.thread_id) || asNonEmptyString(requestBody.threadId);
-  if (hasThreadIdField && !requestedThreadId) {
+  const requestedThreadId = requestSession.threadId
+    || asNonEmptyString(requestBody.thread_id)
+    || asNonEmptyString(requestBody.threadId);
+  if (hasThreadIdField && !requestedThreadId && !requestSession.threadId) {
     return {
       ok: false,
       status: 400,
@@ -2114,6 +2191,7 @@ function buildEnhanceStreamRequest(body) {
   const enhancementContext = detectEnhancementContext(prompt, {
     builderMode,
     builderFields,
+    session: requestSession,
   });
   const enhancementInput = buildEnhancementMetaPrompt(prompt, enhancementContext);
 
@@ -2122,6 +2200,7 @@ function buildEnhanceStreamRequest(body) {
     requestData: {
       prompt,
       requestedThreadId,
+      requestSession,
       threadOptions,
       enhancementContext,
       enhancementInput,
@@ -2134,6 +2213,7 @@ async function runEnhanceTurnStream(requestData, options) {
   const {
     prompt,
     requestedThreadId,
+    requestSession,
     threadOptions,
     enhancementContext,
     enhancementInput,
@@ -2150,6 +2230,7 @@ async function runEnhanceTurnStream(requestData, options) {
   const agentMessageByItemId = new Map();
   const agentMessageItemOrder = [];
   let emittedAgentOutput = false;
+  let activeThreadId = requestedThreadId || null;
 
   try {
     const codex = getCodexClient();
@@ -2163,9 +2244,18 @@ async function runEnhanceTurnStream(requestData, options) {
       { requestContext },
     );
 
-    let activeThreadId = requestedThreadId || null;
     let turnFailed = false;
     let turnError = false;
+    const buildSessionPayload = (status, overrides = {}) => buildEnhanceSessionEnvelope({
+      threadId: activeThreadId,
+      turnId,
+      status,
+      transport: requestContext.transport,
+      resumed: Boolean(requestedThreadId),
+      contextSummary: requestSession.contextSummary,
+      latestEnhancedPrompt: requestSession.latestEnhancedPrompt,
+      ...overrides,
+    });
 
     for await (const event of events) {
       if (signal.aborted || isClosed()) break;
@@ -2176,6 +2266,8 @@ async function runEnhanceTurnStream(requestData, options) {
           event: "thread.started",
           type: "thread.started",
           thread_id: activeThreadId,
+          turn_id: turnId,
+          session: buildSessionPayload("starting"),
         });
         continue;
       }
@@ -2187,6 +2279,7 @@ async function runEnhanceTurnStream(requestData, options) {
           turn_id: turnId,
           thread_id: activeThreadId,
           kind: "enhance",
+          session: buildSessionPayload("streaming"),
         });
         continue;
       }
@@ -2203,6 +2296,7 @@ async function runEnhanceTurnStream(requestData, options) {
             id: turnId,
             status: "completed",
           },
+          session: buildSessionPayload("completed"),
         });
         continue;
       }
@@ -2226,6 +2320,7 @@ async function runEnhanceTurnStream(requestData, options) {
           },
           code: failure.code,
           status: failure.status,
+          session: buildSessionPayload("failed"),
         });
         continue;
       }
@@ -2249,6 +2344,7 @@ async function runEnhanceTurnStream(requestData, options) {
           },
           code: failure.code,
           status: failure.status,
+          session: buildSessionPayload("failed"),
         });
         continue;
       }
@@ -2402,6 +2498,7 @@ async function runEnhanceTurnStream(requestData, options) {
         context: enhancementContext,
       });
       const finalEnhancedPrompt = postProcessed.enhanced_prompt?.trim() || rawEnhancerOutput.trim();
+      const finalContextSummary = postProcessed.session_context_summary || requestSession.contextSummary;
 
       if (finalEnhancedPrompt && !emittedAgentOutput) {
         const syntheticItemId = `item_enhanced_${randomUUID().replaceAll("-", "")}`;
@@ -2436,6 +2533,10 @@ async function runEnhanceTurnStream(requestData, options) {
         turn_id: turnId,
         thread_id: activeThreadId,
         payload: postProcessed,
+        session: buildSessionPayload("completed", {
+          contextSummary: finalContextSummary,
+          latestEnhancedPrompt: finalEnhancedPrompt || requestSession.latestEnhancedPrompt,
+        }),
       });
     }
   } catch (error) {
@@ -2449,9 +2550,19 @@ async function runEnhanceTurnStream(requestData, options) {
         event: "turn/error",
         type: "turn/error",
         turn_id: turnId,
+        thread_id: activeThreadId,
         error: failure.message,
         code: failure.code,
         status: failure.status,
+        session: buildEnhanceSessionEnvelope({
+          threadId: activeThreadId,
+          turnId,
+          status: "failed",
+          transport: requestContext.transport,
+          resumed: Boolean(requestedThreadId),
+          contextSummary: requestSession.contextSummary,
+          latestEnhancedPrompt: requestSession.latestEnhancedPrompt,
+        }),
       });
     }
   }

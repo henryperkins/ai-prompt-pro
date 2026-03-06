@@ -105,8 +105,19 @@ vi.mock("@/components/base/primitives/accordion", () => ({
 vi.mock("@/components/base/drawer", () => ({
   Drawer: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   DrawerContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  DrawerDescription: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   DrawerHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   DrawerTitle: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+}));
+
+vi.mock("@/components/base/sheet", () => ({
+  Sheet: ({ children, open }: { children: ReactNode; open?: boolean }) => (
+    open ? <div>{children}</div> : null
+  ),
+  SheetContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  SheetDescription: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  SheetHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  SheetTitle: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
 vi.mock("@/components/base/buttons/button", () => ({
@@ -129,7 +140,7 @@ vi.mock("@/hooks/usePromptBuilder", () => ({
   usePromptBuilder: () => mocks.usePromptBuilder(),
 }));
 
-function buildPromptBuilderState() {
+function buildPromptBuilderState(overrides: Record<string, unknown> = {}) {
   return {
     config: {
       ...defaultConfig,
@@ -158,6 +169,7 @@ function buildPromptBuilderState() {
     updateContextInterview: vi.fn(),
     updateProjectNotes: vi.fn(),
     toggleDelimiters: vi.fn(),
+    ...overrides,
   };
 }
 
@@ -286,6 +298,107 @@ describe("Index web search streaming", () => {
     });
     await waitFor(() => {
       expect(screen.getByTestId("web-sources").textContent).toBe("[Docs](https://example.com/docs)");
+    });
+  });
+
+  it("reuses the active Codex session across enhancement turns", async () => {
+    let callCount = 0;
+
+    mocks.streamEnhance.mockImplementation(
+      ({
+        session,
+        onSession,
+        onDone,
+      }: {
+        session?: {
+          threadId?: string | null;
+          contextSummary?: string;
+          latestEnhancedPrompt?: string;
+        };
+        onSession?: (session: {
+          threadId: string | null;
+          contextSummary: string;
+          latestEnhancedPrompt: string;
+        }) => void;
+        onDone?: () => void;
+      }) => {
+        callCount += 1;
+
+        if (callCount === 1) {
+          expect(session?.threadId ?? null).toBeNull();
+          onSession?.({
+            threadId: "thread_1",
+            contextSummary: "Carry forward the brand and audience context.",
+            latestEnhancedPrompt: "First enhanced prompt.",
+          });
+          onDone?.();
+          return;
+        }
+
+        expect(session?.threadId).toBe("thread_1");
+        expect(session?.contextSummary).toBe("Carry forward the brand and audience context.");
+        expect(session?.latestEnhancedPrompt).toBe("First enhanced prompt.");
+        onDone?.();
+      },
+    );
+
+    await renderIndex();
+
+    fireEvent.click(screen.getByRole("button", { name: "enhance" }));
+    await waitFor(() => {
+      expect(mocks.streamEnhance).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "enhance" }));
+    await waitFor(() => {
+      expect(mocks.streamEnhance).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("requires sign-in before opening the Codex session drawer", async () => {
+    await renderIndex();
+
+    fireEvent.click(screen.getByRole("button", { name: /sign in to use/i }));
+
+    expect(mocks.toast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Sign in required",
+        description: "Sign in to manage Codex session context.",
+        variant: "destructive",
+      }),
+    );
+    expect(screen.queryByTestId("codex-session-context-summary")).not.toBeInTheDocument();
+  });
+
+  it("sends user-edited Codex session context from the drawer", async () => {
+    mocks.usePromptBuilder.mockReturnValue(buildPromptBuilderState({ isSignedIn: true }));
+    mocks.streamEnhance.mockImplementation(
+      ({
+        session,
+      }: {
+        session?: {
+          contextSummary?: string;
+          latestEnhancedPrompt?: string;
+        };
+      }) => {
+        expect(session?.contextSummary).toBe("Bring in the sales brief and the partner launch notes.");
+        expect(session?.latestEnhancedPrompt).toBe("Carry forward this refined partner launch prompt.");
+      },
+    );
+
+    await renderIndex();
+
+    fireEvent.click(screen.getByRole("button", { name: /open drawer/i }));
+    fireEvent.change(screen.getByTestId("codex-session-context-summary"), {
+      target: { value: "Bring in the sales brief and the partner launch notes." },
+    });
+    fireEvent.change(screen.getByTestId("codex-session-latest-prompt"), {
+      target: { value: "Carry forward this refined partner launch prompt." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "enhance" }));
+
+    await waitFor(() => {
+      expect(mocks.streamEnhance).toHaveBeenCalledTimes(1);
     });
   });
 

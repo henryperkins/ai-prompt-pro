@@ -15,35 +15,36 @@ Product screens are `src/pages/*.tsx` route-level files.
 | Textarea | `@/components/base/textarea` | _none_ | 0 |
 | Label | `@/components/base/label` | _none_ | 0 |
 | Select | `@/components/base/select/select` | `src/pages/Library.tsx` | 1 |
-| Card | `@/components/base/card` | `src/pages/CommunityPost.tsx`, `src/pages/ComponentsShowcase.tsx`, `src/pages/History.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx`, `src/pages/Privacy.tsx`, `src/pages/SupportInbox.tsx`, _+1 more_ | 9 |
+| Card | `@/components/base/card` | `src/pages/Community.tsx`, `src/pages/CommunityPost.tsx`, `src/pages/ComponentsShowcase.tsx`, `src/pages/History.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx`, `src/pages/Privacy.tsx`, _+2 more_ | 10 |
 | Badge | `@/components/base/badges/badges` | `src/pages/ComponentsShowcase.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx`, `src/pages/SupportInbox.tsx` | 5 |
 | Dialog | `@/components/base/dialog` | _none_ | 0 |
 | Drawer | `@/components/base/drawer` | `src/pages/Community.tsx`, `src/pages/Index.tsx` | 2 |
+| Table | `@/components/base/table` | _none_ | 0 |
 
 ### All `@/components/base/*` imports currently used in product screens
 
 | Import specifier | Page count | Pages |
 | --- | --- | --- |
-| `@/components/base/card` | 9 | `src/pages/CommunityPost.tsx`, `src/pages/ComponentsShowcase.tsx`, `src/pages/History.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx`, `src/pages/Privacy.tsx`, `src/pages/SupportInbox.tsx`, _+1 more_ |
+| `@/components/base/card` | 10 | `src/pages/Community.tsx`, `src/pages/CommunityPost.tsx`, `src/pages/ComponentsShowcase.tsx`, `src/pages/History.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx`, `src/pages/Privacy.tsx`, _+2 more_ |
 | `@/components/base/buttons/button` | 7 | `src/pages/Community.tsx`, `src/pages/CommunityPost.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx`, `src/pages/Profile.tsx`, `src/pages/SupportInbox.tsx` |
 | `@/components/base/badges/badges` | 5 | `src/pages/ComponentsShowcase.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx`, `src/pages/SupportInbox.tsx` |
-| `@/components/base/primitives/state-card` | 4 | `src/pages/CommunityPost.tsx`, `src/pages/Library.tsx`, `src/pages/NotFound.tsx`, `src/pages/Profile.tsx` |
+| `@/components/base/state-card` | 4 | `src/pages/CommunityPost.tsx`, `src/pages/Library.tsx`, `src/pages/NotFound.tsx`, `src/pages/Profile.tsx` |
 | `@/components/base/input/input` | 3 | `src/pages/Community.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx` |
 | `@/components/base/drawer` | 2 | `src/pages/Community.tsx`, `src/pages/Index.tsx` |
-| `@/components/base/primitives/skeleton` | 2 | `src/pages/CommunityPost.tsx`, `src/pages/Profile.tsx` |
-| `@/components/base/primitives/toast` | 2 | `src/pages/Index.tsx`, `src/pages/Library.tsx` |
+| `@/components/base/skeleton` | 2 | `src/pages/CommunityPost.tsx`, `src/pages/Profile.tsx` |
+| `@/components/base/toast` | 2 | `src/pages/Index.tsx`, `src/pages/Library.tsx` |
+| `@/components/base/accordion` | 1 | `src/pages/Index.tsx` |
+| `@/components/base/avatar` | 1 | `src/pages/Library.tsx` |
 | `@/components/base/badges/badge-groups` | 1 | `src/pages/ComponentsShowcase.tsx` |
 | `@/components/base/button-group/button-group` | 1 | `src/pages/ComponentsShowcase.tsx` |
 | `@/components/base/buttons/button-utility` | 1 | `src/pages/ComponentsShowcase.tsx` |
-| `@/components/base/primitives/accordion` | 1 | `src/pages/Index.tsx` |
-| `@/components/base/primitives/avatar` | 1 | `src/pages/Library.tsx` |
-| `@/components/base/primitives/checkbox` | 1 | `src/pages/Library.tsx` |
-| `@/components/base/primitives/dropdown-menu` | 1 | `src/pages/Library.tsx` |
-| `@/components/base/primitives/scroll-area` | 1 | `src/pages/Community.tsx` |
-| `@/components/base/primitives/switch` | 1 | `src/pages/Index.tsx` |
+| `@/components/base/checkbox` | 1 | `src/pages/Library.tsx` |
+| `@/components/base/dropdown-menu` | 1 | `src/pages/Library.tsx` |
 | `@/components/base/progress-indicators/progress-circles` | 1 | `src/pages/ComponentsShowcase.tsx` |
 | `@/components/base/progress-indicators/progress-indicators` | 1 | `src/pages/ComponentsShowcase.tsx` |
+| `@/components/base/scroll-area` | 1 | `src/pages/Community.tsx` |
 | `@/components/base/select/select` | 1 | `src/pages/Library.tsx` |
+| `@/components/base/switch` | 1 | `src/pages/Index.tsx` |
 
 ## Style entrypoints imported globally
 
@@ -54,8 +55,8 @@ Runtime CSS import chain:
 1. `src/styles/globals.css` `@import` order
 1. `tailwindcss`
 1. `./typography.css`
-1. `./legacy-utility-tokens.css`
 1. `./tokens.css`
+1. `./theme.css`
 1. `./base.css`
 1. `./components.css`
 1. `./community.css`
@@ -71,10 +72,10 @@ Scope: `src/**/*.ts(x)` excluding `src/styles/**` and `src/test/**`.
 | `pf-gilded-frame` | 12 | `src/components/PageShell.tsx`, `src/components/community/ProfileHero.tsx`, `src/pages/Community.tsx`, `src/pages/History.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/LibraryBulkEdit.tsx`, `src/pages/Presets.tsx`, _+4 more_ |
 | `pf-hero-surface` | 11 | `src/components/PageShell.tsx`, `src/components/community/ProfileHero.tsx`, `src/pages/Community.tsx`, `src/pages/History.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/LibraryBulkEdit.tsx`, `src/pages/Presets.tsx`, _+3 more_ |
 | `pf-community-page` | 5 | `src/pages/Community.tsx`, `src/pages/CommunityPost.tsx`, `src/pages/Contact.tsx`, `src/pages/NotFound.tsx`, `src/pages/Profile.tsx` |
+| `pf-panel` | 4 | `src/pages/Community.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx` |
 | `pf-text-display` | 4 | `src/components/PageShell.tsx`, `src/components/community/ProfileHero.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx` |
 | `pf-divider` | 3 | `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFTemplateCard.tsx`, `src/pages/Index.tsx` |
 | `pf-gold` | 3 | `src/components/community/ProfileHero.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx` |
-| `pf-panel` | 3 | `src/pages/Community.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx` |
 | `pf-parchment` | 3 | `src/components/community/ProfileHero.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx` |
 | `pf-arcane-rgb` | 2 | `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFQualityGauge.tsx` |
 | `pf-community-preview` | 2 | `src/components/community/CommunityPostCard.tsx`, `src/components/community/CommunityPostDetail.tsx` |
@@ -107,11 +108,11 @@ Scope: `src/**/*.ts(x)` excluding `src/styles/**` and `src/test/**`.
 | Pair | Canonical | Duplicate or legacy | Status | Canonical import callsites | Duplicate import callsites |
 | --- | --- | --- | --- | --- | --- |
 | Label entrypoint | `@/components/base/label` | `@/components/base/input/label` | frozen | `src/components/BuilderAdjustDetails.tsx`, `src/components/BuilderSourcesAdvanced.tsx`, `src/components/BuilderTabs.tsx`, `src/components/ContextIntegrations.tsx`, `src/components/ContextPanel.tsx`, `src/components/Header.tsx`, `src/components/OutputPanel.tsx`, `src/components/base/input/input-group.tsx`, _+7 more_ | _none_ |
-| Textarea entrypoint | `@/components/base/textarea` | `@/components/base/textarea/textarea` | bridge-only | `src/components/BuilderAdjustDetails.tsx`, `src/components/BuilderHeroInput.tsx`, `src/components/BuilderTabs.tsx`, `src/components/ContextSourceChips.tsx`, `src/components/OutputPanel.tsx`, `src/components/ProjectNotes.tsx`, `src/components/PromptInput.tsx`, `src/components/community/CommunityComments.tsx`, _+2 more_ | `src/components/base/textarea.tsx` |
-| Card facade | `@/components/base/card` | `@/components/base/primitives/card` | bridge-only | `src/components/BuilderAdjustDetails.tsx`, `src/components/BuilderHeroInput.tsx`, `src/components/BuilderSourcesAdvanced.tsx`, `src/components/OutputPanel.tsx`, `src/components/QualityScore.tsx`, `src/components/VersionHistory.tsx`, `src/components/application/activity-feeds/activity-feeds.tsx`, `src/components/application/lists/feed-list.tsx`, _+16 more_ | `src/components/base/card.tsx` |
-| Drawer facade | `@/components/base/drawer` | `@/components/base/primitives/drawer` | bridge-only | `src/components/Header.tsx`, `src/components/community/CommunityPostCard.tsx`, `src/components/community/CommunityPostDetail.tsx`, `src/pages/Community.tsx`, `src/pages/Index.tsx` | `src/components/base/drawer.tsx` |
+| Textarea entrypoint | `@/components/base/textarea` | `@/components/base/textarea/textarea` | bridge-only | `src/components/BuilderAdjustDetails.tsx`, `src/components/BuilderHeroInput.tsx`, `src/components/BuilderTabs.tsx`, `src/components/ContextSourceChips.tsx`, `src/components/OutputPanel.tsx`, `src/components/ProjectNotes.tsx`, `src/components/PromptInput.tsx`, `src/components/base/textarea/textarea.stories.tsx`, _+4 more_ | `src/components/base/textarea.tsx` |
+| Card facade | `@/components/base/card` | `@/components/base/primitives/card` | bridge-only | `src/components/BuilderAdjustDetails.tsx`, `src/components/BuilderHeroInput.tsx`, `src/components/BuilderSourcesAdvanced.tsx`, `src/components/OutputPanel.tsx`, `src/components/QualityScore.tsx`, `src/components/VersionHistory.tsx`, `src/components/application/activity-feeds/activity-feeds.tsx`, `src/components/application/lists/feed-list.tsx`, _+17 more_ | `src/components/base/card.tsx` |
+| Drawer facade | `@/components/base/drawer` | `@/components/base/primitives/drawer` | bridge-only | `src/components/Header.tsx`, `src/components/base/drawer.stories.tsx`, `src/components/community/CommunityPostCard.tsx`, `src/components/community/CommunityPostDetail.tsx`, `src/pages/Community.tsx`, `src/pages/Index.tsx`, `src/test/drawer-api.test.tsx` | `src/components/base/drawer.tsx` |
 | Prompt-builder context hook | `@/hooks/useContextConfig` | `@/hooks/usePromptBuilderContext` | removed | `src/hooks/usePromptBuilder.ts`, `src/test/useContextConfig.test.ts` | _none_ |
-| Class merge helper | `@/lib/utils/cx` | `@/lib/utils` | in-use | `src/components/base/avatar/avatar.tsx`, `src/components/base/avatar/base-components/avatar-online-indicator.tsx`, `src/components/base/avatar/base-components/verified-tick.tsx`, `src/components/base/badges/badges.tsx`, `src/components/base/buttons/button.tsx`, `src/components/base/checkbox/checkbox.tsx`, `src/components/base/input/hint-text.tsx`, `src/components/base/input/input-group.tsx`, _+10 more_ | `src/components/BottomNav.tsx`, `src/components/BuilderTabs.tsx`, `src/components/ContextInterview.tsx`, `src/components/NotificationPanel.tsx`, `src/components/OutputPanel.tsx`, `src/components/PageShell.tsx`, `src/components/application/activity-feeds/activity-feeds.tsx`, `src/components/application/code-snippet/code-snippet.tsx`, _+38 more_ |
+| Class merge helper | `@/lib/utils/cx` | `@/lib/utils` | frozen | `src/components/BottomNav.tsx`, `src/components/BuilderTabs.tsx`, `src/components/ContextInterview.tsx`, `src/components/NotificationPanel.tsx`, `src/components/OutputPanel.tsx`, `src/components/PageShell.tsx`, `src/components/application/activity-feeds/activity-feeds.tsx`, `src/components/application/code-snippet/code-snippet.tsx`, _+57 more_ | _none_ |
 
 ## Baseline screenshot/state capture
 

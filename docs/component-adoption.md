@@ -19,6 +19,7 @@ Use these paths for all new code and migrations:
 | Card | `@/components/base/card` |
 | Dialog | `@/components/base/dialog` |
 | Drawer | `@/components/base/drawer` |
+| Table | `@/components/base/table` |
 
 Canonical `Button` API note:
 
@@ -39,6 +40,7 @@ Do not import these deprecated paths:
 - `@/components/base/primitives/select`
 - `@/components/base/primitives/card`
 - `@/components/base/primitives/drawer`
+- `@/components/base/primitives/table`
 - `@/components/base/input/label`
 - `@/components/base/textarea/textarea`
 - `@/hooks/usePromptBuilderContext`
