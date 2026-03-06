@@ -436,6 +436,13 @@
     isolation: isolate;
     overflow: hidden;
     box-shadow: 0 14px 30px -20px hsl(var(--delight-glow) / 0.62);
+    border: 1px solid hsl(var(--color-border-brand, var(--primary)) / 0.9);
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, hsl(var(--primary)) 92%, hsl(var(--background)) 8%),
+      color-mix(in srgb, hsl(var(--primary)) 82%, hsl(var(--background)) 18%)
+    );
+    color: hsl(var(--primary-foreground));
   }
 
   .signature-enhance-button::after {
@@ -466,6 +473,12 @@
   .signature-enhance-button[data-phase="done"] {
     border-color: hsl(var(--delight-glow) / 0.62);
     box-shadow: 0 14px 34px -22px hsl(var(--delight-glow) / 0.72);
+  }
+
+  .signature-enhance-button:disabled {
+    border-color: color-mix(in srgb, hsl(var(--border)) 72%, hsl(var(--background)));
+    background: color-mix(in srgb, hsl(var(--primary)) 52%, hsl(var(--background)) 48%);
+    color: color-mix(in srgb, hsl(var(--primary-foreground)) 82%, hsl(var(--primary)) 18%);
   }
 
   .signature-enhance-button[data-phase="done"]::after {
