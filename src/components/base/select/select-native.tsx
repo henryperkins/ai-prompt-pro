@@ -15,11 +15,12 @@ export const NativeSelect = ({ label, hint, options, className, selectClassName,
     const id = useId();
     const selectId = `select-native-${id}`;
     const hintId = `select-native-hint-${id}`;
+    const describedBy = [props["aria-describedby"], hint ? hintId : undefined].filter(Boolean).join(" ") || undefined;
 
     return (
         <div className={cx("w-full in-data-input-wrapper:w-max", className)}>
             {label && (
-                <Label htmlFor={selectId} id={selectId} className="mb-1.5">
+                <Label htmlFor={selectId} className="mb-1.5">
                     {label}
                 </Label>
             )}
@@ -28,8 +29,7 @@ export const NativeSelect = ({ label, hint, options, className, selectClassName,
                 <select
                     {...props}
                     id={selectId}
-                    aria-describedby={hintId}
-                    aria-labelledby={selectId}
+                    aria-describedby={describedBy}
                     className={cx(
                         "appearance-none rounded-lg bg-background px-3.5 py-2.5 text-md font-medium text-foreground shadow-xs ring-1 ring-border outline-hidden transition duration-100 ease-linear ring-inset placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:bg-disabled_subtle disabled:text-disabled",
                         // Styles when the select is within an `InputGroup`
@@ -46,7 +46,7 @@ export const NativeSelect = ({ label, hint, options, className, selectClassName,
                     )}
                 >
                     {options.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
+                        <option key={opt.value} value={opt.value} disabled={opt.disabled}>
                             {opt.label}
                         </option>
                     ))}
