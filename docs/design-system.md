@@ -14,7 +14,7 @@ Primary source files:
 
 - `src/index.css`
 - `src/styles/globals.css`
-- `src/styles/untitled-compat.css` (transitional legacy token aliases)
+- `src/styles/untitled-compat.css` (transitional legacy token aliases, not currently imported at runtime)
 - `src/styles/typography.css`
 - `tailwind.config.ts`
 - `src/components/base/*` (canonical Untitled UI React components)
@@ -24,6 +24,7 @@ Primary source files:
 Legacy note:
 
 - `src/styles/theme.css` is imported via `src/styles/globals.css` as part of the runtime style stack.
+- `src/styles/untitled-compat.css` is intentionally not part of the runtime style stack.
 
 Phase 3 status (completed February 22, 2026):
 
@@ -32,6 +33,8 @@ Phase 3 status (completed February 22, 2026):
 - CI enforces this in strict mode via:
   - `scripts/check-token-runtime-drift.mjs`
   - `scripts/check-no-primitive-ds-imports.mjs`
+  - `scripts/check-no-legacy-ds-props.mjs`
+  - `scripts/check-no-literal-colors.mjs`
 
 ---
 

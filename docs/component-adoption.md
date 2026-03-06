@@ -15,6 +15,11 @@ Use these paths for all new code and migrations:
 | Badge | `@/components/base/badges/badges` |
 | Select | `@/components/base/select/select` |
 
+Canonical `Button` API note:
+
+- `size="icon"` is a valid canonical size.
+- Legacy compatibility props remain prohibited: `variant`, `asChild`, and `size="default"`.
+
 Do not import these deprecated paths:
 
 - `@/components/base/primitives/button`

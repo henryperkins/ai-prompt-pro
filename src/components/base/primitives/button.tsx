@@ -18,7 +18,7 @@ const buttonVariants = cva(
         brandSecondary:
           "border border-secondary bg-primary text-secondary shadow-xs hover:brightness-95",
         brandDestructive:
-          "border border-destructive/30 text-destructive-foreground bg-[linear-gradient(135deg,hsl(var(--destructive)),hsl(0_70%_42%))] shadow-[0_12px_24px_-18px_hsl(var(--destructive)/0.8)] hover:brightness-105",
+          "border border-destructive/30 text-destructive-foreground bg-[linear-gradient(135deg,hsl(var(--destructive)),hsl(var(--destructive-strong)))] shadow-[0_12px_24px_-18px_hsl(var(--destructive)/0.8)] hover:brightness-105",
         outline: "border border-secondary bg-primary text-secondary shadow-xs hover:brightness-95",
         secondary: "bg-secondary text-secondary-foreground shadow-xs hover:brightness-95",
         ghost: "text-muted-foreground hover:bg-muted hover:text-foreground",

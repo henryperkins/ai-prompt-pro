@@ -21,10 +21,10 @@ interface ProfileHeroProps {
 }
 
 const RARITY_RING: Record<PromptForgeRarity, string> = {
-  common: "ring-[rgba(var(--pf-slate-rgb)/0.7)]",
-  rare: "ring-[rgba(var(--pf-arcane-rgb)/0.65)]",
-  epic: "ring-[rgba(var(--pf-ember-rgb)/0.6)]",
-  legendary: "ring-[rgba(var(--pf-gold-rgb)/0.7)]",
+  common: "ring-pf-slate/70",
+  rare: "ring-pf-arcane/65",
+  epic: "ring-pf-ember/60",
+  legendary: "ring-pf-gold/70",
 };
 
 const RARITY_GLOW: Record<PromptForgeRarity, string> = {
@@ -43,9 +43,9 @@ const RARITY_LABEL: Record<PromptForgeRarity, string> = {
 
 const RARITY_BADGE_COLOR: Record<PromptForgeRarity, string> = {
   common: "",
-  rare: "border-[rgba(var(--pf-arcane-rgb)/0.5)] bg-[rgba(var(--pf-arcane-rgb)/0.12)] text-[var(--pf-arcane-teal)]",
-  epic: "border-[rgba(var(--pf-ember-rgb)/0.5)] bg-[rgba(var(--pf-ember-rgb)/0.12)] text-[var(--pf-ember-orange)]",
-  legendary: "border-[rgba(var(--pf-gold-rgb)/0.5)] bg-[rgba(var(--pf-gold-rgb)/0.12)] text-[var(--pf-forge-gold)]",
+  rare: "border-pf-arcane/50 bg-pf-arcane/12 text-pf-arcane",
+  epic: "border-pf-ember/50 bg-pf-ember/12 text-pf-ember",
+  legendary: "border-pf-gold/50 bg-pf-gold/12 text-pf-gold",
 };
 
 export function getBestRarityFromPosts(posts: CommunityPost[]): PromptForgeRarity {
@@ -112,8 +112,9 @@ export function ProfileHero({
           {/* Identity */}
           <div className="flex min-w-0 flex-1 flex-col items-center gap-2 sm:items-start">
             <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-              <h1 className="pf-text-display text-xl font-bold text-[rgba(var(--pf-parchment-rgb)/0.97)] sm:text-2xl"
-                style={{ textShadow: "0 2px 12px rgba(0,0,0,0.5)" }}
+              <h1
+                className="pf-text-display text-xl font-bold text-pf-parchment/95 sm:text-2xl"
+                style={{ textShadow: "0 2px 12px rgba(var(--pf-coal-rgb) / 0.5)" }}
               >
                 {profile.displayName}
               </h1>
@@ -131,21 +132,21 @@ export function ProfileHero({
                 </Badge>
               )}
             </div>
-            <p className="type-meta text-[rgba(var(--pf-parchment-rgb)/0.82)]">{memberSinceLabel}</p>
+            <p className="type-meta text-pf-parchment/80">{memberSinceLabel}</p>
 
             {/* Follow stats as side-by-side stat cells */}
             <div className="grid w-full grid-cols-2 gap-2 sm:max-w-[280px]">
               <div className="rounded-lg border border-border/60 bg-background/20 px-3 py-2 text-center">
-                <span className="type-numeric block text-base text-[rgba(var(--pf-parchment-rgb)/0.97)]">
+                <span className="type-numeric block text-base text-pf-parchment/95">
                   {followStats.followersCount}
                 </span>{" "}
-                <span className="type-meta text-[rgba(var(--pf-parchment-rgb)/0.82)]">Followers</span>
+                <span className="type-meta text-pf-parchment/80">Followers</span>
               </div>
               <div className="rounded-lg border border-border/60 bg-background/20 px-3 py-2 text-center">
-                <span className="type-numeric block text-base text-[rgba(var(--pf-parchment-rgb)/0.97)]">
+                <span className="type-numeric block text-base text-pf-parchment/95">
                   {followStats.followingCount}
                 </span>{" "}
-                <span className="type-meta text-[rgba(var(--pf-parchment-rgb)/0.82)]">Following</span>
+                <span className="type-meta text-pf-parchment/80">Following</span>
               </div>
             </div>
 

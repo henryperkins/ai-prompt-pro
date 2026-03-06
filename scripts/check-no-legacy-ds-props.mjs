@@ -3,11 +3,18 @@ import path from "node:path";
 import { collectLegacyDesignSystemPropUsages } from "./check-no-legacy-ds-props-lib.mjs";
 
 const projectRoot = process.cwd();
-const scanRoots = [
-    path.join(projectRoot, "src", "pages"),
-    path.join(projectRoot, "src", "components", "community"),
-];
+const srcRoot = path.join(projectRoot, "src");
 const sourceExtensions = new Set([".ts", ".tsx"]);
+
+function shouldSkipFile(relativePath) {
+    if (relativePath.startsWith("src/test/")) {
+        return true;
+    }
+    if (relativePath.includes(".stories.")) {
+        return true;
+    }
+    return false;
+}
 
 async function* walk(dir) {
     const entries = await readdir(dir, { withFileTypes: true });
@@ -25,24 +32,25 @@ async function* walk(dir) {
 
 const violations = [];
 
-for (const scanRoot of scanRoots) {
-    for await (const filePath of walk(scanRoot)) {
-        const source = await readFile(filePath, "utf8");
-        const relativePath = path.relative(projectRoot, filePath);
-        const refs = collectLegacyDesignSystemPropUsages(source, relativePath);
-        for (const ref of refs) {
-            const valuePart = typeof ref.value === "string" ? `=\"${ref.value}\"` : "";
-            violations.push(`${ref.filePath}:${ref.line} -> <${ref.component} ${ref.prop}${valuePart}>`);
-        }
+for await (const filePath of walk(srcRoot)) {
+    const source = await readFile(filePath, "utf8");
+    const relativePath = path.relative(projectRoot, filePath);
+    if (shouldSkipFile(relativePath)) {
+        continue;
+    }
+    const refs = collectLegacyDesignSystemPropUsages(source, relativePath);
+    for (const ref of refs) {
+        const valuePart = typeof ref.value === "string" ? `=\"${ref.value}\"` : "";
+        violations.push(`${ref.filePath}:${ref.line} -> <${ref.component} ${ref.prop}${valuePart}>`);
     }
 }
 
 if (violations.length > 0) {
-    console.error("Found legacy design-system compatibility props in route/community files:");
+    console.error("Found legacy design-system compatibility props:");
     for (const violation of violations) {
         console.error(`- ${violation}`);
     }
     process.exit(1);
 }
 
-console.log("No legacy design-system compatibility props found in route/community files.");
+console.log("No legacy design-system compatibility props found.");

@@ -28,6 +28,24 @@ describe("check-no-legacy-ds-props AST scanner", () => {
         expect(violations.map((item) => item.value)).toEqual([null, "outline", "default"]);
     });
 
+    it("allows icon button sizing in canonical Button API", async () => {
+        const { collectLegacyDesignSystemPropUsages } = await loadChecker();
+        const source = `
+      import { Button } from "@/components/base/buttons/button";
+
+      export function View() {
+        return (
+          <Button size="icon" aria-label="Open menu">
+            Menu
+          </Button>
+        );
+      }
+    `;
+
+        const violations = collectLegacyDesignSystemPropUsages(source, "fixture.tsx");
+        expect(violations).toHaveLength(0);
+    });
+
     it("detects legacy Badge variant prop", async () => {
         const { collectLegacyDesignSystemPropUsages } = await loadChecker();
         const source = `

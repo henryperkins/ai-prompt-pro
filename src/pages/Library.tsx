@@ -662,11 +662,11 @@ const Library = () => {
       />
 
       {featuredPrompts.length > 0 && (
-        <Card className="pf-panel mb-4 border-[rgba(214,166,64,.32)] p-3 sm:p-4">
+        <Card className="pf-panel mb-4 border-pf-gold/30 p-3 sm:p-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="pf-text-display text-xl text-[rgba(230,225,213,.95)]">Featured Artifacts</p>
-              <p className="text-sm text-[rgba(230,225,213,.72)]">
+              <p className="pf-text-display text-xl text-pf-parchment/95">Featured Artifacts</p>
+              <p className="text-sm text-pf-parchment/70">
                 Latest prompt builds mapped to Fantasy Forge rarity frames.
               </p>
             </div>

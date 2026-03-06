@@ -1567,10 +1567,10 @@ const Index = () => {
         className="pf-gilded-frame pf-hero-surface mb-4 px-4 py-5 text-center sm:mb-8 sm:px-6 sm:py-7"
         data-testid="builder-hero"
       >
-        <h1 className="pf-text-display mb-1 text-2xl font-bold tracking-tight text-[rgba(230,225,213,.95)] sm:mb-2 sm:text-3xl md:text-4xl">
+        <h1 className="pf-text-display mb-1 text-2xl font-bold tracking-tight text-pf-parchment/95 sm:mb-2 sm:text-3xl md:text-4xl">
           {heroCopy.headline}
         </h1>
-        <p className="mx-auto max-w-2xl text-sm text-[rgba(230,225,213,.82)] sm:text-base">
+        <p className="mx-auto max-w-2xl text-sm text-pf-parchment/80 sm:text-base">
           {heroCopy.subhead}
         </p>
         <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
@@ -1578,7 +1578,7 @@ const Index = () => {
             <Badge
               key={pillar.title}
               type="modern"
-              className="border border-[rgba(214,166,64,.35)] bg-black/35 text-xs text-[rgba(230,225,213,.9)]"
+              className="border border-pf-gold/35 bg-pf-coal/35 text-xs text-pf-parchment/90"
             >
               {pillar.title}
             </Badge>
@@ -1878,11 +1878,11 @@ const Index = () => {
         {!isMobile && (
           <div className="space-y-3 lg:sticky lg:top-20 lg:self-start">
             {isBuilderRedesignPhase1 && (
-              <Card className="pf-panel mb-3 border-[rgba(214,166,64,.32)] bg-card/80 p-3">
+              <Card className="pf-panel mb-3 border-pf-gold/30 bg-card/80 p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs font-medium text-[rgba(230,225,213,.92)]">Quality signal</p>
-                    <p className="mt-0.5 text-sm text-[rgba(230,225,213,.72)]">
+                    <p className="text-xs font-medium text-pf-parchment/90">Quality signal</p>
+                    <p className="mt-0.5 text-sm text-pf-parchment/70">
                       {score.tips?.[0] || "Add context and constraints to improve quality."}
                     </p>
                   </div>
@@ -1890,12 +1890,12 @@ const Index = () => {
                     <Badge type="pill-color" color={score.total >= 75 ? "brand" : "gray"} className="text-xs">
                       {score.total}/100
                     </Badge>
-                    <span className="text-[11px] text-[rgba(230,225,213,.72)]">
+                    <span className="text-[11px] text-pf-parchment/70">
                       {score.total >= 90 ? "Legendary" : score.total >= 70 ? "Epic" : score.total >= 40 ? "Rare" : "Common"}
                     </span>
                   </div>
                 </div>
-                <div className="mt-3 rounded-2xl border border-white/10 bg-black/20 p-2">
+                <div className="mt-3 rounded-2xl border border-pf-parchment/10 bg-pf-coal/20 p-2">
                   <PFQualityGauge value={score.total} size={92} showLabel={false} />
                 </div>
               </Card>

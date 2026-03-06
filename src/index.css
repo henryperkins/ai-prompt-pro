@@ -27,6 +27,7 @@ All colors MUST be HSL.
 
     --destructive: 25 100% 55%;
     --destructive-foreground: 213 29% 6%;
+    --destructive-strong: 0 70% 42%;
 
     --border: 210 21% 23%;
     --input: 210 21% 23%;
@@ -120,6 +121,8 @@ All colors MUST be HSL.
     --delight-glow: 25 100% 55%;
     --delight-surface: 212 25% 15%;
     --motion-snap: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --textarea-resize-handle-bg:
+      url("data:image/svg+xml,%3Csvg%20width='18'%20height='18'%20viewBox='0%200%2018%2018'%20fill='none'%20xmlns='http://www.w3.org/2000/svg'%3E%3Cpath%20d='M10%202L2%2010'%20stroke='%23D5D7DA'%20stroke-linecap='round'/%3E%3Cpath%20d='M11%207L7%2011'%20stroke='%23D5D7DA'%20stroke-linecap='round'/%3E%3C/svg%3E");
   }
 
   .dark {
@@ -146,6 +149,7 @@ All colors MUST be HSL.
 
     --destructive: 25 100% 52%;
     --destructive-foreground: 213 29% 6%;
+    --destructive-strong: 0 68% 40%;
 
     --border: 210 21% 20%;
     --input: 210 21% 20%;
@@ -182,6 +186,8 @@ All colors MUST be HSL.
     --delight-cool: 174 83% 48%;
     --delight-glow: 25 100% 52%;
     --delight-surface: 212 28% 12%;
+    --textarea-resize-handle-bg:
+      url("data:image/svg+xml,%3Csvg%20width='18'%20height='18'%20viewBox='0%200%2018%2018'%20fill='none'%20xmlns='http://www.w3.org/2000/svg'%3E%3Cpath%20d='M10%202L2%2010'%20stroke='%23373A41'%20stroke-linecap='round'/%3E%3Cpath%20d='M11%207L7%2011'%20stroke='%23373A41'%20stroke-linecap='round'/%3E%3C/svg%3E");
   }
 }
 

@@ -85,7 +85,7 @@ function collectLegacyAttributesForComponent({ attributes, component, sourceFile
 
             if (propName === "size") {
                 const value = readStringAttributeValue(property.initializer);
-                if (value === "default" || value === "icon") {
+                if (value === "default") {
                     violations.push({
                         filePath,
                         line: line + 1,
