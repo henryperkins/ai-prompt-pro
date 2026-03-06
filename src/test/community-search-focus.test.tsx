@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 
@@ -54,11 +54,13 @@ vi.mock("@/components/PageShell", () => ({
 
 async function renderCommunity() {
   const { default: Community } = await import("@/pages/Community");
-  render(
-    <MemoryRouter>
-      <Community />
-    </MemoryRouter>,
-  );
+  await act(async () => {
+    render(
+      <MemoryRouter>
+        <Community />
+      </MemoryRouter>,
+    );
+  });
 }
 
 describe("Community search focus visibility", () => {
@@ -71,7 +73,7 @@ describe("Community search focus visibility", () => {
   });
 
   afterEach(() => {
-    document.documentElement.classList.remove("dark");
+    document.documentElement.removeAttribute("data-theme");
   });
 
   it("keeps visible focus styles and keyboard focusability on the search control", async () => {
@@ -85,22 +87,31 @@ describe("Community search focus visibility", () => {
     expect(searchShell.className).toContain("focus-within:ring-offset-2");
     expect(input.className).not.toContain("focus-visible:ring-0");
 
-    input.focus();
+    act(() => {
+      input.focus();
+    });
     expect(input).toHaveFocus();
 
     await waitFor(() => {
       expect(mocks.loadFeed).toHaveBeenCalled();
     });
+    await waitFor(() => {
+      expect(mocks.loadProfilesByIds).toHaveBeenCalled();
+      expect(mocks.loadPostsByIds).toHaveBeenCalled();
+      expect(mocks.loadMyVotes).toHaveBeenCalled();
+    });
   }, 15_000);
 
   it("preserves the focus shell styling in dark mode", async () => {
-    document.documentElement.classList.add("dark");
+    document.documentElement.dataset.theme = "midnight";
     await renderCommunity();
 
     const input = await screen.findByRole("textbox", { name: "Search community posts" });
     const searchShell = screen.getByTestId("community-search-shell");
 
-    input.focus();
+    act(() => {
+      input.focus();
+    });
     expect(input).toHaveFocus();
     expect(searchShell.className).toContain("focus-within:ring-ring");
     expect(searchShell.className).toContain("focus-within:ring-offset-2");

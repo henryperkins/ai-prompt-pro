@@ -37,24 +37,36 @@ function renderPanel(overrides?: Partial<Parameters<typeof OutputPanel>[0]>) {
   return { onSavePrompt, onSaveAndSharePrompt };
 }
 
-function openMenu(buttonName: "Save" | "More") {
+async function clickElement(element: Element) {
+  await act(async () => {
+    fireEvent.click(element);
+  });
+}
+
+async function changeInput(element: Element, value: string) {
+  await act(async () => {
+    fireEvent.change(element, { target: { value } });
+  });
+}
+
+async function openMenu(buttonName: "Save" | "More") {
   const trigger = screen.getByRole("button", { name: buttonName });
-  trigger.focus();
-  fireEvent.keyDown(trigger, { key: "Enter" });
+  await act(async () => {
+    trigger.focus();
+    fireEvent.keyDown(trigger, { key: "Enter" });
+  });
 }
 
 describe("OutputPanel phase 2 save flow", () => {
   it("uses a single save dialog for private save", async () => {
     const { onSavePrompt, onSaveAndSharePrompt } = renderPanel();
 
-    openMenu("Save");
-    fireEvent.click(await screen.findByRole("menuitem", { name: "Save Prompt" }));
+    await openMenu("Save");
+    await clickElement(await screen.findByRole("menuitem", { name: "Save Prompt" }));
 
-    fireEvent.change(screen.getByLabelText("Prompt title"), {
-      target: { value: "Launch checklist" },
-    });
+    await changeInput(screen.getByLabelText("Prompt title"), "Launch checklist");
 
-    fireEvent.click(screen.getByRole("button", { name: "Save Prompt" }));
+    await clickElement(screen.getByRole("button", { name: "Save Prompt" }));
 
     expect(onSavePrompt).toHaveBeenCalledTimes(1);
     expect(onSavePrompt).toHaveBeenCalledWith(
@@ -69,24 +81,20 @@ describe("OutputPanel phase 2 save flow", () => {
   it("routes to save-and-share when share toggle is enabled", async () => {
     const { onSavePrompt, onSaveAndSharePrompt } = renderPanel();
 
-    openMenu("Save");
-    fireEvent.click(await screen.findByRole("menuitem", { name: "Save Prompt" }));
+    await openMenu("Save");
+    await clickElement(await screen.findByRole("menuitem", { name: "Save Prompt" }));
 
-    fireEvent.change(screen.getByLabelText("Prompt title"), {
-      target: { value: "Launch checklist" },
-    });
+    await changeInput(screen.getByLabelText("Prompt title"), "Launch checklist");
 
-    fireEvent.click(screen.getByRole("switch", { name: "Share to community" }));
+    await clickElement(screen.getByRole("switch", { name: "Share to community" }));
 
-    fireEvent.change(screen.getByLabelText("Use case"), {
-      target: { value: "Run launch prep every sprint" },
-    });
+    await changeInput(screen.getByLabelText("Use case"), "Run launch prep every sprint");
 
-    fireEvent.click(
+    await clickElement(
       screen.getByLabelText("I confirm this prompt contains no secrets or private data."),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Save & Share" }));
+    await clickElement(screen.getByRole("button", { name: "Save & Share" }));
 
     expect(onSaveAndSharePrompt).toHaveBeenCalledTimes(1);
     expect(onSaveAndSharePrompt).toHaveBeenCalledWith(
@@ -101,15 +109,15 @@ describe("OutputPanel phase 2 save flow", () => {
   it("uses base font size for save-and-share controls to prevent mobile focus zoom", async () => {
     renderPanel();
 
-    openMenu("Save");
-    fireEvent.click(await screen.findByRole("menuitem", { name: "Save Prompt" }));
+    await openMenu("Save");
+    await clickElement(await screen.findByRole("menuitem", { name: "Save Prompt" }));
 
     expect(screen.getByLabelText("Prompt title")).toHaveClass("text-base");
     expect(screen.getByLabelText("Description")).toHaveClass("text-base");
     expect(screen.getByLabelText("Tags")).toHaveClass("text-base");
     expect(screen.getByRole("button", { name: /category/i })).toHaveClass("text-base");
 
-    fireEvent.click(screen.getByRole("switch", { name: "Share to community" }));
+    await clickElement(screen.getByRole("switch", { name: "Share to community" }));
 
     expect(screen.getByLabelText("Use case")).toHaveClass("text-base");
     expect(screen.getByLabelText("Target model")).toHaveClass("text-base");
@@ -193,7 +201,7 @@ describe("OutputPanel phase 2 save flow", () => {
 
     expect(screen.getByRole("button", { name: "Show changes" })).toBeInTheDocument();
 
-    openMenu("More");
+    await openMenu("More");
 
     expect(screen.queryByText("Compare changes")).not.toBeInTheDocument();
     expect(await screen.findByRole("menuitem", { name: "Developer tools" })).toBeInTheDocument();
@@ -204,22 +212,18 @@ describe("OutputPanel phase 2 save flow", () => {
       phase2Enabled: false,
     });
 
-    openMenu("Save");
-    fireEvent.click(await screen.findByRole("menuitem", { name: "Save & Share Prompt" }));
+    await openMenu("Save");
+    await clickElement(await screen.findByRole("menuitem", { name: "Save & Share Prompt" }));
 
     expect(screen.queryByRole("switch", { name: "Share to community" })).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("Prompt title"), {
-      target: { value: "Legacy share flow" },
-    });
-    fireEvent.change(screen.getByLabelText("Use case"), {
-      target: { value: "Share in old rollout path" },
-    });
-    fireEvent.click(
+    await changeInput(screen.getByLabelText("Prompt title"), "Legacy share flow");
+    await changeInput(screen.getByLabelText("Use case"), "Share in old rollout path");
+    await clickElement(
       screen.getByLabelText("I confirm this prompt contains no secrets or private data."),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Save & Share" }));
+    await clickElement(screen.getByRole("button", { name: "Save & Share" }));
 
     expect(onSaveAndSharePrompt).toHaveBeenCalledTimes(1);
     expect(onSavePrompt).not.toHaveBeenCalled();

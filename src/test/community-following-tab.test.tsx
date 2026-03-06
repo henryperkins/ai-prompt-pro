@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 
@@ -70,11 +70,13 @@ vi.mock("@/lib/community-moderation", () => ({
 
 async function renderFollowingCommunity() {
   const { default: Community } = await import("@/pages/Community");
-  render(
-    <MemoryRouter initialEntries={["/community?tab=following"]}>
-      <Community />
-    </MemoryRouter>,
-  );
+  await act(async () => {
+    render(
+      <MemoryRouter initialEntries={["/community?tab=following"]}>
+        <Community />
+      </MemoryRouter>,
+    );
+  });
 }
 
 describe("Community following tab", () => {
@@ -95,6 +97,14 @@ describe("Community following tab", () => {
 
     await waitFor(() => {
       expect(mocks.loadPersonalFeed).toHaveBeenCalledWith({ limit: 20, page: 0 });
+    });
+    await waitFor(() => {
+      expect(mocks.loadBlockedUserIds).toHaveBeenCalled();
+      expect(mocks.loadFollowingUserIds).toHaveBeenCalled();
+      expect(mocks.loadProfilesByIds).toHaveBeenCalled();
+      expect(mocks.loadPostsByIds).toHaveBeenCalled();
+      expect(mocks.loadMyVotes).toHaveBeenCalled();
+      expect(mocks.loadMyRatings).toHaveBeenCalled();
     });
 
     expect(mocks.loadFeed).not.toHaveBeenCalled();

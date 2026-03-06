@@ -1,11 +1,33 @@
-import { render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { act, render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
+
+vi.mock("@/hooks/auth-provider", () => ({
+  AuthProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
+
+vi.mock("@/hooks/useAuth", () => ({
+  useAuth: () => ({
+    user: null,
+    session: null,
+    loading: false,
+    signUp: vi.fn(),
+    signIn: vi.fn(),
+    signInWithOAuth: vi.fn(),
+    signOut: vi.fn(),
+    updateDisplayName: vi.fn(),
+    deleteAccount: vi.fn(),
+  }),
+}));
 
 async function renderAppAt(pathname: string) {
   window.history.pushState({}, "", pathname);
   const { default: App } = await import("@/App");
-  render(<App />);
+  await act(async () => {
+    render(<App />);
+    await Promise.resolve();
+  });
 }
 
 describe("accessibility audits", () => {

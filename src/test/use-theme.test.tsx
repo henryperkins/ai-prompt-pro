@@ -21,7 +21,6 @@ describe("ThemeProvider", () => {
     localStorage.clear();
     resetPreferencesCache();
     document.documentElement.removeAttribute("data-theme");
-    document.documentElement.classList.remove("dark", "dark-mode");
   });
 
   it("uses the standard theme by default and toggles into midnight mode", async () => {
@@ -36,8 +35,6 @@ describe("ThemeProvider", () => {
     });
     expect(screen.getByTestId("theme-value")).toHaveTextContent("default");
     expect(screen.getByTestId("midnight-flag")).toHaveTextContent("false");
-    expect(document.documentElement).not.toHaveClass("dark");
-    expect(document.documentElement).not.toHaveClass("dark-mode");
 
     fireEvent.click(screen.getByRole("button", { name: "Toggle theme" }));
 
@@ -46,8 +43,6 @@ describe("ThemeProvider", () => {
     });
     expect(screen.getByTestId("theme-value")).toHaveTextContent("midnight");
     expect(screen.getByTestId("midnight-flag")).toHaveTextContent("true");
-    expect(document.documentElement).toHaveClass("dark");
-    expect(document.documentElement).toHaveClass("dark-mode");
     expect(JSON.parse(localStorage.getItem("promptforge-user-prefs") ?? "{}").theme).toBe("midnight");
   });
 
@@ -65,6 +60,5 @@ describe("ThemeProvider", () => {
     });
     expect(screen.getByTestId("theme-value")).toHaveTextContent("midnight");
     expect(screen.getByTestId("midnight-flag")).toHaveTextContent("true");
-    expect(document.documentElement).toHaveClass("dark");
   });
 });

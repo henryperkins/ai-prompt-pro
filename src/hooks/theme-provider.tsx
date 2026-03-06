@@ -12,10 +12,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<ThemePreference>(() => getUserPreferences().theme);
 
   useEffect(() => {
-    const isMidnight = theme === "midnight";
     document.documentElement.dataset.theme = theme;
-    document.documentElement.classList.toggle("dark", isMidnight);
-    document.documentElement.classList.toggle("dark-mode", isMidnight);
     setUserPreference("theme", theme);
   }, [theme]);
 
