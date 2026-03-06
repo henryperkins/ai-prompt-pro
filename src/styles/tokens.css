@@ -1,6 +1,7 @@
 /*
  * Canonical semantic design tokens for PromptForge.
  * Define semantic color, type, radius, and shadow values here; brand skins layer on top elsewhere.
+ * PromptForge is dark-first: :root is the standard theme and :root[data-theme="midnight"] is the deeper variant.
  * All color tokens must remain HSL-backed.
  */
 
@@ -118,7 +119,10 @@
       url("data:image/svg+xml,%3Csvg%20width='18'%20height='18'%20viewBox='0%200%2018%2018'%20fill='none'%20xmlns='http://www.w3.org/2000/svg'%3E%3Cpath%20d='M10%202L2%2010'%20stroke='%23D5D7DA'%20stroke-linecap='round'/%3E%3Cpath%20d='M11%207L7%2011'%20stroke='%23D5D7DA'%20stroke-linecap='round'/%3E%3C/svg%3E");
   }
 
-  .dark {
+  /* Midnight is the deeper alternate theme; legacy .dark/.dark-mode aliases remain temporarily supported. */
+  :root[data-theme="midnight"],
+  :root.dark,
+  :root.dark-mode {
     --background: 213 32% 4%;
     --foreground: 42 25% 90%;
 

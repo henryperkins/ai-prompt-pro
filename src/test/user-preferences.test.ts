@@ -14,7 +14,7 @@ describe("getUserPreferences", () => {
   it("returns defaults when nothing is stored", () => {
     const prefs = getUserPreferences();
     expect(prefs).toEqual({
-      theme: "light",
+      theme: "default",
       webSearchEnabled: false,
       showAdvancedControls: false,
       recentlyUsedPresetIds: [],
@@ -26,7 +26,7 @@ describe("getUserPreferences", () => {
     localStorage.setItem(
       "promptforge-user-prefs",
       JSON.stringify({
-        theme: "dark",
+        theme: "midnight",
         webSearchEnabled: true,
         showAdvancedControls: true,
         recentlyUsedPresetIds: ["blog-post", "email-campaign"],
@@ -35,7 +35,7 @@ describe("getUserPreferences", () => {
     );
     resetPreferencesCache();
     const prefs = getUserPreferences();
-    expect(prefs.theme).toBe("dark");
+    expect(prefs.theme).toBe("midnight");
     expect(prefs.webSearchEnabled).toBe(true);
     expect(prefs.showAdvancedControls).toBe(true);
     expect(prefs.recentlyUsedPresetIds).toEqual(["blog-post", "email-campaign"]);
@@ -45,41 +45,50 @@ describe("getUserPreferences", () => {
   it("falls back to defaults for corrupt JSON", () => {
     localStorage.setItem("promptforge-user-prefs", "NOT_JSON");
     resetPreferencesCache();
-    expect(getUserPreferences().theme).toBe("light");
+    expect(getUserPreferences().theme).toBe("default");
   });
 
   it("fills missing keys with defaults", () => {
-    localStorage.setItem("promptforge-user-prefs", JSON.stringify({ theme: "dark" }));
+    localStorage.setItem("promptforge-user-prefs", JSON.stringify({ theme: "midnight" }));
     resetPreferencesCache();
     const prefs = getUserPreferences();
-    expect(prefs.theme).toBe("dark");
+    expect(prefs.theme).toBe("midnight");
     expect(prefs.webSearchEnabled).toBe(false);
     expect(prefs.showAdvancedControls).toBe(false);
     expect(prefs.recentlyUsedPresetIds).toEqual([]);
     expect(prefs.favoritePresetIds).toEqual([]);
   });
 
-  it("normalizes invalid theme value to light", () => {
+  it("maps the legacy light/dark values onto the current theme model", () => {
+    localStorage.setItem("promptforge-user-prefs", JSON.stringify({ theme: "light" }));
+    expect(getUserPreferences().theme).toBe("default");
+
+    resetPreferencesCache();
+    localStorage.setItem("promptforge-user-prefs", JSON.stringify({ theme: "dark" }));
+    expect(getUserPreferences().theme).toBe("midnight");
+  });
+
+  it("normalizes invalid theme value to default", () => {
     localStorage.setItem("promptforge-user-prefs", JSON.stringify({ theme: "blue" }));
     resetPreferencesCache();
-    expect(getUserPreferences().theme).toBe("light");
+    expect(getUserPreferences().theme).toBe("default");
   });
 });
 
 describe("setUserPreference", () => {
   it("persists a single key and updates cache", () => {
-    setUserPreference("theme", "dark");
-    expect(getUserPreferences().theme).toBe("dark");
+    setUserPreference("theme", "midnight");
+    expect(getUserPreferences().theme).toBe("midnight");
 
     const stored = JSON.parse(localStorage.getItem("promptforge-user-prefs")!);
-    expect(stored.theme).toBe("dark");
+    expect(stored.theme).toBe("midnight");
   });
 
   it("preserves other keys when updating one", () => {
     setUserPreference("webSearchEnabled", true);
-    setUserPreference("theme", "dark");
+    setUserPreference("theme", "midnight");
     expect(getUserPreferences().webSearchEnabled).toBe(true);
-    expect(getUserPreferences().theme).toBe("dark");
+    expect(getUserPreferences().theme).toBe("midnight");
   });
 
   it("persists preset personalization arrays", () => {

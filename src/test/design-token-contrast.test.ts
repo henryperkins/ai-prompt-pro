@@ -77,8 +77,8 @@ function contrastRatio(first: [number, number, number], second: [number, number,
 
 describe("design token contrast", () => {
   const css = readFileSync("src/styles/tokens.css", "utf8");
-  const lightThemeVars = extractVariables(extractBlock(css, ":root"));
-  const darkThemeVars = extractVariables(extractBlock(css, ".dark"));
+  const standardThemeVars = extractVariables(extractBlock(css, ":root"));
+  const midnightThemeVars = extractVariables(extractBlock(css, ":root[data-theme=\"midnight\"]"));
   const requiredPairs: Array<[string, string]> = [
     ["foreground", "background"],
     ["card-foreground", "card"],
@@ -91,9 +91,9 @@ describe("design token contrast", () => {
   ];
 
   it.each([
-    ["light", lightThemeVars],
-    ["dark", darkThemeVars],
-  ])("keeps required foreground/background pairs WCAG AA compliant in %s theme", (_themeName, vars) => {
+    ["standard", standardThemeVars],
+    ["midnight", midnightThemeVars],
+  ])("keeps required foreground/background pairs WCAG AA compliant in the %s theme", (_themeName, vars) => {
     for (const [foregroundVar, backgroundVar] of requiredPairs) {
       const foreground = parseHslTriplet(vars[foregroundVar] ?? "");
       const background = parseHslTriplet(vars[backgroundVar] ?? "");

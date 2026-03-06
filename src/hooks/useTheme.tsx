@@ -1,26 +1,32 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import { getUserPreferences, setUserPreference } from "@/lib/user-preferences";
+import { getUserPreferences, setUserPreference, type ThemePreference } from "@/lib/user-preferences";
 
 interface ThemeContextValue {
-  isDark: boolean;
+  theme: ThemePreference;
+  isMidnight: boolean;
   toggleTheme: () => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [isDark, setIsDark] = useState(() => getUserPreferences().theme === "dark");
+  const [theme, setTheme] = useState<ThemePreference>(() => getUserPreferences().theme);
 
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", isDark);
-    setUserPreference("theme", isDark ? "dark" : "light");
-  }, [isDark]);
+    const isMidnight = theme === "midnight";
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.classList.toggle("dark", isMidnight);
+    document.documentElement.classList.toggle("dark-mode", isMidnight);
+    setUserPreference("theme", theme);
+  }, [theme]);
 
   const toggleTheme = useCallback(() => {
-    setIsDark((previous) => !previous);
+    setTheme((previous) => (previous === "midnight" ? "default" : "midnight"));
   }, []);
 
-  return <ThemeContext.Provider value={{ isDark, toggleTheme }}>{children}</ThemeContext.Provider>;
+  const isMidnight = theme === "midnight";
+
+  return <ThemeContext.Provider value={{ theme, isMidnight, toggleTheme }}>{children}</ThemeContext.Provider>;
 }
 
 export function useTheme() {

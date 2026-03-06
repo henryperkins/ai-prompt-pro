@@ -1,8 +1,10 @@
 const STORAGE_KEY = "promptforge-user-prefs";
 const MAX_PRESET_ID_PREFERENCES = 24;
 
+export type ThemePreference = "default" | "midnight";
+
 export interface UserPreferences {
-  theme: "light" | "dark";
+  theme: ThemePreference;
   webSearchEnabled: boolean;
   showAdvancedControls: boolean;
   recentlyUsedPresetIds: string[];
@@ -10,12 +12,17 @@ export interface UserPreferences {
 }
 
 const defaults: UserPreferences = {
-  theme: "light",
+  theme: "default",
   webSearchEnabled: false,
   showAdvancedControls: false,
   recentlyUsedPresetIds: [],
   favoritePresetIds: [],
 };
+
+function normalizeThemePreference(value: unknown): ThemePreference {
+  if (value === "midnight" || value === "dark") return "midnight";
+  return "default";
+}
 
 function normalizePresetIdPreference(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -32,7 +39,7 @@ function load(): UserPreferences {
     if (!raw) return { ...defaults };
     const parsed = JSON.parse(raw) as Partial<UserPreferences>;
     return {
-      theme: parsed.theme === "dark" ? "dark" : "light",
+      theme: normalizeThemePreference(parsed.theme),
       webSearchEnabled: typeof parsed.webSearchEnabled === "boolean" ? parsed.webSearchEnabled : defaults.webSearchEnabled,
       showAdvancedControls: typeof parsed.showAdvancedControls === "boolean" ? parsed.showAdvancedControls : defaults.showAdvancedControls,
       recentlyUsedPresetIds: normalizePresetIdPreference(parsed.recentlyUsedPresetIds),

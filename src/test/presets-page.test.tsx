@@ -7,7 +7,7 @@ const fixtures = vi.hoisted(() => ({
   trackBuilderEvent: vi.fn(),
   setUserPreference: vi.fn(),
   userPreferences: {
-    theme: "light" as const,
+    theme: "default" as const,
     webSearchEnabled: false,
     showAdvancedControls: false,
     recentlyUsedPresetIds: [] as string[],

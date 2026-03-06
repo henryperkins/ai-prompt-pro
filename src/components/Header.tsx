@@ -37,25 +37,26 @@ import { APP_ROUTE_NAV_ITEMS, isRouteActive } from "@/lib/navigation";
 import { getGravatarUrl } from "@/lib/gravatar";
 import { brandCopy } from "@/lib/brand-copy";
 import { DISPLAY_NAME_MAX_LENGTH, validateDisplayName } from "@/lib/profile";
+import type { ThemePreference } from "@/lib/user-preferences";
 import {
   Bell,
   List as Menu,
   Moon,
+  Sparkle,
   SignIn as LogIn,
   SignOut as LogOut,
   SpinnerGap as Loader2,
-  Sun,
   Trash as Trash2,
   User,
   Users,
 } from "@phosphor-icons/react";
 
 interface HeaderProps {
-  isDark: boolean;
+  theme: ThemePreference;
   onToggleTheme: () => void;
 }
 
-export function Header({ isDark, onToggleTheme }: HeaderProps) {
+export function Header({ theme, onToggleTheme }: HeaderProps) {
   const { user, signOut, updateDisplayName, deleteAccount } = useAuth();
   const { toast } = useToast();
   const {
@@ -81,6 +82,9 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
   const [deletingAccount, setDeletingAccount] = useState(false);
   const mobileNotificationsEnabled = communityFeatureFlags.communityMobileEnhancements;
   const canDeleteAccount = deleteAccountConfirmText.trim().toUpperCase() === "DELETE";
+  const isMidnight = theme === "midnight";
+  const themeToggleLabel = isMidnight ? "Switch to standard theme" : "Switch to midnight theme";
+  const ThemeToggleIcon = isMidnight ? Sparkle : Moon;
 
   const unreadCountLabel = unreadCount > 99 ? "99+" : String(unreadCount);
 
@@ -242,8 +246,8 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
                     onToggleTheme();
                   }}
                 >
-                  {isDark ? <Sun className="w-4 h-4 mr-2" /> : <Moon className="w-4 h-4 mr-2" />}
-                  {isDark ? "Switch to light mode" : "Switch to dark mode"}
+                  <ThemeToggleIcon className="mr-2 h-4 w-4" />
+                  {themeToggleLabel}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={(event) => {
@@ -425,10 +429,10 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
               variant="tertiary"
               size="icon"
               onClick={onToggleTheme}
-              aria-label="Toggle theme"
+              aria-label={themeToggleLabel}
               className="interactive-chip hidden sm:inline-flex w-11 h-11 sm:w-9 sm:h-9"
             >
-              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              <ThemeToggleIcon className="h-4 w-4" />
             </Button>
 
             {user ? (

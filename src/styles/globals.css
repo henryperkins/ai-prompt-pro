@@ -17,7 +17,8 @@
 @plugin "tailwindcss-react-aria-components";
 @plugin "tailwindcss-animate";
 
-@custom-variant dark (&:where(.dark, .dark *, .dark-mode, .dark-mode *));
+/* Keep dark: utilities mapped to the midnight theme while legacy classes remain supported. */
+@custom-variant dark (&:where(:root[data-theme="midnight"], :root[data-theme="midnight"] *, .dark, .dark *, .dark-mode, .dark-mode *));
 @custom-variant label (& [data-label]);
 @custom-variant focus-input-within (&:has(input:focus));
 

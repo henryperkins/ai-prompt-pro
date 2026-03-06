@@ -6,14 +6,14 @@ Last updated: 2026-03-06
 
 This project uses a **token-first design system** built on:
 
-- CSS custom properties and semantic `@theme inline` mappings in `src/styles/tokens.css` (`:root` and `.dark` remain the source of truth)
+- CSS custom properties and semantic `@theme inline` mappings in `src/styles/tokens.css` (`:root` is the standard theme; `:root[data-theme="midnight"]` is the deeper variant; legacy `.dark` / `.dark-mode` aliases remain temporarily supported)
 - Tailwind theme extensions mapped to those tokens
 - Radix + shadcn-style UI primitives standardized for typography, spacing, and interaction
 
 Primary source files:
 
 - `src/styles/globals.css` (runtime entrypoint imported by the app)
-- `src/styles/tokens.css` (canonical semantic tokens, type scale, shadows, dark-mode overrides, and semantic utility mappings)
+- `src/styles/tokens.css` (canonical semantic tokens, type scale, shadows, standard + midnight theme variants, and semantic utility mappings)
 - `src/styles/theme.css` (runtime theme bridge that loads the temporary Untitled compatibility layer)
 - `src/styles/untitled-compat.css` (transitional palette + `utility-*` alias bridge loaded via `theme.css`)
 - `src/styles/legacy-utility-tokens.css` (deprecated alias import for older references; no longer the runtime source of truth)
@@ -41,6 +41,7 @@ Phase 3 status (completed February 22, 2026):
 - The canonical class-merging helper is `cx` from `@/lib/utils/cx`; `cn` in `@/lib/utils` is a deprecated compatibility alias.
 - The canonical initials helper is `getInitials` from `@/lib/utils/get-initials`.
 - Imports or test mocks targeting `@/components/base/primitives/button|input|badge|select` are prohibited.
+- Theme model: PromptForge is dark-first. The default runtime theme is the standard brand palette, and the alternate mode is the deeper `midnight` variant.
 - CI enforces this in strict mode via:
   - `scripts/check-token-runtime-drift.mjs`
   - `scripts/check-no-primitive-ds-imports.mjs`
@@ -87,7 +88,7 @@ All semantic colors are tokenized in HSL.
 - Delight/brand motion accents:
   - `--delight-warm`, `--delight-cool`, `--delight-glow`, `--delight-surface`
 
-Dark mode overrides the same semantic tokens under `.dark`.
+PromptForge ships a standard dark-first theme in `:root` and a deeper `midnight` variant under `:root[data-theme="midnight"]`. Legacy `.dark` / `.dark-mode` selectors remain as compatibility aliases while the theme model is being clarified in code and docs.
 
 ---
 

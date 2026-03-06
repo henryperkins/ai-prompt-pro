@@ -192,8 +192,12 @@
       z-index: 0;
     }
 
+    :root[data-theme="midnight"] .delight-hero::before,
+    :root[data-theme="midnight"] .delight-hero-static::before,
     .dark .delight-hero::before,
-    .dark .delight-hero-static::before {
+    .dark .delight-hero-static::before,
+    .dark-mode .delight-hero::before,
+    .dark-mode .delight-hero-static::before {
       background-image: url("/brand/pf-gradient-hero-dark.png");
     }
 
@@ -211,8 +215,12 @@
       z-index: 0;
     }
 
+    :root[data-theme="midnight"] .delight-hero::after,
+    :root[data-theme="midnight"] .delight-hero-static::after,
     .dark .delight-hero::after,
-    .dark .delight-hero-static::after {
+    .dark .delight-hero-static::after,
+    .dark-mode .delight-hero::after,
+    .dark-mode .delight-hero-static::after {
       opacity: 0.24;
     }
 

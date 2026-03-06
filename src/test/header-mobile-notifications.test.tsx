@@ -102,7 +102,7 @@ vi.mock("@/lib/gravatar", () => ({
   getGravatarUrl: vi.fn().mockResolvedValue(null),
 }));
 
-async function renderHeader(flagEnabled = true) {
+async function renderHeader(flagEnabled = true, theme: "default" | "midnight" = "default") {
   vi.resetModules();
   vi.stubEnv("VITE_COMMUNITY_MOBILE_ENHANCEMENTS", flagEnabled ? "true" : "false");
 
@@ -111,7 +111,7 @@ async function renderHeader(flagEnabled = true) {
   await act(async () => {
     render(
       <MemoryRouter future={memoryRouterFuture}>
-        <Header isDark={false} onToggleTheme={vi.fn()} />
+        <Header theme={theme} onToggleTheme={vi.fn()} />
       </MemoryRouter>,
     );
   });
@@ -153,5 +153,14 @@ describe("Header mobile notifications", () => {
     const menuItem = screen.getByTestId("mobile-notifications-menu-item");
     expect(menuItem).toBeInTheDocument();
     expect(screen.getByTestId("notification-panel")).toBeInTheDocument();
+  });
+
+  it.each([
+    ["default", "Switch to midnight theme"],
+    ["midnight", "Switch to standard theme"],
+  ] as const)("uses truthful toggle copy for the %s theme", async (theme, expectedLabel) => {
+    await renderHeader(false, theme);
+
+    expect(screen.getAllByRole("button", { name: expectedLabel }).length).toBeGreaterThan(0);
   });
 });

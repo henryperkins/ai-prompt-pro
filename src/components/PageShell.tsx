@@ -12,14 +12,14 @@ interface PageShellProps {
 }
 
 export function PageShell({ children, mainClassName }: PageShellProps) {
-  const { isDark, toggleTheme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <div
       className="pf-shell-backdrop flex min-h-screen flex-col bg-background pb-[calc(4.375rem+env(safe-area-inset-bottom))] sm:pb-0"
       data-testid="page-shell"
     >
-      <Header isDark={isDark} onToggleTheme={toggleTheme} />
+      <Header theme={theme} onToggleTheme={toggleTheme} />
       <main
         className={cx("pf-shell-main container mx-auto flex-1 px-4 py-4 sm:py-6", mainClassName)}
         data-testid="page-shell-main"
