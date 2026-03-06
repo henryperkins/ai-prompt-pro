@@ -301,6 +301,31 @@ describe("Index web search streaming", () => {
     });
   });
 
+  it("extracts enhanced_prompt from streamed JSON without metadata or sources", async () => {
+    mocks.streamEnhance.mockImplementation(
+      ({
+        onDelta,
+        onDone,
+      }: {
+        onDelta: (text: string) => void;
+        onDone?: () => void;
+      }) => {
+        onDelta(
+          "{\"enhanced_prompt\":\"Canonical prompt output\"}",
+        );
+        onDone?.();
+      },
+    );
+
+    await renderIndex();
+
+    fireEvent.click(screen.getByRole("button", { name: "enhance" }));
+
+    await waitFor(() => {
+      expect(mocks.setEnhancedPrompt).toHaveBeenLastCalledWith("Canonical prompt output");
+    });
+  });
+
   it("reuses the active Codex session across enhancement turns", async () => {
     let callCount = 0;
 

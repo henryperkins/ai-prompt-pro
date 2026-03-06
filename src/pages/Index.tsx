@@ -990,7 +990,7 @@ const Index = () => {
           return;
         }
 
-        setEnhancedPrompt(nextOutput);
+        setEnhancedPrompt(promptText);
         if (clearSourcesWhenMissing) {
           setWebSearchSources([]);
         }
