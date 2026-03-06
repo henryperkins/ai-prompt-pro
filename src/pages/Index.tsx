@@ -131,6 +131,7 @@ const DEBUG_ENHANCE_EVENTS_MAX = 200;
 const DEBUG_ENHANCE_PAYLOAD_PREVIEW_CHARS = 1200;
 const ENHANCED_PROMPT_SOURCES_SEPARATOR = /\n---\n\s*Sources:\s*\n/i;
 const ENHANCED_PROMPT_JSON_ARTIFACT_PATTERN = /"enhanced_prompt"\s*:/i;
+const ENHANCED_PROMPT_CODE_FENCE_PATTERN = /```(?:json)?\s*([\s\S]*?)```/i;
 const REASONING_ITEM_TYPES = new Set([
   "reasoning",
   "reasoning_summary",
@@ -307,17 +308,53 @@ function extractReasoningSummaryChunk(
   return { text: directText, isDelta, itemId: meta.itemId };
 }
 
+function stripJsonCodeFence(text: string): string {
+  const fenced = text.match(ENHANCED_PROMPT_CODE_FENCE_PATTERN);
+  if (!fenced) return text;
+  return fenced[1]?.trim() ?? "";
+}
+
+function extractJsonObjectCandidate(text: string): string | null {
+  const normalized = stripJsonCodeFence(text).trim();
+  if (!normalized) return null;
+  if (normalized.startsWith("{") && normalized.endsWith("}")) return normalized;
+  const start = normalized.indexOf("{");
+  const end = normalized.lastIndexOf("}");
+  if (start === -1 || end <= start) return null;
+  return normalized.slice(start, end + 1);
+}
+
+function extractEnhancedPromptFromJsonArtifact(text: string): string | null {
+  const normalized = text.trim();
+  if (!normalized) return null;
+  if (!ENHANCED_PROMPT_JSON_ARTIFACT_PATTERN.test(normalized)) return null;
+
+  const candidate = extractJsonObjectCandidate(normalized);
+  if (!candidate) return null;
+
+  try {
+    const parsed = JSON.parse(candidate) as { enhanced_prompt?: unknown };
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    if (typeof parsed.enhanced_prompt !== "string") return null;
+    const enhancedPrompt = parsed.enhanced_prompt.trim();
+    return enhancedPrompt || null;
+  } catch {
+    return null;
+  }
+}
+
 function splitEnhancedPromptAndSources(input: string): { promptText: string; sources: string[] } {
-  const separatorIdx = input.search(ENHANCED_PROMPT_SOURCES_SEPARATOR);
+  const normalizedInput = extractEnhancedPromptFromJsonArtifact(input) ?? input;
+  const separatorIdx = normalizedInput.search(ENHANCED_PROMPT_SOURCES_SEPARATOR);
   if (separatorIdx === -1) {
     return {
-      promptText: input,
+      promptText: normalizedInput,
       sources: [],
     };
   }
 
-  const promptText = input.slice(0, separatorIdx).trimEnd();
-  const sourcesBlock = input.slice(separatorIdx);
+  const promptText = normalizedInput.slice(0, separatorIdx).trimEnd();
+  const sourcesBlock = normalizedInput.slice(separatorIdx);
   const sources = sourcesBlock
     .split("\n")
     .map((line) => line.trim())
@@ -337,10 +374,7 @@ function shouldPreferMetadataPrompt(currentOutput: string, metadataPrompt: strin
   if (!normalizedCurrent) return true;
   if (normalizedCurrent === normalizedMetadata) return false;
 
-  return (
-    normalizedCurrent.startsWith("{")
-    && ENHANCED_PROMPT_JSON_ARTIFACT_PATTERN.test(normalizedCurrent)
-  );
+  return Boolean(extractEnhancedPromptFromJsonArtifact(normalizedCurrent));
 }
 
 function extractEnhancedPromptFromMetadataEvent(payload: unknown): string | null {

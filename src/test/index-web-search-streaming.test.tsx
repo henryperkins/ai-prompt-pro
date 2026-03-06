@@ -261,6 +261,34 @@ describe("Index web search streaming", () => {
     });
   });
 
+  it("extracts enhanced_prompt from fenced streamed JSON without metadata", async () => {
+    mocks.streamEnhance.mockImplementation(
+      ({
+        onDelta,
+        onDone,
+      }: {
+        onDelta: (text: string) => void;
+        onDone?: () => void;
+      }) => {
+        onDelta(
+          "```json\n{\"enhanced_prompt\":\"Canonical prompt output\\n---\\nSources:\\n- [Docs](https://example.com/docs)\"}\n```",
+        );
+        onDone?.();
+      },
+    );
+
+    await renderIndex();
+
+    fireEvent.click(screen.getByRole("button", { name: "enhance" }));
+
+    await waitFor(() => {
+      expect(mocks.setEnhancedPrompt).toHaveBeenLastCalledWith("Canonical prompt output");
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("web-sources").textContent).toBe("[Docs](https://example.com/docs)");
+    });
+  });
+
   it("keeps streamed prompt text when metadata arrives after clean deltas", async () => {
     mocks.streamEnhance.mockImplementation(
       ({
