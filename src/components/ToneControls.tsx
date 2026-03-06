@@ -16,7 +16,7 @@ export function ToneControls({ tone, complexity, onUpdate }: ToneControlsProps) 
           {toneOptions.map((t) => (
             <Button
               key={t}
-              color={tone === t ? "primary" : "secondary"}
+              variant={tone === t ? "primary" : "secondary"}
               size="sm"
               onClick={() => onUpdate({ tone: t })}
               className="h-11 px-2 text-sm sm:h-9 sm:px-3 sm:text-sm"
@@ -32,7 +32,7 @@ export function ToneControls({ tone, complexity, onUpdate }: ToneControlsProps) 
           {complexityOptions.map((c) => (
             <Button
               key={c}
-              color={complexity === c ? "primary" : "secondary"}
+              variant={complexity === c ? "primary" : "secondary"}
               size="sm"
               onClick={() => onUpdate({ complexity: c })}
               className="h-11 px-2 text-sm sm:h-9 sm:px-3 sm:text-sm"

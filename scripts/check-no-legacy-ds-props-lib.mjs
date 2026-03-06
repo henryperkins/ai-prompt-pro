@@ -72,7 +72,7 @@ function collectLegacyAttributesForComponent({ attributes, component, sourceFile
         const { line } = sourceFile.getLineAndCharacterOfPosition(property.name.getStart(sourceFile));
 
         if (component === "Button") {
-            if (propName === "variant" || propName === "asChild") {
+            if (propName === "asChild" || propName === "color" || propName === "isDisabled" || propName === "isLoading") {
                 violations.push({
                     filePath,
                     line: line + 1,
@@ -97,6 +97,15 @@ function collectLegacyAttributesForComponent({ attributes, component, sourceFile
             }
         }
 
+        if (component === "Badge" && (propName === "type" || propName === "color")) {
+            violations.push({
+                filePath,
+                line: line + 1,
+                component,
+                prop: propName,
+                value: readStringAttributeValue(property.initializer),
+            });
+        }
     }
 
     return violations;

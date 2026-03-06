@@ -39,6 +39,7 @@ const legacyButtonVariants = cva(
   },
 );
 
+/** @deprecated Use Button's `variant` and `tone` props instead. */
 export const buttonVariants = legacyButtonVariants;
 
 export const styles = sortCx({
@@ -115,21 +116,83 @@ export const styles = sortCx({
   },
 });
 
-type ButtonSize = keyof typeof styles.sizes | "default";
+export type ButtonVariant = "primary" | "secondary" | "tertiary" | "link";
+export type ButtonTone = "default" | "brand" | "destructive";
+type ButtonSize = keyof typeof styles.sizes;
+type LegacyButtonSize = ButtonSize | "default";
+type ButtonColor = keyof typeof styles.colors;
 type ButtonIconProps = { className?: string; "data-icon"?: string };
+
+const legacyButtonColorMap: Record<ButtonColor, { variant: ButtonVariant; tone: ButtonTone }> = {
+  primary: { variant: "primary", tone: "default" },
+  secondary: { variant: "secondary", tone: "default" },
+  tertiary: { variant: "tertiary", tone: "default" },
+  "link-gray": { variant: "link", tone: "default" },
+  "link-color": { variant: "link", tone: "brand" },
+  "primary-destructive": { variant: "primary", tone: "destructive" },
+  "secondary-destructive": { variant: "secondary", tone: "destructive" },
+  "tertiary-destructive": { variant: "tertiary", tone: "destructive" },
+  "link-destructive": { variant: "link", tone: "destructive" },
+};
+
+const buttonVariantToneMap: Record<ButtonVariant, Record<ButtonTone, ButtonColor>> = {
+  primary: {
+    default: "primary",
+    brand: "primary",
+    destructive: "primary-destructive",
+  },
+  secondary: {
+    default: "secondary",
+    brand: "secondary",
+    destructive: "secondary-destructive",
+  },
+  tertiary: {
+    default: "tertiary",
+    brand: "tertiary",
+    destructive: "tertiary-destructive",
+  },
+  link: {
+    default: "link-gray",
+    brand: "link-color",
+    destructive: "link-destructive",
+  },
+};
+
+function resolveButtonColor({
+  variant,
+  tone,
+  legacyColor,
+}: {
+  variant?: ButtonVariant;
+  tone?: ButtonTone;
+  legacyColor?: ButtonColor;
+}): ButtonColor {
+  const legacyStyle = !variant && !tone && legacyColor ? legacyButtonColorMap[legacyColor] : undefined;
+  const resolvedVariant = variant ?? legacyStyle?.variant ?? "primary";
+  const resolvedTone = tone ?? legacyStyle?.tone ?? "default";
+  return buttonVariantToneMap[resolvedVariant][resolvedTone];
+}
 
 /**
  * Common props shared between button and anchor variants
  */
 export interface CommonProps {
-  /** Disables the button and shows a disabled state */
+  /** Canonical visual emphasis for the button. */
+  variant?: ButtonVariant;
+  /** Canonical semantic tone for the button. */
+  tone?: ButtonTone;
+  /** The size variant of the button. */
+  size?: LegacyButtonSize;
+  /** Disables the button and shows a disabled state. */
+  disabled?: boolean;
+  /** Shows a loading spinner and disables the button. */
+  loading?: boolean;
+  /** @deprecated Use `variant` and `tone` instead. */
+  color?: ButtonColor;
+  /** @deprecated Use `disabled` instead. */
   isDisabled?: boolean;
-  /** Shows a loading spinner and disables the button */
+  /** @deprecated Use `loading` instead. */
   isLoading?: boolean;
-  /** The size variant of the button */
-  size?: ButtonSize;
-  /** The color variant of the button */
-  color?: keyof typeof styles.colors;
   /** Icon component or element to show before the text */
   iconLeading?: IconSlot<ButtonIconProps>;
   /** Icon component or element to show after the text */
@@ -143,7 +206,7 @@ export interface CommonProps {
 /**
  * Props for the button variant (non-link)
  */
-export interface ButtonProps extends CommonProps, DetailedHTMLProps<Omit<ButtonHTMLAttributes<HTMLButtonElement>, "color" | "slot">, HTMLButtonElement> {
+export interface ButtonProps extends CommonProps, DetailedHTMLProps<Omit<ButtonHTMLAttributes<HTMLButtonElement>, "color" | "disabled" | "slot">, HTMLButtonElement> {
   /** Slot name for react-aria component */
   slot?: AriaButtonProps["slot"];
 }
@@ -160,25 +223,31 @@ interface LinkProps extends CommonProps, DetailedHTMLProps<Omit<AnchorHTMLAttrib
 export type Props = ButtonProps | LinkProps;
 
 export const Button = ({
+  variant,
+  tone,
   size = "sm",
-  color = "primary",
+  color,
   children,
   className,
   noTextPadding,
   iconLeading: IconLeading,
   iconTrailing: IconTrailing,
-  isDisabled: disabled,
-  isLoading: loading,
+  disabled,
+  isDisabled,
+  loading,
+  isLoading,
   showTextWhileLoading,
   ...otherProps
 }: Props) => {
+  const resolvedColor = resolveButtonColor({ variant, tone, legacyColor: color });
   const resolvedSize = size === "default" ? "sm" : size;
+  const loadingState = Boolean(loading ?? isLoading);
   const href = "href" in otherProps ? otherProps.href : undefined;
   const Component = href ? AriaLink : AriaButton;
 
   const isIcon = (IconLeading || IconTrailing) && !children;
-  const isLinkType = ["link-gray", "link-color", "link-destructive"].includes(color);
-  const disabledState = Boolean(disabled || ("disabled" in otherProps && otherProps.disabled));
+  const isLinkType = ["link-gray", "link-color", "link-destructive"].includes(resolvedColor);
+  const disabledState = Boolean(disabled ?? isDisabled);
 
   noTextPadding = isLinkType || noTextPadding;
 
@@ -193,30 +262,31 @@ export const Button = ({
     props = {
       ...otherProps,
       type: (otherProps as ButtonHTMLAttributes<HTMLButtonElement>).type || "button",
-      isPending: loading,
+      isPending: loadingState,
     };
   }
 
   return (
     <Component
-      data-loading={loading ? true : undefined}
+      data-loading={loadingState ? true : undefined}
       data-icon-only={isIcon ? true : undefined}
       {...props}
       isDisabled={disabledState}
       className={cx(
         styles.common.root,
         styles.sizes[resolvedSize].root,
-        styles.colors[color].root,
+        styles.colors[resolvedColor].root,
         isLinkType && styles.sizes[resolvedSize].linkRoot,
-        (loading || (href && (disabledState || loading))) && "pointer-events-none",
-        loading && (showTextWhileLoading ? "[&>*:not([data-icon=loading]):not([data-text])]:hidden" : "[&>*:not([data-icon=loading])]:invisible"),
+        (loadingState || (href && (disabledState || loadingState))) && "pointer-events-none",
+        loadingState &&
+          (showTextWhileLoading ? "[&>*:not([data-icon=loading]):not([data-text])]:hidden" : "[&>*:not([data-icon=loading])]:invisible"),
         className,
       )}
     >
       {/* Leading icon */}
       {renderIconSlot(IconLeading, { "data-icon": "leading", className: styles.common.icon })}
 
-      {loading && (
+      {loadingState && (
         <svg
           fill="none"
           data-icon="loading"

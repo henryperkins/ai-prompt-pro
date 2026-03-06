@@ -4,7 +4,7 @@ import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
 import { Label } from "@/components/base/label";
 import { Select } from "@/components/base/select/select";
-import { Switch } from "@/components/base/primitives/switch";
+import { Switch } from "@/components/base/switch";
 import type { DatabaseConnection, RagParameters } from "@/lib/context-types";
 import { Database, Plus, X } from "@phosphor-icons/react";
 
@@ -84,7 +84,7 @@ export function ContextIntegrations({
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <Label className="text-sm font-medium text-foreground sm:text-base">Database connections</Label>
-          <Badge type="modern" className="text-xs">
+          <Badge variant="modern" className="text-xs">
             {databaseConnections.length}
           </Badge>
         </div>
@@ -155,7 +155,7 @@ export function ContextIntegrations({
         {databaseConnections.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {databaseConnections.map((db) => (
-              <Badge key={db.id} type="modern" className="gap-1.5 text-xs">
+              <Badge key={db.id} variant="modern" className="gap-1.5 text-xs">
                 <Database className="w-3 h-3" />
                 {db.label}
                 <button

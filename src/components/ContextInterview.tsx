@@ -4,7 +4,7 @@ import { Input } from "@/components/base/input/input";
 import { Badge, badgeVariants } from "@/components/base/badges/badges";
 import { interviewQuestions } from "@/lib/context-types";
 import type { InterviewAnswer } from "@/lib/context-types";
-import { cn } from "@/lib/utils";
+import { cx } from "@/lib/utils/cx";
 import { CaretRight as ChevronRight, ChatText as MessageSquareText, Check } from "@phosphor-icons/react";
 
 interface ContextInterviewProps {
@@ -44,7 +44,7 @@ export function ContextInterview({ answers, onUpdate }: ContextInterviewProps) {
     return (
       <div className="space-y-2">
         <Button
-          color="secondary"
+          variant="secondary"
           size="sm"
           className="interactive-chip w-full justify-between gap-2 text-sm"
           onClick={() => setExpanded(true)}
@@ -54,7 +54,7 @@ export function ContextInterview({ answers, onUpdate }: ContextInterviewProps) {
             Ask me for missing context
           </span>
           {answeredCount > 0 && (
-            <Badge type="modern" className="text-xs">
+            <Badge variant="modern" className="text-xs">
               {answeredCount}/{interviewQuestions.length}
             </Badge>
           )}
@@ -73,7 +73,7 @@ export function ContextInterview({ answers, onUpdate }: ContextInterviewProps) {
           </span>
         </div>
         <Button
-          color="tertiary"
+          variant="tertiary"
           size="sm"
           className="interactive-chip h-11 text-sm sm:h-9"
           onClick={() => setExpanded(false)}
@@ -92,7 +92,7 @@ export function ContextInterview({ answers, onUpdate }: ContextInterviewProps) {
               <button
                 type="button"
                 key={opt}
-                className={cn(
+                className={cx(
                   badgeVariants({ variant: selected ? "default" : "outline" }),
                   "interactive-chip cursor-pointer select-none text-xs"
                 )}
@@ -116,7 +116,7 @@ export function ContextInterview({ answers, onUpdate }: ContextInterviewProps) {
 
       <div className="flex justify-between pt-1">
         <Button
-          color="tertiary"
+          variant="tertiary"
           size="sm"
           className="interactive-chip text-sm"
           disabled={currentStep === 0}
@@ -126,7 +126,7 @@ export function ContextInterview({ answers, onUpdate }: ContextInterviewProps) {
         </Button>
         {currentStep < interviewQuestions.length - 1 ? (
           <Button
-            color="secondary"
+            variant="secondary"
             size="sm"
             className="interactive-chip gap-1 text-sm"
             onClick={() => setCurrentStep((s) => s + 1)}

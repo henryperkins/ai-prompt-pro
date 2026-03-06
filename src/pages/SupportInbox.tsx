@@ -156,7 +156,7 @@ const SupportInbox = () => {
             </p>
             <Button
               type="button"
-              color="secondary"
+              variant="secondary"
               size="sm"
               onClick={() => void loadMessages()}
               disabled={loadingMessages}
@@ -186,7 +186,7 @@ const SupportInbox = () => {
                     Submitted {formatCreatedAt(message.createdAt)}
                   </p>
                 </div>
-                <Badge type="modern" className={statusBadgeClassName(message.status)}>
+                <Badge variant="modern" className={statusBadgeClassName(message.status)}>
                   {message.status}
                 </Badge>
               </div>
@@ -201,7 +201,7 @@ const SupportInbox = () => {
                     key={status}
                     type="button"
                     size="sm"
-                    color={message.status === status ? "secondary" : "tertiary"}
+                    variant={message.status === status ? "secondary" : "tertiary"}
                     disabled={statusBusyId === message.id || message.status === status}
                     onClick={() => void handleStatusChange(message.id, status)}
                   >

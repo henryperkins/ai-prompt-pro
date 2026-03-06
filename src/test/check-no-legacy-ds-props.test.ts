@@ -14,8 +14,10 @@ describe("check-no-legacy-ds-props AST scanner", () => {
         return (
           <Button
             asChild
-            variant="outline"
+            color="secondary"
             size={"default"}
+            isDisabled
+            isLoading
           >
             Open
           </Button>
@@ -24,8 +26,8 @@ describe("check-no-legacy-ds-props AST scanner", () => {
     `;
 
         const violations = collectLegacyDesignSystemPropUsages(source, "fixture.tsx");
-        expect(violations.map((item) => item.prop)).toEqual(["asChild", "variant", "size"]);
-        expect(violations.map((item) => item.value)).toEqual([null, "outline", "default"]);
+        expect(violations.map((item) => item.prop)).toEqual(["asChild", "color", "size", "isDisabled", "isLoading"]);
+        expect(violations.map((item) => item.value)).toEqual([null, "secondary", "default", null, null]);
     });
 
     it("allows icon button sizing in canonical Button API", async () => {
@@ -46,13 +48,13 @@ describe("check-no-legacy-ds-props AST scanner", () => {
         expect(violations).toHaveLength(0);
     });
 
-    it("allows canonical Badge variant prop", async () => {
+    it("allows canonical Badge props", async () => {
         const { collectLegacyDesignSystemPropUsages } = await loadChecker();
         const source = `
       import { Badge } from "@/components/base/badges/badges";
 
       export function View() {
-        return <Badge variant={"secondary"}>Status</Badge>;
+        return <Badge variant={"modern"} tone={"brand"}>Status</Badge>;
       }
     `;
 
@@ -60,7 +62,7 @@ describe("check-no-legacy-ds-props AST scanner", () => {
         expect(violations).toHaveLength(0);
     });
 
-    it("resolves aliased imports for Button and Badge", async () => {
+    it("detects legacy Badge props, including aliased imports", async () => {
         const { collectLegacyDesignSystemPropUsages } = await loadChecker();
         const source = `
       import { Button as CTA } from "@/components/base/buttons/button";
@@ -69,15 +71,15 @@ describe("check-no-legacy-ds-props AST scanner", () => {
       export function View() {
         return (
           <>
-            <CTA variant="ghost">Back</CTA>
-            <Pill variant="outline">Meta</Pill>
+            <CTA color="secondary">Back</CTA>
+            <Pill type="modern" color="brand">Meta</Pill>
           </>
         );
       }
     `;
 
         const violations = collectLegacyDesignSystemPropUsages(source, "fixture.tsx");
-        expect(violations.map((item) => `${item.component}:${item.prop}`)).toEqual(["Button:variant"]);
+        expect(violations.map((item) => `${item.component}:${item.prop}`)).toEqual(["Button:color", "Badge:type", "Badge:color"]);
     });
 
     it("ignores similarly named props on other components", async () => {

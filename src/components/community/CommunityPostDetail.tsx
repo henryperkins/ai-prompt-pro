@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { Link, useNavigate } from "react-router-dom";
 import type { CommunityPost, CommunityProfile, VoteState, VoteType } from "@/lib/community";
-import { getInitials } from "@/lib/community-utils";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitives/avatar";
+import { getInitials } from "@/lib/utils/get-initials";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/avatar";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/card";
@@ -12,7 +12,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/base/primitives/dropdown-menu";
+} from "@/components/base/dropdown-menu";
 import { PromptPreviewPanel } from "@/components/community/PromptPreviewPanel";
 import { CommunityComments } from "@/components/community/CommunityComments";
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/base/drawer";
@@ -20,7 +20,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { getCommunityPostRarityClass } from "@/lib/community-rarity";
 import { communityFeatureFlags } from "@/lib/feature-flags";
 import { UI_STATUS_ROW_CLASSES, UI_STATUS_SURFACE_CLASSES } from "@/lib/ui-status";
-import { cn } from "@/lib/utils";
+import { cx } from "@/lib/utils/cx";
 import {
   ArrowSquareOut as ExternalLink,
   ArrowUp,
@@ -182,7 +182,7 @@ export function CommunityPostDetail({
 
   return (
     <div className="space-y-5">
-      <Card className={cn("pf-card space-y-5 border-border/80 bg-card/85 p-4 sm:p-5", getCommunityPostRarityClass(post))}>
+      <Card className={cx("pf-card space-y-5 border-border/80 bg-card/85 p-4 sm:p-5", getCommunityPostRarityClass(post))}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
             <Avatar className="h-9 w-9 border border-border/60">
@@ -199,7 +199,7 @@ export function CommunityPostDetail({
           <div className="flex w-full flex-wrap items-center gap-2 rounded-lg border border-border/65 bg-background/55 p-2 sm:w-auto sm:justify-end">
             <Button
               type="button"
-              color="primary"
+              variant="primary"
               size="sm"
               className="type-button-label utility-action-button h-11 w-full min-w-[110px] justify-center px-4 sm:h-9 sm:w-auto sm:px-3"
               onClick={() => navigate(`/?remix=${post.id}`)}
@@ -209,7 +209,7 @@ export function CommunityPostDetail({
             </Button>
             <Button
               type="button"
-              color="tertiary"
+              variant="tertiary"
               size="sm"
               className="type-button-label h-11 w-full gap-1.5 px-4 sm:h-9 sm:w-auto sm:px-3"
               disabled={!canSaveToLibrary}
@@ -224,7 +224,7 @@ export function CommunityPostDetail({
                 <DropdownMenuTrigger asChild>
                   <Button
                     type="button"
-                    color="secondary"
+                    variant="secondary"
                     size="sm"
                     className="h-11 w-11 shrink-0 sm:h-9 sm:w-9"
                     aria-label="Open moderation actions"
@@ -295,7 +295,7 @@ export function CommunityPostDetail({
           <div className="space-y-3 rounded-lg border border-primary/25 bg-primary/5 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="type-reply-label type-label-caps text-primary">Prompt diff</p>
-              <Badge type="modern" className="type-chip h-5 px-1.5 font-mono">
+              <Badge variant="modern" className="type-chip h-5 px-1.5 font-mono">
                 Unified
               </Badge>
             </div>
@@ -352,14 +352,14 @@ export function CommunityPostDetail({
         <div className="space-y-2">
           <p className="type-reply-label type-label-caps text-muted-foreground">Context</p>
           <div className="flex flex-wrap items-center gap-1.5">
-            <Badge type="modern" className="type-chip border border-border bg-background text-foreground capitalize">
+            <Badge variant="modern" className="type-chip border border-border bg-background text-foreground capitalize">
               {post.category}
             </Badge>
-            {post.targetModel && <Badge type="modern" className="type-chip">{post.targetModel}</Badge>}
+            {post.targetModel && <Badge variant="modern" className="type-chip">{post.targetModel}</Badge>}
             {post.tags.slice(0, 8).map((tag) => (
               <Badge
                 key={`${post.id}-${tag}`}
-                type="modern"
+                variant="modern"
                 className="type-chip border border-border bg-background text-foreground"
               >
                 #{tag}
@@ -388,7 +388,7 @@ export function CommunityPostDetail({
               <Button
                 type="button"
                 size="sm"
-                color={voteState?.upvote ? "primary" : "secondary"}
+                variant={voteState?.upvote ? "primary" : "secondary"}
                 className="type-button-label interactive-chip h-11 min-w-11 gap-1.5 px-3 sm:h-9 sm:min-w-9 sm:gap-1 sm:px-2.5"
                 disabled={!canVote}
                 onClick={() => onToggleVote(post.id, "upvote")}
@@ -400,7 +400,7 @@ export function CommunityPostDetail({
               <Button
                 type="button"
                 size="sm"
-                color={voteState?.verified ? "primary" : "secondary"}
+                variant={voteState?.verified ? "primary" : "secondary"}
                 className="type-button-label interactive-chip h-11 min-w-11 gap-1.5 px-3 sm:h-9 sm:min-w-9 sm:gap-1 sm:px-2.5"
                 disabled={!canVote}
                 onClick={() => onToggleVote(post.id, "verified")}
@@ -421,7 +421,7 @@ export function CommunityPostDetail({
               <Button
                 type="button"
                 size="sm"
-                color="primary"
+                variant="primary"
                 className="type-button-label h-11 gap-1.5 rounded-full px-3 sm:h-9 sm:px-2.5"
                 aria-label={`Comments ${post.commentCount}`}
                 onClick={() => {
@@ -433,7 +433,7 @@ export function CommunityPostDetail({
                 <MessageCircle className="h-3.5 w-3.5" />
                 Comments
                 <Badge
-                  type="modern"
+                  variant="modern"
                   className="type-reply-label type-numeric ml-0.5 h-4 min-w-4 px-1 leading-none"
                   aria-hidden="true"
                 >
@@ -453,7 +453,7 @@ export function CommunityPostDetail({
               className="type-numeric inline-flex items-center gap-1.5 rounded-full border border-border/65 bg-background/65 px-2.5 py-1"
             >
               <Star
-                className={cn(
+                className={cx(
                   "h-3.5 w-3.5",
                   ratingCount > 0 ? "fill-primary text-primary" : "text-muted-foreground",
                 )}
@@ -471,14 +471,14 @@ export function CommunityPostDetail({
                     <Button
                       key={`${post.id}-detail-rate-${value}`}
                       type="button"
-                      color="tertiary"
+                      variant="tertiary"
                       size="sm"
                       className="h-10 w-10 rounded-full p-0 sm:h-7 sm:w-7"
                       aria-label={`Rate ${value} star${value === 1 ? "" : "s"}`}
                       onClick={() => onRatePrompt(post.id, ratingValue === value ? null : value)}
                     >
                       <Star
-                        className={cn(
+                        className={cx(
                           "h-5 w-5 transition-colors sm:h-4 sm:w-4",
                           isActive ? "fill-primary text-primary" : "text-muted-foreground",
                         )}
@@ -537,7 +537,7 @@ export function CommunityPostDetail({
       <Card className="pf-card space-y-3 border-border/80 bg-card/85 p-4 sm:p-5">
         <div className="flex items-center justify-between gap-2">
           <h2 className="type-tab-label text-foreground">Remixes</h2>
-          <Badge type="modern" className="type-chip type-numeric">{remixes.length}</Badge>
+          <Badge variant="modern" className="type-chip type-numeric">{remixes.length}</Badge>
         </div>
 
         {remixes.length === 0 && (
@@ -561,7 +561,7 @@ export function CommunityPostDetail({
                 </div>
                 <Button
                   type="button"
-                  color="tertiary"
+                  variant="tertiary"
                   size="sm"
                   className="type-button-label h-11 px-3 sm:h-9 sm:px-2"
                   onClick={() => navigate(`/community/${remix.id}`)}

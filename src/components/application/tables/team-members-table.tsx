@@ -8,7 +8,7 @@ import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/card";
 import { Checkbox } from "@/components/base/primitives/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/base/primitives/table";
-import { cn } from "@/lib/utils";
+import { cx } from "@/lib/utils/cx";
 import {
   CaretLeft as ChevronLeft,
   CaretRight as ChevronRight,
@@ -155,10 +155,10 @@ export function TeamMembersTableBlock() {
         </div>
       </div>
 
-      <Table className={cn(compact && "text-xs")}>
+      <Table className={cx(compact && "text-xs")}>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead className={cn("w-10 pl-4", headClassName)}>
+            <TableHead className={cx("w-10 pl-4", headClassName)}>
               <Checkbox
                 aria-label="Select all team members"
                 checked={allVisibleSelected ? true : hasPartialSelection ? "indeterminate" : false}
@@ -183,7 +183,7 @@ export function TeamMembersTableBlock() {
             <TableHead className={headClassName}>Role</TableHead>
             <TableHead className={headClassName}>Email address</TableHead>
             <TableHead className={headClassName}>Teams</TableHead>
-            <TableHead className={cn("w-12", headClassName)}>
+            <TableHead className={cx("w-12", headClassName)}>
               <span className="sr-only">Actions</span>
             </TableHead>
           </TableRow>
@@ -194,8 +194,8 @@ export function TeamMembersTableBlock() {
             const visibleTeams = member.teams.slice(0, 2);
             const hiddenCount = Math.max(0, member.teams.length - visibleTeams.length);
             return (
-              <TableRow key={member.id} className={cn(rows === "alternating" && "odd:bg-muted/30")}>
-                <TableCell className={cn("pl-4", cellClassName)}>
+              <TableRow key={member.id} className={cx(rows === "alternating" && "odd:bg-muted/30")}>
+                <TableCell className={cx("pl-4", cellClassName)}>
                   <Checkbox
                     aria-label={`Select ${member.name}`}
                     checked={selectedMemberIds.has(member.id)}
@@ -215,7 +215,7 @@ export function TeamMembersTableBlock() {
 
                 <TableCell className={cellClassName}>
                   <div className="flex items-center gap-2.5">
-                    <Avatar className={cn("border border-border/70", compact ? "h-8 w-8" : "h-9 w-9")}>
+                    <Avatar className={cx("border border-border/70", compact ? "h-8 w-8" : "h-9 w-9")}>
                       <AvatarFallback className="bg-muted text-xs font-semibold text-muted-foreground">
                         {initials(member.name)}
                       </AvatarFallback>
@@ -233,8 +233,8 @@ export function TeamMembersTableBlock() {
                   </Badge>
                 </TableCell>
 
-                <TableCell className={cn("text-muted-foreground", cellClassName)}>{member.role}</TableCell>
-                <TableCell className={cn("text-muted-foreground", cellClassName)}>{member.email}</TableCell>
+                <TableCell className={cx("text-muted-foreground", cellClassName)}>{member.role}</TableCell>
+                <TableCell className={cx("text-muted-foreground", cellClassName)}>{member.email}</TableCell>
 
                 <TableCell className={cellClassName}>
                   <div className="flex flex-wrap items-center gap-1.5">
@@ -272,7 +272,7 @@ export function TeamMembersTableBlock() {
         </p>
         <div className="flex items-center gap-2">
           <Button
-            color="secondary"
+            variant="secondary"
             size="sm"
             className="h-8 px-2.5 text-xs"
             onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
@@ -282,7 +282,7 @@ export function TeamMembersTableBlock() {
             Previous
           </Button>
           <Button
-            color="secondary"
+            variant="secondary"
             size="sm"
             className="h-8 px-2.5 text-xs"
             onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}

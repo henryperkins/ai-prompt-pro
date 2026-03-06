@@ -1,4 +1,4 @@
-import { Switch } from "@/components/base/primitives/switch";
+import { Switch } from "@/components/base/switch";
 import { Label } from "@/components/base/label";
 import { ContextSourceChips } from "@/components/ContextSourceChips";
 import { StructuredContextForm } from "@/components/StructuredContextForm";

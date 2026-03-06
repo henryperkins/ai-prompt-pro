@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { cn } from "@/lib/utils";
+import { cx } from "@/lib/utils/cx";
 import { renderIconSlot, type IconSlot } from "@/lib/utils/icon-slot";
 import { Badge } from "./badges";
 import type { BadgeTone } from "./badge-types";
@@ -22,7 +22,7 @@ export const BadgeGroup = ({
 }: BadgeGroupProps) => {
   return (
     <span
-      className={cn(
+      className={cx(
         "inline-flex items-center gap-1 rounded-full border border-border bg-card px-1 py-1 text-xs font-medium text-foreground",
         className,
       )}

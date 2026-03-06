@@ -185,7 +185,7 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
               Check your email, confirm your account, then sign in.
             </p>
             <Button
-              color="secondary"
+              variant="secondary"
               onClick={() => {
                 setMode("login");
                 setConfirmationSent(false);
@@ -199,30 +199,30 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
             {/* OAuth buttons */}
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               <Button
-                color="secondary"
+                variant="secondary"
                 onClick={() => void handleOAuth("apple")}
-                isDisabled={loading || Boolean(oauthLoading)}
-                isLoading={oauthLoading === "apple"}
+                disabled={loading || Boolean(oauthLoading)}
+                loading={oauthLoading === "apple"}
                 showTextWhileLoading
                 iconLeading={AppleOAuthIcon}
               >
                 Apple
               </Button>
               <Button
-                color="secondary"
+                variant="secondary"
                 onClick={() => void handleOAuth("github")}
-                isDisabled={loading || Boolean(oauthLoading)}
-                isLoading={oauthLoading === "github"}
+                disabled={loading || Boolean(oauthLoading)}
+                loading={oauthLoading === "github"}
                 showTextWhileLoading
                 iconLeading={GitHubOAuthIcon}
               >
                 GitHub
               </Button>
               <Button
-                color="secondary"
+                variant="secondary"
                 onClick={() => void handleOAuth("google")}
-                isDisabled={loading || Boolean(oauthLoading)}
-                isLoading={oauthLoading === "google"}
+                disabled={loading || Boolean(oauthLoading)}
+                loading={oauthLoading === "google"}
                 showTextWhileLoading
                 iconLeading={GoogleOAuthIcon}
               >
@@ -297,10 +297,10 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
                 <div className="flex justify-end">
                   <Button
                     type="button"
-                    color="link-color"
+                    variant="link" tone="brand"
                     onClick={() => void handleForgotPassword()}
-                    isDisabled={loading || Boolean(oauthLoading) || forgotPasswordLoading}
-                    isLoading={forgotPasswordLoading}
+                    disabled={loading || Boolean(oauthLoading) || forgotPasswordLoading}
+                    loading={forgotPasswordLoading}
                     showTextWhileLoading
                     className="text-sm"
                   >
@@ -322,8 +322,8 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
               <Button
                 type="submit"
                 className="w-full"
-                isDisabled={loading || Boolean(oauthLoading)}
-                isLoading={loading}
+                disabled={loading || Boolean(oauthLoading)}
+                loading={loading}
               >
                 {mode === "login" ? "Sign in" : "Create account"}
               </Button>

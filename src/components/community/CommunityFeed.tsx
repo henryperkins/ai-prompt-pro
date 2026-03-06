@@ -1,14 +1,14 @@
 import { useMemo } from "react";
 import type { CommunityPost, CommunityProfile, VoteState, VoteType } from "@/lib/community";
 import { Card } from "@/components/base/card";
-import { Skeleton } from "@/components/base/primitives/skeleton";
+import { Skeleton } from "@/components/base/skeleton";
 import { CommunityPostCard } from "@/components/community/CommunityPostCard";
-import { StateCard } from "@/components/base/primitives/state-card";
+import { StateCard } from "@/components/base/state-card";
 import { Button } from "@/components/base/buttons/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useIntersectionAutoLoad } from "@/hooks/useIntersectionAutoLoad";
 import type { CommunityErrorKind } from "@/lib/community-errors";
-import { cn } from "@/lib/utils";
+import { cx } from "@/lib/utils/cx";
 import { SpinnerGap as Loader2 } from "@phosphor-icons/react";
 
 interface CommunityFeedProps {
@@ -251,7 +251,7 @@ export function CommunityFeed({
 
   return (
     <div
-      className={cn(
+      className={cx(
         "community-feed-grid grid grid-cols-1 gap-3 lg:grid-cols-2",
         hasSelectedPost && "community-feed-grid--focus-mode",
       )}
@@ -266,7 +266,7 @@ export function CommunityFeed({
             <div className="flex justify-center">
               <Button
                 type="button"
-                color="secondary"
+                variant="secondary"
                 size="sm"
                 className="type-button-label h-11 px-4 sm:h-9 sm:px-3"
                 onClick={onLoadMore}

@@ -25,7 +25,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@/components/base/primitives/dropdown-menu";
+} from "@/components/base/dropdown-menu";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import { PROMPT_CATEGORY_OPTIONS } from "@/lib/prompt-categories";
@@ -40,10 +40,10 @@ import {
   UI_STATUS_SURFACE_CLASSES,
   UI_STATUS_TEXT_CLASSES,
 } from "@/lib/ui-status";
-import { cn } from "@/lib/utils";
+import { cx } from "@/lib/utils/cx";
 import { normalizeHttpUrl } from "@/lib/url-utils";
-import { Checkbox } from "@/components/base/primitives/checkbox";
-import { Switch } from "@/components/base/primitives/switch";
+import { Checkbox } from "@/components/base/checkbox";
+import { Switch } from "@/components/base/switch";
 import {
   Check,
   Copy,
@@ -555,7 +555,7 @@ export function OutputPanel({
           {hasCompare && (
             <Button
               type="button"
-              color="secondary"
+              variant="secondary"
               size="sm"
               className="ui-toolbar-button px-2"
               onClick={() => setCompareDialogOpen(true)}
@@ -566,10 +566,10 @@ export function OutputPanel({
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
           <Button
-            color="primary"
+            variant="primary"
             size="sm"
             onClick={handleCopy}
-            isDisabled={!displayPrompt}
+            disabled={!displayPrompt}
             className="ui-toolbar-button utility-action-button min-w-[84px]"
           >
             {copied ? <Check /> : <Copy />}
@@ -580,7 +580,7 @@ export function OutputPanel({
             <>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button color="secondary" size="sm" isDisabled={!canUseSaveMenu} className="ui-toolbar-button gap-1.5">
+                  <Button variant="secondary" size="sm" disabled={!canUseSaveMenu} className="ui-toolbar-button gap-1.5">
                     <Save className="w-3 h-3" />
                     Save
                   </Button>
@@ -617,7 +617,7 @@ export function OutputPanel({
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button color="tertiary" size="sm" className="ui-toolbar-button gap-1.5">
+                  <Button variant="tertiary" size="sm" className="ui-toolbar-button gap-1.5">
                     <MoreHorizontal className="w-3 h-3" />
                     More
                   </Button>
@@ -651,7 +651,7 @@ export function OutputPanel({
           <div className="flex items-center gap-2">
             <Button
               type="button"
-              color="secondary"
+              variant="secondary"
               size="sm"
               className="ui-toolbar-button gap-1.5"
               onClick={() =>
@@ -665,7 +665,7 @@ export function OutputPanel({
             </Button>
             <Button
               type="button"
-              color="tertiary"
+              variant="tertiary"
               size="sm"
               className="ui-toolbar-button gap-1.5"
               onClick={() =>
@@ -740,7 +740,7 @@ export function OutputPanel({
               />
               <p
                 id="save-dialog-name-help"
-                className={cn("text-sm", showSaveNameError ? "text-destructive" : "text-muted-foreground")}
+                className={cx("text-sm", showSaveNameError ? "text-destructive" : "text-muted-foreground")}
               >
                 {showSaveNameError ? saveNameError : "Required."}
               </p>
@@ -851,7 +851,7 @@ export function OutputPanel({
                   />
                   <p
                     id="save-dialog-use-case-help"
-                    className={cn("text-sm", showSaveUseCaseError ? "text-destructive" : "text-muted-foreground")}
+                    className={cx("text-sm", showSaveUseCaseError ? "text-destructive" : "text-muted-foreground")}
                   >
                     {showSaveUseCaseError ? saveUseCaseError : "Required when sharing."}
                   </p>
@@ -890,7 +890,7 @@ export function OutputPanel({
                 </div>
                 <p
                   id="save-dialog-confirm-safe-help"
-                  className={cn(
+                  className={cx(
                     "text-sm",
                     showSaveConfirmedSafeError ? "text-destructive" : "text-muted-foreground",
                   )}
@@ -901,10 +901,10 @@ export function OutputPanel({
             )}
           </div>
           <DialogFooter>
-            <Button color="secondary" onClick={() => handleSaveDialogOpenChange(false)}>
+            <Button variant="secondary" onClick={() => handleSaveDialogOpenChange(false)}>
               Cancel
             </Button>
-            <Button color="primary" onClick={handleSaveSubmit}>
+            <Button variant="primary" onClick={handleSaveSubmit}>
               {shareEnabledForUi ? "Save & Share" : "Save Prompt"}
             </Button>
           </DialogFooter>
@@ -913,13 +913,13 @@ export function OutputPanel({
 
       {displayedReasoningSummary && (
         <Card
-          className={cn(
+          className={cx(
             "p-3 transition-opacity duration-1000 ease-out",
             UI_STATUS_SURFACE_CLASSES.warning,
             isReasoningSummaryFading && "opacity-0",
           )}
         >
-          <p className={cn("ui-section-label", UI_STATUS_TEXT_CLASSES.warning)}>
+          <p className={cx("ui-section-label", UI_STATUS_TEXT_CLASSES.warning)}>
             Reasoning summary
           </p>
           <div className="prose prose-sm mt-2 max-w-none whitespace-normal text-foreground/90 dark:prose-invert prose-headings:my-1 prose-p:my-1 prose-pre:my-1 prose-code:break-words prose-ul:my-1 prose-ol:my-1">
@@ -931,7 +931,7 @@ export function OutputPanel({
       )}
 
       <Card
-        className={cn(
+        className={cx(
           "enhance-output-frame flex-1 p-4 bg-card overflow-auto",
           isStreamingVisual && "enhance-output-streaming",
           isSettledVisual && "enhance-output-complete"
@@ -985,10 +985,10 @@ export function OutputPanel({
             Web lookup: {webSearchEnabled ? "On" : "Off"}
           </p>
           <Button
-            color="primary"
+            variant="primary"
             size="lg"
             onClick={onEnhance}
-            isDisabled={isEnhancing || !builtPrompt}
+            disabled={isEnhancing || !builtPrompt}
             className="signature-enhance-button w-full gap-2"
             data-phase={enhancePhase}
           >

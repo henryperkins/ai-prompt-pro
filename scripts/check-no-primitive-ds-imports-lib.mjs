@@ -1,16 +1,6 @@
 import ts from "typescript";
 
-export const FORBIDDEN_PRIMITIVE_IMPORTS = [
-  "@/components/base/primitives/button",
-  "@/components/base/primitives/input",
-  "@/components/base/primitives/badge",
-  "@/components/base/primitives/select",
-  "@/components/base/primitives/dialog",
-  "@/components/base/primitives/drawer",
-  "@/components/base/primitives/tabs",
-  "@/components/base/primitives/label",
-  "@/components/base/primitives/textarea",
-];
+export const FORBIDDEN_PRIMITIVE_IMPORTS = ["@/components/base/primitives/*"];
 
 function isStringLiteralLike(node) {
   return ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node);
@@ -38,11 +28,13 @@ function isMockCallExpression(node) {
 
 export function collectForbiddenModulePathUsages(sourceText, filePath, forbiddenImports = FORBIDDEN_PRIMITIVE_IMPORTS) {
   const sourceFile = ts.createSourceFile(filePath, sourceText, ts.ScriptTarget.Latest, true, resolveScriptKind(filePath));
-  const forbiddenSet = new Set(forbiddenImports);
   const violations = [];
 
   const recordViolation = (specifier, node, kind) => {
-    if (!forbiddenSet.has(specifier)) {
+    const isForbidden = forbiddenImports.some((entry) =>
+      entry.endsWith("*") ? specifier.startsWith(entry.slice(0, -1)) : specifier === entry,
+    );
+    if (!isForbidden) {
       return;
     }
     const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));

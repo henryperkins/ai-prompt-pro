@@ -1,10 +1,10 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/base/tabs";
 import { Input } from "@/components/base/input/input";
 import { Textarea } from "@/components/base/textarea";
-import { Checkbox } from "@/components/base/primitives/checkbox";
+import { Checkbox } from "@/components/base/checkbox";
 import { Label } from "@/components/base/label";
 import { Select } from "@/components/base/select/select";
-import { cn } from "@/lib/utils";
+import { cx } from "@/lib/utils/cx";
 import { toConstraintInputId } from "@/lib/builder-tabs";
 import { Crosshair as Target, Layout, Lightbulb, Shield, User } from "@phosphor-icons/react";
 import {
@@ -111,7 +111,7 @@ export function BuilderTabs({ config, onUpdate }: BuilderTabsProps) {
             <button
               type="button"
               key={format}
-              className={cn(
+              className={cx(
                 "inline-flex items-center rounded-full border px-2.5 py-0.5 text-sm font-semibold transition duration-100 ease-linear focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                 config.format.includes(format)
                   ? "border-primary/30 bg-primary/10 text-primary"

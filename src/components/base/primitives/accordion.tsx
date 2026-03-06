@@ -1,7 +1,7 @@
 import * as React from "react";
 import * as AccordionPrimitive from "@radix-ui/react-accordion";
 
-import { cn } from "@/lib/utils";
+import { cx } from "@/lib/utils/cx";
 import { CaretDown as ChevronDown } from "@phosphor-icons/react";
 
 const Accordion = AccordionPrimitive.Root;
@@ -10,7 +10,7 @@ const AccordionItem = React.forwardRef<
   React.ElementRef<typeof AccordionPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Item>
 >(({ className, ...props }, ref) => (
-  <AccordionPrimitive.Item ref={ref} className={cn("border-b", className)} {...props} />
+  <AccordionPrimitive.Item ref={ref} className={cx("border-b", className)} {...props} />
 ));
 AccordionItem.displayName = "AccordionItem";
 
@@ -21,7 +21,7 @@ const AccordionTrigger = React.forwardRef<
   <AccordionPrimitive.Header className="flex">
     <AccordionPrimitive.Trigger
       ref={ref}
-      className={cn(
+      className={cx(
         "flex flex-1 items-center justify-between py-4 font-medium transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background [&[data-state=open]>svg]:rotate-180",
         className,
       )}
@@ -43,7 +43,7 @@ const AccordionContent = React.forwardRef<
     className="overflow-hidden text-sm"
     {...props}
   >
-    <div className={cn("pb-4 pt-0", className)}>{children}</div>
+    <div className={cx("pb-4 pt-0", className)}>{children}</div>
   </AccordionPrimitive.Content>
 ));
 

@@ -8,7 +8,7 @@ const meta = {
   args: {
     children: "Primary action",
     size: "sm",
-    color: "primary",
+    variant: "primary",
   },
   parameters: {
     layout: "centered",
@@ -22,28 +22,29 @@ export const Primary: Story = {};
 
 export const Secondary: Story = {
   args: {
-    color: "secondary",
+    variant: "secondary",
     children: "Secondary action",
   },
 };
 
 export const Tertiary: Story = {
   args: {
-    color: "tertiary",
+    variant: "tertiary",
     children: "Tertiary action",
   },
 };
 
 export const Destructive: Story = {
   args: {
-    color: "primary-destructive",
+    variant: "primary",
+    tone: "destructive",
     children: "Delete item",
   },
 };
 
 export const Loading: Story = {
   args: {
-    isLoading: true,
+    loading: true,
     children: "Saving",
   },
 };
@@ -51,7 +52,7 @@ export const Loading: Story = {
 export const IconOnly: Story = {
   args: {
     size: "icon",
-    color: "secondary",
+    variant: "secondary",
     iconTrailing: ArrowRight,
     children: undefined,
     "aria-label": "Continue",

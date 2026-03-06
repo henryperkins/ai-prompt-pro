@@ -1,7 +1,7 @@
 import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { PageShell } from "@/components/PageShell";
-import { StateCard } from "@/components/base/primitives/state-card";
+import { StateCard } from "@/components/base/state-card";
 
 const NotFound = () => {
   const location = useLocation();

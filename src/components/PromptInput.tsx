@@ -25,7 +25,7 @@ export function PromptInput({ value, onChange, onClear, onResetAll }: PromptInpu
           </span>
           {onResetAll && (
             <Button
-              color="tertiary"
+              variant="tertiary"
               size="sm"
               onClick={onResetAll}
               aria-label="Reset all builder fields"
@@ -36,7 +36,7 @@ export function PromptInput({ value, onChange, onClear, onResetAll }: PromptInpu
           )}
           {value && (
             <Button
-              color="tertiary"
+              variant="tertiary"
               size="sm"
               onClick={onClear}
               aria-label="Clear prompt text"

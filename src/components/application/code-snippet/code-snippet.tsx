@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Badge, BadgeWithDot } from "@/components/base/badges/badges";
 import { ButtonGroup, ButtonGroupItem } from "@/components/base/button-group/button-group";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
-import { cn } from "@/lib/utils";
+import { cx } from "@/lib/utils/cx";
 import { Check, Copy } from "@phosphor-icons/react";
 
 export interface CodeSnippetProps {
@@ -50,7 +50,7 @@ export const CodeSnippet = ({
   };
 
   return (
-    <div className={cn("overflow-hidden rounded-xl border border-border bg-card", className)}>
+    <div className={cx("overflow-hidden rounded-xl border border-border bg-card", className)}>
       <div className="flex items-center justify-between gap-3 border-b border-border/80 px-3 py-2 sm:px-4">
         <div className="flex min-w-0 items-center gap-2">
           <BadgeWithDot tone="info" size="sm">
@@ -75,7 +75,7 @@ export const CodeSnippet = ({
       <pre className="overflow-x-auto p-3 sm:p-4">
         <code className="block font-mono text-xs text-foreground sm:text-sm">
           {lines.map((line, index) => (
-            <span key={`${index}-${line}`} className={cn("grid min-h-[1.5rem]", showLineNumbers ? "grid-cols-[2rem_1fr]" : "grid-cols-1")}>
+            <span key={`${index}-${line}`} className={cx("grid min-h-[1.5rem]", showLineNumbers ? "grid-cols-[2rem_1fr]" : "grid-cols-1")}>
               {showLineNumbers ? (
                 <span className="select-none pr-2 text-right text-muted-foreground tabular-nums">{index + 1}</span>
               ) : null}

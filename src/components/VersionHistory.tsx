@@ -3,10 +3,10 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-} from "@/components/base/primitives/sheet";
+} from "@/components/base/sheet";
 import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/card";
-import { StateCard } from "@/components/base/primitives/state-card";
+import { StateCard } from "@/components/base/state-card";
 import { ArrowCounterClockwise as RotateCcw } from "@phosphor-icons/react";
 
 interface Version {
@@ -75,7 +75,7 @@ export function VersionHistoryContent({
                 </p>
               </div>
               <Button
-                color="tertiary"
+                variant="tertiary"
                 size="sm"
                 className="shrink-0 gap-1 text-xs"
                 onClick={() => onRestore(version.prompt)}

@@ -1,7 +1,7 @@
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/card";
-import { Checkbox } from "@/components/base/primitives/checkbox";
+import { Checkbox } from "@/components/base/checkbox";
 import { Input } from "@/components/base/input/input";
 import { Label } from "@/components/base/label";
 import { Select } from "@/components/base/select/select";
@@ -66,7 +66,7 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
           </div>
           <div className="flex items-center gap-2">
             {selectedRole && (
-              <Badge type="modern" className="max-w-[180px] text-xs">
+              <Badge variant="modern" className="max-w-[180px] text-xs">
                 <span className="type-wrap-safe">{selectedRole}</span>
               </Badge>
             )}
@@ -120,7 +120,7 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
                       key={tone}
                       type="button"
                       size="sm"
-                      color={config.tone === tone ? "primary" : "secondary"}
+                      variant={config.tone === tone ? "primary" : "secondary"}
                       className="h-11 px-2 text-sm sm:h-9"
                       onClick={() => onUpdate({ tone })}
                       aria-pressed={config.tone === tone}
@@ -140,7 +140,7 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
                     key={format}
                     type="button"
                     size="sm"
-                    color={config.format.includes(format) ? "primary" : "secondary"}
+                    variant={config.format.includes(format) ? "primary" : "secondary"}
                     className="h-11 px-2 text-sm sm:h-9"
                     onClick={() => toggleFormat(format)}
                     aria-pressed={config.format.includes(format)}

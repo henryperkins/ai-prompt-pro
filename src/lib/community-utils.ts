@@ -1,14 +1,8 @@
 import type { CommunityPost, CommunityProfile } from "@/lib/community";
+import { getInitials as sharedGetInitials } from "@/lib/utils/get-initials";
 
-export function getInitials(name: string): string {
-  const parts = name
-    .split(" ")
-    .map((part) => part.trim())
-    .filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0] || ""}${parts[1][0] || ""}`.toUpperCase();
-}
+/** @deprecated Import `getInitials` from "@/lib/utils/get-initials". */
+export const getInitials = sharedGetInitials;
 
 export function estimateTokens(text: string): string {
   const words = text

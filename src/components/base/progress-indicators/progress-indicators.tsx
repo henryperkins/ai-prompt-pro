@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cx } from "@/lib/utils/cx";
 
 export interface ProgressBarProps {
   value: number;
@@ -30,11 +30,11 @@ export const ProgressBarBase = ({ value, min = 0, max = 100, className, progress
       aria-valuenow={value}
       aria-valuemin={min}
       aria-valuemax={max}
-      className={cn("h-2 w-full overflow-hidden rounded-full bg-muted", className)}
+      className={cx("h-2 w-full overflow-hidden rounded-full bg-muted", className)}
     >
       <div
         style={{ transform: `translateX(-${100 - percentage}%)` }}
-        className={cn("h-full w-full rounded-full bg-primary transition-transform duration-150 ease-linear", progressClassName)}
+        className={cx("h-full w-full rounded-full bg-primary transition-transform duration-150 ease-linear", progressClassName)}
       />
     </div>
   );
@@ -78,7 +78,7 @@ export const ProgressBar = ({
         {bar}
         <div
           style={{ left: `${percentage}%` }}
-          className={cn(
+          className={cx(
             "absolute -translate-x-1/2 rounded-md border border-border bg-card px-2 py-1 text-xs font-medium text-foreground shadow-sm tabular-nums",
             labelPosition === "top-floating" ? "-top-2 -translate-y-full" : "-bottom-2 translate-y-full",
           )}

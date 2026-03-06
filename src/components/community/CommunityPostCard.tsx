@@ -2,25 +2,26 @@ import { memo, useMemo, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { Link, useNavigate } from "react-router-dom";
 import type { CommunityPost, VoteState, VoteType } from "@/lib/community";
-import { estimateTokens, getInitials } from "@/lib/community-utils";
+import { estimateTokens } from "@/lib/community-utils";
+import { getInitials } from "@/lib/utils/get-initials";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitives/avatar";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/base/primitives/tooltip";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/avatar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/base/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/base/primitives/dropdown-menu";
+} from "@/components/base/dropdown-menu";
 import { PromptPreviewPanel } from "@/components/community/PromptPreviewPanel";
 import { CommunityComments } from "@/components/community/CommunityComments";
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/base/drawer";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getCommunityPostRarityClass } from "@/lib/community-rarity";
 import { communityFeatureFlags } from "@/lib/feature-flags";
-import { cn } from "@/lib/utils";
+import { cx } from "@/lib/utils/cx";
 import {
   ArrowUp,
   BookmarkSimple as BookmarkPlus,
@@ -132,7 +133,7 @@ function CommunityPostCardComponent({
       role="article"
       data-selected={isSelected ? "true" : "false"}
       data-state={isSelected ? "selected" : "idle"}
-      className={cn(
+      className={cx(
         "community-feed-card interactive-card pf-card overflow-hidden border-border/80 bg-card/85 p-3 sm:p-4",
         isSelected && "community-feed-card--selected ring-1 ring-primary/35",
         isDeemphasized && "community-feed-card--deemphasized",
@@ -144,7 +145,7 @@ function CommunityPostCardComponent({
         ...(isFeatured ? { borderColor: "hsl(var(--primary) / 0.35)" } : {}),
       }}
     >
-      <div className={cn("space-y-3", isMobile && "space-y-2.5")}>
+      <div className={cx("space-y-3", isMobile && "space-y-2.5")}>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
           <div className="flex min-w-0 items-center gap-2">
             <Avatar className="h-8 w-8 border border-border/60">
@@ -160,7 +161,7 @@ function CommunityPostCardComponent({
                   <Button
                     type="button"
                     size="sm"
-                    color={followingUserIds?.has(post.authorId) ? "secondary" : "primary"}
+                    variant={followingUserIds?.has(post.authorId) ? "secondary" : "primary"}
                     className="type-button-label h-7 min-w-11 px-2.5 text-xs leading-none"
                     onClick={() => onToggleFollow(post.authorId, followingUserIds?.has(post.authorId) ?? false)}
                   >
@@ -173,12 +174,12 @@ function CommunityPostCardComponent({
           </div>
           <div className="flex flex-wrap items-center gap-1 self-start sm:self-auto sm:justify-end">
             {post.targetModel && (
-              <Badge type="modern" className="type-chip h-6 px-2 font-mono sm:h-5 sm:px-1.5">
+              <Badge variant="modern" className="type-chip h-6 px-2 font-mono sm:h-5 sm:px-1.5">
                 {post.targetModel}
               </Badge>
             )}
             <Badge
-              type="modern"
+              variant="modern"
               className="type-chip h-6 border border-border bg-background px-2 text-foreground capitalize sm:h-5 sm:px-1.5"
             >
               {post.category}
@@ -188,7 +189,7 @@ function CommunityPostCardComponent({
                 <DropdownMenuTrigger asChild>
                   <Button
                     type="button"
-                    color="tertiary"
+                    variant="tertiary"
                     size="sm"
                     className="h-8 w-8"
                     aria-label="Open moderation actions"
@@ -246,13 +247,13 @@ function CommunityPostCardComponent({
         >
           {featuredBadgeLabel && (
             <Badge
-              type="modern"
+              variant="modern"
               className="type-chip mb-1 border border-primary/35 bg-primary/12 text-primary"
             >
               {featuredBadgeLabel}
             </Badge>
           )}
-          <h3 className={cn("type-post-title text-foreground", isFeatured && "sm:text-xl sm:leading-7")}>
+          <h3 className={cx("type-post-title text-foreground", isFeatured && "sm:text-xl sm:leading-7")}>
             {post.title}
           </h3>
           {post.useCase && (
@@ -265,7 +266,7 @@ function CommunityPostCardComponent({
         <PromptPreviewPanel
           text={promptBody}
           mode="compact"
-          className={cn("pf-community-preview bg-background/65", isFeatured && "border-primary/25")}
+          className={cx("pf-community-preview bg-background/65", isFeatured && "border-primary/25")}
           onCopy={() => onCopyPrompt(post)}
         />
 
@@ -281,8 +282,8 @@ function CommunityPostCardComponent({
                 className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-default"
               >
                 <Badge
-                  type="modern"
-                  className={cn(
+                  variant="modern"
+                  className={cx(
                     "type-chip border border-border bg-background text-foreground",
                     onTagClick && "cursor-pointer hover:bg-muted",
                   )}
@@ -318,7 +319,7 @@ function CommunityPostCardComponent({
             {onSaveToLibrary && (
               <Button
                 type="button"
-                color="secondary"
+                variant="secondary"
                 size="sm"
                 className="type-button-label utility-action-button"
                 onClick={() => onSaveToLibrary(post.id)}
@@ -330,7 +331,7 @@ function CommunityPostCardComponent({
             )}
             <Button
               type="button"
-              color="primary"
+              variant="primary"
               size="sm"
               className="type-button-label utility-action-button min-w-[84px]"
               onClick={() => navigate(`/?remix=${post.id}`)}
@@ -343,7 +344,7 @@ function CommunityPostCardComponent({
                 <DropdownMenuTrigger asChild>
                   <Button
                     type="button"
-                    color="tertiary"
+                    variant="tertiary"
                     size="sm"
                     className="type-button-label utility-action-button h-11 w-11 p-0 sm:h-9 sm:w-9"
                     aria-label="More actions"
@@ -380,7 +381,7 @@ function CommunityPostCardComponent({
         </div>
 
         <div
-          className={cn(
+          className={cx(
             "type-meta gap-2 text-muted-foreground",
             isMobile ? "flex flex-wrap items-center" : "flex flex-wrap items-center",
           )}
@@ -388,7 +389,7 @@ function CommunityPostCardComponent({
           <Button
             type="button"
             size="sm"
-            color={voteState?.upvote ? "primary" : "secondary"}
+            variant={voteState?.upvote ? "primary" : "secondary"}
             className="type-button-label interactive-chip h-11 min-w-11 gap-1.5 px-3 sm:h-9 sm:min-w-9 sm:gap-1 sm:px-2.5"
             disabled={!canVote}
             onClick={() => onToggleVote(post.id, "upvote")}
@@ -400,7 +401,7 @@ function CommunityPostCardComponent({
           <Button
             type="button"
             size="sm"
-            color={voteState?.verified ? "primary" : "secondary"}
+            variant={voteState?.verified ? "primary" : "secondary"}
             className="type-button-label interactive-chip h-11 min-w-11 gap-1.5 px-3 sm:h-9 sm:min-w-9 sm:gap-1 sm:px-2.5"
             disabled={!canVote}
             onClick={() => onToggleVote(post.id, "verified")}
@@ -411,7 +412,7 @@ function CommunityPostCardComponent({
           </Button>
           <Button
             type="button"
-            color="tertiary"
+            variant="tertiary"
             size="sm"
             className="type-button-label interactive-chip h-11 gap-1.5 px-3 sm:h-9 sm:px-2.5"
             aria-label={post.commentCount > 0 ? `Comments ${post.commentCount}` : "Comments"}
@@ -438,7 +439,7 @@ function CommunityPostCardComponent({
             className="inline-flex items-center gap-1.5 rounded-full border border-border/65 bg-background/65 px-2 py-1"
           >
             <Star
-              className={cn(
+              className={cx(
                 "h-3.5 w-3.5",
                 ratingCount > 0 ? "fill-primary text-primary" : "text-muted-foreground",
               )}

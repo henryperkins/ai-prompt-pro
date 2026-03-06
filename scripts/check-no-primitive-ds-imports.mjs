@@ -6,22 +6,22 @@ const projectRoot = process.cwd();
 const srcRoot = path.join(projectRoot, "src");
 const sourceExtensions = new Set([".ts", ".tsx"]);
 const strictMode = process.env.STRICT_PRIMITIVE_IMPORTS === "1";
-const allowedFacadeFiles = new Set([
-  "src/components/base/dialog.tsx",
-  "src/components/base/drawer.tsx",
-  "src/components/base/tabs.tsx",
-  "src/components/base/label.tsx",
-  "src/components/base/textarea.tsx",
-]);
+const designSystemInternalPrefixes = [
+  "src/components/base/",
+  "src/components/application/",
+  "src/components/foundations/",
+  "src/components/marketing/",
+  "src/components/fantasy/",
+];
 
 function shouldSkipFile(relativePath) {
   if (relativePath.startsWith("src/test/")) {
     return true;
   }
-  if (relativePath.startsWith("src/components/base/primitives/")) {
+  if (designSystemInternalPrefixes.some((prefix) => relativePath.startsWith(prefix))) {
     return true;
   }
-  return allowedFacadeFiles.has(relativePath);
+  return false;
 }
 
 async function* walk(dir) {
@@ -57,9 +57,9 @@ if (violations.length === 0) {
 }
 
 const modeLabel = strictMode ? "ERROR" : "WARN";
-console[ strictMode ? "error" : "warn" ](`[${modeLabel}] Found deprecated primitive design-system imports:`);
+console[strictMode ? "error" : "warn"](`[${modeLabel}] Found deprecated primitive design-system imports:`);
 for (const violation of violations) {
-  console[ strictMode ? "error" : "warn" ](`- ${violation}`);
+  console[strictMode ? "error" : "warn"](`- ${violation}`);
 }
 
 if (strictMode) {

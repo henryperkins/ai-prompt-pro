@@ -1,12 +1,12 @@
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "react-router-dom";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitives/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/avatar";
 import { Button } from "@/components/base/buttons/button";
-import { ScrollArea } from "@/components/base/primitives/scroll-area";
-import { Skeleton } from "@/components/base/primitives/skeleton";
-import { getInitials } from "@/lib/community-utils";
+import { ScrollArea } from "@/components/base/scroll-area";
+import { Skeleton } from "@/components/base/skeleton";
+import { getInitials } from "@/lib/utils/get-initials";
 import type { Notification } from "@/lib/notifications";
-import { cn } from "@/lib/utils";
+import { cx } from "@/lib/utils/cx";
 import {
   ArrowUp,
   Bell,
@@ -63,7 +63,7 @@ export function NotificationPanel({
   className,
 }: NotificationPanelProps) {
   return (
-    <div className={cn("w-[min(96vw,24rem)] rounded-md border border-border/80 bg-popover", className)}>
+    <div className={cx("w-[min(96vw,24rem)] rounded-md border border-border/80 bg-popover", className)}>
       <div className="flex items-center justify-between gap-2 border-b border-border/70 px-3 py-2">
         <div className="type-post-title flex items-center gap-2 text-foreground">
           <Bell className="h-4 w-4" />
@@ -74,7 +74,7 @@ export function NotificationPanel({
             <Button
               type="button"
               size="sm"
-              color="tertiary"
+              variant="tertiary"
               className="type-button-label h-11 px-3 sm:h-9 sm:px-2"
               onClick={onRefresh}
             >
@@ -84,7 +84,7 @@ export function NotificationPanel({
           <Button
             type="button"
             size="sm"
-            color="tertiary"
+            variant="tertiary"
             className="type-button-label h-11 px-3 sm:h-9 sm:px-2"
             onClick={() => void onMarkAllAsRead()}
             disabled={unreadCount === 0 || loading}
@@ -149,7 +149,7 @@ export function NotificationPanel({
               return (
                 <div
                   key={notification.id}
-                  className={cn(
+                  className={cx(
                     "rounded-md border px-2.5 py-2.5 text-left transition-colors",
                     notification.readAt
                       ? "border-transparent bg-transparent hover:bg-accent/40"

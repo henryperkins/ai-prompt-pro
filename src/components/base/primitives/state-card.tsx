@@ -2,7 +2,7 @@ import type { ComponentType } from "react";
 import { Card } from "@/components/base/card";
 import { Button } from "@/components/base/buttons/button";
 import { DEFAULT_UI_DENSITY, type UIDensity } from "@/lib/ui-density";
-import { cn } from "@/lib/utils";
+import { cx } from "@/lib/utils/cx";
 import { Lock, MagnifyingGlassMinus as SearchX, Warning as AlertTriangle } from "@phosphor-icons/react";
 
 type StateCardVariant = "empty" | "error" | "auth";
@@ -48,7 +48,7 @@ const variantMeta: Record<
 function renderAction(action: StateCardAction, fallbackVariant: StateCardAction["variant"]) {
   const variant = action.variant ?? fallbackVariant;
   const isPrimary = variant === "default";
-  const color = variant === "default"
+  const buttonVariant = variant === "default"
     ? "primary"
     : variant === "ghost"
       ? "tertiary"
@@ -58,12 +58,12 @@ function renderAction(action: StateCardAction, fallbackVariant: StateCardAction[
     : "ui-toolbar-button font-medium";
   if (action.to) {
     return (
-      <Button href={action.to} size="sm" color={color} className={actionClassName}>{action.label}</Button>
+      <Button href={action.to} size="sm" variant={buttonVariant} className={actionClassName}>{action.label}</Button>
     );
   }
 
   return (
-    <Button type="button" size="sm" color={color} className={actionClassName} onClick={action.onClick}>
+    <Button type="button" size="sm" variant={buttonVariant} className={actionClassName} onClick={action.onClick}>
       {action.label}
     </Button>
   );
@@ -82,10 +82,10 @@ export function StateCard({
   const Icon = meta.icon;
 
   return (
-    <Card className={cn("ui-density space-y-4 p-4 sm:p-5", meta.cardClassName, className)} data-density={density}>
+    <Card className={cx("ui-density space-y-4 p-4 sm:p-5", meta.cardClassName, className)} data-density={density}>
       <div className="flex items-start gap-3">
         <span
-          className={cn(
+          className={cx(
             "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-background/80",
             meta.iconClassName,
           )}

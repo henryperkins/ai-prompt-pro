@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cx } from "@/lib/utils/cx";
 
 interface ProgressBarProps {
   value: number;
@@ -99,7 +99,7 @@ export const ProgressBarCircle = ({ value, min = 0, max = 100, size, label, valu
             <div className={valueClass}>{valueText}</div>
           </div>
         ) : (
-          <span className={cn("absolute text-center", valueClass)}>{valueText}</span>
+          <span className={cx("absolute text-center", valueClass)}>{valueText}</span>
         )}
       </div>
 
@@ -154,7 +154,7 @@ export const ProgressBarHalfCircle = ({ value, min = 0, max = 100, size, label, 
             <div className={valueClass}>{valueText}</div>
           </div>
         ) : (
-          <span className={cn(halfCircleTextPosition, valueClass)}>{valueText}</span>
+          <span className={cx(halfCircleTextPosition, valueClass)}>{valueText}</span>
         )}
       </div>
 

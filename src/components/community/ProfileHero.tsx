@@ -1,11 +1,11 @@
 import { format } from "date-fns";
 import type { CommunityPost, FollowStats, ProfileActivityStats, CommunityProfile } from "@/lib/community";
-import { getInitials } from "@/lib/community-utils";
+import { getInitials } from "@/lib/utils/get-initials";
 import { getCommunityPostRarity, type PromptForgeRarity } from "@/lib/community-rarity";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitives/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/avatar";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
-import { cn } from "@/lib/utils";
+import { cx } from "@/lib/utils/cx";
 import { ArrowUp, CheckCircle as CheckCircle2, Fire as Flame, Star } from "@phosphor-icons/react";
 
 interface ProfileHeroProps {
@@ -95,7 +95,7 @@ export function ProfileHero({
         <div className="relative z-[1] flex flex-col items-center gap-4 sm:flex-row sm:items-start sm:gap-5">
           {/* Avatar with rarity ring */}
           <div
-            className={cn(
+            className={cx(
               "relative shrink-0 rounded-full ring-[3px] ring-offset-2 ring-offset-transparent",
               RARITY_RING[bestRarity],
               RARITY_GLOW[bestRarity],
@@ -119,14 +119,14 @@ export function ProfileHero({
                 {profile.displayName}
               </h1>
               {isOwnProfile && (
-                <Badge type="modern" className="type-chip border border-border/60 bg-background/30 text-foreground/80">
+                <Badge variant="modern" className="type-chip border border-border/60 bg-background/30 text-foreground/80">
                   You
                 </Badge>
               )}
               {showRarityBadge && (
                 <Badge
-                  type="modern"
-                  className={cn("type-chip border text-xs font-semibold", RARITY_BADGE_COLOR[bestRarity])}
+                  variant="modern"
+                  className={cx("type-chip border text-xs font-semibold", RARITY_BADGE_COLOR[bestRarity])}
                 >
                   {RARITY_LABEL[bestRarity]}
                 </Badge>
@@ -155,7 +155,7 @@ export function ProfileHero({
               <Button
                 type="button"
                 size="sm"
-                color={isFollowing ? "secondary" : "primary"}
+                variant={isFollowing ? "secondary" : "primary"}
                 className="type-button-label mt-1 h-10 min-w-[100px] sm:h-9"
                 onClick={onToggleFollow}
                 disabled={followPending}
@@ -190,7 +190,7 @@ export function ProfileHero({
         <div className="flex items-center justify-between px-1">
           <h2 className="type-post-title text-foreground">Published Prompts</h2>
           <Badge
-            type="modern"
+            variant="modern"
             className="type-chip type-numeric border border-border/60 bg-background/60 text-muted-foreground"
           >
             {activityStats.totalPosts}

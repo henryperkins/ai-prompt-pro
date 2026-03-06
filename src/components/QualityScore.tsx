@@ -1,5 +1,5 @@
 import { Card } from "@/components/base/card";
-import { Progress } from "@/components/base/primitives/progress";
+import { Progress } from "@/components/base/progress";
 import { CheckCircle as CheckCircle2, WarningCircle as AlertCircle } from "@phosphor-icons/react";
 
 interface QualityScoreProps {

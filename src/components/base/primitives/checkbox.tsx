@@ -1,7 +1,7 @@
 import * as React from "react";
 
 import { CheckboxBase } from "@/components/base/checkbox/checkbox";
-import { cn } from "@/lib/utils";
+import { cx } from "@/lib/utils/cx";
 
 type CheckedState = boolean | "indeterminate";
 
@@ -31,7 +31,7 @@ const Checkbox = React.forwardRef<HTMLButtonElement, CheckboxProps>(
         disabled={disabled}
         data-state={dataState}
         aria-checked={ariaChecked}
-        className={cn("inline-flex items-center justify-center rounded-sm", className)}
+        className={cx("inline-flex items-center justify-center rounded-sm", className)}
         onClick={(event) => {
           onClick?.(event);
           if (event.defaultPrevented || disabled) {

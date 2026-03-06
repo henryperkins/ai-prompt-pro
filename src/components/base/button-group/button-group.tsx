@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import * as ToggleGroupPrimitive from "@radix-ui/react-toggle-group";
-import { cn } from "@/lib/utils";
+import { cx } from "@/lib/utils/cx";
 import { renderIconSlot, type IconSlot } from "@/lib/utils/icon-slot";
 
 type ButtonGroupSize = "sm" | "md" | "lg";
@@ -33,7 +33,7 @@ export const ButtonGroup = ({ className, children, size = "md", ...props }: Butt
     <ToggleGroupPrimitive.Root
       {...props}
       type="single"
-      className={cn("inline-flex items-center rounded-md border border-border bg-card p-1", className)}
+      className={cx("inline-flex items-center rounded-md border border-border bg-card p-1", className)}
       data-size={size}
     >
       {children}
@@ -51,7 +51,7 @@ export const ButtonGroupItem = ({
 }: ButtonGroupItemProps) => {
   return (
     <ToggleGroupPrimitive.Item
-      className={cn(
+      className={cx(
         "inline-flex items-center justify-center gap-1.5 rounded-sm font-medium text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 data-[state=on]:bg-background data-[state=on]:text-foreground",
         sizeStyles[size],
         className,

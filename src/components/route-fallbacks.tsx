@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { PageShell } from "@/components/PageShell";
 import { Card } from "@/components/base/card";
-import { Skeleton } from "@/components/base/primitives/skeleton";
+import { Skeleton } from "@/components/base/skeleton";
 
 function RouteFallbackFrame({ children }: { children: ReactNode }) {
   return (

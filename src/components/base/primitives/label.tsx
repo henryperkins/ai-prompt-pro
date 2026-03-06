@@ -1,6 +1,6 @@
 import * as React from "react";
 
-import { cn } from "@/lib/utils";
+import { cx } from "@/lib/utils/cx";
 
 const Label = React.forwardRef<
   HTMLLabelElement,
@@ -8,7 +8,7 @@ const Label = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <label
     ref={ref}
-    className={cn("text-sm font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 sm:text-base", className)}
+    className={cx("text-sm font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70 sm:text-base", className)}
     {...props}
   />
 ));

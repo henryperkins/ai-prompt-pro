@@ -1,7 +1,7 @@
 import * as React from "react";
 
 import { ProgressBarBase } from "@/components/base/progress-indicators/progress-indicators";
-import { cn } from "@/lib/utils";
+import { cx } from "@/lib/utils/cx";
 
 interface ProgressProps {
   value?: number;
@@ -16,7 +16,7 @@ const Progress = React.forwardRef<HTMLDivElement, ProgressProps>(({ className, v
       value={value}
       min={min}
       max={max}
-      className={cn("h-4 bg-tertiary", className)}
+      className={cx("h-4 bg-tertiary", className)}
       progressClassName="bg-brand-solid"
     />
   </div>

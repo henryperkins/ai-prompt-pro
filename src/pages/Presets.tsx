@@ -21,7 +21,7 @@ import {
 } from "@/lib/preset-catalog";
 import { trackBuilderEvent } from "@/lib/telemetry";
 import { getUserPreferences, setUserPreference } from "@/lib/user-preferences";
-import { cn } from "@/lib/utils";
+import { cx } from "@/lib/utils/cx";
 import { MagnifyingGlass as Search } from "@phosphor-icons/react";
 
 const categoryIcons: Record<string, string> = {
@@ -60,18 +60,18 @@ function PresetCard({
   ].filter(Boolean) as string[];
 
   return (
-    <Card className={cn("interactive-card pf-card group h-full overflow-hidden border", skin.card)}>
+    <Card className={cx("interactive-card pf-card group h-full overflow-hidden border", skin.card)}>
       <div className="flex h-full flex-col space-y-2 p-3 sm:p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 flex-wrap min-w-0">
-            <span className={cn("inline-flex h-8 w-8 items-center justify-center rounded-full text-sm", skin.iconWrap)}>
+            <span className={cx("inline-flex h-8 w-8 items-center justify-center rounded-full text-sm", skin.iconWrap)}>
               {categoryIcons[template.category] ?? categoryIcons.general}
             </span>
             <h3 className="text-sm font-semibold text-primary_on-brand">{template.name}</h3>
             <Badge
-              type="pill-color"
+              variant="pill"
               size="sm"
-              className={cn(
+              className={cx(
                 "border border-border/60 bg-background/70 text-secondary_on-brand ring-transparent capitalize",
                 skin.badge,
               )}
@@ -81,7 +81,7 @@ function PresetCard({
           </div>
           <Button
             type="button"
-            color="tertiary"
+            variant="tertiary"
             size="sm"
             className="h-8 w-8 p-0 text-base"
             aria-label={isFavorite ? `Remove ${template.name} from favorites` : `Add ${template.name} to favorites`}
@@ -101,7 +101,7 @@ function PresetCard({
           {fields.map((f) => (
             <Badge
               key={f}
-              type="pill-color"
+              variant="pill"
               size="sm"
               className="border border-border/60 bg-background/65 text-secondary_on-brand ring-transparent"
             >
@@ -113,7 +113,7 @@ function PresetCard({
         <div className="mt-auto pt-2">
           <Button
             type="button"
-            color="primary"
+            variant="primary"
             size="sm"
             aria-label={`Use ${template.name} preset`}
             className="h-10 w-full gap-1.5 text-sm font-semibold sm:h-9 sm:w-auto"
@@ -240,7 +240,7 @@ const Presets = () => {
           {categories.map((cat) => (
             <Button
               key={cat}
-              color={activeCategory === cat ? "primary" : "secondary"}
+              variant={activeCategory === cat ? "primary" : "secondary"}
               size="sm"
               onClick={() => setActiveCategory(cat)}
               aria-pressed={activeCategory === cat}
@@ -263,7 +263,7 @@ const Presets = () => {
           {hasActiveFilters && (
             <Button
               type="button"
-              color="tertiary"
+              variant="tertiary"
               size="sm"
               className="h-9 text-sm"
               onClick={clearFilters}
@@ -280,7 +280,7 @@ const Presets = () => {
               <div className="mt-3">
                 <Button
                   type="button"
-                  color="secondary"
+                  variant="secondary"
                   size="sm"
                   className="h-9"
                   onClick={clearFilters}

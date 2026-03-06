@@ -122,7 +122,7 @@ export const ContactSimpleForm = () => {
                         />
                     </div>
 
-                    <Button type="submit" size="xl" isDisabled={isSubmitting} isLoading={isSubmitting}>
+                    <Button type="submit" size="xl" disabled={isSubmitting} loading={isSubmitting}>
                         {isSubmitting ? "Sending..." : "Send message"}
                     </Button>
                 </Form>

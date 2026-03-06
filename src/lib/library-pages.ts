@@ -1,4 +1,5 @@
 import type { AuthUser } from "@/hooks/useAuth";
+import { getInitials as sharedGetInitials } from "@/lib/utils/get-initials";
 
 function normalizeIds(ids: string[]): string[] {
   return Array.from(
@@ -38,12 +39,5 @@ export function getUserAvatarUrl(user: AuthUser | null): string | null {
   return avatarUrl || null;
 }
 
-export function getInitials(value: string): string {
-  const parts = value
-    .split(" ")
-    .map((part) => part.trim())
-    .filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0] || ""}${parts[1][0] || ""}`.toUpperCase();
-}
+/** @deprecated Import `getInitials` from "@/lib/utils/get-initials". */
+export const getInitials = sharedGetInitials;

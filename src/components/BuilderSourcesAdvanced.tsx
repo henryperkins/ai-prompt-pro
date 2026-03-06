@@ -6,7 +6,7 @@ import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/card";
 import { Label } from "@/components/base/label";
-import { Switch } from "@/components/base/primitives/switch";
+import { Switch } from "@/components/base/switch";
 import {
   CaretDown as ChevronDown,
   CaretRight as ChevronRight,
@@ -86,7 +86,7 @@ export function BuilderSourcesAdvanced({
           </div>
           <div className="flex items-center gap-2">
             {sourceCount > 0 && (
-              <Badge type="modern" className="text-xs">
+              <Badge variant="modern" className="text-xs">
                 {sourceCount} source{sourceCount === 1 ? "" : "s"}
               </Badge>
             )}
@@ -112,7 +112,7 @@ export function BuilderSourcesAdvanced({
               <Button
                 type="button"
                 size="sm"
-                color={showAdvanced ? "primary" : "secondary"}
+                variant={showAdvanced ? "primary" : "secondary"}
                 className="h-11 gap-1.5 text-sm sm:h-9 sm:text-sm"
                 onClick={() =>
                   setAdvancedVisibility((previous) => {

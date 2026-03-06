@@ -1,7 +1,7 @@
 import * as React from "react";
 
 import { Tooltip as UuiTooltip } from "@/components/base/tooltip/tooltip";
-import { cn } from "@/lib/utils";
+import { cx } from "@/lib/utils/cx";
 
 type TooltipSide = "top" | "right" | "bottom" | "left";
 type TooltipAlign = "start" | "center" | "end";
@@ -76,7 +76,7 @@ const Tooltip = ({ children, defaultOpen, open, onOpenChange }: TooltipRootProps
     ? React.isValidElement(triggerChildren)
       ? React.cloneElement(triggerChildren, {
           ...triggerProps,
-          className: cn(
+          className: cx(
             (triggerChildren.props as { className?: string }).className,
             triggerClassName,
             (triggerProps as { className?: string }).className,

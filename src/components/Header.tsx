@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Button } from "@/components/base/buttons/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitives/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/base/dialog";
 import {
   AlertDialog,
@@ -11,7 +11,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/base/primitives/alert-dialog";
+} from "@/components/base/alert-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,10 +21,10 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@/components/base/primitives/dropdown-menu";
+} from "@/components/base/dropdown-menu";
 import { Input } from "@/components/base/input/input";
 import { Label } from "@/components/base/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/base/primitives/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/base/popover";
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/base/drawer";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -209,7 +209,7 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
           <nav className="flex items-center gap-0.5 sm:gap-1">
             {user && mobileNotificationsEnabled && (
               <Button
-                color="tertiary"
+                variant="tertiary"
                 size="icon"
                 aria-label="Open notifications"
                 className="interactive-chip relative w-11 h-11 sm:hidden"
@@ -227,7 +227,7 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
-                  color="tertiary"
+                  variant="tertiary"
                   size="icon"
                   aria-label="Open utilities menu"
                   className="interactive-chip w-11 h-11 sm:hidden"
@@ -369,7 +369,7 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
               <Button
                 key={to}
                 type="button"
-                color={isRouteActive(location.pathname, to) ? "secondary" : "tertiary"}
+                variant={isRouteActive(location.pathname, to) ? "secondary" : "tertiary"}
                 size="sm"
                 className="pf-nav-button interactive-chip hidden sm:inline-flex gap-1.5 sm:gap-2 h-11 sm:h-9 px-2 sm:px-3"
                 aria-label={ariaLabel}
@@ -391,7 +391,7 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
               >
                 <PopoverTrigger asChild>
                   <Button
-                    color="tertiary"
+                    variant="tertiary"
                     size="icon"
                     aria-label="Open notifications"
                     className="interactive-chip hidden sm:inline-flex relative w-11 h-11 sm:w-9 sm:h-9"
@@ -422,7 +422,7 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
               </Popover>
             )}
             <Button
-              color="tertiary"
+              variant="tertiary"
               size="icon"
               onClick={onToggleTheme}
               aria-label="Toggle theme"
@@ -435,7 +435,7 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
-                    color="tertiary"
+                    variant="tertiary"
                     size="icon"
                     aria-label="Open account menu"
                     className="interactive-chip hidden sm:inline-flex w-11 h-11 sm:w-9 sm:h-9 rounded-full p-0"
@@ -472,7 +472,7 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
               </DropdownMenu>
             ) : (
               <Button
-                color="tertiary"
+                variant="tertiary"
                 size="sm"
                 onClick={() => setAuthOpen(true)}
                 aria-label="Sign in"
@@ -566,7 +566,7 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
             <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
               <Button
                 type="button"
-                color="secondary"
+                variant="secondary"
                 onClick={() => setDisplayNameOpen(false)}
                 disabled={savingDisplayName}
               >

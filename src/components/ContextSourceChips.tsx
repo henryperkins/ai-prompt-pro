@@ -229,7 +229,7 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
         <label className="text-sm font-medium text-foreground sm:text-base">Sources</label>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button color="secondary" size="sm" className="h-11 gap-1 text-sm sm:h-9 sm:text-sm">
+            <Button variant="secondary" size="sm" className="h-11 gap-1 text-sm sm:h-9 sm:text-sm">
               <Plus className="w-3 h-3" />
               Add
             </Button>
@@ -245,7 +245,7 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
             {!mode ? (
               <div className="grid grid-cols-2 gap-3 py-4">
                 <Button
-                  color="secondary"
+                  variant="secondary"
                   className="h-20 flex-col gap-2"
                   onClick={() => setMode("text")}
                 >
@@ -253,7 +253,7 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
                   <span className="text-sm sm:text-base">Paste text</span>
                 </Button>
                 <Button
-                  color="secondary"
+                  variant="secondary"
                   className="h-20 flex-col gap-2"
                   onClick={() => setMode("url")}
                 >
@@ -273,7 +273,7 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
                     />
                     <Button
                       size="sm"
-                      color="secondary"
+                      variant="secondary"
                       onClick={handleFetchUrl}
                       disabled={!urlInput.trim() || isFetching}
                       className="shrink-0 gap-1.5"
@@ -308,7 +308,7 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
                 </p>
                 <div className="flex gap-2 justify-end">
                   <Button
-                    color="tertiary"
+                    variant="tertiary"
                     size="sm"
                     onClick={() => {
                       setMode(null);
@@ -334,7 +334,7 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
           {sources.map((source) => (
               <Badge
                 key={source.id}
-                type="modern"
+                variant="modern"
                 className="gap-1 sm:gap-1.5 pr-1 max-w-45 sm:max-w-50 group cursor-default"
                 title={`${source.title}\n${source.summary}`}
               >

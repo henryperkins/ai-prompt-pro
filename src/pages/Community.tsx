@@ -6,7 +6,7 @@ import { PageHero, PageShell } from "@/components/PageShell";
 import { Button } from "@/components/base/buttons/button";
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/base/drawer";
 import { InputBase } from "@/components/base/input/input";
-import { ScrollArea } from "@/components/base/primitives/scroll-area";
+import { ScrollArea } from "@/components/base/scroll-area";
 import { useCommunityMobileTelemetry } from "@/hooks/useCommunityMobileTelemetry";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNewPostsIndicator } from "@/hooks/useNewPostsIndicator";
@@ -45,7 +45,7 @@ import {
   unblockCommunityUser,
 } from "@/lib/community-moderation";
 import { toParentTitleMap, toProfileMap } from "@/lib/community-utils";
-import { cn } from "@/lib/utils";
+import { cx } from "@/lib/utils/cx";
 import { MagnifyingGlass as Search } from "@phosphor-icons/react";
 
 const SORT_OPTIONS: Array<{ label: string; value: CommunitySort }> = [
@@ -692,7 +692,7 @@ const Community = () => {
             {mobileEnhancementsEnabled && !isFollowingMode && (
               <Button
                 type="button"
-                color="secondary"
+                variant="secondary"
                 size="sm"
                 className="type-button-label mt-2 h-11 w-full items-center justify-between px-3 max-[320px]:mt-1 max-[320px]:h-10"
                 onClick={() => {
@@ -730,7 +730,7 @@ const Community = () => {
                       aria-pressed={isSelected}
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => setCategory(option.value)}
-                      className={cn(
+                      className={cx(
                         "type-tab-label flex min-h-11 items-center justify-between rounded-md px-2 py-2 transition-colors sm:min-h-10",
                         isSelected
                           ? "bg-accent text-accent-foreground"
@@ -762,7 +762,7 @@ const Community = () => {
                 type="button"
                 onClick={() => setFeedMode("for_you")}
                 aria-pressed={feedMode === "for_you"}
-                className={cn(
+                className={cx(
                   "type-tab-label flex-1 rounded-md px-3 py-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
                   feedMode === "for_you"
                     ? "bg-background text-foreground shadow-sm"
@@ -775,7 +775,7 @@ const Community = () => {
                 type="button"
                 onClick={() => setFeedMode("following")}
                 aria-pressed={feedMode === "following"}
-                className={cn(
+                className={cx(
                   "type-tab-label flex-1 rounded-md px-3 py-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
                   feedMode === "following"
                     ? "bg-background text-foreground shadow-sm"
@@ -808,7 +808,7 @@ const Community = () => {
                   }}
                   aria-pressed={sort === option.value}
                   data-testid="community-sort-button"
-                  className={cn(
+                  className={cx(
                     "type-tab-label h-11 rounded-md px-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 sm:h-10 sm:flex-1 sm:px-2",
                     isFollowingMode && "cursor-not-allowed opacity-60",
                     sort === option.value
@@ -847,7 +847,7 @@ const Community = () => {
                         <button
                           key={option.value}
                           type="button"
-                          className={cn(
+                          className={cx(
                             "type-tab-label flex h-11 w-full items-center justify-between rounded-md border px-3 text-left",
                             isSelected
                               ? "border-primary/35 bg-primary/10 text-foreground"

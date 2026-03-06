@@ -4,7 +4,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { Header } from "@/components/Header";
 import { useTheme } from "@/hooks/useTheme";
 import { brandCopy } from "@/lib/brand-copy";
-import { cn } from "@/lib/utils";
+import { cx } from "@/lib/utils/cx";
 
 interface PageShellProps {
   children: ReactNode;
@@ -21,7 +21,7 @@ export function PageShell({ children, mainClassName }: PageShellProps) {
     >
       <Header isDark={isDark} onToggleTheme={toggleTheme} />
       <main
-        className={cn("pf-shell-main container mx-auto flex-1 px-4 py-4 sm:py-6", mainClassName)}
+        className={cx("pf-shell-main container mx-auto flex-1 px-4 py-4 sm:py-6", mainClassName)}
         data-testid="page-shell-main"
       >
         {children}
@@ -64,7 +64,7 @@ interface PageHeroProps {
 export function PageHero({ title, subtitle, eyebrow, className }: PageHeroProps) {
   return (
     <div
-      className={cn(
+      className={cx(
         "pf-gilded-frame pf-hero-surface mb-4 px-4 py-5 text-center sm:mb-6 sm:px-6 sm:py-7",
         className
       )}

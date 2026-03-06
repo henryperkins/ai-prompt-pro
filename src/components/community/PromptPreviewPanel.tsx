@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/base/buttons/button";
-import { cn } from "@/lib/utils";
+import { cx } from "@/lib/utils/cx";
 import { Copy } from "@phosphor-icons/react";
 
 interface PromptPreviewPanelProps {
@@ -59,7 +59,7 @@ export function PromptPreviewPanel({ text, mode = "compact", className, onCopy }
 
   return (
     <div
-      className={cn(
+      className={cx(
         "rounded-lg border p-3 sm:p-4",
         isFull
           ? "border-border/70 bg-background/80 shadow-sm"
@@ -67,13 +67,13 @@ export function PromptPreviewPanel({ text, mode = "compact", className, onCopy }
         className,
       )}
     >
-      <div className={cn("relative", isFull && "mx-auto max-w-[108ch]") }>
+      <div className={cx("relative", isFull && "mx-auto max-w-[108ch]") }>
         {onCopy && (
           <Button
             type="button"
-            color="secondary"
+            variant="secondary"
             size="sm"
-            className={cn(
+            className={cx(
               "type-button-label utility-action-button utility-action-button--floating absolute z-10",
               isFull ? "right-3 top-3" : "right-2 top-2",
             )}
@@ -89,7 +89,7 @@ export function PromptPreviewPanel({ text, mode = "compact", className, onCopy }
         )}
         <pre
           ref={preRef}
-          className={cn(
+          className={cx(
             "type-code type-wrap-safe whitespace-pre-wrap font-mono text-foreground antialiased",
             isFull
               ? "text-[0.93rem] leading-6 sm:text-[0.97rem] sm:leading-7"
@@ -105,7 +105,7 @@ export function PromptPreviewPanel({ text, mode = "compact", className, onCopy }
         <div className="mt-2">
           <Button
             type="button"
-            color="secondary"
+            variant="secondary"
             size="sm"
             className="type-button-label h-11 px-4 font-semibold sm:h-9 sm:px-3"
             aria-expanded={isExpanded}

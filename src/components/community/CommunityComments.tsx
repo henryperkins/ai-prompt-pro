@@ -4,22 +4,23 @@ import { Link } from "react-router-dom";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { CommunityComment, CommunityProfile } from "@/lib/community";
 import { addComment, loadComments, loadProfilesByIds } from "@/lib/community";
-import { getInitials, toProfileMap } from "@/lib/community-utils";
+import { toProfileMap } from "@/lib/community-utils";
+import { getInitials } from "@/lib/utils/get-initials";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitives/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/base/primitives/dropdown-menu";
-import { Skeleton } from "@/components/base/primitives/skeleton";
+} from "@/components/base/dropdown-menu";
+import { Skeleton } from "@/components/base/skeleton";
 import { Textarea } from "@/components/base/textarea";
-import { cn } from "@/lib/utils";
+import { cx } from "@/lib/utils/cx";
 import {
   ChatCircle as MessageCircle,
   DotsThreeOutline as MoreHorizontal,
@@ -226,7 +227,7 @@ export function CommunityComments({
                   <DropdownMenuTrigger asChild>
                     <Button
                       type="button"
-                      color="tertiary"
+                      variant="tertiary"
                       size="sm"
                       className="ml-auto h-7 w-7"
                       aria-label="Open comment moderation actions"
@@ -281,13 +282,13 @@ export function CommunityComments({
   }
 
   return (
-    <Card className={cn("space-y-2.5 border-border/75 bg-card/90 p-2.5 sm:space-y-3 sm:p-3", className)}>
+    <Card className={cx("space-y-2.5 border-border/75 bg-card/90 p-2.5 sm:space-y-3 sm:p-3", className)}>
       <div className="flex items-center justify-between gap-2">
         <div className="type-tab-label flex items-center gap-1.5 text-foreground sm:gap-2">
           <MessageCircle className="h-3.5 w-3.5" />
           Comments
         </div>
-        <Badge type="modern" className="type-chip type-numeric h-5 min-w-5 px-1.5">
+        <Badge variant="modern" className="type-chip type-numeric h-5 min-w-5 px-1.5">
           {totalCount}
         </Badge>
       </div>
@@ -344,7 +345,7 @@ export function CommunityComments({
           ) : (
             <div
               data-testid="community-comments-list"
-              className={cn(
+              className={cx(
                 "space-y-1.5 sm:space-y-2",
                 !compact && "max-h-[42vh] overflow-y-auto pr-1 sm:max-h-[52vh] sm:pr-1",
               )}
@@ -398,7 +399,7 @@ export function CommunityComments({
                 key={`${postId}-${chip}`}
                 type="button"
                 size="sm"
-                color="tertiary"
+                variant="tertiary"
                 className="type-button-label h-10 rounded-full border border-border/60 bg-background/75 px-3 text-muted-foreground sm:h-8 sm:px-2.5"
                 onClick={() => handleQuickReply(chip)}
                 data-testid="community-quick-reply-chip"
@@ -413,7 +414,7 @@ export function CommunityComments({
             <Button
               type="button"
               size="sm"
-              color="primary"
+              variant="primary"
               onClick={handleSubmit}
               disabled={submitDisabled}
               className="type-button-label h-11 gap-1.5 px-4 sm:h-9 sm:px-3"
@@ -440,7 +441,7 @@ export function CommunityComments({
           <Button
             href="/"
             size="sm"
-            color="primary"
+            variant="primary"
             className="type-button-label mt-3 h-11 gap-1.5 px-4 sm:h-9 sm:px-3"
             data-testid="community-comment-submit"
           >

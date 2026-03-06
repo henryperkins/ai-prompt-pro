@@ -5,7 +5,7 @@ import { ButtonGroup, ButtonGroupItem } from "@/components/base/button-group/but
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { Avatar, AvatarFallback } from "@/components/base/primitives/avatar";
 import { Card } from "@/components/base/card";
-import { cn } from "@/lib/utils";
+import { cx } from "@/lib/utils/cx";
 import {
   Chat as MessageSquare,
   DotsThreeOutline as MoreHorizontal,
@@ -191,7 +191,7 @@ export function ActivityFeedsBlock() {
 
       <ul
         role="list"
-        className={cn(
+        className={cx(
           "relative",
           layout === "divided" && "divide-y divide-border/70",
           layout === "connected" && "before:absolute before:bottom-4 before:left-[2.1rem] before:top-4 before:w-px before:bg-border/70",
@@ -204,7 +204,7 @@ export function ActivityFeedsBlock() {
               return (
                 <li
                   key={entry.id}
-                  className={cn(
+                  className={cx(
                     "relative flex gap-3 px-4 py-4 sm:px-5",
                     layout === "spaced" && "rounded-lg border border-border/70 bg-background px-3 py-3.5 sm:px-4",
                   )}
@@ -253,7 +253,7 @@ export function ActivityFeedsBlock() {
           : messageEntries.map((entry) => (
               <li
                 key={entry.id}
-                className={cn(
+                className={cx(
                   "relative flex gap-3 px-4 py-4 sm:px-5",
                   layout === "spaced" && "rounded-lg border border-border/70 bg-background px-3 py-3.5 sm:px-4",
                 )}

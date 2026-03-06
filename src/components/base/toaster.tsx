@@ -1,0 +1,1 @@
+export { Toaster } from "@/components/base/primitives/toaster";

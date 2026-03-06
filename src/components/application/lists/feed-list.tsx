@@ -5,7 +5,7 @@ import { ButtonGroup, ButtonGroupItem } from "@/components/base/button-group/but
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { Avatar, AvatarFallback } from "@/components/base/primitives/avatar";
 import { Card } from "@/components/base/card";
-import { cn } from "@/lib/utils";
+import { cx } from "@/lib/utils/cx";
 import {
   Bell,
   Chat as MessageSquare,
@@ -155,7 +155,7 @@ export function FeedListBlock() {
                 </div>
               </div>
 
-              <div className={cn("flex shrink-0 items-start gap-2", "text-xs text-muted-foreground")}>
+              <div className={cx("flex shrink-0 items-start gap-2", "text-xs text-muted-foreground")}>
                 <span className="mt-1">{item.timestamp}</span>
                 <ButtonUtility
                   icon={MoreHorizontal}

@@ -52,7 +52,7 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/base/primitives/accordion";
+} from "@/components/base/accordion";
 import {
   Drawer,
   DrawerContent,
@@ -63,8 +63,8 @@ import {
 import { Button } from "@/components/base/buttons/button";
 import { Badge } from "@/components/base/badges/badges";
 import { Card } from "@/components/base/card";
-import { ToastAction } from "@/components/base/primitives/toast";
-import { Switch } from "@/components/base/primitives/switch";
+import { ToastAction } from "@/components/base/toast";
+import { Switch } from "@/components/base/switch";
 import type { Icon as IconType } from "@phosphor-icons/react";
 import { UI_STATUS_SURFACE_CLASSES } from "@/lib/ui-status";
 import { PFQualityGauge } from "@/components/fantasy/PFQualityGauge";
@@ -1577,7 +1577,7 @@ const Index = () => {
           {brandCopy.pillars.map((pillar) => (
             <Badge
               key={pillar.title}
-              type="modern"
+              variant="modern"
               className="border border-pf-gold/35 bg-pf-coal/35 text-xs text-pf-parchment/90"
             >
               {pillar.title}
@@ -1600,7 +1600,7 @@ const Index = () => {
               </p>
             </div>
             <Button
-              color="tertiary"
+              variant="tertiary"
               size="sm"
               onClick={handleClearRemix}
               className="utility-action-button gap-1.5 text-sm sm:text-sm"
@@ -1657,7 +1657,7 @@ const Index = () => {
                         key={suggestion.id}
                         type="button"
                         size="sm"
-                        color="secondary"
+                        variant="secondary"
                         className="h-11 text-sm sm:h-9 sm:text-sm"
                         onClick={() => openAndFocusSection(suggestion.id)}
                       >
@@ -1683,7 +1683,7 @@ const Index = () => {
                     <Button
                       type="button"
                       size="sm"
-                      color="secondary"
+                      variant="secondary"
                       className="h-11 text-sm sm:h-9 sm:text-sm"
                       onClick={() => persistedSetShowAdvancedControls(true)}
                     >
@@ -1752,7 +1752,7 @@ const Index = () => {
                         key={suggestion.id}
                         type="button"
                         size="sm"
-                        color="secondary"
+                        variant="secondary"
                         className="h-11 text-sm sm:h-9 sm:text-sm"
                         onClick={() => openAndFocusSection(suggestion.id)}
                       >
@@ -1780,7 +1780,7 @@ const Index = () => {
                     </span>
                     <span className="ml-auto mr-2 flex items-center gap-1.5">
                       {selectedRole && (
-                        <Badge type="modern" className="max-w-45 text-xs">
+                        <Badge variant="modern" className="max-w-45 text-xs">
                           <span className="type-wrap-safe">{selectedRole}</span>
                         </Badge>
                       )}
@@ -1800,7 +1800,7 @@ const Index = () => {
                     </span>
                     <span className="ml-auto mr-2 flex items-center gap-1.5">
                       {sourceCount > 0 && (
-                        <Badge type="modern" className="text-xs">
+                        <Badge variant="modern" className="text-xs">
                           {sourceCount} src
                         </Badge>
                       )}
@@ -1832,7 +1832,7 @@ const Index = () => {
                     </span>
                     <span className="ml-auto mr-2 flex items-center gap-1.5">
                       {config.tone && (
-                        <Badge type="modern" className="text-xs">
+                        <Badge variant="modern" className="text-xs">
                           {config.tone}
                         </Badge>
                       )}
@@ -1856,8 +1856,8 @@ const Index = () => {
                     </span>
                     <span className="ml-auto mr-2 flex items-center gap-1.5">
                       <Badge
-                        type="pill-color"
-                        color={score.total >= 75 ? "brand" : "gray"}
+                        variant="pill"
+                        tone={score.total >= 75 ? "brand" : "default"}
                         className="text-xs"
                       >
                         {score.total}/100
@@ -1887,7 +1887,7 @@ const Index = () => {
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1">
-                    <Badge type="pill-color" color={score.total >= 75 ? "brand" : "gray"} className="text-xs">
+                    <Badge variant="pill" tone={score.total >= 75 ? "brand" : "default"} className="text-xs">
                       {score.total}/100
                     </Badge>
                     <span className="text-[11px] text-pf-parchment/70">
@@ -1999,14 +1999,14 @@ const Index = () => {
               <span>Web</span>
             </label>
             <Badge
-              type="pill-color"
-              color={score.total >= 75 ? "brand" : "gray"}
+              variant="pill"
+              tone={score.total >= 75 ? "brand" : "default"}
               className="h-11 min-w-16 justify-center rounded-md px-2 text-sm font-semibold max-[360px]:min-w-0 max-[360px]:justify-self-end sm:h-10 sm:text-base"
             >
               {score.total}/100
             </Badge>
             <Button
-              color="primary"
+              variant="primary"
               size="md"
               onClick={handleEnhance}
               disabled={isEnhancing || !builtPrompt}

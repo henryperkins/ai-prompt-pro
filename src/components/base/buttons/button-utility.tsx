@@ -1,6 +1,6 @@
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/base/primitives/tooltip";
-import { cn } from "@/lib/utils";
+import { cx } from "@/lib/utils/cx";
 import { renderIconSlot, type IconSlot } from "@/lib/utils/icon-slot";
 
 type UtilityButtonColor = "secondary" | "tertiary";
@@ -52,7 +52,7 @@ export const ButtonUtility = ({
 }: ButtonUtilityProps) => {
   const content = renderIconSlot(Icon, { className: iconStyles[size] });
 
-  const sharedClassName = cn(
+  const sharedClassName = cx(
     "inline-flex items-center justify-center rounded-md transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
     isDisabled && "cursor-not-allowed opacity-50",
     sizeStyles[size],

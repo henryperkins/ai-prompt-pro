@@ -2,16 +2,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { PageHero, PageShell } from "@/components/PageShell";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitives/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/avatar";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/card";
-import { Checkbox } from "@/components/base/primitives/checkbox";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/base/primitives/dropdown-menu";
+import { Checkbox } from "@/components/base/checkbox";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/base/dropdown-menu";
 import { Input } from "@/components/base/input/input";
-import { StateCard } from "@/components/base/primitives/state-card";
+import { StateCard } from "@/components/base/state-card";
 import { Select } from "@/components/base/select/select";
-import { ToastAction } from "@/components/base/primitives/toast";
+import { ToastAction } from "@/components/base/toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePromptBuilder } from "@/hooks/usePromptBuilder";
@@ -19,10 +19,10 @@ import { useToast } from "@/hooks/use-toast";
 import { brandCopy } from "@/lib/brand-copy";
 import { getLibraryPromptRarity } from "@/lib/community-rarity";
 import {
-  getInitials,
   getUserAvatarUrl,
   getUserDisplayName,
 } from "@/lib/library-pages";
+import { getInitials } from "@/lib/utils/get-initials";
 import * as persistence from "@/lib/persistence";
 import { PFTemplateCard } from "@/components/fantasy/PFTemplateCard";
 import {
@@ -450,22 +450,22 @@ const Library = () => {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="type-wrap-safe text-sm font-medium text-foreground">{prompt.name}</h3>
-                    <Badge type="modern" className="border border-border bg-background text-foreground text-xs">
+                    <Badge variant="modern" className="border border-border bg-background text-foreground text-xs">
                       r{prompt.revision}
                     </Badge>
                     {prompt.isShared ? (
-                      <Badge type="modern" className="text-xs gap-1">
+                      <Badge variant="modern" className="text-xs gap-1">
                         <Share2 className="h-3 w-3" />
                         Shared
                       </Badge>
                     ) : (
-                      <Badge type="modern" className="border border-border bg-background text-foreground text-xs gap-1">
+                      <Badge variant="modern" className="border border-border bg-background text-foreground text-xs gap-1">
                         <Lock className="h-3 w-3" />
                         Private
                       </Badge>
                     )}
                     {!isSelectionMode && prompt.remixedFrom && (
-                      <Badge type="modern" className="text-xs gap-1">
+                      <Badge variant="modern" className="text-xs gap-1">
                         <GitBranch className="h-3 w-3" />
                         Remixed
                       </Badge>
@@ -504,7 +504,7 @@ const Library = () => {
                   {prompt.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1">
                       {prompt.tags.slice(0, 5).map((tag) => (
-                        <Badge key={`${prompt.id}-${tag}`} type="modern" className="border border-border bg-background text-foreground text-xs">
+                        <Badge key={`${prompt.id}-${tag}`} variant="modern" className="border border-border bg-background text-foreground text-xs">
                           #{tag}
                         </Badge>
                       ))}
@@ -518,7 +518,7 @@ const Library = () => {
               <div className="flex shrink-0 flex-col items-end gap-1">
                 <Button
                   type="button"
-                  color="primary"
+                  variant="primary"
                   size="sm"
                   className="h-11 px-2.5 text-sm sm:h-9 sm:text-sm"
                   onClick={() => void handleSelectSaved(prompt.id)}
@@ -527,7 +527,7 @@ const Library = () => {
                 </Button>
                 {prompt.isShared && prompt.communityPostId && (
                   <Button
-                    color="tertiary"
+                    variant="tertiary"
                     size="sm"
                     className="h-11 px-2.5 text-sm sm:h-9 sm:text-sm"
                     onClick={() => navigate(`/community/${prompt.communityPostId}`)}
@@ -539,7 +539,7 @@ const Library = () => {
                 {prompt.isShared ? (
                   <Button
                     type="button"
-                    color="secondary"
+                    variant="secondary"
                     size="sm"
                     className="h-11 px-2.5 text-sm sm:h-9 sm:text-sm"
                     onClick={() => void handleUnshareSaved(prompt.id)}
@@ -549,10 +549,10 @@ const Library = () => {
                 ) : (
                   <Button
                     type="button"
-                    color="secondary"
+                    variant="secondary"
                     size="sm"
                     className="h-11 px-2.5 text-sm sm:h-9 sm:text-sm"
-                    isDisabled={Boolean(shareDisabledReason)}
+                    disabled={Boolean(shareDisabledReason)}
                     onClick={() => void handleShareSaved(prompt)}
                   >
                     Share
@@ -565,7 +565,7 @@ const Library = () => {
                 )}
                 <Button
                   type="button"
-                  color="tertiary"
+                  variant="tertiary"
                   size="sm"
                   className="h-11 px-2.5 text-sm text-destructive hover:text-destructive sm:h-9 sm:text-sm"
                   onClick={() => void handleDeleteSaved(prompt.id)}
@@ -583,7 +583,7 @@ const Library = () => {
               )}
               <Button
                 type="button"
-                color="primary"
+                variant="primary"
                 size="sm"
                 className="h-11 px-3 text-sm"
                 onClick={() => void handleSelectSaved(prompt.id)}
@@ -594,7 +594,7 @@ const Library = () => {
                 <DropdownMenuTrigger asChild>
                   <Button
                     type="button"
-                    color="secondary"
+                    variant="secondary"
                     size="sm"
                     className="h-11 px-3 text-sm"
                     aria-label={`More actions for ${prompt.name}`}
@@ -671,7 +671,7 @@ const Library = () => {
               </p>
             </div>
             <Button
-              color="secondary"
+              variant="secondary"
               size="sm"
               className="h-11 text-sm sm:h-9 sm:text-sm"
               onClick={() => navigate("/")}
@@ -710,7 +710,7 @@ const Library = () => {
                 Keep your saved prompts production-ready without changing baseline templates.
               </p>
             </div>
-            <Button color="secondary" size="sm" className="h-11 gap-1 text-sm sm:h-9 sm:text-sm" onClick={() => navigate("/")}>
+            <Button variant="secondary" size="sm" className="h-11 gap-1 text-sm sm:h-9 sm:text-sm" onClick={() => navigate("/")}>
               <Sparkles className="h-3.5 w-3.5" />
               Open Builder
             </Button>
@@ -782,11 +782,11 @@ const Library = () => {
                     aria-label="Select all filtered prompts"
                   />
                   <span>{selectedCount} selected</span>
-                  <Badge type="modern" className="text-xs">
+                  <Badge variant="modern" className="text-xs">
                     {visibleSaved.length} shown
                   </Badge>
                   {showSelectedOnly && (
-                    <Badge type="modern" className="border border-border bg-background text-foreground text-xs">
+                    <Badge variant="modern" className="border border-border bg-background text-foreground text-xs">
                       Selected only
                     </Badge>
                   )}
@@ -794,10 +794,10 @@ const Library = () => {
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   <Button
                     type="button"
-                    color="secondary"
+                    variant="secondary"
                     size="sm"
                     className="h-11 text-sm sm:h-9 sm:text-sm"
-                    isDisabled={selectedCount === 0 && !showSelectedOnly}
+                    disabled={selectedCount === 0 && !showSelectedOnly}
                     onClick={() => setShowSelectedOnly((prev) => !prev)}
                   >
                     Selected only
@@ -806,7 +806,7 @@ const Library = () => {
                     <>
                       <Button
                         type="button"
-                        color="primary"
+                        variant="primary"
                         size="sm"
                         className="h-11 text-sm sm:h-9 sm:text-sm"
                         onClick={handleLoadFirstSelected}
@@ -815,27 +815,27 @@ const Library = () => {
                       </Button>
                       <Button
                         type="button"
-                        color="secondary"
+                        variant="secondary"
                         size="sm"
                         className="h-11 text-sm sm:h-9 sm:text-sm"
-                        isDisabled={isBulkUnsharing}
+                        disabled={isBulkUnsharing}
                         onClick={() => void handleBulkSetPrivate()}
                       >
                         {isBulkUnsharing ? "Setting private..." : "Set private"}
                       </Button>
                       <Button
                         type="button"
-                        color="secondary"
+                        variant="secondary"
                         size="sm"
                         className="h-11 border-destructive/40 text-sm text-destructive hover:text-destructive sm:h-9 sm:text-sm"
-                        isDisabled={isBulkDeleting}
+                        disabled={isBulkDeleting}
                         onClick={() => void handleBulkDelete()}
                       >
                         {isBulkDeleting ? "Deleting..." : "Delete selected"}
                       </Button>
                       <Button
                         type="button"
-                        color="tertiary"
+                        variant="tertiary"
                         size="sm"
                         className="h-11 text-sm sm:h-9 sm:text-sm"
                         onClick={() => {

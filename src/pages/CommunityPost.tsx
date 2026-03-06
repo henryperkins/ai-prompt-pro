@@ -5,8 +5,8 @@ import { CommunityReportDialog } from "@/components/community/CommunityReportDia
 import { PageShell } from "@/components/PageShell";
 import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/card";
-import { Skeleton } from "@/components/base/primitives/skeleton";
-import { StateCard } from "@/components/base/primitives/state-card";
+import { Skeleton } from "@/components/base/skeleton";
+import { StateCard } from "@/components/base/state-card";
 import { useCommunityMobileTelemetry } from "@/hooks/useCommunityMobileTelemetry";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
@@ -451,7 +451,7 @@ const CommunityPost = () => {
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <Button
             type="button"
-            color="secondary"
+            variant="secondary"
             size="sm"
             className="type-button-label h-11 px-4 sm:h-8 sm:px-3"
             onClick={() => navigate("/community")}

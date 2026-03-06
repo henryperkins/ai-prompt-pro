@@ -23,4 +23,34 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": "off",
     },
   },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: [
+      "src/test/**/*",
+      "src/components/base/**/*",
+      "src/components/application/**/*",
+      "src/components/foundations/**/*",
+      "src/components/marketing/**/*",
+      "src/components/fantasy/**/*",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@/lib/utils",
+              message: 'Use the canonical `cx` helper from "@/lib/utils/cx".',
+            },
+          ],
+          patterns: [
+            {
+              group: ["@/components/base/primitives/*"],
+              message: 'Import from a public "@/components/base/*" entrypoint instead of "@/components/base/primitives/*".',
+            },
+          ],
+        },
+      ],
+    },
+  },
 );

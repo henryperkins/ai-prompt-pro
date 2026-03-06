@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   decodeSelectionIds,
   encodeSelectionIds,
-  getInitials,
   getUserAvatarUrl,
   getUserDisplayName,
 } from "@/lib/library-pages";
+import { getInitials } from "@/lib/utils/get-initials";
 
 describe("library page helpers", () => {
   it("encodes and decodes bulk selection ids", () => {

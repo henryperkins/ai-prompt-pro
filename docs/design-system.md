@@ -36,6 +36,9 @@ Legacy note:
 Phase 3 status (completed February 22, 2026):
 
 - Canonical component APIs for shared primitives are `@/components/base/buttons/button`, `@/components/base/input/input`, `@/components/base/badges/badges`, and `@/components/base/select/select`.
+- App and feature code import from public `@/components/base/*` entrypoints; `@/components/base/primitives/*` is reserved for design-system internals only.
+- The canonical class-merging helper is `cx` from `@/lib/utils/cx`; `cn` in `@/lib/utils` is a deprecated compatibility alias.
+- The canonical initials helper is `getInitials` from `@/lib/utils/get-initials`.
 - Imports or test mocks targeting `@/components/base/primitives/button|input|badge|select` are prohibited.
 - CI enforces this in strict mode via:
   - `scripts/check-token-runtime-drift.mjs`

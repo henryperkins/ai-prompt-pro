@@ -4,8 +4,8 @@ import { CommunityFeed } from "@/components/community/CommunityFeed";
 import { ProfileHero, getBestRarityFromPosts } from "@/components/community/ProfileHero";
 import { PageShell } from "@/components/PageShell";
 import { Button } from "@/components/base/buttons/button";
-import { StateCard } from "@/components/base/primitives/state-card";
-import { Skeleton } from "@/components/base/primitives/skeleton";
+import { StateCard } from "@/components/base/state-card";
+import { Skeleton } from "@/components/base/skeleton";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -528,7 +528,7 @@ const Profile = () => {
         <div className="mt-4 flex justify-end">
           <Button
             type="button"
-            color="tertiary"
+            variant="tertiary"
             size="sm"
             className="type-button-label h-11 sm:h-9"
             onClick={() => navigate("/community")}

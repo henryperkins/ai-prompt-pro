@@ -1,4 +1,5 @@
 /*
- * Compatibility shim. Prefer importing legacy-utility-tokens.css directly.
+ * Temporary theme bridge.
+ * Semantic token ownership lives in tokens.css; this file only preserves older imports during migration.
  */
 @import "./legacy-utility-tokens.css";

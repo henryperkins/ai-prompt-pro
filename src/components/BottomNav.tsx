@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { cn } from "@/lib/utils";
+import { cx } from "@/lib/utils/cx";
 import { BOTTOM_NAV_ITEMS, isRouteActive } from "@/lib/navigation";
 
 export function BottomNav() {
@@ -17,7 +17,7 @@ export function BottomNav() {
           <Link
             key={to}
             to={to}
-            className={cn(
+            className={cx(
               "mobile-route-link flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-md px-1 py-2 text-xs leading-5 font-medium transition-colors",
               isActive
                 ? "text-primary font-medium"
