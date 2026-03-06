@@ -1,10 +1,10 @@
 import {
-  createContext,
   useEffect,
   useState,
   useCallback,
   type ReactNode,
 } from "react";
+import { AuthContext } from "@/hooks/auth-context";
 import { neon } from "@/integrations/neon/client";
 import { getBackendConfigErrorMessage, isBackendConfigured } from "@/lib/backend-config";
 import { validateDisplayName } from "@/lib/profile";
@@ -14,7 +14,7 @@ export type AuthSession = SessionResult["data"]["session"];
 export type AuthUser = NonNullable<NonNullable<AuthSession>["user"]>;
 export type AuthOAuthProvider = Parameters<typeof neon.auth.signInWithOAuth>[0]["provider"];
 
-interface AuthContextValue {
+export interface AuthContextValue {
   user: AuthUser | null;
   session: AuthSession;
   loading: boolean;
@@ -34,8 +34,6 @@ interface AuthContextValue {
   updateDisplayName: (displayName: string) => Promise<{ error: string | null; user: AuthUser | null }>;
   deleteAccount: () => Promise<{ error: string | null }>;
 }
-
-export const AuthContext = createContext<AuthContextValue | null>(null);
 const AUTH_UNAVAILABLE_MESSAGE = getBackendConfigErrorMessage("Authentication");
 
 function resolveSignUpName(email: string, displayName?: string): string {
@@ -230,4 +228,3 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     </AuthContext.Provider>
   );
 }
-
