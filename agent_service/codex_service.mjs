@@ -31,12 +31,16 @@ import {
 } from "./network-security.mjs";
 import { runGuardedAsync } from "./async-guard.mjs";
 import { isPayloadTooLargeError, readBodyJsonWithLimit } from "./http-body.mjs";
-import { computeStreamTextUpdate, extractItemText } from "./stream-text.mjs";
+import { extractItemText } from "./stream-text.mjs";
 import {
   classifyStreamFailure,
   isRateLimitMessage,
   resolveRequestCompletionStatus,
 } from "./stream-errors.mjs";
+import {
+  hasOnlyRetrySafeCodexPreludeEvents,
+  isRetrySafeCodexPreludeEvent,
+} from "./codex-stream-prelude.mjs";
 
 // ---------------------------------------------------------------------------
 // Resolve provider from ~/.codex/config.toml (preferred) or CODEX_CONFIG_JSON.
@@ -364,15 +368,15 @@ function captureUsageMetrics(requestContext, usage) {
   if (!requestContext || !usage || typeof usage !== "object") return;
   const inputTokens = toFiniteNumber(
     usage.input_tokens
-      ?? usage.inputTokens
-      ?? usage.prompt_tokens
-      ?? usage.promptTokens,
+    ?? usage.inputTokens
+    ?? usage.prompt_tokens
+    ?? usage.promptTokens,
   );
   const outputTokens = toFiniteNumber(
     usage.output_tokens
-      ?? usage.outputTokens
-      ?? usage.completion_tokens
-      ?? usage.completionTokens,
+    ?? usage.outputTokens
+    ?? usage.completion_tokens
+    ?? usage.completionTokens,
   );
   if (inputTokens !== undefined) requestContext.usageInputTokens = inputTokens;
   if (outputTokens !== undefined) requestContext.usageOutputTokens = outputTokens;
@@ -1493,67 +1497,6 @@ function typeFromItem(item) {
   return typeof item.type === "string" ? item.type : undefined;
 }
 
-function normalizeItemType(itemType) {
-  return typeof itemType === "string" ? itemType.trim().toLowerCase() : "";
-}
-
-function isReasoningItemType(itemType) {
-  const normalized = normalizeItemType(itemType);
-  if (!normalized) return false;
-  return normalized === "reasoning" || /(^|[./_-])reasoning([./_-]|$)/.test(normalized);
-}
-
-function isAgentMessageItemType(itemType) {
-  const normalized = normalizeItemType(itemType);
-  if (!normalized) return false;
-  if (
-    normalized === "agent_message"
-    || normalized === "assistant_message"
-    || normalized === "message"
-    || normalized === "text"
-    || normalized === "output_text"
-  ) {
-    return true;
-  }
-
-  return (
-    /(^|[./_-])assistant([./_-]|$)/.test(normalized)
-    || /(^|[./_-])agent([./_-]|$)/.test(normalized)
-    || /(^|[./_-])message([./_-]|$)/.test(normalized)
-    || /(^|[./_-])output[_-]?text([./_-]|$)/.test(normalized)
-  );
-}
-
-function isStreamedTextItemType(itemType) {
-  return isAgentMessageItemType(itemType) || isReasoningItemType(itemType);
-}
-
-function toItemDeltaEventType(itemType) {
-  if (isReasoningItemType(itemType)) {
-    return {
-      event: "item/reasoning/delta",
-      type: "response.reasoning_summary_text.delta",
-    };
-  }
-  return {
-    event: "item/agent_message/delta",
-    type: "response.output_text.delta",
-  };
-}
-
-function toItemDoneEventType(itemType) {
-  if (isReasoningItemType(itemType)) {
-    return {
-      event: "item/completed",
-      type: "response.reasoning_summary_text.done",
-    };
-  }
-  return {
-    event: "item/completed",
-    type: "response.output_text.done",
-  };
-}
-
 function toErrorMessage(error) {
   const rawMessage =
     (error instanceof Error && typeof error.message === "string")
@@ -2062,53 +2005,72 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function* replayBufferedEvents(bufferedEvents, iterator) {
+  for (const event of bufferedEvents) {
+    yield event;
+  }
+
+  while (true) {
+    const next = await iterator.next();
+    if (next.done) break;
+    yield next.value;
+  }
+}
+
 async function runStreamedWithRetry(thread, input, turnOptions, telemetry = {}) {
   const requestContext = telemetry.requestContext;
   let attempt = 0;
-  while (true) {
-    let sawAnyEvent = false;
+  retryLoop: while (true) {
+    let retryBlocked = false;
     try {
       const { events } = await thread.runStreamed(input, turnOptions);
       const iterator = events[Symbol.asyncIterator]();
-      const first = await iterator.next();
-      sawAnyEvent = !first.done;
+      const bufferedEvents = [];
 
-      if (!first.done && isRateLimitTurnFailure(first.value) && attempt < CODEX_429_MAX_RETRIES) {
-        const backoff = CODEX_429_BACKOFF_BASE_SECONDS * (2 ** attempt);
-        const delay = Math.min(Math.random() * backoff, CODEX_429_BACKOFF_MAX_SECONDS) * 1000;
-        if (requestContext) {
-          requestContext.retryCount = attempt + 1;
+      while (true) {
+        const next = await iterator.next();
+        if (next.done) {
+          return { events: replayBufferedEvents(bufferedEvents, iterator) };
         }
-        logEvent("warn", "retry_attempt", cleanLogFields({
-          request_id: requestContext?.requestId,
-          endpoint: requestContext?.endpoint,
-          method: requestContext?.method,
-          transport: requestContext?.transport,
-          retry_count: attempt + 1,
-          max_retries: CODEX_429_MAX_RETRIES,
-          error_code: "rate_limited",
-          backoff_ms: Math.round(delay),
-          source: "codex_turn_failed",
-        }));
-        await sleep(delay);
-        attempt++;
-        continue;
-      }
 
-      // Return a generator that yields the first event then the rest
-      async function* replayEvents() {
-        if (!first.done) {
-          yield first.value;
-          while (true) {
-            const next = await iterator.next();
-            if (next.done) break;
-            yield next.value;
+        const event = next.value;
+        if (
+          isRateLimitTurnFailure(event)
+          && hasOnlyRetrySafeCodexPreludeEvents(bufferedEvents)
+          && attempt < CODEX_429_MAX_RETRIES
+        ) {
+          if (typeof iterator.return === "function") {
+            await iterator.return().catch(() => undefined);
           }
+          const backoff = CODEX_429_BACKOFF_BASE_SECONDS * (2 ** attempt);
+          const delay = Math.min(Math.random() * backoff, CODEX_429_BACKOFF_MAX_SECONDS) * 1000;
+          if (requestContext) {
+            requestContext.retryCount = attempt + 1;
+          }
+          logEvent("warn", "retry_attempt", cleanLogFields({
+            request_id: requestContext?.requestId,
+            endpoint: requestContext?.endpoint,
+            method: requestContext?.method,
+            transport: requestContext?.transport,
+            retry_count: attempt + 1,
+            max_retries: CODEX_429_MAX_RETRIES,
+            error_code: "rate_limited",
+            backoff_ms: Math.round(delay),
+            source: "codex_turn_failed",
+          }));
+          await sleep(delay);
+          attempt++;
+          continue retryLoop;
+        }
+
+        bufferedEvents.push(event);
+        if (!isRetrySafeCodexPreludeEvent(event)) {
+          retryBlocked = true;
+          return { events: replayBufferedEvents(bufferedEvents, iterator) };
         }
       }
-      return { events: replayEvents() };
     } catch (err) {
-      if (sawAnyEvent || !isRateLimitError(err) || attempt >= CODEX_429_MAX_RETRIES) {
+      if (retryBlocked || !isRateLimitError(err) || attempt >= CODEX_429_MAX_RETRIES) {
         throw err;
       }
       const backoff = CODEX_429_BACKOFF_BASE_SECONDS * (2 ** attempt);
@@ -2192,6 +2154,7 @@ function buildEnhanceStreamRequest(body) {
     builderMode,
     builderFields,
     session: requestSession,
+    webSearchEnabled: threadOptions.webSearchEnabled === true,
   });
   const enhancementInput = buildEnhancementMetaPrompt(prompt, enhancementContext);
 
@@ -2226,7 +2189,6 @@ async function runEnhanceTurnStream(requestData, options) {
     requestContext,
   } = options;
 
-  const stateByItemId = new Map();
   const agentMessageByItemId = new Map();
   const agentMessageItemOrder = [];
   let emittedAgentOutput = false;
@@ -2354,7 +2316,7 @@ async function runEnhanceTurnStream(requestData, options) {
         const itemType = typeFromItem(event.item);
         emit({
           event: "item.started",
-          type: "response.output_item.added",
+          type: "item.started",
           turn_id: turnId,
           thread_id: activeThreadId,
           item_id: itemId,
@@ -2368,49 +2330,21 @@ async function runEnhanceTurnStream(requestData, options) {
         const itemId = idFromItem(event.item);
         const itemType = typeFromItem(event.item);
         const isAgentMessage = isAgentMessageItemType(itemType);
-
-        if (isStreamedTextItemType(itemType)) {
-          const previousText = itemId ? stateByItemId.get(itemId) || "" : "";
-          const { nextText: currentText, delta } = computeStreamTextUpdate(previousText, event.item);
-
-          if (itemId) {
-            stateByItemId.set(itemId, currentText);
+        const currentText = extractItemText(event.item);
+        if (isAgentMessage) {
+          const agentItemKey = itemId || "__agent_message__";
+          if (!agentMessageByItemId.has(agentItemKey)) {
+            agentMessageItemOrder.push(agentItemKey);
           }
-
-          if (isAgentMessage) {
-            const agentItemKey = itemId || "__agent_message__";
-            if (!agentMessageByItemId.has(agentItemKey)) {
-              agentMessageItemOrder.push(agentItemKey);
-            }
-            agentMessageByItemId.set(agentItemKey, currentText);
-            if (hasText(currentText)) {
-              emittedAgentOutput = true;
-            }
+          agentMessageByItemId.set(agentItemKey, currentText);
+          if (hasText(currentText)) {
+            emittedAgentOutput = true;
           }
-
-          if (delta) {
-            const eventShape = toItemDeltaEventType(itemType);
-            emit({
-              event: eventShape.event,
-              type: eventShape.type,
-              turn_id: turnId,
-              thread_id: activeThreadId,
-              item_id: itemId,
-              item_type: itemType,
-              delta,
-              ...(isAgentMessage ? { choices: [{ delta: { content: delta } }] } : {}),
-              item: event.item,
-            });
-            if (isAgentMessage) {
-              emittedAgentOutput = true;
-            }
-          }
-          continue;
         }
 
         emit({
           event: "item.updated",
-          type: "response.output_item.updated",
+          type: "item.updated",
           turn_id: turnId,
           thread_id: activeThreadId,
           item_id: itemId,
@@ -2424,63 +2358,21 @@ async function runEnhanceTurnStream(requestData, options) {
         const itemId = idFromItem(event.item);
         const itemType = typeFromItem(event.item);
         const isAgentMessage = isAgentMessageItemType(itemType);
-
-        if (isStreamedTextItemType(itemType)) {
-          const previousText = itemId ? stateByItemId.get(itemId) || "" : "";
-          const { nextText: completedText, delta: completedDelta } = computeStreamTextUpdate(previousText, event.item);
-          const text = extractItemText(event.item) || completedText || previousText;
-          if (itemId) {
-            stateByItemId.set(itemId, text);
+        const text = extractItemText(event.item);
+        if (isAgentMessage) {
+          const agentItemKey = itemId || "__agent_message__";
+          if (!agentMessageByItemId.has(agentItemKey)) {
+            agentMessageItemOrder.push(agentItemKey);
           }
-
-          if (isAgentMessage) {
-            const agentItemKey = itemId || "__agent_message__";
-            if (!agentMessageByItemId.has(agentItemKey)) {
-              agentMessageItemOrder.push(agentItemKey);
-            }
-            agentMessageByItemId.set(agentItemKey, text);
-            if (hasText(text)) {
-              emittedAgentOutput = true;
-            }
+          agentMessageByItemId.set(agentItemKey, text);
+          if (hasText(text)) {
+            emittedAgentOutput = true;
           }
-
-          if (completedDelta) {
-            const deltaShape = toItemDeltaEventType(itemType);
-            emit({
-              event: deltaShape.event,
-              type: deltaShape.type,
-              turn_id: turnId,
-              thread_id: activeThreadId,
-              item_id: itemId,
-              item_type: itemType,
-              delta: completedDelta,
-              ...(isAgentMessage ? { choices: [{ delta: { content: completedDelta } }] } : {}),
-              item: event.item,
-            });
-            if (isAgentMessage) {
-              emittedAgentOutput = true;
-            }
-          }
-
-          const eventShape = toItemDoneEventType(itemType);
-          emit({
-            event: eventShape.event,
-            type: eventShape.type,
-            turn_id: turnId,
-            thread_id: activeThreadId,
-            item_id: itemId,
-            item_type: itemType,
-            payload: { text },
-            text,
-            output_text: text,
-            item: event.item,
-          });
-          continue;
         }
 
         emit({
           event: "item.completed",
-          type: "response.output_item.done",
+          type: "item.completed",
           turn_id: turnId,
           thread_id: activeThreadId,
           item_id: itemId,
@@ -2503,26 +2395,12 @@ async function runEnhanceTurnStream(requestData, options) {
       if (finalEnhancedPrompt && !emittedAgentOutput) {
         const syntheticItemId = `item_enhanced_${randomUUID().replaceAll("-", "")}`;
         emit({
-          event: "item/agent_message/delta",
-          type: "response.output_text.delta",
+          event: "item.completed",
+          type: "item.completed",
           turn_id: turnId,
           thread_id: activeThreadId,
           item_id: syntheticItemId,
           item_type: "agent_message",
-          delta: finalEnhancedPrompt,
-          choices: [{ delta: { content: finalEnhancedPrompt } }],
-          item: { id: syntheticItemId, type: "agent_message", delta: finalEnhancedPrompt },
-        });
-        emit({
-          event: "item/completed",
-          type: "response.output_text.done",
-          turn_id: turnId,
-          thread_id: activeThreadId,
-          item_id: syntheticItemId,
-          item_type: "agent_message",
-          payload: { text: finalEnhancedPrompt },
-          text: finalEnhancedPrompt,
-          output_text: finalEnhancedPrompt,
           item: { id: syntheticItemId, type: "agent_message", text: finalEnhancedPrompt },
         });
       }

@@ -2,6 +2,18 @@ import { describe, expect, it } from "vitest";
 import { extractSseText, readSseEventMeta } from "@/lib/ai-client";
 
 describe("ai-client SSE helpers", () => {
+  it("extracts raw Codex item.updated text from the item payload", () => {
+    expect(
+      extractSseText({
+        event: "item.updated",
+        type: "item.updated",
+        item_id: "item_raw_1",
+        item_type: "agent_message",
+        item: { id: "item_raw_1", type: "agent_message", text: "hello raw" },
+      }),
+    ).toBe("hello raw");
+  });
+
   it("extracts Codex-style item delta text from event envelopes", () => {
     expect(
       extractSseText({

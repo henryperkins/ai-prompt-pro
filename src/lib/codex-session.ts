@@ -1,3 +1,5 @@
+import { hasCodexSessionProgress, normalizeCodexToken } from "@/lib/codex-stream";
+
 export type CodexSessionStatus =
   | "idle"
   | "starting"
@@ -45,10 +47,6 @@ function asNonEmptyString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed || null;
-}
-
-function normalizeToken(value: string | null | undefined): string {
-  return typeof value === "string" ? value.trim().toLowerCase() : "";
 }
 
 function normalizeStatus(value: unknown): CodexSessionStatus | null {
@@ -125,8 +123,8 @@ function extractSessionEnvelope(payload: unknown): Partial<CodexSession> | null 
 }
 
 function deriveStatusFromEvent(meta: CodexSessionEventMeta): CodexSessionStatus | null {
-  const eventType = normalizeToken(meta.eventType);
-  const responseType = normalizeToken(meta.responseType);
+  const eventType = normalizeCodexToken(meta.eventType);
+  const responseType = normalizeCodexToken(meta.responseType);
 
   if (eventType === "turn.completed" || responseType === "response.completed") {
     return "completed";
@@ -143,14 +141,7 @@ function deriveStatusFromEvent(meta: CodexSessionEventMeta): CodexSessionStatus 
   if (eventType === "thread.started") {
     return "starting";
   }
-  if (
-    eventType === "turn.started"
-    || eventType === "item.started"
-    || eventType === "item.updated"
-    || eventType === "item.completed"
-    || responseType.startsWith("response.output")
-    || responseType.startsWith("response.reasoning")
-  ) {
+  if (hasCodexSessionProgress({ eventType, responseType })) {
     return "streaming";
   }
 

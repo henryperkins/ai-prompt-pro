@@ -26,7 +26,14 @@ function streamingResponse(text = "enhanced") {
   });
 }
 
-type FakeWebSocketBehavior = "stream" | "fallback" | "hang" | "connect-hang" | "auth-required";
+type FakeWebSocketBehavior =
+  | "stream"
+  | "fallback"
+  | "hang"
+  | "connect-hang"
+  | "auth-required"
+  | "thread-started-then-close"
+  | "prelude-error-with-ids";
 
 class FakeWebSocket {
   static instances: FakeWebSocket[] = [];
@@ -98,12 +105,66 @@ class FakeWebSocket {
       return;
     }
 
+    if (FakeWebSocket.behavior === "thread-started-then-close") {
+      queueMicrotask(() => {
+        this.emit("message", {
+          data: JSON.stringify({
+            event: "thread.started",
+            type: "thread.started",
+            thread_id: "thread_ws_progress_1",
+          }),
+        });
+        this.readyState = 3;
+        this.emit("close", { code: 1011, reason: "connection_lost" });
+      });
+      return;
+    }
+
+    if (FakeWebSocket.behavior === "prelude-error-with-ids") {
+      // Simulates a turn/error that carries thread_id and turn_id but arrives
+      // before any lifecycle event (thread.started / turn.started). The client
+      // should still allow SSE fallback in auto mode.
+      queueMicrotask(() => {
+        this.emit("message", {
+          data: JSON.stringify({
+            event: "turn/error",
+            type: "turn/error",
+            thread_id: "thread_prelude_1",
+            turn_id: "turn_prelude_1",
+            error: {
+              message: "SDK init failed",
+              code: "service_error",
+              status: 500,
+            },
+          }),
+        });
+        this.readyState = 3;
+        this.emit("close", { code: 1011, reason: "turn_error" });
+      });
+      return;
+    }
+
     if (FakeWebSocket.behavior !== "stream") return;
     JSON.parse(data);
 
     queueMicrotask(() => {
       this.emit("message", {
-        data: JSON.stringify({ type: "response.output_text.delta", delta: "ws-output" }),
+        data: JSON.stringify({
+          event: "item.updated",
+          type: "item.updated",
+          item_id: "item_ws_1",
+          item_type: "agent_message",
+          item: { id: "item_ws_1", type: "agent_message", text: "ws-output" },
+        }),
+      });
+      this.emit("message", {
+        data: JSON.stringify({
+          event: "item.completed",
+          type: "item.completed",
+          item_id: "item_ws_1",
+          item_type: "agent_message",
+          item: { id: "item_ws_1", type: "agent_message", text: "ws-output" },
+        }),
       });
       this.emit("message", {
         data: JSON.stringify({ event: "stream.done", type: "stream.done" }),
@@ -365,5 +426,77 @@ describe("ai-client websocket enhance transport", () => {
         message: "Sign in required.",
       }),
     );
+  });
+
+  it("does not fall back to SSE after the SDK has already established thread state", async () => {
+    vi.stubEnv("VITE_ENHANCE_TRANSPORT", "auto");
+    FakeWebSocket.behavior = "thread-started-then-close";
+    vi.stubGlobal("WebSocket", FakeWebSocket as unknown as typeof WebSocket);
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { streamEnhance } = await import("@/lib/ai-client");
+
+    const onDone = vi.fn();
+    const onError = vi.fn();
+    const onSession = vi.fn();
+
+    await streamEnhance({
+      prompt: "Improve this",
+      onDelta: vi.fn(),
+      onDone,
+      onError,
+      onSession,
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(onDone).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "network_unavailable",
+      }),
+    );
+
+    const finalSession = onSession.mock.calls.at(-1)?.[0] as {
+      threadId?: string;
+      status?: string;
+      lastErrorCode?: string;
+    };
+
+    expect(finalSession).toMatchObject({
+      threadId: "thread_ws_progress_1",
+      status: "failed",
+      lastErrorCode: "network_unavailable",
+    });
+  });
+
+  it("falls back to SSE in auto mode when WS turn/error carries IDs but no lifecycle event", async () => {
+    vi.stubEnv("VITE_ENHANCE_TRANSPORT", "auto");
+    FakeWebSocket.behavior = "prelude-error-with-ids";
+    vi.stubGlobal("WebSocket", FakeWebSocket as unknown as typeof WebSocket);
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(streamingResponse("sse-fallback"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { streamEnhance } = await import("@/lib/ai-client");
+
+    const onDelta = vi.fn();
+    const onDone = vi.fn();
+    const onError = vi.fn();
+
+    await streamEnhance({
+      prompt: "Improve this",
+      onDelta,
+      onDone,
+      onError,
+    });
+
+    // The error carried thread_id + turn_id but no lifecycle event preceded it,
+    // so the client should treat this as a prelude failure and fall back to SSE.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(onError).not.toHaveBeenCalled();
+    expect(onDelta).toHaveBeenCalledWith("sse-fallback");
+    expect(onDone).toHaveBeenCalledTimes(1);
   });
 });

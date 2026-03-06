@@ -44,11 +44,14 @@ import { cx } from "@/lib/utils/cx";
 import { normalizeHttpUrl } from "@/lib/url-utils";
 import { Checkbox } from "@/components/base/checkbox";
 import { Switch } from "@/components/base/switch";
+import { WebSearchActivityIndicator } from "@/components/WebSearchActivityIndicator";
+import type { WebSearchActivity } from "@/lib/enhance-web-search-stream";
 import {
   Check,
   Copy,
   DotsThreeOutline as MoreHorizontal,
   FloppyDisk as Save,
+  Globe,
   Sparkle as Sparkles,
   SpinnerGap as Loader2,
 } from "@phosphor-icons/react";
@@ -88,6 +91,7 @@ interface OutputPanelProps {
   webSearchEnabled?: boolean;
   onWebSearchToggle?: (enabled: boolean) => void;
   webSearchSources?: string[];
+  webSearchActivity?: WebSearchActivity;
   reasoningSummary?: string;
   previewSource?: OutputPreviewSource;
   hasEnhancedOnce?: boolean;
@@ -143,6 +147,7 @@ export function OutputPanel({
   webSearchEnabled = false,
   onWebSearchToggle,
   webSearchSources = [],
+  webSearchActivity,
   reasoningSummary = "",
   previewSource,
   hasEnhancedOnce = true,
@@ -921,6 +926,14 @@ export function OutputPanel({
         </Card>
       )}
 
+      {webSearchActivity && webSearchActivity.phase !== "idle" && (
+        <WebSearchActivityIndicator
+          phase={webSearchActivity.phase}
+          query={webSearchActivity.query}
+          searchCount={webSearchActivity.searchCount}
+        />
+      )}
+
       <Card
         className={cx(
           "enhance-output-frame flex-1 p-4 bg-card overflow-auto",
@@ -972,9 +985,22 @@ export function OutputPanel({
 
       {!hideEnhanceButton && (
         <div className="flex flex-col gap-2">
-          <p className="text-xs text-muted-foreground" aria-live="polite">
-            Web lookup: {webSearchEnabled ? "On" : "Off"}
-          </p>
+          {onWebSearchToggle ? (
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <Switch
+                checked={webSearchEnabled}
+                onCheckedChange={onWebSearchToggle}
+                disabled={isEnhancing}
+                aria-label="Enable web search during enhancement"
+              />
+              <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Web lookup</span>
+            </label>
+          ) : (
+            <p className="text-xs text-muted-foreground" aria-live="polite">
+              Web lookup: {webSearchEnabled ? "On" : "Off"}
+            </p>
+          )}
           <Button
             variant="primary"
             size="lg"

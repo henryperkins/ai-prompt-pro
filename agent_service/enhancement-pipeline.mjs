@@ -146,6 +146,9 @@ const MASTER_META_PROMPT = [
   "- Define what to do and what to avoid.",
   "- Include fallback behavior for uncertainty.",
   "",
+  "## WEB SEARCH",
+  "{{WEB_SEARCH_DIRECTIVE}}",
+  "",
   "## ENHANCEMENT RULES",
   "1. Replace vague language with specific, actionable wording.",
   "2. Preserve user intent; improve quality without changing objective.",
@@ -307,6 +310,7 @@ export function detectEnhancementContext(input, options = {}) {
   const builderMode = normalizeBuilderMode(options.builderMode);
   const inputLanguage = detectInputLanguage(prompt);
   const builderFields = normalizeBuilderFields(options.builderFields);
+  const webSearchEnabled = typeof options.webSearchEnabled === "boolean" ? options.webSearchEnabled : false;
   const session = {
     contextSummary: normalizeFieldValue(options.session?.contextSummary ?? options.session?.context_summary),
     latestEnhancedPrompt: normalizeFieldValue(
@@ -326,6 +330,7 @@ export function detectEnhancementContext(input, options = {}) {
     isTooVague: words.length > 0 && words.length < 5,
     structure,
     builderFields,
+    webSearchEnabled,
     session,
   };
 }
@@ -351,6 +356,22 @@ function buildEdgeCaseNotes(context) {
   return notes.join("\n");
 }
 
+const WEB_SEARCH_DIRECTIVE_ENABLED = [
+  "Web search is ENABLED for this enhancement. You are strongly encouraged to use it.",
+  "- Search the web for ANY factual claim, technical detail, version number, API reference,",
+  "  best practice, or domain-specific term you are not fully certain about.",
+  "- When in doubt about accuracy, prefer searching over guessing.",
+  "- Use web search to verify dates, statistics, tool versions, and current best practices.",
+  "- Cite every web source used in a trailing sources block:",
+  "  blank line + --- + Sources: + one '- [Title](URL)' per line.",
+].join("\n");
+
+const WEB_SEARCH_DIRECTIVE_DISABLED = [
+  "Web search is not enabled for this enhancement.",
+  "- Rely on your training knowledge only.",
+  "- If uncertain about specific details, note the uncertainty explicitly.",
+].join("\n");
+
 export function buildEnhancementMetaPrompt(userInput, context) {
   const modeAddon = MODE_ADDONS[context.builderMode] || MODE_ADDONS.guided;
   const intentAddons = context.intent
@@ -358,6 +379,9 @@ export function buildEnhancementMetaPrompt(userInput, context) {
     .filter((value) => typeof value === "string" && value.length > 0);
 
   const edgeCaseNotes = buildEdgeCaseNotes(context);
+  const webSearchDirective = context.webSearchEnabled
+    ? WEB_SEARCH_DIRECTIVE_ENABLED
+    : WEB_SEARCH_DIRECTIVE_DISABLED;
   const builderFieldLines = BUILDER_FIELD_KEYS.map((key) => {
     const value = context.builderFields?.[key] ?? "";
     return `- ${key}: ${value || "(empty)"}`;
@@ -386,7 +410,8 @@ export function buildEnhancementMetaPrompt(userInput, context) {
       "{{SESSION_LATEST_ENHANCED_PROMPT}}",
       context.session?.latestEnhancedPrompt || "(none)",
     )
-    .replaceAll("{{EDGE_CASE_NOTES}}", edgeCaseNotes);
+    .replaceAll("{{EDGE_CASE_NOTES}}", edgeCaseNotes)
+    .replaceAll("{{WEB_SEARCH_DIRECTIVE}}", webSearchDirective);
 
   return [template, modeAddon, ...intentAddons].join("\n\n");
 }

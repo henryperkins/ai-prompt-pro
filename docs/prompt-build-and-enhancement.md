@@ -168,6 +168,7 @@ Codex events are mapped to SSE events compatible with frontend parsers:
 - thread/turn lifecycle events
 - item started/updated/completed events
 - reasoning delta packets (`response.reasoning_summary_text.delta`) are forwarded directly
+- web search activity events: when `webSearchEnabled` is true and the model performs web searches, `item.started/updated/completed` events with `item_type` matching `web_search_call` or `web_search` include a `web_search_activity` envelope with `{ phase: "searching" | "completed", query: string | null }`. The frontend renders a subtle inline indicator showing the search query and count.
 - final enhanced prompt text is emitted from post-processed JSON as `response.output_text.delta` + `response.output_text.done`
 - enhancement metadata is emitted as `enhance.metadata` (non-rendered, available to event listeners)
 - `[DONE]` terminator

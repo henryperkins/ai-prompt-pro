@@ -185,9 +185,20 @@ describe("OutputPanel phase 2 save flow", () => {
     });
   });
 
-  it("shows read-only web lookup status indicator", () => {
+  it("shows interactive web lookup toggle when handler is provided", () => {
     renderPanel({
       onWebSearchToggle: () => undefined,
+      webSearchEnabled: true,
+    });
+
+    const toggle = screen.getByRole("switch", { name: "Enable web search during enhancement" });
+    expect(toggle).toBeInTheDocument();
+    expect(toggle).toBeChecked();
+    expect(screen.getByText("Web lookup")).toBeInTheDocument();
+  });
+
+  it("shows read-only web lookup status when no handler is provided", () => {
+    renderPanel({
       webSearchEnabled: true,
     });
 

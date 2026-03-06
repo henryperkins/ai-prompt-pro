@@ -459,6 +459,72 @@ describe("ai-client auth recovery", () => {
     );
   });
 
+  it("updates session state from terminal stream events before surfacing the error", async () => {
+    const onSession = vi.fn();
+    const body = [
+      `data: ${JSON.stringify({
+        event: "thread.started",
+        type: "thread.started",
+        thread_id: "thread_terminal_1",
+      })}`,
+      "",
+      `data: ${JSON.stringify({
+        event: "turn.failed",
+        type: "turn.failed",
+        thread_id: "thread_terminal_1",
+        turn_id: "turn_terminal_1",
+        error: {
+          message: "429 Too Many Requests",
+          code: "rate_limit_exceeded",
+          status: 429,
+        },
+        session: {
+          thread_id: "thread_terminal_1",
+          turn_id: "turn_terminal_1",
+          status: "failed",
+          context_summary: "Carry forward the product and audience context.",
+          latest_enhanced_prompt: "Final streamed draft.",
+        },
+      })}`,
+      "",
+      "data: [DONE]",
+      "",
+    ].join("\n");
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(streamingRaw(body));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { streamEnhance } = await import("@/lib/ai-client");
+
+    await streamEnhance({
+      prompt: "Improve this",
+      onDelta: vi.fn(),
+      onDone: vi.fn(),
+      onError: vi.fn(),
+      onSession,
+    });
+
+    const finalSession = onSession.mock.calls.at(-1)?.[0] as {
+      threadId?: string;
+      turnId?: string;
+      status?: string;
+      contextSummary?: string;
+      latestEnhancedPrompt?: string;
+      lastErrorCode?: string;
+      lastErrorMessage?: string;
+    };
+
+    expect(finalSession).toMatchObject({
+      threadId: "thread_terminal_1",
+      turnId: "turn_terminal_1",
+      status: "failed",
+      contextSummary: "Carry forward the product and audience context.",
+      latestEnhancedPrompt: "Final streamed draft.",
+      lastErrorCode: "rate_limited",
+      lastErrorMessage: "429 Too Many Requests",
+    });
+  });
+
   it("treats a stream without a done marker as an interrupted request", async () => {
     const body = [
       `data: ${JSON.stringify({
@@ -493,6 +559,75 @@ describe("ai-client auth recovery", () => {
         message: "Enhancement stream ended before completion. Please try again.",
       }),
     );
+  });
+
+  it("streams raw item.updated text without duplicating the completed item", async () => {
+    const body = [
+      `data: ${JSON.stringify({
+        event: "item.updated",
+        type: "item.updated",
+        thread_id: "thread_raw_1",
+        turn_id: "turn_raw_1",
+        item_id: "item_raw_1",
+        item_type: "agent_message",
+        item: {
+          id: "item_raw_1",
+          type: "agent_message",
+          text: "hel",
+        },
+      })}`,
+      "",
+      `data: ${JSON.stringify({
+        event: "item.updated",
+        type: "item.updated",
+        thread_id: "thread_raw_1",
+        turn_id: "turn_raw_1",
+        item_id: "item_raw_1",
+        item_type: "agent_message",
+        item: {
+          id: "item_raw_1",
+          type: "agent_message",
+          text: "hello",
+        },
+      })}`,
+      "",
+      `data: ${JSON.stringify({
+        event: "item.completed",
+        type: "item.completed",
+        thread_id: "thread_raw_1",
+        turn_id: "turn_raw_1",
+        item_id: "item_raw_1",
+        item_type: "agent_message",
+        item: {
+          id: "item_raw_1",
+          type: "agent_message",
+          text: "hello",
+        },
+      })}`,
+      "",
+      "data: [DONE]",
+      "",
+    ].join("\n");
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(streamingRaw(body));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { streamEnhance } = await import("@/lib/ai-client");
+
+    const onDelta = vi.fn();
+    const onDone = vi.fn();
+    const onError = vi.fn();
+
+    await streamEnhance({
+      prompt: "Improve this",
+      onDelta,
+      onDone,
+      onError,
+    });
+
+    expect(onError).not.toHaveBeenCalled();
+    expect(onDone).toHaveBeenCalledTimes(1);
+    expect(onDelta.mock.calls).toEqual([["hel"], ["lo"]]);
   });
 
   it("surfaces non-retryable getSession errors", async () => {

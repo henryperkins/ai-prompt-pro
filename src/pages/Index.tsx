@@ -35,6 +35,19 @@ import {
   applyEnhanceOutputEvent,
   createEnhanceOutputStreamState,
 } from "@/lib/enhance-output-stream";
+import {
+  extractCodexDeltaText,
+  extractCodexReasoningText,
+  hasCodexReasoningSegment,
+  isCodexReasoningItemType,
+  normalizeCodexToken,
+  type CodexStreamEventMeta,
+} from "@/lib/codex-stream";
+import {
+  extractWebSearchActivity,
+  IDLE_WEB_SEARCH_ACTIVITY,
+  type WebSearchActivity,
+} from "@/lib/enhance-web-search-stream";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { loadPost, loadProfilesByIds } from "@/lib/community";
@@ -135,22 +148,8 @@ const DEBUG_ENHANCE_PAYLOAD_PREVIEW_CHARS = 1200;
 const ENHANCED_PROMPT_SOURCES_SEPARATOR = /\n---\n\s*Sources:\s*\n/i;
 const ENHANCED_PROMPT_JSON_ARTIFACT_PATTERN = /"enhanced_prompt"\s*:/i;
 const ENHANCED_PROMPT_CODE_FENCE_PATTERN = /```(?:json)?\s*([\s\S]*?)```/i;
-const REASONING_ITEM_TYPES = new Set([
-  "reasoning",
-  "reasoning_summary",
-  "reasoning-summary",
-  "reasoning.summary",
-  "reasoningsummary",
-]);
-const REASONING_SEGMENT_PATTERN = /(^|[./_-])reasoning([./_-]|$)/;
 
-type EnhanceStreamEvent = {
-  eventType: string | null;
-  responseType: string | null;
-  threadId: string | null;
-  turnId: string | null;
-  itemId: string | null;
-  itemType: string | null;
+type EnhanceStreamEvent = CodexStreamEventMeta & {
   payload: unknown;
 };
 
@@ -165,73 +164,16 @@ type EnhanceDebugEventSnapshot = {
   payloadPreview: string;
 };
 
-function normalizeEventToken(value: string | null | undefined): string {
-  return typeof value === "string" ? value.trim().toLowerCase() : "";
-}
-
-function hasReasoningSegment(value: string | null | undefined): boolean {
-  const normalized = normalizeEventToken(value);
-  if (!normalized) return false;
-  return REASONING_SEGMENT_PATTERN.test(normalized);
-}
-
-function isReasoningItemType(value: string | null | undefined): boolean {
-  const normalized = normalizeEventToken(value);
-  if (!normalized) return false;
-  return REASONING_ITEM_TYPES.has(normalized) || hasReasoningSegment(normalized);
-}
-
-function extractTextValue(value: unknown): string | null {
-  if (typeof value === "string" && value) return value;
-  if (!value || typeof value !== "object") return null;
-  const obj = value as { text?: unknown; content?: unknown; output_text?: unknown; delta?: unknown };
-  if (typeof obj.text === "string" && obj.text) return obj.text;
-  if (typeof obj.content === "string" && obj.content) return obj.content;
-  if (typeof obj.output_text === "string" && obj.output_text) return obj.output_text;
-  if (typeof obj.delta === "string" && obj.delta) return obj.delta;
-  return null;
-}
-
-function extractTextFromContent(value: unknown): string | null {
-  if (typeof value === "string" && value) return value;
-  if (!value) return null;
-  if (Array.isArray(value)) {
-    const parts = value
-      .map((entry) => extractTextFromContent(entry))
-      .filter((entry): entry is string => Boolean(entry));
-    return parts.length > 0 ? parts.join("") : null;
-  }
-  if (typeof value === "object") {
-    const obj = value as {
-      content?: unknown;
-      text?: unknown;
-      summary?: unknown;
-      reasoning_summary?: unknown;
-      reasoningSummary?: unknown;
-      parts?: unknown;
-    };
-    return (
-      extractTextValue(obj) ||
-      extractTextFromContent(obj.content) ||
-      extractTextFromContent(obj.summary) ||
-      extractTextFromContent(obj.reasoning_summary) ||
-      extractTextFromContent(obj.reasoningSummary) ||
-      extractTextFromContent(obj.parts)
-    );
-  }
-  return null;
-}
-
 function isReasoningSummaryEvent(meta: EnhanceStreamEvent, payload: unknown): boolean {
-  if (isReasoningItemType(meta.itemType)) return true;
+  if (isCodexReasoningItemType(meta.itemType)) return true;
 
-  if (hasReasoningSegment(meta.eventType)) return true;
+  if (hasCodexReasoningSegment(meta.eventType)) return true;
 
-  if (hasReasoningSegment(meta.responseType)) return true;
+  if (hasCodexReasoningSegment(meta.responseType)) return true;
 
   if (payload && typeof payload === "object") {
     const payloadItemType = (payload as { item?: { type?: unknown } }).item?.type;
-    if (isReasoningItemType(typeof payloadItemType === "string" ? payloadItemType : null)) return true;
+    if (isCodexReasoningItemType(typeof payloadItemType === "string" ? payloadItemType : null)) return true;
   }
 
   return false;
@@ -242,71 +184,14 @@ function extractReasoningSummaryChunk(
   payload: unknown,
 ): { text: string; isDelta: boolean; itemId: string | null } | null {
   if (!isReasoningSummaryEvent(meta, payload)) return null;
-  if (!payload || typeof payload !== "object") return null;
-
-  const data = payload as {
-    delta?: unknown;
-    text?: unknown;
-    output_text?: unknown;
-    content?: unknown;
-    summary?: unknown;
-    reasoning_summary?: unknown;
-    reasoningSummary?: unknown;
-    payload?: unknown;
-    item?: unknown;
-  };
-  const item = (data.item ?? {}) as {
-    delta?: unknown;
-    text?: unknown;
-    output_text?: unknown;
-    content?: unknown;
-    summary?: unknown;
-    reasoning_summary?: unknown;
-    reasoningSummary?: unknown;
-  };
-
-  const deltaText =
-    extractTextValue(data.delta) ||
-    extractTextFromContent(data.delta) ||
-    extractTextValue(item.delta) ||
-    extractTextFromContent(item.delta) ||
-    extractTextValue((data.payload as { delta?: unknown } | undefined)?.delta);
+  const deltaText = extractCodexDeltaText(payload);
   if (deltaText) return { text: deltaText, isDelta: true, itemId: meta.itemId };
 
-  const directText =
-    extractTextValue(data.reasoning_summary) ||
-    extractTextFromContent(data.reasoning_summary) ||
-    extractTextValue(data.reasoningSummary) ||
-    extractTextFromContent(data.reasoningSummary) ||
-    extractTextValue(data.summary) ||
-    extractTextFromContent(data.summary) ||
-    extractTextValue(item.reasoning_summary) ||
-    extractTextFromContent(item.reasoning_summary) ||
-    extractTextValue(item.reasoningSummary) ||
-    extractTextFromContent(item.reasoningSummary) ||
-    extractTextValue(item.summary) ||
-    extractTextFromContent(item.summary) ||
-    extractTextValue(data.text) ||
-    extractTextFromContent(data.text) ||
-    extractTextValue(data.output_text) ||
-    extractTextFromContent(data.output_text) ||
-    extractTextValue(data.content) ||
-    extractTextFromContent(data.content) ||
-    extractTextValue(item.text) ||
-    extractTextFromContent(item.text) ||
-    extractTextValue(item.output_text) ||
-    extractTextFromContent(item.output_text) ||
-    extractTextValue(item.content) ||
-    extractTextFromContent(item.content) ||
-    extractTextValue((data.payload as { text?: unknown; output_text?: unknown } | undefined)?.text) ||
-    extractTextFromContent((data.payload as { text?: unknown; output_text?: unknown } | undefined)?.text) ||
-    extractTextValue((data.payload as { output_text?: unknown } | undefined)?.output_text) ||
-    extractTextFromContent((data.payload as { output_text?: unknown } | undefined)?.output_text) ||
-    extractTextFromContent(item.content);
+  const directText = extractCodexReasoningText(payload);
 
   if (!directText) return null;
 
-  const eventToken = `${meta.eventType ?? ""} ${meta.responseType ?? ""}`.toLowerCase();
+  const eventToken = `${normalizeCodexToken(meta.eventType)} ${normalizeCodexToken(meta.responseType)}`;
   const isDelta = eventToken.includes("delta");
   return { text: directText, isDelta, itemId: meta.itemId };
 }
@@ -387,8 +272,8 @@ function extractEnhancedPromptFromMetadataEvent(payload: unknown): string | null
     type?: unknown;
     payload?: unknown;
   };
-  const eventType = normalizeEventToken(typeof data.event === "string" ? data.event : null);
-  const responseType = normalizeEventToken(typeof data.type === "string" ? data.type : null);
+  const eventType = normalizeCodexToken(typeof data.event === "string" ? data.event : null);
+  const responseType = normalizeCodexToken(typeof data.type === "string" ? data.type : null);
   if (eventType !== "enhance/metadata" && responseType !== "enhance.metadata") return null;
 
   const metadata = data.payload;
@@ -643,6 +528,7 @@ const Index = () => {
   const [hasInferenceError, setHasInferenceError] = useState(false);
   const [webSearchEnabled, setWebSearchEnabled] = useState(() => getUserPreferences().webSearchEnabled);
   const [webSearchSources, setWebSearchSources] = useState<string[]>([]);
+  const [webSearchActivity, setWebSearchActivity] = useState<WebSearchActivity>(IDLE_WEB_SEARCH_ACTIVITY);
   const [reasoningSummary, setReasoningSummary] = useState("");
   const [enhanceSession, setEnhanceSession] = useState<CodexSession>(() => createCodexSession());
   const [fieldOwnership, setFieldOwnership] = useState<BuilderFieldOwnershipMap>(() =>
@@ -731,6 +617,7 @@ const Index = () => {
     setEnhanceSession(createCodexSession());
     setReasoningSummary("");
     setWebSearchSources([]);
+    setWebSearchActivity(IDLE_WEB_SEARCH_ACTIVITY);
     setIsEnhancing(false);
     setEnhancePhase("idle");
   }, [clearEnhanceTimers, setIsEnhancing]);
@@ -1031,6 +918,7 @@ const Index = () => {
       setEnhancedPrompt("");
       setReasoningSummary("");
       setWebSearchSources([]);
+      setWebSearchActivity(IDLE_WEB_SEARCH_ACTIVITY);
 
       if (isMobile) setDrawerOpen(true);
 
@@ -1047,6 +935,7 @@ const Index = () => {
       const reasoningByItemId = new Map<string, string>();
       const reasoningItemOrder: string[] = [];
       const REASONING_FALLBACK_ITEM_ID = "__reasoning_summary__";
+      let currentSearchActivity: WebSearchActivity = { ...IDLE_WEB_SEARCH_ACTIVITY };
       const outputState = createEnhanceOutputStreamState();
       const debugEnhanceEvents = isEnhanceDebugEnabled();
       const debugEventStore =
@@ -1151,6 +1040,21 @@ const Index = () => {
             return;
           }
 
+          const searchUpdate = extractWebSearchActivity(
+            currentSearchActivity,
+            event,
+            event.payload,
+          );
+          if (searchUpdate) {
+            currentSearchActivity = searchUpdate;
+            setWebSearchActivity(searchUpdate);
+            if (!hasReceivedStreamSignal) {
+              hasReceivedStreamSignal = true;
+              setEnhancePhase("streaming");
+            }
+            return;
+          }
+
           const chunk = extractReasoningSummaryChunk(event, event.payload);
           if (!chunk?.text) return;
           if (!hasReceivedStreamSignal) {
@@ -1225,6 +1129,7 @@ const Index = () => {
           clearEnhanceTimers();
           setIsEnhancing(false);
           setEnhancePhase("idle");
+          setWebSearchActivity(IDLE_WEB_SEARCH_ACTIVITY);
           toast({ title: "Enhancement failed", description: errorMessage, variant: "destructive" });
         },
       });
@@ -2048,31 +1953,32 @@ const Index = () => {
                 </div>
               </Card>
             )}
-              <OutputPanel
-                builtPrompt={builtPrompt}
-                enhancedPrompt={enhancedPrompt}
-                reasoningSummary={reasoningSummary}
-                isEnhancing={isEnhancing}
-                enhancePhase={enhancePhase}
-                onEnhance={handleEnhance}
-                onSaveVersion={saveVersion}
-                onSavePrompt={handleSavePrompt}
-                onSaveAndSharePrompt={handleSaveAndSharePrompt}
-                canSavePrompt={canSavePrompt}
-                canSharePrompt={canSharePrompt}
-                previewSource={previewSource}
-                hasEnhancedOnce={hasEnhancedOnce}
-                phase2Enabled={isBuilderRedesignPhase2}
-                webSearchEnabled={webSearchEnabled}
-                onWebSearchToggle={handleWebSearchToggle}
-                webSearchSources={webSearchSources}
-                enhanceIdleLabel={primaryCtaLabel}
+            <OutputPanel
+              builtPrompt={builtPrompt}
+              enhancedPrompt={enhancedPrompt}
+              reasoningSummary={reasoningSummary}
+              isEnhancing={isEnhancing}
+              enhancePhase={enhancePhase}
+              onEnhance={handleEnhance}
+              onSaveVersion={saveVersion}
+              onSavePrompt={handleSavePrompt}
+              onSaveAndSharePrompt={handleSaveAndSharePrompt}
+              canSavePrompt={canSavePrompt}
+              canSharePrompt={canSharePrompt}
+              previewSource={previewSource}
+              hasEnhancedOnce={hasEnhancedOnce}
+              phase2Enabled={isBuilderRedesignPhase2}
+              webSearchEnabled={webSearchEnabled}
+              onWebSearchToggle={handleWebSearchToggle}
+              webSearchSources={webSearchSources}
+              webSearchActivity={webSearchActivity}
+              enhanceIdleLabel={primaryCtaLabel}
               remixContext={
                 remixContext
                   ? { title: remixContext.parentTitle, authorName: remixContext.parentAuthor }
                   : undefined
-                }
-              />
+              }
+            />
             <Card className="pf-panel border-border/70 bg-card/80 p-3">
               <div className="flex items-start justify-between gap-3">
                 <div>

@@ -10,6 +10,17 @@ import {
   type CodexSession,
   type CodexSessionTransport,
 } from "@/lib/codex-session";
+import {
+  applyEnhanceOutputEvent,
+  createEnhanceOutputStreamState,
+} from "@/lib/enhance-output-stream";
+import {
+  extractCodexStreamText,
+  hasCodexSessionProgress,
+  readCodexEventMeta,
+  shouldEmitCodexOutputText,
+  type CodexStreamEventMeta,
+} from "@/lib/codex-stream";
 
 function normalizeEnvValue(value?: string): string | undefined {
   if (typeof value !== "string") return undefined;
@@ -834,41 +845,6 @@ function extractSseErrorDetails(payload: unknown): {
   return null;
 }
 
-function extractTextValue(value: unknown): string | null {
-  if (typeof value === "string" && value) return value;
-  if (!value || typeof value !== "object") return null;
-  const obj = value as { text?: unknown; content?: unknown; output_text?: unknown; delta?: unknown };
-  if (typeof obj.text === "string" && obj.text) return obj.text;
-  if (typeof obj.content === "string" && obj.content) return obj.content;
-  if (typeof obj.output_text === "string" && obj.output_text) return obj.output_text;
-  if (typeof obj.delta === "string" && obj.delta) return obj.delta;
-  return null;
-}
-
-function isItemDeltaEventType(eventType: string | null): boolean {
-  if (!eventType) return false;
-  if (eventType === "item/delta" || eventType === "item.delta") return true;
-  if (/^item\/[^/]+\/delta$/.test(eventType)) return true;
-  if (/^item\.[^.]+\.delta$/.test(eventType)) return true;
-  return false;
-}
-
-function isItemCompletedEventType(eventType: string | null): boolean {
-  if (!eventType) return false;
-  if (eventType === "item/completed" || eventType === "item.completed") return true;
-  if (/^item\/[^/]+\/completed$/.test(eventType)) return true;
-  if (/^item\.[^.]+\.completed$/.test(eventType)) return true;
-  return false;
-}
-
-function isResponseOutputTextDelta(responseType: string | null): boolean {
-  return responseType === "response.output_text.delta";
-}
-
-function isResponseOutputTextDone(responseType: string | null): boolean {
-  return responseType === "response.output_text.done";
-}
-
 export interface EnhanceThreadOptions {
   modelReasoningEffort?: "minimal" | "low" | "medium" | "high" | "xhigh";
   webSearchEnabled?: boolean;
@@ -883,162 +859,33 @@ export interface EnhanceBuilderFields {
   guardrails: string;
 }
 
-function isRenderableItemType(itemType: string | null): boolean {
-  if (!itemType) return true;
-  const normalized = itemType.trim().toLowerCase();
-  if (!normalized) return true;
-
-  return (
-    normalized === "agent_message" ||
-    normalized === "assistant_message" ||
-    normalized === "enhancement" ||
-    normalized === "output_text" ||
-    normalized === "text" ||
-    normalized === "message"
-  );
-}
-
-function shouldEmitSseText(meta: {
-  eventType: string | null;
-  responseType: string | null;
-  itemType: string | null;
-}): boolean {
-  if (isResponseOutputTextDelta(meta.responseType) || isResponseOutputTextDone(meta.responseType)) {
-    return true;
-  }
-
-  if (isItemDeltaEventType(meta.eventType) || isItemCompletedEventType(meta.eventType)) {
-    return isRenderableItemType(meta.itemType);
-  }
-
-  return true;
+function shouldEmitSseText(meta: Pick<CodexStreamEventMeta, "eventType" | "responseType" | "itemType">): boolean {
+  return shouldEmitCodexOutputText(meta);
 }
 
 export function extractSseText(payload: unknown): string | null {
-  if (!payload || typeof payload !== "object") return null;
-  const data = payload as {
-    choices?: Array<{ delta?: { content?: unknown } }>;
-    event?: unknown;
-    type?: unknown;
-    delta?: unknown;
-    output_text?: unknown;
-    text?: unknown;
-    payload?: unknown;
-    item?: unknown;
-  };
-
-  const chatCompletionsDelta = data.choices?.[0]?.delta?.content;
-  if (typeof chatCompletionsDelta === "string" && chatCompletionsDelta) {
-    return chatCompletionsDelta;
-  }
-
-  // Codex-style turn/item streaming event shape.
-  const eventType =
-    typeof data.event === "string"
-      ? data.event
-      : typeof data.type === "string"
-        ? data.type
-        : null;
-  const responseType = typeof data.type === "string" ? data.type : null;
-
-  if (isItemDeltaEventType(eventType) || isResponseOutputTextDelta(responseType)) {
-    return (
-      extractTextValue(data.delta) ||
-      extractTextValue((data.item as { delta?: unknown } | undefined)?.delta) ||
-      extractTextValue((data.payload as { delta?: unknown } | undefined)?.delta) ||
-      extractTextValue(data.item)
-    );
-  }
-
-  if (isItemCompletedEventType(eventType) || isResponseOutputTextDone(responseType)) {
-    return (
-      extractTextValue(data.text) ||
-      extractTextValue((data.payload as { text?: unknown; output_text?: unknown } | undefined)?.text) ||
-      extractTextValue(
-        (data.payload as { text?: unknown; output_text?: unknown } | undefined)?.output_text,
-      ) ||
-      extractTextValue((data.item as { text?: unknown; output_text?: unknown } | undefined)?.text) ||
-      extractTextValue((data.item as { text?: unknown; output_text?: unknown } | undefined)?.output_text) ||
-      extractTextValue(data.output_text)
-    );
-  }
-
-  // Responses API streaming event shape.
-  if (isResponseOutputTextDelta(responseType) && typeof data.delta === "string" && data.delta) {
-    return data.delta;
-  }
-
-  // Fallback for any adapter that emits output_text directly.
-  if (typeof data.output_text === "string" && data.output_text) {
-    return data.output_text;
-  }
-
-  return null;
+  return extractCodexStreamText(payload);
 }
 
-export function readSseEventMeta(payload: unknown): {
-  eventType: string | null;
-  responseType: string | null;
-  threadId: string | null;
-  turnId: string | null;
-  itemId: string | null;
-  itemType: string | null;
-} {
-  if (!payload || typeof payload !== "object") {
-    return {
-      eventType: null,
-      responseType: null,
-      threadId: null,
-      turnId: null,
-      itemId: null,
-      itemType: null,
-    };
+export function readSseEventMeta(payload: unknown): CodexStreamEventMeta {
+  return readCodexEventMeta(payload);
+}
+
+function diffOutputText(previousText: string, nextText: string): string {
+  if (!nextText) return "";
+  if (!previousText) return nextText;
+  if (nextText === previousText) return "";
+  if (nextText.startsWith(previousText)) {
+    return nextText.slice(previousText.length);
   }
-
-  const data = payload as {
-    event?: unknown;
-    type?: unknown;
-    thread_id?: unknown;
-    turn_id?: unknown;
-    item_id?: unknown;
-    item_type?: unknown;
-    item?: unknown;
-  };
-  const responseType =
-    typeof data.type === "string" && data.type.startsWith("response.") ? data.type : null;
-  const eventType =
-    typeof data.event === "string"
-      ? data.event
-      : responseType ||
-      (typeof data.type === "string"
-        ? data.type
-        : null);
-
-  const threadId = typeof data.thread_id === "string" ? data.thread_id : null;
-  const turnId = typeof data.turn_id === "string" ? data.turn_id : null;
-
-  const itemId =
-    typeof data.item_id === "string"
-      ? data.item_id
-      : typeof (data.item as { id?: unknown } | undefined)?.id === "string"
-        ? ((data.item as { id?: unknown } | undefined)?.id as string)
-        : null;
-
-  const itemType =
-    typeof data.item_type === "string"
-      ? data.item_type
-      : typeof (data.item as { type?: unknown } | undefined)?.type === "string"
-        ? ((data.item as { type?: unknown } | undefined)?.type as string)
-        : null;
-
-  return { eventType, responseType, threadId, turnId, itemId, itemType };
+  return nextText;
 }
 
 type WebSocketEnhanceOutcome =
   | { outcome: "completed" }
   | { outcome: "aborted" }
   | { outcome: "fallback" }
-  | { outcome: "error"; error: AIClientError };
+  | { outcome: "error"; error: AIClientError; allowFallback: boolean };
 
 async function streamEnhanceViaWebSocket({
   payload,
@@ -1074,6 +921,7 @@ async function streamEnhanceViaWebSocket({
     return {
       outcome: "error",
       error: normalizeClientError("enhance-prompt", error),
+      allowFallback: true,
     };
   }
 
@@ -1095,8 +943,11 @@ async function streamEnhanceViaWebSocket({
     let hasOpened = false;
     let streamDone = false;
     let terminalError: AIClientError | null = null;
+    let allowFallbackAfterError = true;
+    let sawSessionProgress = false;
     let connectTimeoutHandle: ReturnType<typeof globalThis.setTimeout> | null = null;
-    const deltaItemIds = new Set<string>();
+    const outputState = createEnhanceOutputStreamState();
+    let renderedOutput = "";
 
     const resolveOnce = (value: WebSocketEnhanceOutcome) => {
       if (resolved) return;
@@ -1124,7 +975,7 @@ async function streamEnhanceViaWebSocket({
             code: "request_timeout",
             retryable: true,
           });
-        abortOutcome = { outcome: "error", error: timeoutError };
+        abortOutcome = { outcome: "error", error: timeoutError, allowFallback: false };
       } else {
         abortOutcome = { outcome: "aborted" };
       }
@@ -1185,12 +1036,19 @@ async function streamEnhanceViaWebSocket({
         return;
       }
 
+      const meta = readSseEventMeta(parsed);
+      if (hasCodexSessionProgress(meta)) {
+        sawSessionProgress = true;
+      }
+      onEvent?.({ ...meta, payload: parsed });
+
       const parsedError = extractSseErrorDetails(parsed);
       if (parsedError) {
         terminalError = normalizeClientError("enhance-prompt", parsedError.message, {
           status: parsedError.status,
           code: parsedError.code,
         });
+        allowFallbackAfterError = !sawSessionProgress;
         try {
           ws.close(1011, "turn_error");
         } catch {
@@ -1199,17 +1057,19 @@ async function streamEnhanceViaWebSocket({
         return;
       }
 
-      const meta = readSseEventMeta(parsed);
-      onEvent?.({ ...meta, payload: parsed });
-
-      if (isItemDeltaEventType(meta.eventType) || isResponseOutputTextDelta(meta.responseType)) {
-        if (meta.itemId) deltaItemIds.add(meta.itemId);
-      }
-      if (
-        (isItemCompletedEventType(meta.eventType) || isResponseOutputTextDone(meta.responseType)) &&
-        meta.itemId &&
-        deltaItemIds.has(meta.itemId)
-      ) {
+      const outputUpdate = applyEnhanceOutputEvent(outputState, {
+        eventType: meta.eventType,
+        responseType: meta.responseType,
+        itemId: meta.itemId,
+        itemType: meta.itemType,
+      }, parsed);
+      if (outputUpdate.didHandle) {
+        const delta = diffOutputText(renderedOutput, outputUpdate.text);
+        renderedOutput = outputUpdate.text;
+        if (delta) {
+          sawSessionProgress = true;
+          onDelta(delta);
+        }
         return;
       }
 
@@ -1218,7 +1078,10 @@ async function streamEnhanceViaWebSocket({
       }
 
       const content = extractSseText(parsed);
-      if (content) onDelta(content);
+      if (content) {
+        sawSessionProgress = true;
+        onDelta(content);
+      }
     });
 
     ws.addEventListener("close", () => {
@@ -1228,7 +1091,7 @@ async function streamEnhanceViaWebSocket({
       }
 
       if (terminalError) {
-        resolveOnce({ outcome: "error", error: terminalError });
+        resolveOnce({ outcome: "error", error: terminalError, allowFallback: allowFallbackAfterError });
         return;
       }
 
@@ -1249,6 +1112,7 @@ async function streamEnhanceViaWebSocket({
           code: "network_unavailable",
           retryable: true,
         }),
+        allowFallback: !sawSessionProgress,
       });
     });
 
@@ -1338,6 +1202,37 @@ export async function streamEnhance({
     }));
   };
 
+  const buildEnhancePayload = (): Record<string, unknown> => {
+    const payload: Record<string, unknown> = { prompt };
+    const sessionRequest = toCodexSessionRequest(currentSession);
+    const requestThreadId = currentSession.threadId || resolvedThreadId;
+
+    if (requestThreadId) {
+      payload.thread_id = requestThreadId;
+    }
+    if (sessionRequest) {
+      payload.session = sessionRequest;
+    }
+    if (threadOptions && typeof threadOptions === "object") {
+      payload.thread_options = threadOptions;
+    }
+    if (builderMode) {
+      payload.builder_mode = builderMode;
+    }
+    if (builderFields && typeof builderFields === "object") {
+      payload.builder_fields = {
+        role: typeof builderFields.role === "string" ? builderFields.role : "",
+        context: typeof builderFields.context === "string" ? builderFields.context : "",
+        task: typeof builderFields.task === "string" ? builderFields.task : "",
+        output_format: typeof builderFields.outputFormat === "string" ? builderFields.outputFormat : "",
+        examples: typeof builderFields.examples === "string" ? builderFields.examples : "",
+        guardrails: typeof builderFields.guardrails === "string" ? builderFields.guardrails : "",
+      };
+    }
+
+    return payload;
+  };
+
   const linkSignalAbort = (sourceSignal?: AbortSignal) => {
     if (!sourceSignal) return () => undefined;
     if (sourceSignal.aborted) {
@@ -1373,29 +1268,6 @@ export async function streamEnhance({
   let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
 
   try {
-    const payload: Record<string, unknown> = { prompt };
-    const sessionRequest = toCodexSessionRequest(currentSession);
-    if (resolvedThreadId) {
-      payload.thread_id = resolvedThreadId;
-    }
-    if (sessionRequest) payload.session = sessionRequest;
-    if (threadOptions && typeof threadOptions === "object") {
-      payload.thread_options = threadOptions;
-    }
-    if (builderMode) {
-      payload.builder_mode = builderMode;
-    }
-    if (builderFields && typeof builderFields === "object") {
-      payload.builder_fields = {
-        role: typeof builderFields.role === "string" ? builderFields.role : "",
-        context: typeof builderFields.context === "string" ? builderFields.context : "",
-        task: typeof builderFields.task === "string" ? builderFields.task : "",
-        output_format: typeof builderFields.outputFormat === "string" ? builderFields.outputFormat : "",
-        examples: typeof builderFields.examples === "string" ? builderFields.examples : "",
-        guardrails: typeof builderFields.guardrails === "string" ? builderFields.guardrails : "",
-      };
-    }
-
     const shouldTryWebSocket =
       ENHANCE_TRANSPORT_MODE !== "sse"
       && typeof globalThis.WebSocket === "function";
@@ -1406,7 +1278,7 @@ export async function streamEnhance({
           ? Math.max(250, Math.min(ENHANCE_WS_CONNECT_TIMEOUT_MS, Math.floor(timeoutMs * 0.35)))
           : ENHANCE_WS_CONNECT_TIMEOUT_MS;
       const wsResult = await streamEnhanceViaWebSocket({
-        payload,
+        payload: buildEnhancePayload(),
         signal: requestController.signal,
         didTimeout: () => timeoutTriggered,
         connectTimeoutMs: resolvedConnectTimeoutMs,
@@ -1428,6 +1300,8 @@ export async function streamEnhance({
       }
       if (wsResult.outcome === "error") {
         if (
+          wsResult.allowFallback
+          &&
           ENHANCE_TRANSPORT_MODE === "auto"
           && (
             (wsResult.error.retryable && wsResult.error.code !== "request_timeout")
@@ -1463,7 +1337,7 @@ export async function streamEnhance({
     }
 
     markSessionStarted("sse");
-    const resp = await postFunctionWithAuthRecovery("enhance-prompt", payload, {
+    const resp = await postFunctionWithAuthRecovery("enhance-prompt", buildEnhancePayload(), {
       signal: requestController.signal,
     });
 
@@ -1484,7 +1358,8 @@ export async function streamEnhance({
     let textBuffer = "";
     let streamDone = false;
     let terminalError: AIClientError | null = null;
-    const deltaItemIds = new Set<string>();
+    const outputState = createEnhanceOutputStreamState();
+    let renderedOutput = "";
 
     while (!streamDone) {
       const { done, value } = await reader.read();
@@ -1508,6 +1383,10 @@ export async function streamEnhance({
 
         try {
           const parsed = JSON.parse(jsonStr);
+          const meta = readSseEventMeta(parsed);
+          onEvent?.({ ...meta, payload: parsed });
+          applySessionEvent(meta, parsed, "sse");
+
           const parsedError = extractSseErrorDetails(parsed);
           if (parsedError) {
             terminalError = normalizeClientError("enhance-prompt", parsedError.message, {
@@ -1518,18 +1397,18 @@ export async function streamEnhance({
             break;
           }
 
-          const meta = readSseEventMeta(parsed);
-          onEvent?.({ ...meta, payload: parsed });
-          applySessionEvent(meta, parsed, "sse");
-
-          if (isItemDeltaEventType(meta.eventType) || isResponseOutputTextDelta(meta.responseType)) {
-            if (meta.itemId) deltaItemIds.add(meta.itemId);
-          }
-          if (
-            (isItemCompletedEventType(meta.eventType) || isResponseOutputTextDone(meta.responseType)) &&
-            meta.itemId &&
-            deltaItemIds.has(meta.itemId)
-          ) {
+          const outputUpdate = applyEnhanceOutputEvent(outputState, {
+            eventType: meta.eventType,
+            responseType: meta.responseType,
+            itemId: meta.itemId,
+            itemType: meta.itemType,
+          }, parsed);
+          if (outputUpdate.didHandle) {
+            const delta = diffOutputText(renderedOutput, outputUpdate.text);
+            renderedOutput = outputUpdate.text;
+            if (delta) {
+              onDelta(delta);
+            }
             continue;
           }
 
@@ -1547,6 +1426,10 @@ export async function streamEnhance({
     }
 
     if (terminalError) {
+      emitSessionUpdate(failCodexSession(currentSession, {
+        code: terminalError.code,
+        message: terminalError.message,
+      }, { transport: "sse" }));
       onError(terminalError);
       return;
     }
@@ -1562,6 +1445,10 @@ export async function streamEnhance({
         if (jsonStr === "[DONE]") continue;
         try {
           const parsed = JSON.parse(jsonStr);
+          const meta = readSseEventMeta(parsed);
+          onEvent?.({ ...meta, payload: parsed });
+          applySessionEvent(meta, parsed, "sse");
+
           const parsedError = extractSseErrorDetails(parsed);
           if (parsedError) {
             terminalError = normalizeClientError("enhance-prompt", parsedError.message, {
@@ -1571,18 +1458,18 @@ export async function streamEnhance({
             break;
           }
 
-          const meta = readSseEventMeta(parsed);
-          onEvent?.({ ...meta, payload: parsed });
-          applySessionEvent(meta, parsed, "sse");
-
-          if (isItemDeltaEventType(meta.eventType) || isResponseOutputTextDelta(meta.responseType)) {
-            if (meta.itemId) deltaItemIds.add(meta.itemId);
-          }
-          if (
-            (isItemCompletedEventType(meta.eventType) || isResponseOutputTextDone(meta.responseType)) &&
-            meta.itemId &&
-            deltaItemIds.has(meta.itemId)
-          ) {
+          const outputUpdate = applyEnhanceOutputEvent(outputState, {
+            eventType: meta.eventType,
+            responseType: meta.responseType,
+            itemId: meta.itemId,
+            itemType: meta.itemType,
+          }, parsed);
+          if (outputUpdate.didHandle) {
+            const delta = diffOutputText(renderedOutput, outputUpdate.text);
+            renderedOutput = outputUpdate.text;
+            if (delta) {
+              onDelta(delta);
+            }
             continue;
           }
 
