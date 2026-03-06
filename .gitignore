@@ -66,5 +66,14 @@ bun.lockb
 # Local GitHub Actions runner
 actions-runner/
 
+# Temporary files
+tmp/
+
+# Fantasy theme prototype (unused)
+warcraft/
+
+# Legacy archived code
+archive/
+
 # Archived documentation (historical reference only)
 docs/archive/

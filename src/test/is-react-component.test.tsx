@@ -1,6 +1,6 @@
 import { forwardRef } from "react";
 import { describe, expect, it } from "vitest";
-import { isReactComponent } from "@/utils/is-react-component";
+import { isReactComponent } from "@/lib/utils/is-react-component";
 
 describe("isReactComponent", () => {
   it("returns false for plain objects without throwing", () => {
