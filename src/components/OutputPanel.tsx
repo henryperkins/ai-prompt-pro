@@ -869,25 +869,16 @@ export function OutputPanel({
                     inputClassName="text-base"
                   />
                 </div>
-                <div className="flex items-start gap-2">
-                  <Checkbox
-                    id="save-dialog-confirm-safe"
-                    checked={saveConfirmedSafe}
-                    onCheckedChange={(checked) => {
-                      setSaveConfirmedSafe(checked === true);
-                      setSaveConfirmedSafeTouched(true);
-                    }}
-                    className="mt-0.5"
-                    aria-invalid={showSaveConfirmedSafeError}
-                    aria-describedby="save-dialog-confirm-safe-help"
-                  />
-                  <Label
-                    htmlFor="save-dialog-confirm-safe"
-                    className="cursor-pointer text-sm leading-snug text-muted-foreground"
-                  >
-                    I confirm this prompt contains no secrets or private data.
-                  </Label>
-                </div>
+                <Checkbox
+                  isSelected={saveConfirmedSafe}
+                  onChange={(val) => {
+                    setSaveConfirmedSafe(val);
+                    setSaveConfirmedSafeTouched(true);
+                  }}
+                  isInvalid={showSaveConfirmedSafeError}
+                  aria-describedby="save-dialog-confirm-safe-help"
+                  label="I confirm this prompt contains no secrets or private data."
+                />
                 <p
                   id="save-dialog-confirm-safe-help"
                   className={cx(

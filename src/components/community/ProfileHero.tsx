@@ -2,7 +2,7 @@ import { format } from "date-fns";
 import type { CommunityPost, FollowStats, ProfileActivityStats, CommunityProfile } from "@/lib/community";
 import { getInitials } from "@/lib/utils/get-initials";
 import { getCommunityPostRarity, type PromptForgeRarity } from "@/lib/community-rarity";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/avatar";
+import { Avatar } from "@/components/base/avatar";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { cx } from "@/lib/utils/cx";
@@ -101,12 +101,7 @@ export function ProfileHero({
               RARITY_GLOW[bestRarity],
             )}
           >
-            <Avatar className="h-20 w-20 border-2 border-border/40 sm:h-24 sm:w-24">
-              <AvatarImage src={profile.avatarUrl ?? undefined} alt={profile.displayName} />
-              <AvatarFallback className="text-lg font-semibold">
-                {getInitials(profile.displayName)}
-              </AvatarFallback>
-            </Avatar>
+            <Avatar size="2xl" src={profile.avatarUrl ?? undefined} alt={profile.displayName} initials={getInitials(profile.displayName)} className="size-20 sm:size-24" />
           </div>
 
           {/* Identity */}

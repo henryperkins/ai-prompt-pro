@@ -32,12 +32,12 @@ describe("Untitled UI showcase blocks", () => {
 
     fireEvent.click(selectAll);
 
-    expect(screen.getByRole("checkbox", { name: "Select Olivia Rhye" })).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByRole("checkbox", { name: "Select Phoenix Baker" })).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByRole("checkbox", { name: "Select Lana Steiner" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("checkbox", { name: "Select Olivia Rhye" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Select Phoenix Baker" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Select Lana Steiner" })).toBeChecked();
 
     fireEvent.click(screen.getByRole("checkbox", { name: "Select Olivia Rhye" }));
-    expect(selectAll).toHaveAttribute("data-state", "indeterminate");
+    expect(selectAll).toHaveProperty("indeterminate", true);
 
     fireEvent.click(nextButton);
 

@@ -1,7 +1,20 @@
 /**
- * @deprecated Import from "@/components/base/textarea" (Textarea) or "@/components/base/textarea/textarea" only when working inside the DS layer.
- * Temporary compatibility bridge until legacy imports are removed.
- * TODO(ds-refactor): Delete after migration is complete (target: 2026-06-30).
+ * Public textarea entrypoint – import from "@/components/base/textarea".
+ *
+ * Exports:
+ *  - Textarea  – legacy HTML-native textarea with basic DS styling (standard
+ *                <textarea> attributes).  Deprecated; prefer TextArea for new code.
+ *  - TextArea  – DS-owned React Aria field with label / hint / tooltip support.
+ *
+ * TextAreaBase is DS-internal – do not import it from feature code.
+ */
+
+/**
+ * @deprecated Use `TextArea` from this module for new code.  `Textarea` is a
+ * thin HTML-native wrapper kept for backward compatibility.
+ * TODO(ds-refactor): Migrate remaining consumers to TextArea (target: 2026-09-30).
  */
 export { Textarea } from "@/components/base/primitives/textarea";
-export { TextArea, TextAreaBase } from "@/components/base/textarea/textarea";
+export type { TextareaProps } from "@/components/base/primitives/textarea";
+
+export { TextArea } from "@/components/base/textarea/textarea";

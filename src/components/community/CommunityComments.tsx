@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/avatar";
+import { Avatar } from "@/components/base/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -212,10 +212,7 @@ export function CommunityComments({
     return (
       <div className="rounded-lg border border-border/60 bg-background/70 px-2.5 py-2 sm:p-2.5">
         <div className="flex items-start gap-2">
-          <Avatar className="h-7 w-7 border border-border/60">
-            <AvatarImage src={item.author?.avatarUrl ?? undefined} alt={item.displayName} />
-            <AvatarFallback className="type-reply-label">{getInitials(item.displayName)}</AvatarFallback>
-          </Avatar>
+          <Avatar size="xs" src={item.author?.avatarUrl ?? undefined} alt={item.displayName} initials={getInitials(item.displayName)} />
           <div className="min-w-0 flex-1">
             <div className="type-meta flex flex-wrap items-center gap-1.5 text-muted-foreground sm:gap-2">
               <Link to={`/profile/${item.comment.userId}`} className="type-author type-link-inline type-wrap-inline text-foreground">

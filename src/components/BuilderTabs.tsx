@@ -5,7 +5,6 @@ import { Checkbox } from "@/components/base/checkbox";
 import { Label } from "@/components/base/label";
 import { Select } from "@/components/base/select/select";
 import { cx } from "@/lib/utils/cx";
-import { toConstraintInputId } from "@/lib/builder-tabs";
 import { Crosshair as Target, Layout, Lightbulb, Shield, User } from "@phosphor-icons/react";
 import {
   PromptConfig,
@@ -168,18 +167,14 @@ export function BuilderTabs({ config, onUpdate }: BuilderTabsProps) {
         <p className="text-sm text-muted-foreground">Set boundaries to improve quality</p>
         <div className="space-y-3">
           {constraintOptions.map((constraint) => {
-            const constraintInputId = toConstraintInputId(constraint);
             return (
-              <div key={constraint} className="flex items-center gap-2">
-                <Checkbox
-                  id={constraintInputId}
-                  checked={config.constraints.includes(constraint)}
-                  onCheckedChange={() => toggleConstraint(constraint)}
-                />
-                <Label htmlFor={constraintInputId} className="text-sm cursor-pointer">
-                  {constraint}
-                </Label>
-              </div>
+              <Checkbox
+                key={constraint}
+                isSelected={config.constraints.includes(constraint)}
+                onChange={() => toggleConstraint(constraint)}
+                label={constraint}
+                size="sm"
+              />
             );
           })}
         </div>

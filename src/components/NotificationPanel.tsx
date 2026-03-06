@@ -1,6 +1,6 @@
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "react-router-dom";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/avatar";
+import { Avatar } from "@/components/base/avatar";
 import { Button } from "@/components/base/buttons/button";
 import { ScrollArea } from "@/components/base/scroll-area";
 import { Skeleton } from "@/components/base/skeleton";
@@ -122,15 +122,7 @@ export function NotificationPanel({
               const itemContent = (
                 <div className="flex items-start gap-2.5">
                   <div className="relative mt-0.5">
-                    <Avatar className="h-8 w-8 border border-border/60">
-                      <AvatarImage
-                        src={notification.actorAvatarUrl ?? undefined}
-                        alt={notification.actorDisplayName}
-                      />
-                      <AvatarFallback className="type-reply-label">
-                        {getInitials(notification.actorDisplayName)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <Avatar size="sm" src={notification.actorAvatarUrl ?? undefined} alt={notification.actorDisplayName} initials={getInitials(notification.actorDisplayName)} />
                     <span className="absolute -bottom-1 -right-1 rounded-full border border-background bg-background p-0.5">
                       {getTypeIcon(notification.type)}
                     </span>

@@ -3,7 +3,8 @@ import { Badge } from "@/components/base/badges/badges";
 import { BadgeGroup } from "@/components/base/badges/badge-groups";
 import { ButtonGroup, ButtonGroupItem } from "@/components/base/button-group/button-group";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
-import { Avatar, AvatarFallback } from "@/components/base/primitives/avatar";
+import { Avatar } from "@/components/base/avatar";
+import { getInitials } from "@/lib/utils/get-initials";
 import { Card } from "@/components/base/card";
 import { cx } from "@/lib/utils/cx";
 import {
@@ -114,14 +115,6 @@ const MESSAGE_ENTRIES: MessageEntry[] = [
   },
 ];
 
-function initials(name: string) {
-  return name
-    .split(" ")
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
-}
-
 function activityIcon(kind: ActivityEntry["kind"]) {
   if (kind === "file") return FileText;
   if (kind === "invite") return UserPlus;
@@ -216,11 +209,7 @@ export function ActivityFeedsBlock() {
                     />
                   )}
 
-                  <Avatar className="h-9 w-9 border border-border/70">
-                    <AvatarFallback className="bg-muted text-xs font-semibold text-muted-foreground">
-                      {initials(entry.actor)}
-                    </AvatarFallback>
-                  </Avatar>
+                  <Avatar size="sm" initials={getInitials(entry.actor)} />
 
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-foreground">
@@ -265,11 +254,7 @@ export function ActivityFeedsBlock() {
                   />
                 )}
 
-                <Avatar className="h-9 w-9 border border-border/70">
-                  <AvatarFallback className="bg-muted text-xs font-semibold text-muted-foreground">
-                    {initials(entry.actor)}
-                  </AvatarFallback>
-                </Avatar>
+                <Avatar size="sm" initials={getInitials(entry.actor)} />
 
                 <div className="min-w-0 flex-1">
                   <p className="text-sm text-foreground">

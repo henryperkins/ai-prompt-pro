@@ -3,10 +3,11 @@ import { Badge } from "@/components/base/badges/badges";
 import { BadgeGroup } from "@/components/base/badges/badge-groups";
 import { ButtonGroup, ButtonGroupItem } from "@/components/base/button-group/button-group";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
-import { Avatar, AvatarFallback } from "@/components/base/primitives/avatar";
+import { Avatar } from "@/components/base/avatar";
+import { getInitials } from "@/lib/utils/get-initials";
 import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/card";
-import { Checkbox } from "@/components/base/primitives/checkbox";
+import { Checkbox } from "@/components/base/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/base/primitives/table";
 import { cx } from "@/lib/utils/cx";
 import {
@@ -77,14 +78,6 @@ const TEAM_MEMBERS: TeamMember[] = [
     status: "Active",
   },
 ];
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
-}
 
 export function TeamMembersTableBlock() {
   const [size, setSize] = useState<TableSize>("md");
@@ -161,13 +154,13 @@ export function TeamMembersTableBlock() {
             <TableHead className={cx("w-10 pl-4", headClassName)}>
               <Checkbox
                 aria-label="Select all team members"
-                checked={allVisibleSelected ? true : hasPartialSelection ? "indeterminate" : false}
-                onCheckedChange={(checked) => {
-                  const nextChecked = checked === true;
+                isSelected={allVisibleSelected}
+                isIndeterminate={hasPartialSelection && !allVisibleSelected}
+                onChange={(val) => {
                   setSelectedMemberIds((prev) => {
                     const next = new Set(prev);
                     visibleMembers.forEach((member) => {
-                      if (nextChecked) {
+                      if (val) {
                         next.add(member.id);
                       } else {
                         next.delete(member.id);
@@ -198,11 +191,11 @@ export function TeamMembersTableBlock() {
                 <TableCell className={cx("pl-4", cellClassName)}>
                   <Checkbox
                     aria-label={`Select ${member.name}`}
-                    checked={selectedMemberIds.has(member.id)}
-                    onCheckedChange={(checked) => {
+                    isSelected={selectedMemberIds.has(member.id)}
+                    onChange={() => {
                       setSelectedMemberIds((prev) => {
                         const next = new Set(prev);
-                        if (checked === true) {
+                        if (!selectedMemberIds.has(member.id)) {
                           next.add(member.id);
                         } else {
                           next.delete(member.id);
@@ -215,11 +208,7 @@ export function TeamMembersTableBlock() {
 
                 <TableCell className={cellClassName}>
                   <div className="flex items-center gap-2.5">
-                    <Avatar className={cx("border border-border/70", compact ? "h-8 w-8" : "h-9 w-9")}>
-                      <AvatarFallback className="bg-muted text-xs font-semibold text-muted-foreground">
-                        {initials(member.name)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <Avatar size={compact ? "sm" : "md"} initials={getInitials(member.name)} />
                     <div>
                       <p className="font-medium text-foreground">{member.name}</p>
                       <p className="text-xs text-muted-foreground">{member.username}</p>

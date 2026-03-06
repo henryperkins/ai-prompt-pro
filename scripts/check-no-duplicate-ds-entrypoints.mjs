@@ -8,7 +8,12 @@ const sourceExtensions = new Set([".ts", ".tsx"]);
 const allowedEntrypointBridges = new Map([
   ["src/components/base/card.tsx", new Set(["@/components/base/primitives/card"])],
   ["src/components/base/drawer.tsx", new Set(["@/components/base/primitives/drawer"])],
-  ["src/components/base/textarea.tsx", new Set(["@/components/base/textarea/textarea"])],
+  ["src/components/base/textarea.tsx", new Set(["@/components/base/textarea/textarea", "@/components/base/primitives/textarea"])],
+  ["src/components/base/avatar.tsx", new Set(["@/components/base/avatar/avatar"])],
+  ["src/components/base/checkbox.tsx", new Set(["@/components/base/checkbox/checkbox"])],
+  ["src/components/base/primitives/checkbox.tsx", new Set(["@/components/base/checkbox/checkbox"])],
+  ["src/components/base/select/select-item.tsx", new Set(["@/components/base/avatar/avatar"])],
+  ["src/components/base/select/select.tsx", new Set(["@/components/base/avatar/avatar"])],
 ]);
 
 async function* walk(dir) {

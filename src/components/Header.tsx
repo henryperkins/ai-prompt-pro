@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Button } from "@/components/base/buttons/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/avatar";
+import { Avatar } from "@/components/base/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/base/dialog";
 import {
   AlertDialog,
@@ -440,10 +440,7 @@ export function Header({ isDark, onToggleTheme }: HeaderProps) {
                     aria-label="Open account menu"
                     className="interactive-chip hidden sm:inline-flex w-11 h-11 sm:w-9 sm:h-9 rounded-full p-0"
                   >
-                    <Avatar className="w-7 h-7 sm:w-8 sm:h-8">
-                      <AvatarImage src={avatarSrc} />
-                      <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-                    </Avatar>
+                    <Avatar size="sm" src={avatarSrc} initials={initials} />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">

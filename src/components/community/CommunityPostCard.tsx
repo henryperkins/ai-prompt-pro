@@ -7,7 +7,7 @@ import { getInitials } from "@/lib/utils/get-initials";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/avatar";
+import { Avatar } from "@/components/base/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/base/tooltip";
 import {
   DropdownMenu,
@@ -148,10 +148,7 @@ function CommunityPostCardComponent({
       <div className={cx("space-y-3", isMobile && "space-y-2.5")}>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
           <div className="flex min-w-0 items-center gap-2">
-            <Avatar className="h-8 w-8 border border-border/60">
-              <AvatarImage src={authorAvatarUrl ?? undefined} alt={authorName} />
-              <AvatarFallback className="type-reply-label">{getInitials(authorName)}</AvatarFallback>
-            </Avatar>
+            <Avatar size="sm" src={authorAvatarUrl ?? undefined} alt={authorName} initials={getInitials(authorName)} />
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <Link to={`/profile/${post.authorId}`} className="type-author type-link-inline type-wrap-inline text-foreground">

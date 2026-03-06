@@ -3,8 +3,13 @@ import ts from "typescript";
 export const FORBIDDEN_DS_ENTRYPOINT_IMPORTS = [
   "@/components/base/input/label",
   "@/components/base/textarea/textarea",
+  "@/components/base/checkbox/checkbox",
+  "@/components/base/avatar/avatar",
   "@/components/base/primitives/card",
   "@/components/base/primitives/drawer",
+  "@/components/base/primitives/avatar",
+  "@/components/base/primitives/checkbox",
+  "@/components/base/primitives/textarea",
   "@/hooks/usePromptBuilderContext",
 ];
 

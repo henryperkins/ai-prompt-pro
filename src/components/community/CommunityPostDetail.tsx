@@ -3,7 +3,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Link, useNavigate } from "react-router-dom";
 import type { CommunityPost, CommunityProfile, VoteState, VoteType } from "@/lib/community";
 import { getInitials } from "@/lib/utils/get-initials";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/avatar";
+import { Avatar } from "@/components/base/avatar";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/card";
@@ -185,10 +185,7 @@ export function CommunityPostDetail({
       <Card className={cx("pf-card space-y-5 border-border/80 bg-card/85 p-4 sm:p-5", getCommunityPostRarityClass(post))}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
-            <Avatar className="h-9 w-9 border border-border/60">
-              <AvatarImage src={authorAvatarUrl ?? undefined} alt={authorName} />
-              <AvatarFallback className="type-reply-label">{getInitials(authorName)}</AvatarFallback>
-            </Avatar>
+            <Avatar size="md" src={authorAvatarUrl ?? undefined} alt={authorName} initials={getInitials(authorName)} />
             <div className="min-w-0">
               <Link to={`/profile/${post.authorId}`} className="type-author type-link-inline type-wrap-inline text-foreground">
                 {authorName}

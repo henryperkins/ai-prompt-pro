@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { PageHero, PageShell } from "@/components/PageShell";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/avatar";
+import { Avatar } from "@/components/base/avatar";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/card";
@@ -436,17 +436,14 @@ const Library = () => {
         >
           <div className="flex items-start gap-3">
             <Checkbox
-              checked={isSelected}
-              onCheckedChange={(checked) => togglePromptSelection(prompt.id, checked === true)}
+              isSelected={isSelected}
+              onChange={() => togglePromptSelection(prompt.id, !isSelected)}
               aria-label={`Select ${prompt.name}`}
               className="mt-1"
             />
             <div className="min-w-0 flex-1 space-y-1.5">
               <div className="flex min-w-0 items-center gap-2">
-                <Avatar className="h-7 w-7 border border-border/60">
-                  <AvatarImage src={ownerAvatarUrl ?? undefined} alt={ownerName} />
-                  <AvatarFallback className="text-xs">{getInitials(ownerName)}</AvatarFallback>
-                </Avatar>
+                <Avatar size="xs" src={ownerAvatarUrl ?? undefined} alt={ownerName} initials={getInitials(ownerName)} />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="type-wrap-safe text-sm font-medium text-foreground">{prompt.name}</h3>
@@ -777,8 +774,8 @@ const Library = () => {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Checkbox
-                    checked={allFilteredSelected}
-                    onCheckedChange={(checked) => toggleSelectAllFiltered(checked === true)}
+                    isSelected={allFilteredSelected}
+                    onChange={() => toggleSelectAllFiltered(!allFilteredSelected)}
                     aria-label="Select all filtered prompts"
                   />
                   <span>{selectedCount} selected</span>

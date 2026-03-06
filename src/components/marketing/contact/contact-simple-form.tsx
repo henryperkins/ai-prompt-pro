@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/base/buttons/button";
-import { Checkbox } from "@/components/base/checkbox/checkbox";
+import { Checkbox } from "@/components/base/checkbox";
 import { Form } from "@/components/base/form/form";
 import { Input, InputBase } from "@/components/base/input/input";
 import { InputGroup } from "@/components/base/input/input-group";

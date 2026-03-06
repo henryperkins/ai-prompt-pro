@@ -14,7 +14,6 @@ import {
   roles,
   toneOptions,
 } from "@/lib/prompt-builder";
-import { toConstraintInputId } from "@/lib/builder-tabs";
 import {
   CaretDown as ChevronDown,
   CaretRight as ChevronRight,
@@ -182,18 +181,14 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
               <Label className="text-sm font-medium text-foreground">Constraints</Label>
               <div className="space-y-2">
                 {constraintOptions.map((constraint) => {
-                  const inputId = toConstraintInputId(constraint);
                   return (
-                    <div key={constraint} className="flex items-center gap-2">
-                      <Checkbox
-                        id={inputId}
-                        checked={config.constraints.includes(constraint)}
-                        onCheckedChange={() => toggleConstraint(constraint)}
-                      />
-                      <Label htmlFor={inputId} className="cursor-pointer text-sm">
-                        {constraint}
-                      </Label>
-                    </div>
+                    <Checkbox
+                      key={constraint}
+                      isSelected={config.constraints.includes(constraint)}
+                      onChange={() => toggleConstraint(constraint)}
+                      label={constraint}
+                      size="sm"
+                    />
                   );
                 })}
               </div>
