@@ -70,8 +70,6 @@ src/
           avatar-online-indicator.tsx
           index.tsx
           verified-tick.tsx
-        avatar-label-group.tsx
-        avatar-profile-photo.tsx
         avatar.tsx
         utils.ts
       badges/
@@ -92,7 +90,6 @@ src/
       input/
         hint-text.tsx
         input-group.tsx
-        input-payment.tsx
         input.stories.tsx
         input.tsx
         label.tsx
@@ -101,7 +98,6 @@ src/
         progress-indicators.tsx
       select/
         combobox.tsx
-        multi-select.tsx
         popover.tsx
         select-item.tsx
         select-native.tsx
@@ -127,16 +123,11 @@ src/
       ProfileHero.tsx
       PromptPreviewPanel.tsx
     fantasy/
-      PFBuilderLayout.tsx
       PFButton.tsx
-      PFHeroNavbar.tsx
       PFPanel.tsx
       PFQualityGauge.tsx
       PFTemplateCard.tsx
     foundations/
-      logo/
-        untitledui-logo-minimal.tsx
-        untitledui-logo.tsx
       payment-icons/
         amex-icon.tsx
         apple-pay-icon.tsx
@@ -153,10 +144,6 @@ src/
     marketing/
       contact/
         contact-simple-form.tsx
-      footers/
-        footer-large-04.tsx
-      header-section/
-        header-centered-brand.tsx
     AuthDialog.tsx
     BottomNav.tsx
     BuilderAdjustDetails.tsx
@@ -169,7 +156,6 @@ src/
     ContextQualityMeter.tsx
     ContextSourceChips.tsx
     Header.tsx
-    NavLink.tsx
     NotificationPanel.tsx
     OutputPanel.tsx
     PageShell.tsx
@@ -276,9 +262,6 @@ src/
     theme.css
     typography.css
     untitled-compat.css
-  utils/
-    cx.ts
-    is-react-component.ts
   App.tsx
   index.css
   main.tsx
@@ -297,38 +280,6 @@ vitest.config.ts
 ```
 
 # Files
-
-## File: src/components/NavLink.tsx
-````typescript
-import { NavLink as RouterNavLink, NavLinkProps } from "react-router-dom";
-import { forwardRef } from "react";
-import { cn } from "@/lib/utils";
-
-interface NavLinkCompatProps extends Omit<NavLinkProps, "className"> {
-  className?: string;
-  activeClassName?: string;
-  pendingClassName?: string;
-}
-
-const NavLink = forwardRef<HTMLAnchorElement, NavLinkCompatProps>(
-  ({ className, activeClassName, pendingClassName, to, ...props }, ref) => {
-    return (
-      <RouterNavLink
-        ref={ref}
-        to={to}
-        className={({ isActive, isPending }) =>
-          cn(className, isActive && activeClassName, isPending && pendingClassName)
-        }
-        {...props}
-      />
-    );
-  },
-);
-
-NavLink.displayName = "NavLink";
-
-export { NavLink };
-````
 
 ## File: src/hooks/use-mobile.tsx
 ````typescript
@@ -4524,38 +4475,6 @@ export const VerifiedTick = ({ size, className }: VerifiedTickProps) => (
 );
 ````
 
-## File: src/components/base/avatar/avatar-label-group.tsx
-````typescript
-import { type ReactNode } from "react";
-import { cx } from "@/lib/utils/cx";
-import { Avatar, type AvatarProps } from "./avatar";
-
-const styles = {
-    sm: { root: "gap-2", title: "text-sm font-semibold", subtitle: "text-xs" },
-    md: { root: "gap-2", title: "text-sm font-semibold", subtitle: "text-sm" },
-    lg: { root: "gap-3", title: "text-md font-semibold", subtitle: "text-md" },
-    xl: { root: "gap-4", title: "text-lg font-semibold", subtitle: "text-md" },
-};
-
-interface AvatarLabelGroupProps extends AvatarProps {
-    size: "sm" | "md" | "lg" | "xl";
-    title: string | ReactNode;
-    subtitle: string | ReactNode;
-}
-
-export const AvatarLabelGroup = ({ title, subtitle, className, ...props }: AvatarLabelGroupProps) => {
-    return (
-        <figure className={cx("group flex min-w-0 flex-1 items-center", styles[props.size].root, className)}>
-            <Avatar {...props} />
-            <figcaption className="min-w-0 flex-1">
-                <p className={cx("text-primary", styles[props.size].title)}>{title}</p>
-                <p className={cx("truncate text-tertiary", styles[props.size].subtitle)}>{subtitle}</p>
-            </figcaption>
-        </figure>
-    );
-};
-````
-
 ## File: src/components/base/avatar/utils.ts
 ````typescript
 /**
@@ -5053,78 +4972,6 @@ export { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/base/prim
 export { Textarea } from "@/components/base/primitives/textarea";
 ````
 
-## File: src/components/fantasy/PFBuilderLayout.tsx
-````typescript
-import { PFButton } from "@/components/fantasy/PFButton";
-import { PFPanel } from "@/components/fantasy/PFPanel";
-import { PFQualityGauge } from "@/components/fantasy/PFQualityGauge";
-
-export function PFBuilderLayout() {
-    return (
-        <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-            <aside className="space-y-4">
-                <PFPanel className="p-4">
-                    <h3 className="pf-text-display text-lg text-[rgba(230,225,213,.96)]">Forge Settings</h3>
-                    <p className="mt-1 text-xs text-[rgba(230,225,213,.68)]">Tune your artifact before final smithing.</p>
-
-                    <div className="mt-4 space-y-3">
-                        <label className="block text-xs font-semibold text-[rgba(230,225,213,.75)]">Role</label>
-                        <input className="pf-input h-11 w-full px-3 text-sm" placeholder="e.g., Senior Technical PM" />
-
-                        <label className="block text-xs font-semibold text-[rgba(230,225,213,.75)]">Constraints</label>
-                        <textarea
-                            className="pf-input min-h-24 w-full resize-y px-3 py-2 text-sm"
-                            placeholder="Include acceptance criteria, edge cases, and non-goals"
-                        />
-                    </div>
-                </PFPanel>
-
-                <PFPanel className="p-4">
-                    <h4 className="text-sm font-bold text-[rgba(230,225,213,.95)]">Quality Signal</h4>
-                    <p className="mt-1 text-xs text-[rgba(230,225,213,.7)]">Rarity unlocks as structure and clarity improve.</p>
-                    <div className="mt-3">
-                        <PFQualityGauge value={78} size={112} />
-                    </div>
-                </PFPanel>
-            </aside>
-
-            <main>
-                <PFPanel gilded className="p-4 md:p-5">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <h2 className="pf-text-display text-2xl text-[rgba(230,225,213,.95)]">Prompt Builder</h2>
-                        <div className="flex items-center gap-2">
-                            <PFButton variant="secondary">Preview</PFButton>
-                            <PFButton variant="primary">Enhance</PFButton>
-                        </div>
-                    </div>
-
-                    <div className="mt-3 pf-divider" />
-
-                    <div className="mt-4 grid gap-3">
-                        <textarea
-                            className="pf-input min-h-52.5 w-full resize-y px-4 py-3 text-sm leading-relaxed"
-                            placeholder="Paste or draft your rough prompt here..."
-                        />
-
-                        <div className="grid gap-3 sm:grid-cols-3">
-                            <input className="pf-input h-11 px-3 text-sm" placeholder="Tone" />
-                            <input className="pf-input h-11 px-3 text-sm" placeholder="Format" />
-                            <input className="pf-input h-11 px-3 text-sm" placeholder="Audience" />
-                        </div>
-                    </div>
-
-                    <div className="mt-5 flex flex-wrap items-center gap-2">
-                        <PFButton variant="ghost">Arcane</PFButton>
-                        <PFButton variant="ghost">Rare</PFButton>
-                        <PFButton variant="ghost">Ember</PFButton>
-                    </div>
-                </PFPanel>
-            </main>
-        </div>
-    );
-}
-````
-
 ## File: src/components/fantasy/PFButton.tsx
 ````typescript
 import type { ButtonHTMLAttributes } from "react";
@@ -5394,242 +5241,6 @@ export function PFTemplateCard({
     </CardTag>
   );
 }
-````
-
-## File: src/components/foundations/logo/untitledui-logo-minimal.tsx
-````typescript
-import type { SVGProps } from "react";
-import { useId } from "react";
-import { cx } from "@/lib/utils/cx";
-
-export const UntitledLogoMinimal = (props: SVGProps<SVGSVGElement>) => {
-    const id = useId();
-
-    return (
-        <svg viewBox="0 0 38 38" fill="none" {...props} className={cx("size-8 origin-center scale-[1.2]", props.className)}>
-            <g filter={`url(#filter0-${id}`}>
-                <g clipPath={`url(#clip0-${id}`}>
-                    <path
-                        d="M3 14.8C3 10.3196 3 8.07937 3.87195 6.36808C4.63893 4.86278 5.86278 3.63893 7.36808 2.87195C9.07937 2 11.3196 2 15.8 2H22.2C26.6804 2 28.9206 2 30.6319 2.87195C32.1372 3.63893 33.3611 4.86278 34.1281 6.36808C35 8.07937 35 10.3196 35 14.8V21.2C35 25.6804 35 27.9206 34.1281 29.6319C33.3611 31.1372 32.1372 32.3611 30.6319 33.1281C28.9206 34 26.6804 34 22.2 34H15.8C11.3196 34 9.07937 34 7.36808 33.1281C5.86278 32.3611 4.63893 31.1372 3.87195 29.6319C3 27.9206 3 25.6804 3 21.2V14.8Z"
-                        fill="white"
-                    />
-                    <path
-                        d="M3 14.8C3 10.3196 3 8.07937 3.87195 6.36808C4.63893 4.86278 5.86278 3.63893 7.36808 2.87195C9.07937 2 11.3196 2 15.8 2H22.2C26.6804 2 28.9206 2 30.6319 2.87195C32.1372 3.63893 33.3611 4.86278 34.1281 6.36808C35 8.07937 35 10.3196 35 14.8V21.2C35 25.6804 35 27.9206 34.1281 29.6319C33.3611 31.1372 32.1372 32.3611 30.6319 33.1281C28.9206 34 26.6804 34 22.2 34H15.8C11.3196 34 9.07937 34 7.36808 33.1281C5.86278 32.3611 4.63893 31.1372 3.87195 29.6319C3 27.9206 3 25.6804 3 21.2V14.8Z"
-                        fill={`url(#paint0_linear-${id}`}
-                        fillOpacity="0.2"
-                    />
-                    <g opacity="0.14" clipPath={`url(#clip1-${id}`}>
-                        <path
-                            fillRule="evenodd"
-                            clipRule="evenodd"
-                            d="M18.9612 2H19.0388V3.96123C20.8929 3.96625 22.6625 4.33069 24.2816 4.98855V2H24.3592V5.02038C25.7339 5.58859 26.9986 6.36882 28.1126 7.32031H29.602V2H29.6796V7.32031H35V7.39798H29.6796V8.88728C30.6311 10.0013 31.4113 11.266 31.9796 12.6406H35V12.7183H32.0114C32.6693 14.3373 33.0337 16.1069 33.0388 17.9609H35V18.0386H33.0388C33.0338 19.8927 32.6694 21.6622 32.0116 23.2812H35V23.3589H31.9798C31.4115 24.7337 30.6312 25.9986 29.6796 27.1128V28.6016H35V28.6792H29.6796V34H29.602V28.6792H28.1132C26.999 29.6309 25.7341 30.4113 24.3592 30.9797V34H24.2816V31.0115C22.6625 31.6693 20.8929 32.0338 19.0388 32.0388V34H18.9612V32.0388C17.1071 32.0338 15.3375 31.6693 13.7184 31.0115V34H13.6408V30.9797C12.2659 30.4113 11.001 29.6309 9.88678 28.6792H8.39804V34H8.32037V28.6792H3V28.6016H8.32037V27.1128C7.36877 25.9986 6.58847 24.7337 6.02023 23.3589H3V23.2812H5.9884C5.3306 21.6622 4.96621 19.8927 4.96122 18.0386H3V17.9609H4.96122C4.96627 16.1069 5.33073 14.3373 5.9886 12.7183H3V12.6406H6.02044C6.58866 11.266 7.36889 10.0013 8.32037 8.88728V7.39798H3V7.32031H8.32037V2H8.39804V7.32031H9.88736C11.0014 6.36882 12.2661 5.58859 13.6408 5.02038V2H13.7184V4.98855C15.3375 4.33069 17.1071 3.96626 18.9612 3.96123V2ZM18.9612 4.0389C17.1062 4.04396 15.3364 4.41075 13.7184 5.07245V7.32031H18.9612V4.0389ZM13.6408 5.10449C12.3137 5.65662 11.0902 6.40763 10.0074 7.32031H13.6408V5.10449ZM9.79719 7.39798H8.39804V8.79711C8.8311 8.29865 9.29872 7.83103 9.79719 7.39798ZM8.39804 8.91598C8.86452 8.37206 9.37213 7.86446 9.91606 7.39798H13.6408V12.6406H8.39804V8.91598ZM8.32037 9.00733C7.4077 10.0901 6.65669 11.3136 6.10454 12.6406H8.32037V9.00733ZM6.0725 12.7183C5.41078 14.3362 5.04397 16.106 5.03889 17.9609H8.32037V12.7183H6.0725ZM5.03889 18.0386C5.04391 19.8935 5.41065 21.6633 6.0723 23.2812H8.32037V18.0386H5.03889ZM6.10434 23.3589C6.6565 24.6861 7.40759 25.9098 8.32037 26.9927V23.3589H6.10434ZM8.39804 27.2029V28.6016H9.79662C9.29837 28.1686 8.83093 27.7012 8.39804 27.2029ZM9.91548 28.6016C9.37178 28.1352 8.86436 27.6278 8.39804 27.0841V23.3589H13.6408V28.6016H9.91548ZM10.0068 28.6792C11.0898 29.5921 12.3135 30.3433 13.6408 30.8955V28.6792H10.0068ZM13.7184 30.9276C15.3364 31.5893 17.1062 31.9561 18.9612 31.9611V28.6792H13.7184V30.9276ZM19.0388 31.9611C20.8937 31.9561 22.6636 31.5893 24.2816 30.9276V28.6792H19.0388V31.9611ZM24.3592 30.8955C25.6865 30.3433 26.9102 29.5921 27.9932 28.6792H24.3592V30.8955ZM28.2034 28.6016H29.602V27.2029C29.1691 27.7012 28.7016 28.1686 28.2034 28.6016ZM29.602 27.0841C29.1356 27.6278 28.6282 28.1352 28.0845 28.6016H24.3592V23.3589H29.602V27.0841ZM29.6796 26.9927C30.5924 25.9098 31.3435 24.6861 31.8957 23.3589H29.6796V26.9927ZM31.9277 23.2812C32.5894 21.6633 32.9561 19.8935 32.9611 18.0386H29.6796V23.2812H31.9277ZM32.9611 17.9609C32.956 16.1061 32.5892 14.3362 31.9275 12.7183H29.6796V17.9609H32.9611ZM31.8955 12.6406C31.3433 11.3136 30.5923 10.0901 29.6796 9.00733V12.6406H31.8955ZM29.602 8.79711V7.39798H28.2028C28.7013 7.83103 29.1689 8.29865 29.602 8.79711ZM28.0839 7.39798C28.6279 7.86446 29.1355 8.37206 29.602 8.91598V12.6406H24.3592V7.39798H28.0839ZM27.9926 7.32031C26.9098 6.40763 25.6863 5.65662 24.3592 5.10449V7.32031H27.9926ZM24.2816 5.07245C22.6636 4.41074 20.8937 4.04395 19.0388 4.0389V7.32031H24.2816V5.07245ZM13.7184 7.39798H18.9612V12.6406H13.7184V7.39798ZM24.2816 7.39798H19.0388V12.6406H24.2816V7.39798ZM13.6408 23.2812H8.39804V18.0386H13.6408V23.2812ZM13.7184 23.3589V28.6016H18.9612V23.3589H13.7184ZM18.9612 23.2812H13.7184V18.0386H18.9612V23.2812ZM19.0388 23.3589V28.6016H24.2816V23.3589H19.0388ZM24.2816 23.2812H19.0388V18.0386H24.2816V23.2812ZM29.602 23.2812H24.3592V18.0386H29.602V23.2812ZM13.7184 12.7183H18.9612V17.9609H13.7184V12.7183ZM8.39804 12.7183L13.6408 12.7183V17.9609H8.39804V12.7183ZM24.2816 12.7183H19.0388V17.9609H24.2816V12.7183ZM24.3592 17.9609V12.7183L29.602 12.7183V17.9609H24.3592Z"
-                            fill="#0A0D12"
-                        />
-                    </g>
-                    <g filter={`url(#filter1_dd-${id}`}>
-                        <rect x="11" y="10" width="16" height="16" rx="8" fill={`url(#paint1_linear-${id}`} />
-                        <rect x="11" y="10" width="16" height="16" rx="8" fill={`url(#paint2_radial-${id}`} fillOpacity="0.08" />
-                        <rect x="11" y="10" width="16" height="16" rx="8" fill={`url(#paint3_radial-${id}`} fillOpacity="0.18" />
-                        <rect x="11" y="10" width="16" height="16" rx="8" fill={`url(#paint4_radial-${id}`} fillOpacity="0.05" />
-                        <path
-                            d="M23.8 14.0414C23.8 15.3898 21.651 14.5297 19 14.5297C16.349 14.5297 14.2 15.3898 14.2 14.0414C14.2 12.693 16.349 11.6 19 11.6C21.651 11.6 23.8 12.693 23.8 14.0414Z"
-                            fill={`url(#paint5_linear-${id}`}
-                            fillOpacity="0.4"
-                        />
-                    </g>
-                </g>
-                <path
-                    d="M3.1 14.8C3.1 12.5581 3.10008 10.8828 3.20866 9.55376C3.31715 8.22593 3.53345 7.25268 3.96105 6.41348C4.71845 4.92699 5.92699 3.71845 7.41348 2.96105C8.25268 2.53345 9.22593 2.31715 10.5538 2.20866C11.8828 2.10008 13.5581 2.1 15.8 2.1H22.2C24.4419 2.1 26.1172 2.10008 27.4462 2.20866C28.7741 2.31715 29.7473 2.53345 30.5865 2.96105C32.073 3.71845 33.2816 4.92699 34.039 6.41348C34.4665 7.25268 34.6828 8.22593 34.7913 9.55376C34.8999 10.8828 34.9 12.5581 34.9 14.8V21.2C34.9 23.4419 34.8999 25.1172 34.7913 26.4462C34.6828 27.7741 34.4665 28.7473 34.039 29.5865C33.2816 31.073 32.073 32.2816 30.5865 33.039C29.7473 33.4665 28.7741 33.6828 27.4462 33.7913C26.1172 33.8999 24.4419 33.9 22.2 33.9H15.8C13.5581 33.9 11.8828 33.8999 10.5538 33.7913C9.22593 33.6828 8.25268 33.4665 7.41348 33.039C5.92699 32.2816 4.71845 31.073 3.96105 29.5865C3.53345 28.7473 3.31715 27.7741 3.20866 26.4462C3.10008 25.1172 3.1 23.4419 3.1 21.2V14.8Z"
-                    stroke="#0A0D12"
-                    strokeOpacity="0.12"
-                    strokeWidth="0.2"
-                />
-            </g>
-            <image
-                href="data:image/webp;base64,UklGRoYHAABXRUJQVlA4WAoAAAAQAAAA..."
-                x="0"
-                y="19"
-                width="38"
-                height="19"
-                transform="scale(0.84) translate(0, -1.5)"
-                className="origin-center"
-                preserveAspectRatio="xMidYMax slice"
-                clipPath={`url(#imageClip-${id})`}
-            />
-
-            <defs>
-                <clipPath id={`imageClip-${id}`}>
-                    <path d="M 0 19 L 38 19 L 38 28.88  A 9.12 9.12 0 0 1 28.88 38 L 9.12 38 A 9.12 9.12 0 0 1 0 28.88 Z" />
-                </clipPath>
-                <filter id={`filter0-${id}`} x="0" y="0" width="38" height="38" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
-                    <feFlood floodOpacity="0" result="BackgroundImageFix" />
-                    <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
-                    <feOffset dy="1" />
-                    <feGaussianBlur stdDeviation="1" />
-                    <feColorMatrix type="matrix" values="0 0 0 0 0.0392157 0 0 0 0 0.0509804 0 0 0 0 0.0705882 0 0 0 0.06 0" />
-                    <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow" />
-                    <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
-                    <feOffset dy="1" />
-                    <feGaussianBlur stdDeviation="1.5" />
-                    <feColorMatrix type="matrix" values="0 0 0 0 0.0392157 0 0 0 0 0.0509804 0 0 0 0 0.0705882 0 0 0 0.1 0" />
-                    <feBlend mode="normal" in2="effect1_dropShadow" result="effect2_dropShadow" />
-                    <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
-                    <feMorphology radius="0.5" operator="erode" in="SourceAlpha" result="effect3_dropShadow" />
-                    <feOffset dy="1" />
-                    <feGaussianBlur stdDeviation="0.5" />
-                    <feComposite in2="hardAlpha" operator="out" />
-                    <feColorMatrix type="matrix" values="0 0 0 0 0.0392157 0 0 0 0 0.0509804 0 0 0 0 0.0705882 0 0 0 0.13 0" />
-                    <feBlend mode="normal" in2="effect2_dropShadow" result="effect3_dropShadow" />
-                    <feBlend mode="normal" in="SourceGraphic" in2="effect3_dropShadow" result="shape" />
-                    <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
-                    <feOffset dy="-0.5" />
-                    <feGaussianBlur stdDeviation="0.25" />
-                    <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1" />
-                    <feColorMatrix type="matrix" values="0 0 0 0 0.0392157 0 0 0 0 0.0509804 0 0 0 0 0.0705882 0 0 0 0.1 0" />
-                    <feBlend mode="normal" in2="shape" result="effect4_innerShadow" />
-                </filter>
-                <filter id={`filter1_dd-${id}`} x="8" y="8" width="22" height="22" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
-                    <feFlood floodOpacity="0" result="BackgroundImageFix" />
-                    <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
-                    <feOffset dy="1" />
-                    <feGaussianBlur stdDeviation="1" />
-                    <feColorMatrix type="matrix" values="0 0 0 0 0.0392157 0 0 0 0 0.0509804 0 0 0 0 0.0705882 0 0 0 0.06 0" />
-                    <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow" />
-                    <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
-                    <feOffset dy="1" />
-                    <feGaussianBlur stdDeviation="1.5" />
-                    <feColorMatrix type="matrix" values="0 0 0 0 0.0392157 0 0 0 0 0.0509804 0 0 0 0 0.0705882 0 0 0 0.1 0" />
-                    <feBlend mode="normal" in2="effect1_dropShadow" result="effect2_dropShadow" />
-                    <feBlend mode="normal" in="SourceGraphic" in2="effect2_dropShadow" result="shape" />
-                </filter>
-                <filter id={`filter2_b-${id}`} x="-2" y="13" width="42" height="26" filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB">
-                    <feFlood floodOpacity="0" result="BackgroundImageFix" />
-                    <feGaussianBlur in="BackgroundImageFix" stdDeviation="2.5" />
-                    <feComposite in2="SourceAlpha" operator="in" result="effect1_backgroundBlur" />
-                    <feBlend mode="normal" in="SourceGraphic" in2="effect1_backgroundBlur" result="shape" />
-                </filter>
-                <linearGradient id={`paint0_linear-${id}`} x1="19" y1="2" x2="19" y2="34" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="white" />
-                    <stop offset="1" stopColor="#0A0D12" />
-                </linearGradient>
-                <linearGradient id={`paint1_linear-${id}`} x1="15" y1="26" x2="23" y2="10" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#53389E" />
-                    <stop offset="1" stopColor="#6941C6" />
-                </linearGradient>
-                <radialGradient
-                    id={`paint2_radial-${id}`}
-                    cx="0"
-                    cy="0"
-                    r="1"
-                    gradientUnits="userSpaceOnUse"
-                    gradientTransform="translate(19 10) rotate(90) scale(12)"
-                >
-                    <stop stopColor="white" stopOpacity="0" />
-                    <stop offset="0.5" stopColor="white" stopOpacity="0" />
-                    <stop offset="0.99" stopColor="white" />
-                    <stop offset="1" stopColor="white" stopOpacity="0" />
-                </radialGradient>
-                <radialGradient
-                    id={`paint3_radial-${id}`}
-                    cx="0"
-                    cy="0"
-                    r="1"
-                    gradientUnits="userSpaceOnUse"
-                    gradientTransform="translate(19 18) rotate(90) scale(8)"
-                >
-                    <stop offset="0.746599" stopColor="white" stopOpacity="0" />
-                    <stop offset="1" stopColor="white" />
-                </radialGradient>
-                <radialGradient
-                    id={`paint4_radial-${id}`}
-                    cx="0"
-                    cy="0"
-                    r="1"
-                    gradientUnits="userSpaceOnUse"
-                    gradientTransform="translate(19 14.6) rotate(90) scale(7)"
-                >
-                    <stop stopColor="white" />
-                    <stop offset="1" stopColor="white" stopOpacity="0" />
-                </radialGradient>
-                <linearGradient id={`paint5_linear-${id}`} x1="19" y1="11.6" x2="19" y2="14.8" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="white" />
-                    <stop offset="1" stopColor="white" stopOpacity="0.1" />
-                </linearGradient>
-                <clipPath id={`clip0-${id}`}>
-                    <path
-                        d="M3 14.8C3 10.3196 3 8.07937 3.87195 6.36808C4.63893 4.86278 5.86278 3.63893 7.36808 2.87195C9.07937 2 11.3196 2 15.8 2H22.2C26.6804 2 28.9206 2 30.6319 2.87195C32.1372 3.63893 33.3611 4.86278 34.1281 6.36808C35 8.07937 35 10.3196 35 14.8V21.2C35 25.6804 35 27.9206 34.1281 29.6319C33.3611 31.1372 32.1372 32.3611 30.6319 33.1281C28.9206 34 26.6804 34 22.2 34H15.8C11.3196 34 9.07937 34 7.36808 33.1281C5.86278 32.3611 4.63893 31.1372 3.87195 29.6319C3 27.9206 3 25.6804 3 21.2V14.8Z"
-                        fill="white"
-                    />
-                </clipPath>
-                <clipPath id={`clip1-${id}`}>
-                    <rect width="32" height="32" fill="white" transform="translate(3 2)" />
-                </clipPath>
-            </defs>
-        </svg>
-    );
-};
-````
-
-## File: src/components/foundations/logo/untitledui-logo.tsx
-````typescript
-import type { HTMLAttributes } from "react";
-import { cx } from "@/lib/utils/cx";
-import { UntitledLogoMinimal } from "./untitledui-logo-minimal";
-
-export const UntitledLogo = (props: HTMLAttributes<HTMLOrSVGElement>) => {
-    return (
-        <div {...props} className={cx("flex h-8 w-max items-center justify-start overflow-visible", props.className)}>
-            {/* Minimal logo */}
-            <UntitledLogoMinimal className="aspect-square h-full w-auto shrink-0" />
-
-            {/* Gap that adjusts to the height of the container */}
-            <div className="aspect-[0.3] h-full" />
-
-            {/* Logomark */}
-            <svg viewBox="0 0 97 32" fill="none" className="aspect-[3] h-full shrink-0">
-                <path
-                    d="M33.9101 10.2372C34.2321 10.5355 34.6179 10.6847 35.0678 10.6847C35.5176 10.6847 35.9011 10.5355 36.2183 10.2372C36.5403 9.9342 36.7013 9.57199 36.7013 9.15058C36.7013 8.73392 36.5403 8.37644 36.2183 8.07814C35.9011 7.77511 35.5176 7.6236 35.0678 7.6236C34.6179 7.6236 34.2321 7.77511 33.9101 8.07814C33.5928 8.37644 33.4342 8.73392 33.4342 9.15058C33.4342 9.57199 33.5928 9.9342 33.9101 10.2372Z"
-                    className="fill-fg-primary"
-                />
-                <path
-                    d="M11.2997 20.6847C11.8063 19.8892 12.0597 18.9612 12.0597 17.9006V8.45456H8.98438V17.6378C8.98438 18.1918 8.86127 18.6842 8.61506 19.1151C8.37358 19.5459 8.0303 19.8845 7.58523 20.1307C7.14489 20.3769 6.62642 20.5 6.02983 20.5C5.43797 20.5 4.91951 20.3769 4.47443 20.1307C4.02936 19.8845 3.68371 19.5459 3.4375 19.1151C3.19602 18.6842 3.07528 18.1918 3.07528 17.6378V8.45456H0V17.9006C0 18.9612 0.250947 19.8892 0.752841 20.6847C1.25473 21.4801 1.95786 22.1004 2.86222 22.5455C3.76657 22.9858 4.82244 23.206 6.02983 23.206C7.23248 23.206 8.28599 22.9858 9.19034 22.5455C10.0947 22.1004 10.7978 21.4801 11.2997 20.6847Z"
-                    className="fill-fg-primary"
-                />
-                <path
-                    d="M18.3589 12.51C17.7907 12.8793 17.3859 13.3812 17.1444 14.0156H17.0165V12.0909H14.133V23H17.1586V16.6932C17.1633 16.2244 17.2509 15.8244 17.4214 15.4929C17.5966 15.1567 17.838 14.9011 18.1458 14.7259C18.4583 14.5507 18.8182 14.4631 19.2254 14.4631C19.8314 14.4631 20.3073 14.6525 20.6529 15.0313C20.9986 15.4053 21.169 15.9262 21.1643 16.5938V23H24.1898V16.054C24.1898 15.2065 24.0336 14.4773 23.7211 13.8665C23.4086 13.251 22.9706 12.7775 22.4072 12.446C21.8437 12.1146 21.1832 11.9489 20.4256 11.9489C19.616 11.9489 18.9271 12.1359 18.3589 12.51Z"
-                    className="fill-fg-primary"
-                />
-                <path
-                    d="M27.3463 21.821C27.0433 21.3523 26.8941 20.7604 26.8989 20.0455V14.3637H25.4074V12.0909H26.8989V9.47729H29.9244V12.0909H31.977V14.3637H29.9244V19.6477C29.9244 19.9271 29.967 20.1449 30.0523 20.3012C30.1375 20.4527 30.2559 20.5592 30.4074 20.6208C30.5636 20.6823 30.7436 20.7131 30.9472 20.7131C31.0892 20.7131 31.2313 20.7012 31.3733 20.6776C31.5153 20.6492 31.6242 20.6279 31.7 20.6137L32.1759 22.8651C32.0243 22.9124 31.8113 22.9669 31.5366 23.0284C31.262 23.0947 30.9282 23.135 30.5352 23.1492C29.8061 23.1776 29.1669 23.0805 28.6176 22.858C28.0731 22.6354 27.6493 22.2898 27.3463 21.821Z"
-                    className="fill-fg-primary"
-                />
-                <path
-                    d="M39.769 21.821C39.4659 21.3523 39.3168 20.7604 39.3215 20.0455V14.3637H37.83V12.0909H39.3215V9.47729H42.3471V12.0909H44.3996V14.3637H42.3471V19.6477C42.3471 19.9271 42.3897 20.1449 42.4749 20.3012C42.5602 20.4527 42.6785 20.5592 42.83 20.6208C42.9863 20.6823 43.1662 20.7131 43.3698 20.7131C43.5119 20.7131 43.6539 20.7012 43.796 20.6776C43.938 20.6492 44.0469 20.6279 44.1227 20.6137L44.5985 22.8651C44.447 22.9124 44.2339 22.9669 43.9593 23.0284C43.6847 23.0947 43.3509 23.135 42.9579 23.1492C42.2287 23.1776 41.5895 23.0805 41.0403 22.858C40.4958 22.6354 40.072 22.2898 39.769 21.821Z"
-                    className="fill-fg-primary"
-                />
-                <path
-                    fillRule="evenodd"
-                    clipRule="evenodd"
-                    d="M56.2257 23.2131C55.1035 23.2131 54.1376 22.9858 53.328 22.5313C52.5231 22.072 51.9028 21.4233 51.4672 20.5852C51.0316 19.7424 50.8138 18.7458 50.8138 17.5952C50.8138 16.473 51.0316 15.4882 51.4672 14.6406C51.9028 13.7931 52.516 13.1326 53.3067 12.6591C54.1021 12.1856 55.0349 11.9489 56.105 11.9489C56.8247 11.9489 57.4946 12.0649 58.1149 12.2969C58.7399 12.5242 59.2844 12.8674 59.7484 13.3267C60.2172 13.786 60.5818 14.3637 60.8422 15.0597C61.1026 15.751 61.2328 16.5606 61.2328 17.4887V18.3196H53.8038V18.3267C53.8038 18.8665 53.9033 19.3329 54.1021 19.7259C54.3057 20.1189 54.5922 20.4219 54.9615 20.635C55.3308 20.848 55.7688 20.9546 56.2754 20.9546C56.6116 20.9546 56.9194 20.9072 57.1987 20.8125C57.4781 20.7178 57.7172 20.5758 57.916 20.3864C58.1149 20.197 58.2664 19.965 58.3706 19.6904L61.1689 19.875C61.0268 20.5474 60.7357 21.1345 60.2953 21.6364C59.8597 22.1335 59.2963 22.5218 58.605 22.8012C57.9184 23.0758 57.1253 23.2131 56.2257 23.2131ZM54.1092 15.3722C53.9258 15.6954 53.8249 16.0529 53.8067 16.4446H58.3848C58.3848 16.009 58.2901 15.6231 58.1007 15.2869C57.9113 14.9508 57.6485 14.688 57.3124 14.4986C56.9809 14.3045 56.595 14.2074 56.1547 14.2074C55.6954 14.2074 55.2882 14.3139 54.9331 14.527C54.5827 14.7353 54.3081 15.0171 54.1092 15.3722Z"
-                    className="fill-fg-primary"
-                />
-                <path
-                    fillRule="evenodd"
-                    clipRule="evenodd"
-                    d="M64.5757 22.5384C65.2481 22.9645 65.9985 23.1776 66.8271 23.1776C67.4143 23.1776 67.9114 23.0805 68.3186 22.8864C68.7305 22.6923 69.0643 22.4484 69.32 22.1548C69.5804 21.8566 69.7817 21.5559 69.9237 21.2529H70.0516V23H73.0345V8.45456H70.0161V13.9233H69.9237C69.7911 13.6298 69.597 13.3315 69.3413 13.0284C69.0904 12.7207 68.7589 12.465 68.347 12.2614C67.9398 12.053 67.4308 11.9489 66.82 11.9489C66.0198 11.9489 65.2836 12.1572 64.6112 12.5739C63.9436 12.9858 63.4086 13.6084 63.0061 14.4418C62.6036 15.2704 62.4024 16.3097 62.4024 17.5597C62.4024 18.7765 62.5965 19.804 62.9848 20.6421C63.3778 21.4754 63.9081 22.1075 64.5757 22.5384ZM69.0217 20.3722C68.6856 20.6373 68.2736 20.7699 67.7859 20.7699C67.2888 20.7699 66.8698 20.635 66.5288 20.3651C66.1927 20.0905 65.9346 19.7117 65.7547 19.2287C65.5795 18.741 65.4919 18.1799 65.4919 17.5455C65.4919 16.9157 65.5795 16.3618 65.7547 15.8835C65.9299 15.4053 66.1879 15.0313 66.5288 14.7614C66.8698 14.4915 67.2888 14.3566 67.7859 14.3566C68.2736 14.3566 68.6879 14.4868 69.0288 14.7472C69.3698 15.0076 69.6302 15.3769 69.8101 15.8551C69.99 16.3334 70.08 16.8968 70.08 17.5455C70.08 18.1941 69.9876 18.76 69.803 19.2429C69.6231 19.7259 69.3626 20.1023 69.0217 20.3722Z"
-                    className="fill-fg-primary"
-                />
-                <path
-                    d="M88.0229 19.1151C88.2691 18.6842 88.3922 18.1918 88.3922 17.6378V8.45456H91.4675V17.9006C91.4675 18.9612 91.2142 19.8892 90.7075 20.6847C90.2056 21.4801 89.5025 22.1004 88.5982 22.5455C87.6938 22.9858 86.6403 23.206 85.4376 23.206C84.2303 23.206 83.1744 22.9858 82.27 22.5455C81.3657 22.1004 80.6625 21.4801 80.1607 20.6847C79.6588 19.8892 79.4078 18.9612 79.4078 17.9006V8.45456H82.4831V17.6378C82.4831 18.1918 82.6038 18.6842 82.8453 19.1151C83.0915 19.5459 83.4372 19.8845 83.8822 20.1307C84.3273 20.3769 84.8458 20.5 85.4376 20.5C86.0342 20.5 86.5527 20.3769 86.993 20.1307C87.4381 19.8845 87.7814 19.5459 88.0229 19.1151Z"
-                    className="fill-fg-primary"
-                />
-                <path d="M33.5479 12.0909V23H36.5734V12.0909H33.5479Z" className="fill-fg-primary" />
-                <path d="M49.2305 23V8.45456H46.2049V23H49.2305Z" className="fill-fg-primary" />
-                <path d="M96.6729 23V8.45456H93.5977V23H96.6729Z" className="fill-fg-primary" />
-            </svg>
-        </div>
-    );
-};
 ````
 
 ## File: src/components/foundations/payment-icons/amex-icon.tsx
@@ -6126,188 +5737,6 @@ export const ContactSimpleForm = () => {
             </div>
         </section>
     );
-};
-````
-
-## File: src/components/marketing/footers/footer-large-04.tsx
-````typescript
-import { Badge } from "@/components/base/badges/badges";
-import { Button } from "@/components/base/buttons/button";
-import { Form } from "@/components/base/form/form";
-import { Input } from "@/components/base/input/input";
-import { UntitledLogo } from "@/components/foundations/logo/untitledui-logo";
-
-const footerNavList = [
-    {
-        label: "Product",
-        items: [
-            {
-                label: "Overview",
-                href: "#",
-            },
-            {
-                label: "Features",
-                href: "#",
-            },
-            {
-                label: "Solutions",
-                href: "#",
-                badge: (
-                    <Badge size="sm" type="modern" className="ml-1">
-                        New
-                    </Badge>
-                ),
-            },
-            {
-                label: "Tutorials",
-                href: "#",
-            },
-            {
-                label: "Pricing",
-                href: "#",
-            },
-            {
-                label: "Releases",
-                href: "#",
-            },
-        ],
-    },
-    {
-        label: "Resources",
-        items: [
-            {
-                label: "Blog",
-                href: "#",
-            },
-            {
-                label: "Newsletter",
-                href: "#",
-            },
-            {
-                label: "Events",
-                href: "#",
-            },
-            {
-                label: "Help centre",
-                href: "#",
-            },
-            {
-                label: "Tutorials",
-                href: "#",
-            },
-            {
-                label: "Support",
-                href: "#",
-            },
-        ],
-    },
-];
-
-export const FooterLarge04 = () => {
-    return (
-        <footer className="bg-primary py-12 md:pt-16">
-            <div className="mx-auto max-w-container px-4 md:px-8">
-                <div className="flex flex-col gap-12 md:gap-16 xl:flex-row">
-                    <div className="flex w-full flex-col gap-6 md:max-w-xs md:gap-8">
-                        <UntitledLogo className="h-8 w-min shrink-0" />
-                        <p className="text-md text-tertiary">Design amazing digital experiences that create more happy in the world.</p>
-                    </div>
-                    <nav className="flex flex-1 flex-col-reverse gap-12 md:flex-row md:gap-8 xl:justify-end">
-                        <ul className="grid w-full grid-cols-2 gap-8 md:max-w-xs">
-                            {footerNavList.map((category) => (
-                                <li key={category.label}>
-                                    <h4 className="text-sm font-semibold text-primary">{category.label}</h4>
-                                    <ul className="mt-4 flex flex-col gap-3">
-                                        {category.items.map((item) => (
-                                            <li key={item.label}>
-                                                <Button color="link-color" size="lg" href={item.href} iconTrailing={item.badge} className="gap-1">
-                                                    {item.label}
-                                                </Button>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </li>
-                            ))}
-                        </ul>
-                        <Form
-                            onSubmit={(e) => {
-                                e.preventDefault();
-                                const data = Object.fromEntries(new FormData(e.currentTarget));
-                                console.log("Form data:", data);
-                            }}
-                            className="flex w-full flex-col gap-4 md:max-w-90"
-                        >
-                            <label htmlFor="newsletters-email" className="text-sm font-semibold text-primary">
-                                Stay up to date
-                            </label>
-                            <div className="flex flex-col gap-4 sm:flex-row">
-                                <Input
-                                    isRequired
-                                    id="newsletters-email"
-                                    name="email"
-                                    type="email"
-                                    placeholder="Enter your email"
-                                    size="md"
-                                    wrapperClassName="flex-1"
-                                />
-                                <Button type="submit" size="lg">
-                                    Subscribe
-                                </Button>
-                            </div>
-                        </Form>
-                    </nav>
-                </div>
-                <div className="mt-12 flex flex-col-reverse justify-between gap-4 border-t border-secondary pt-8 md:mt-16 md:flex-row md:gap-6">
-                    <p className="text-md text-quaternary">© 2077 Untitled UI. All rights reserved.</p>
-
-                    <ul className="flex gap-4">
-                        {[
-                            {
-                                label: "Terms",
-                                href: "#",
-                            },
-                            {
-                                label: "Privacy",
-                                href: "#",
-                            },
-                            {
-                                label: "Cookies",
-                                href: "#",
-                            },
-                        ].map(({ label, href }) => (
-                            <li key={label}>
-                                <a
-                                    href={href}
-                                    className="rounded-xs text-md text-quaternary outline-focus-ring transition duration-100 ease-linear hover:text-tertiary focus-visible:outline-2 focus-visible:outline-offset-2"
-                                >
-                                    {label}
-                                </a>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            </div>
-        </footer>
-    );
-};
-````
-
-## File: src/components/marketing/header-section/header-centered-brand.tsx
-````typescript
-export const HeaderCenteredBrand = () => {
-  return (
-    <section className="bg-muted/40 py-16 md:py-24">
-      <div className="mx-auto w-full max-w-5xl px-4 md:px-8">
-        <div className="mx-auto flex w-full max-w-3xl flex-col items-center text-center">
-          <span className="text-sm font-semibold text-primary md:text-base">About us</span>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground md:text-5xl">About the company</h1>
-          <p className="mt-4 text-base text-muted-foreground md:mt-6 md:text-lg">
-            Learn more about the company and the world-class team behind Untitled.
-          </p>
-        </div>
-      </div>
-    </section>
-  );
 };
 ````
 
@@ -7473,43 +6902,6 @@ export function renderIconSlot<TProps extends object>(icon: IconSlot<TProps> | n
 
   return null;
 }
-````
-
-## File: src/lib/utils/is-react-component.ts
-````typescript
-/* We cannot use type `unknown` instead of `any` here because it will break the type assertion `isReactComponent` function is providing. */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import type React from "react";
-
-type ReactComponent = React.FC<any> | React.ComponentClass<any, any>;
-
-/**
- * Checks if a given value is a function component.
- */
-export const isFunctionComponent = (component: any): component is React.FC<any> => {
-    return typeof component === "function";
-};
-
-/**
- * Checks if a given value is a class component.
- */
-export const isClassComponent = (component: any): component is React.ComponentClass<any, any> => {
-    return typeof component === "function" && component.prototype && (!!component.prototype.isReactComponent || !!component.prototype.render);
-};
-
-/**
- * Checks if a given value is a forward ref component.
- */
-export const isForwardRefComponent = (component: any): component is React.ForwardRefExoticComponent<any> => {
-    return typeof component === "object" && component !== null && component.$$typeof.toString() === "Symbol(react.forward_ref)";
-};
-
-/**
- * Checks if a given value is a valid React component.
- */
-export const isReactComponent = (component: any): component is ReactComponent => {
-    return isFunctionComponent(component) || isForwardRefComponent(component) || isClassComponent(component);
-};
 ````
 
 ## File: src/lib/community-errors.ts
@@ -9920,39 +9312,6 @@ export function resetPreferencesCache(): void {
 }
 ````
 
-## File: src/utils/cx.ts
-````typescript
-import { extendTailwindMerge } from "tailwind-merge";
-
-const twMerge = extendTailwindMerge({
-  extend: {
-    theme: {
-      text: ["display-xs", "display-sm", "display-md", "display-lg", "display-xl", "display-2xl"],
-    },
-  },
-});
-
-/**
- * This function is a wrapper around the twMerge function.
- * It is used to merge the classes inside style objects.
- */
-export const cx = twMerge;
-
-/**
- * This function does nothing besides helping us to be able to
- * sort the classes inside style objects which is not supported
- * by the Tailwind IntelliSense by default.
- */
-type SortableClassMap = Record<
-  string,
-  string | number | Record<string, string | number | Record<string, string | number>>
->;
-
-export function sortCx<T extends SortableClassMap>(classes: T): T {
-  return classes;
-}
-````
-
 ## File: src/main.tsx
 ````typescript
 import { createRoot } from "react-dom/client";
@@ -11085,131 +10444,6 @@ InputGroup.Prefix = InputPrefix;
 InputGroup.displayName = "InputGroup";
 ````
 
-## File: src/components/base/input/input-payment.tsx
-````typescript
-import { useControlledState } from "@react-stately/utils";
-import { HintText } from "@/components/base/input/hint-text";
-import type { InputBaseProps } from "@/components/base/input/input";
-import { InputBase, TextField } from "@/components/base/input/input";
-import { Label } from "@/components/base/input/label";
-import { AmexIcon, DiscoverIcon, MastercardIcon, UnionPayIcon, VisaIcon } from "@/components/foundations/payment-icons";
-
-const cardTypes = [
-    {
-        name: "Visa",
-        pattern: /^4[0-9]{3,}$/, // Visa card numbers start with 4 and are 13 or 16 digits long
-        card: "visa",
-        icon: VisaIcon,
-    },
-    {
-        name: "MasterCard",
-        pattern: /^5[1-5][0-9]{2,}$/, // MasterCard numbers start with 51-55 and are 16 digits long
-        card: "mastercard",
-        icon: MastercardIcon,
-    },
-    {
-        name: "American Express",
-        pattern: /^3[47][0-9]{2,}$/, // American Express numbers start with 34 or 37 and are 15 digits long
-        card: "amex",
-        icon: AmexIcon,
-    },
-    {
-        name: "Discover",
-        pattern: /^6(?:011|5[0-9]{2}|4[4-9][0-9])[0-9]{12}$/, // Discover card numbers start with 6011 or 65 and are 16 digits long
-        card: "discover",
-        icon: DiscoverIcon,
-    },
-    {
-        name: "UnionPay",
-        pattern: /^(62|88)[0-9]{14,17}$/, // UnionPay card numbers start with 62 or 88 and are between 15-19 digits long
-        card: "unionpay",
-        icon: UnionPayIcon,
-    },
-    {
-        name: "Unknown",
-        pattern: /.*/, // Fallback pattern for unknown cards
-        card: "unknown",
-        icon: MastercardIcon,
-    },
-];
-
-/**
- * Detect the card type based on the card number.
- * @param number The card number to detect the type for.
- * @returns The matching card type object.
- */
-const detectCardType = (number: string) => {
-    // Remove all spaces
-    const sanitizedNumber = number.replace(/\D/g, "");
-
-    // Find the matching card type
-    const card = cardTypes.find((cardType) => cardType.pattern.test(sanitizedNumber));
-
-    return card || cardTypes[cardTypes.length - 1];
-};
-
-/**
- * Format the card number in groups of 4 digits (i.e. 1234 5678 9012 3456).
- */
-export const formatCardNumber = (number: string) => {
-    // Remove non-numeric characters
-    const cleaned = number.replace(/\D/g, "");
-
-    // Format the card number in groups of 4 digits
-    const match = cleaned.match(/\d{1,4}/g);
-
-    if (match) {
-        return match.join(" ");
-    }
-
-    return cleaned;
-};
-
-type PaymentInputProps = Omit<InputBaseProps, "icon">;
-
-export const PaymentInput = ({ onChange, value, defaultValue, className, maxLength = 19, label, hint, ...props }: PaymentInputProps) => {
-    const [cardNumber, setCardNumber] = useControlledState(value, defaultValue || "", (value) => {
-        // Remove all non-numeric characters
-        value = value.replace(/\D/g, "");
-
-        onChange?.(value || "");
-    });
-
-    const card = detectCardType(cardNumber);
-
-    return (
-        <TextField
-            aria-label={!label ? props?.placeholder : undefined}
-            {...props}
-            className={className}
-            inputMode="numeric"
-            maxLength={maxLength}
-            value={formatCardNumber(cardNumber)}
-            onChange={setCardNumber}
-        >
-            {({ isDisabled, isInvalid, isRequired }) => (
-                <>
-                    {label && <Label isRequired={isRequired}>{label}</Label>}
-
-                    <InputBase
-                        {...props}
-                        isDisabled={isDisabled}
-                        isInvalid={isInvalid}
-                        icon={card.icon}
-                        inputClassName="pl-13"
-                        iconClassName="left-2.5 h-6 w-8.5"
-                    />
-
-                    {hint && <HintText isInvalid={isInvalid}>{hint}</HintText>}
-                </>
-            )}
-        </TextField>
-    );
-};
-
-PaymentInput.displayName = "PaymentInput";
-````
-
 ## File: src/components/base/input/input.stories.tsx
 ````typescript
 import type { Meta, StoryObj } from "@storybook/react-vite";
@@ -11498,121 +10732,6 @@ export const TooltipTrigger = ({ children, className, ...buttonProps }: TooltipT
         </AriaButton>
     );
 };
-````
-
-## File: src/components/fantasy/PFHeroNavbar.tsx
-````typescript
-import { cx } from "@/lib/utils/cx";
-
-export type PFNavLink = { label: string; href: string };
-
-export type PFHeroNavbarProps = {
-  logoSrc?: string;
-  heroBgSrc?: string;
-  runeTileSrc?: string;
-  links?: PFNavLink[];
-  primaryCta?: PFNavLink;
-  secondaryCta?: PFNavLink;
-  headline?: string;
-  subhead?: string;
-};
-
-export function PFHeroNavbar({
-  logoSrc = "/pf/promptforge-wordmark.png",
-  heroBgSrc = "/pf/promptforge-background-1920x1080.png",
-  runeTileSrc = "/pf/promptforge-rune-texture-tile-1024.png",
-  links = [
-    { label: "Artifacts", href: "#artifacts" },
-    { label: "Templates", href: "#templates" },
-    { label: "Community", href: "#community" },
-    { label: "Docs", href: "#docs" },
-  ],
-  primaryCta = { label: "Enter the Forge", href: "#start" },
-  secondaryCta = { label: "Browse Templates", href: "#templates" },
-  headline = "Forge the Prompt",
-  subhead = "Craft, refine, and share prompt artifacts — powered by arcane glow and forged-metal polish.",
-}: PFHeroNavbarProps) {
-  return (
-    <header className="relative overflow-hidden">
-      <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${heroBgSrc})` }} />
-        <div className="absolute inset-0 bg-linear-to-r from-black/75 via-black/40 to-black/70" />
-        <div className="absolute inset-0 mask-[radial-gradient(60%_60%_at_50%_35%,black,transparent)] bg-black/55" />
-        <div
-          className="absolute inset-0 opacity-[0.10] mix-blend-overlay"
-          style={{ backgroundImage: `url(${runeTileSrc})`, backgroundSize: "640px 640px" }}
-        />
-      </div>
-
-      <div className="relative z-10 mx-auto max-w-6xl px-6 pb-16 pt-6">
-        <nav className="flex items-center justify-between gap-6">
-          <a href="#" className="flex items-center gap-3">
-            <img src={logoSrc} alt="PromptForge" className="h-9 w-auto" />
-          </a>
-
-          <div className="hidden items-center gap-7 md:flex">
-            {links.map((link) => (
-              <a key={link.href} href={link.href} className="pf-nav-link text-sm font-semibold">
-                {link.label}
-              </a>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-3">
-            <a href={secondaryCta.href} className={cx("pf-button pf-button-ghost", "h-10 px-4 text-sm")}>
-              {secondaryCta.label}
-            </a>
-            <a href={primaryCta.href} className={cx("pf-button pf-button-primary", "h-10 px-4 text-sm")}>
-              {primaryCta.label}
-            </a>
-          </div>
-        </nav>
-
-        <section className="mt-12 md:mt-16">
-          <div className="pf-gilded-frame p-7 md:p-10">
-            <div className="max-w-2xl">
-              <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(214,166,64,.45)] bg-black/30 px-3 py-1 text-xs font-semibold text-[rgba(230,225,213,.85)]">
-                <span className="h-2 w-2 rounded-full bg-[rgb(var(--pf-arcane-rgb))] shadow-[0_0_18px_rgba(18,200,181,.35)]" />
-                New: community artifacts + rarity tiers
-              </div>
-
-              <h1 className="pf-text-display mt-5 text-4xl leading-[1.02] md:text-6xl">{headline}</h1>
-
-              <p className="mt-4 text-base text-[rgba(230,225,213,.82)] md:text-lg">{subhead}</p>
-
-              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-                <a href={primaryCta.href} className={cx("pf-button pf-button-primary", "h-12 px-6")}>
-                  {primaryCta.label}
-                </a>
-                <a href={secondaryCta.href} className={cx("pf-button pf-button-secondary", "h-12 px-6")}>
-                  {secondaryCta.label}
-                </a>
-              </div>
-
-              <div className="mt-8 pf-divider" />
-
-              <div className="mt-5 grid grid-cols-1 gap-4 text-sm sm:grid-cols-3">
-                <HeroStat label="Forge time" value="~30s" hint="from draft to artifact" />
-                <HeroStat label="Quality tiers" value="Common → Legendary" hint="rarity frames included" />
-                <HeroStat label="Modes" value="Arcane / Ember" hint="focus vs destructive actions" />
-              </div>
-            </div>
-          </div>
-        </section>
-      </div>
-    </header>
-  );
-}
-
-function HeroStat({ label, value, hint }: { label: string; value: string; hint: string }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
-      <div className="text-xs text-[rgba(230,225,213,.68)]">{label}</div>
-      <div className="mt-1 font-bold text-[rgba(230,225,213,.95)]">{value}</div>
-      <div className="mt-1 text-xs text-[rgba(230,225,213,.62)]">{hint}</div>
-    </div>
-  );
-}
 ````
 
 ## File: src/components/ContextQualityMeter.tsx
@@ -14054,6 +13173,47 @@ export const phoneCodeOptions: SelectItemType[] = countries.map((country) => ({
 export default countries;
 ````
 
+## File: src/lib/utils/is-react-component.ts
+````typescript
+/* We cannot use type `unknown` instead of `any` here because it will break the type assertion `isReactComponent` function is providing. */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import type React from "react";
+
+type ReactComponent = React.FC<any> | React.ComponentClass<any, any>;
+
+/**
+ * Checks if a given value is a function component.
+ */
+export const isFunctionComponent = (component: any): component is React.FC<any> => {
+    return typeof component === "function";
+};
+
+/**
+ * Checks if a given value is a class component.
+ */
+export const isClassComponent = (component: any): component is React.ComponentClass<any, any> => {
+    return typeof component === "function" && component.prototype && (!!component.prototype.isReactComponent || !!component.prototype.render);
+};
+
+/**
+ * Checks if a given value is a forward ref component.
+ */
+export const isForwardRefComponent = (component: any): component is React.ForwardRefExoticComponent<any> => {
+    if (typeof component !== "object" || component === null) {
+        return false;
+    }
+    const symbolType = (component as { $$typeof?: unknown }).$$typeof;
+    return symbolType === Symbol.for("react.forward_ref");
+};
+
+/**
+ * Checks if a given value is a valid React component.
+ */
+export const isReactComponent = (component: any): component is ReactComponent => {
+    return isFunctionComponent(component) || isForwardRefComponent(component) || isClassComponent(component);
+};
+````
+
 ## File: src/lib/feature-flags.ts
 ````typescript
 function parseBooleanFlag(value: string | undefined, defaultValue = false): boolean {
@@ -14993,53 +14153,6 @@ export default NotFound;
 }
 ````
 
-## File: src/utils/is-react-component.ts
-````typescript
-/* We cannot use type `unknown` instead of `any` here because it will break the type assertion `isReactComponent` function is providing. */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import type React from "react";
-
-type ReactComponent = React.FC<any> | React.ComponentClass<any, any>;
-const FORWARD_REF_SYMBOL = Symbol.for("react.forward_ref");
-
-/**
- * Checks if a given value is a function component.
- */
-export const isFunctionComponent = (component: any): component is React.FC<any> => {
-  return typeof component === "function";
-};
-
-/**
- * Checks if a given value is a class component.
- */
-export const isClassComponent = (component: any): component is React.ComponentClass<any, any> => {
-  return (
-    typeof component === "function" &&
-    component.prototype &&
-    (!!component.prototype.isReactComponent || !!component.prototype.render)
-  );
-};
-
-/**
- * Checks if a given value is a forward ref component.
- */
-export const isForwardRefComponent = (component: any): component is React.ForwardRefExoticComponent<any> => {
-  if (typeof component !== "object" || component === null) {
-    return false;
-  }
-
-  const symbolType = (component as { $$typeof?: unknown }).$$typeof;
-  return symbolType === FORWARD_REF_SYMBOL;
-};
-
-/**
- * Checks if a given value is a valid React component.
- */
-export const isReactComponent = (component: any): component is ReactComponent => {
-  return isFunctionComponent(component) || isForwardRefComponent(component) || isClassComponent(component);
-};
-````
-
 ## File: vite.config.ts
 ````typescript
 import { defineConfig } from "vite";
@@ -15587,134 +14700,6 @@ export const AvatarAddButton = ({ size, className, title = "Add user", ...props 
         </AriaTooltipTrigger>
     </AriaTooltip>
 );
-````
-
-## File: src/components/base/avatar/avatar-profile-photo.tsx
-````typescript
-import { useState } from "react";
-import { cx } from "@/lib/utils/cx";
-import { renderIconSlot } from "@/lib/utils/icon-slot";
-import { type AvatarProps } from "./avatar";
-import { AvatarOnlineIndicator, VerifiedTick } from "./base-components";
-import { User as User01 } from "@phosphor-icons/react";
-
-const styles = {
-    sm: {
-        root: "size-18 p-0.75",
-        rootWithPlaceholder: "p-1",
-        content: "",
-        icon: "size-9",
-        initials: "text-display-sm font-semibold",
-        badge: "bottom-0.5 right-0.5",
-    },
-    md: {
-        root: "size-24 p-1",
-        rootWithPlaceholder: "p-1.25",
-        content: "shadow-xl",
-        icon: "size-12",
-        initials: "text-display-md font-semibold",
-        badge: "bottom-1 right-1",
-    },
-    lg: {
-        root: "size-40 p-1.5",
-        rootWithPlaceholder: "p-1.75",
-        content: "shadow-2xl",
-        icon: "size-20",
-        initials: "text-display-xl font-semibold",
-        badge: "bottom-2 right-2",
-    },
-};
-
-const tickSizeMap = {
-    sm: "2xl",
-    md: "3xl",
-    lg: "4xl",
-} as const;
-
-interface AvatarProfilePhotoProps extends AvatarProps {
-    size: "sm" | "md" | "lg";
-}
-
-export const AvatarProfilePhoto = ({
-    contrastBorder = true,
-    size = "md",
-    src,
-    alt,
-    initials,
-    placeholder,
-    placeholderIcon: PlaceholderIcon,
-    verified,
-    badge,
-    status,
-    className,
-}: AvatarProfilePhotoProps) => {
-    const [isFailed, setIsFailed] = useState(false);
-
-    const renderMainContent = () => {
-        if (src && !isFailed) {
-            return (
-                <img
-                    src={src}
-                    alt={alt}
-                    onError={() => setIsFailed(true)}
-                    className={cx(
-                        "size-full rounded-full object-cover",
-                        contrastBorder && "outline-1 -outline-offset-1 outline-avatar-contrast-border",
-                        styles[size].content,
-                    )}
-                />
-            );
-        }
-
-        if (initials) {
-            return (
-                <div className={cx("flex size-full items-center justify-center rounded-full bg-tertiary ring-1 ring-secondary_alt", styles[size].content)}>
-                    <span className={cx("text-quaternary", styles[size].initials)}>{initials}</span>
-                </div>
-            );
-        }
-
-        if (PlaceholderIcon) {
-            return (
-                <div className={cx("flex size-full items-center justify-center rounded-full bg-tertiary ring-1 ring-secondary_alt", styles[size].content)}>
-                    {renderIconSlot(PlaceholderIcon, { className: cx("text-fg-quaternary", styles[size].icon) })}
-                </div>
-            );
-        }
-
-        return (
-            <div className={cx("flex size-full items-center justify-center rounded-full bg-tertiary ring-1 ring-secondary_alt", styles[size].content)}>
-                {placeholder || <User01 className={cx("text-fg-quaternary", styles[size].icon)} />}
-            </div>
-        );
-    };
-
-    const renderBadgeContent = () => {
-        if (status) {
-            return <AvatarOnlineIndicator status={status} size={tickSizeMap[size]} className={styles[size].badge} />;
-        }
-
-        if (verified) {
-            return <VerifiedTick size={tickSizeMap[size]} className={cx("absolute", styles[size].badge)} />;
-        }
-
-        return badge;
-    };
-
-    return (
-        <div
-            className={cx(
-                "relative flex shrink-0 items-center justify-center rounded-full bg-primary ring-1 ring-secondary_alt",
-                styles[size].root,
-                (!src || isFailed) && styles[size].rootWithPlaceholder,
-                className,
-            )}
-        >
-            {renderMainContent()}
-            {renderBadgeContent()}
-        </div>
-    );
-};
 ````
 
 ## File: src/components/base/avatar/avatar.tsx
@@ -22342,373 +21327,6 @@ Set `REQUIRE_PROVIDER_CONFIG=true` to disable step 3 and fail fast instead of fa
 - **Neon auth validation**: Verifies JWT bearer tokens via Neon JWKS.
 - **HTTP payload guardrail**: Rejects oversized JSON request bodies with `413` without buffering unbounded payloads in memory.
 - **CORS + per-endpoint rate limiting**: Browser-safe headers with request throttling for enhance/extract/infer routes.
-````
-
-## File: src/components/base/select/multi-select.tsx
-````typescript
-import type { FocusEventHandler, KeyboardEvent, PointerEventHandler, RefAttributes, RefObject } from "react";
-import { createContext, useCallback, useContext, useRef, useState } from "react";
-import { FocusScope, useFilter, useFocusManager } from "react-aria";
-import type { ComboBoxProps as AriaComboBoxProps, GroupProps as AriaGroupProps, ListBoxProps as AriaListBoxProps, Key } from "react-aria-components";
-import { ComboBox as AriaComboBox, Group as AriaGroup, Input as AriaInput, ListBox as AriaListBox, ComboBoxStateContext } from "react-aria-components";
-import type { ListData } from "react-stately";
-import { useListData } from "react-stately";
-import { Avatar } from "@/components/base/avatar/avatar";
-import { HintText } from "@/components/base/input/hint-text";
-import { Label } from "@/components/base/input/label";
-import { Popover } from "@/components/base/select/popover";
-import { type SelectItemType, sizes } from "@/components/base/select/select";
-import { TagCloseX } from "@/components/base/tags/base-components/tag-close-x";
-import { useResizeObserver } from "@/hooks/use-resize-observer";
-import { cx } from "@/lib/utils/cx";
-import { renderIconSlot, type IconSlot } from "@/lib/utils/icon-slot";
-import { SelectItem } from "./select-item";
-import { MagnifyingGlass as SearchLg } from "@phosphor-icons/react";
-
-type MultiSelectIconProps = { className?: string; "aria-hidden"?: boolean };
-
-interface ComboBoxValueProps extends AriaGroupProps {
-    size: "sm" | "md";
-    shortcut?: boolean;
-    isDisabled?: boolean;
-    placeholder?: string;
-    shortcutClassName?: string;
-    placeholderIcon?: IconSlot<MultiSelectIconProps> | null;
-    ref?: RefObject<HTMLDivElement | null>;
-    onFocus?: FocusEventHandler;
-    onPointerEnter?: PointerEventHandler;
-}
-
-const ComboboxContext = createContext<{
-    size: "sm" | "md";
-    selectedKeys: Key[];
-    selectedItems: ListData<SelectItemType>;
-    onRemove: (keys: Set<Key>) => void;
-    onInputChange: (value: string) => void;
-}>({
-    size: "sm",
-    selectedKeys: [],
-    selectedItems: {} as ListData<SelectItemType>,
-    onRemove: () => {},
-    onInputChange: () => {},
-});
-
-interface MultiSelectProps extends Omit<AriaComboBoxProps<SelectItemType>, "children" | "items">, RefAttributes<HTMLDivElement> {
-    hint?: string;
-    label?: string;
-    tooltip?: string;
-    size?: "sm" | "md";
-    placeholder?: string;
-    shortcut?: boolean;
-    items?: SelectItemType[];
-    popoverClassName?: string;
-    shortcutClassName?: string;
-    selectedItems: ListData<SelectItemType>;
-    placeholderIcon?: IconSlot<MultiSelectIconProps> | null;
-    children: AriaListBoxProps<SelectItemType>["children"];
-    onItemCleared?: (key: Key) => void;
-    onItemInserted?: (key: Key) => void;
-}
-
-export const MultiSelectBase = ({
-    items,
-    children,
-    size = "sm",
-    selectedItems,
-    onItemCleared,
-    onItemInserted,
-    shortcut,
-    placeholder = "Search",
-    // Omit these props to avoid conflicts with the `Select` component
-    name: _name,
-    className: _className,
-    ...props
-}: MultiSelectProps) => {
-    const { contains } = useFilter({ sensitivity: "base" });
-    const selectedKeys = selectedItems.items.map((item) => item.id);
-
-    const filter = useCallback(
-        (item: SelectItemType, filterText: string) => {
-            return !selectedKeys.includes(item.id) && contains(item.label || item.supportingText || "", filterText);
-        },
-        [contains, selectedKeys],
-    );
-
-    const accessibleList = useListData({
-        initialItems: items,
-        filter,
-    });
-
-    const onRemove = useCallback(
-        (keys: Set<Key>) => {
-            const key = keys.values().next().value;
-
-            if (!key) return;
-
-            selectedItems.remove(key);
-            onItemCleared?.(key);
-        },
-        [selectedItems, onItemCleared],
-    );
-
-    const onSelectionChange = (id: Key | null) => {
-        if (!id) {
-            return;
-        }
-
-        const item = accessibleList.getItem(id);
-
-        if (!item) {
-            return;
-        }
-
-        if (!selectedKeys.includes(id as string)) {
-            selectedItems.append(item);
-            onItemInserted?.(id);
-        }
-
-        accessibleList.setFilterText("");
-    };
-
-    const onInputChange = (value: string) => {
-        accessibleList.setFilterText(value);
-    };
-
-    const placeholderRef = useRef<HTMLDivElement>(null);
-    const [popoverWidth, setPopoverWidth] = useState("");
-
-    // Resize observer for popover width
-    const onResize = useCallback(() => {
-        if (!placeholderRef.current) return;
-        const divRect = placeholderRef.current?.getBoundingClientRect();
-        setPopoverWidth(divRect.width + "px");
-    }, [placeholderRef, setPopoverWidth]);
-
-    useResizeObserver({
-        ref: placeholderRef,
-        onResize: onResize,
-        box: "border-box",
-    });
-
-    return (
-        <ComboboxContext.Provider
-            value={{
-                size,
-                selectedKeys,
-                selectedItems,
-                onInputChange,
-                onRemove,
-            }}
-        >
-            <AriaComboBox
-                allowsEmptyCollection
-                menuTrigger="focus"
-                items={accessibleList.items}
-                onInputChange={onInputChange}
-                inputValue={accessibleList.filterText}
-                // This keeps the combobox popover open and the input value unchanged when an item is selected.
-                selectedKey={null}
-                onSelectionChange={onSelectionChange}
-                {...props}
-            >
-                {(state) => (
-                    <div className="flex flex-col gap-1.5">
-                        {props.label && (
-                            <Label isRequired={state.isRequired} tooltip={props.tooltip}>
-                                {props.label}
-                            </Label>
-                        )}
-
-                        <MultiSelectTagsValue
-                            size={size}
-                            shortcut={shortcut}
-                            ref={placeholderRef}
-                            placeholder={placeholder}
-                            // This is a workaround to correctly calculating the trigger width
-                            // while using ResizeObserver wasn't 100% reliable.
-                            onFocus={onResize}
-                            onPointerEnter={onResize}
-                        />
-
-                        <Popover size={"md"} triggerRef={placeholderRef} style={{ width: popoverWidth }} className={props?.popoverClassName}>
-                            <AriaListBox selectionMode="multiple" className="size-full outline-hidden">
-                                {children}
-                            </AriaListBox>
-                        </Popover>
-
-                        {props.hint && <HintText isInvalid={state.isInvalid}>{props.hint}</HintText>}
-                    </div>
-                )}
-            </AriaComboBox>
-        </ComboboxContext.Provider>
-    );
-};
-
-const InnerMultiSelect = ({ isDisabled, shortcut, shortcutClassName, placeholder }: Omit<MultiSelectProps, "selectedItems" | "children">) => {
-    const focusManager = useFocusManager();
-    const comboBoxContext = useContext(ComboboxContext);
-    const comboBoxStateContext = useContext(ComboBoxStateContext);
-
-    const handleInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-        const isCaretAtStart = event.currentTarget.selectionStart === 0 && event.currentTarget.selectionEnd === 0;
-
-        if (!isCaretAtStart && event.currentTarget.value !== "") {
-            return;
-        }
-
-        switch (event.key) {
-            case "Backspace":
-            case "ArrowLeft":
-                focusManager?.focusPrevious({ wrap: false, tabbable: false });
-                break;
-            case "ArrowRight":
-                focusManager?.focusNext({ wrap: false, tabbable: false });
-                break;
-        }
-    };
-
-    // Ensure dropdown opens on click even if input is already focused
-    const handleInputMouseDown = (_event: React.MouseEvent<HTMLInputElement>) => {
-        if (comboBoxStateContext && !comboBoxStateContext.isOpen) {
-            comboBoxStateContext.open();
-        }
-    };
-
-    const handleTagKeyDown = (event: KeyboardEvent<HTMLButtonElement>, value: Key) => {
-        // Do nothing when tab is clicked to move focus from the tag to the input element.
-        if (event.key === "Tab") {
-            return;
-        }
-
-        event.preventDefault();
-
-        const isFirstTag = comboBoxContext?.selectedItems?.items?.[0]?.id === value;
-
-        switch (event.key) {
-            case " ":
-            case "Enter":
-            case "Backspace":
-                if (isFirstTag) {
-                    focusManager?.focusNext({ wrap: false, tabbable: false });
-                } else {
-                    focusManager?.focusPrevious({ wrap: false, tabbable: false });
-                }
-
-                comboBoxContext.onRemove(new Set([value]));
-                break;
-
-            case "ArrowLeft":
-                focusManager?.focusPrevious({ wrap: false, tabbable: false });
-                break;
-            case "ArrowRight":
-                focusManager?.focusNext({ wrap: false, tabbable: false });
-                break;
-            case "Escape":
-                comboBoxStateContext?.close();
-                break;
-        }
-    };
-
-    const isSelectionEmpty = comboBoxContext?.selectedItems?.items?.length === 0;
-
-    return (
-        <div className="relative flex w-full flex-1 flex-row flex-wrap items-center justify-start gap-1.5">
-            {!isSelectionEmpty &&
-                comboBoxContext?.selectedItems?.items?.map((value) => (
-                    <span key={value.id} className="flex items-center rounded-md bg-muted/70 py-0.5 pr-1 pl-1.25 ring-1 ring-border ring-inset">
-                        <Avatar size="xxs" alt={value?.label} src={value?.avatarUrl} />
-
-                        <p className="ml-1.25 truncate text-sm font-medium whitespace-nowrap text-foreground select-none">{value?.label}</p>
-
-                        <TagCloseX
-                            size="md"
-                            isDisabled={isDisabled}
-                            className="ml-0.75"
-                            // For workaround, onKeyDown is added to the button
-                            onKeyDown={(event) => handleTagKeyDown(event, value.id)}
-                            onPress={() => comboBoxContext.onRemove(new Set([value.id]))}
-                        />
-                    </span>
-                ))}
-
-            <div className={cx("relative flex min-w-[20%] flex-1 flex-row items-center", !isSelectionEmpty && "ml-0.5", shortcut && "min-w-[30%]")}>
-                <AriaInput
-                    placeholder={placeholder}
-                    onKeyDown={handleInputKeyDown}
-                    onMouseDown={handleInputMouseDown}
-                    className="w-full flex-[1_0_0] appearance-none bg-transparent text-md text-ellipsis text-foreground caret-foreground outline-none placeholder:text-placeholder focus:outline-hidden disabled:cursor-not-allowed disabled:text-disabled disabled:placeholder:text-disabled"
-                />
-
-                {shortcut && (
-                    <div
-                        aria-hidden="true"
-                        className={cx(
-                            "absolute inset-y-0.5 right-0.5 z-10 flex items-center rounded-r-[inherit] bg-linear-to-r from-transparent to-background to-40% pl-8",
-                            shortcutClassName,
-                        )}
-                    >
-                        <span
-                            className={cx(
-                                "pointer-events-none rounded px-1 py-px text-xs font-medium text-quaternary ring-1 ring-secondary select-none ring-inset",
-                                isDisabled && "bg-transparent text-disabled",
-                            )}
-                        >
-                            ⌘K
-                        </span>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-};
-
-export const MultiSelectTagsValue = ({
-    size,
-    shortcut,
-    placeholder,
-    shortcutClassName,
-    placeholderIcon: Icon = SearchLg,
-    // Omit this prop to avoid invalid HTML attribute warning
-    isDisabled: _isDisabled,
-    ...otherProps
-}: ComboBoxValueProps) => {
-    return (
-        <AriaGroup
-            {...otherProps}
-            className={({ isFocusWithin, isDisabled }) =>
-                cx(
-                    "relative flex w-full items-center gap-2 rounded-lg bg-background shadow-xs ring-1 ring-border outline-hidden transition duration-100 ease-linear ring-inset",
-                    isDisabled && "cursor-not-allowed bg-disabled_subtle",
-                    isFocusWithin && "ring-2 ring-brand",
-                    sizes[size].root,
-                )
-            }
-        >
-            {({ isDisabled }) => (
-                <>
-                    {renderIconSlot(Icon, { className: "pointer-events-none size-5 text-fg-quaternary", "aria-hidden": true })}
-                    <FocusScope contain={false} autoFocus={false} restoreFocus={false}>
-                        <InnerMultiSelect
-                            isDisabled={isDisabled}
-                            size={size}
-                            shortcut={shortcut}
-                            shortcutClassName={shortcutClassName}
-                            placeholder={placeholder}
-                        />
-                    </FocusScope>
-                </>
-            )}
-        </AriaGroup>
-    );
-};
-
-const MultiSelect = MultiSelectBase as typeof MultiSelectBase & {
-    Item: typeof SelectItem;
-};
-
-MultiSelect.Item = SelectItem;
-
-export { MultiSelect as MultiSelect };
 ````
 
 ## File: src/components/BuilderAdjustDetails.tsx
