@@ -1,3 +1,4 @@
+import { clsx, type ClassValue } from "clsx";
 import { extendTailwindMerge } from "tailwind-merge";
 
 const twMerge = extendTailwindMerge({
@@ -9,10 +10,12 @@ const twMerge = extendTailwindMerge({
 });
 
 /**
- * This function is a wrapper around the twMerge function.
- * It is used to merge the classes inside style objects.
+ * Class merger used by UUI components.
+ * Uses clsx semantics + a tailwind-merge instance extended for custom text tokens.
  */
-export const cx = twMerge;
+export function cx(...inputs: ClassValue[]) {
+    return twMerge(clsx(inputs));
+}
 
 /**
  * This function does nothing besides helping us to be able to

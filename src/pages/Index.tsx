@@ -62,7 +62,7 @@ import {
 } from "@/components/base/drawer";
 import { Button } from "@/components/base/buttons/button";
 import { Badge } from "@/components/base/badges/badges";
-import { Card } from "@/components/base/primitives/card";
+import { Card } from "@/components/base/card";
 import { ToastAction } from "@/components/base/primitives/toast";
 import { Switch } from "@/components/base/primitives/switch";
 import type { Icon as IconType } from "@phosphor-icons/react";

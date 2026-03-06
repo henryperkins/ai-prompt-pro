@@ -46,7 +46,7 @@ describe("check-no-legacy-ds-props AST scanner", () => {
         expect(violations).toHaveLength(0);
     });
 
-    it("detects legacy Badge variant prop", async () => {
+    it("allows canonical Badge variant prop", async () => {
         const { collectLegacyDesignSystemPropUsages } = await loadChecker();
         const source = `
       import { Badge } from "@/components/base/badges/badges";
@@ -57,8 +57,7 @@ describe("check-no-legacy-ds-props AST scanner", () => {
     `;
 
         const violations = collectLegacyDesignSystemPropUsages(source, "fixture.tsx");
-        expect(violations).toHaveLength(1);
-        expect(violations[0]).toMatchObject({ component: "Badge", prop: "variant", value: "secondary" });
+        expect(violations).toHaveLength(0);
     });
 
     it("resolves aliased imports for Button and Badge", async () => {
@@ -78,7 +77,7 @@ describe("check-no-legacy-ds-props AST scanner", () => {
     `;
 
         const violations = collectLegacyDesignSystemPropUsages(source, "fixture.tsx");
-        expect(violations.map((item) => `${item.component}:${item.prop}`)).toEqual(["Button:variant", "Badge:variant"]);
+        expect(violations.map((item) => `${item.component}:${item.prop}`)).toEqual(["Button:variant"]);
     });
 
     it("ignores similarly named props on other components", async () => {

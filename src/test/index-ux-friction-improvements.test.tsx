@@ -87,7 +87,7 @@ vi.mock("@/components/base/primitives/accordion", () => ({
   AccordionContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
-vi.mock("@/components/base/primitives/drawer", () => ({
+vi.mock("@/components/base/drawer", () => ({
   Drawer: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   DrawerContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   DrawerHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -107,7 +107,7 @@ vi.mock("@/components/base/badges/badges", () => ({
   Badge: ({ children }: { children: ReactNode }) => <span>{children}</span>,
 }));
 
-vi.mock("@/components/base/primitives/card", () => ({
+vi.mock("@/components/base/card", () => ({
   Card: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 

@@ -3,7 +3,7 @@ import { createSearchParams, useNavigate } from "react-router-dom";
 import { PageHero, PageShell } from "@/components/PageShell";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
-import { Card } from "@/components/base/primitives/card";
+import { Card } from "@/components/base/card";
 import { Input } from "@/components/base/input/input";
 import {
   templates,

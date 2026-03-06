@@ -6,7 +6,7 @@ import { getInitials } from "@/lib/community-utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitives/avatar";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
-import { Card } from "@/components/base/primitives/card";
+import { Card } from "@/components/base/card";
 import {
   DropdownMenu,
   DropdownMenuContent,

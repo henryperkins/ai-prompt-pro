@@ -3,7 +3,7 @@ import { useCallback, useContext, useRef, useState } from "react";
 import type { ComboBoxProps as AriaComboBoxProps, GroupProps as AriaGroupProps, ListBoxProps as AriaListBoxProps } from "react-aria-components";
 import { ComboBox as AriaComboBox, Group as AriaGroup, Input as AriaInput, ListBox as AriaListBox, ComboBoxStateContext } from "react-aria-components";
 import { HintText } from "@/components/base/input/hint-text";
-import { Label } from "@/components/base/input/label";
+import { Label } from "@/components/base/label";
 import { Popover } from "@/components/base/select/popover";
 import { type CommonProps, SelectContext, type SelectItemType, sizes } from "@/components/base/select/select";
 import { useResizeObserver } from "@/hooks/use-resize-observer";

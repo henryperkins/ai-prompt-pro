@@ -4,7 +4,7 @@ import { ContextSourceChips } from "@/components/ContextSourceChips";
 import { ProjectNotes } from "@/components/ProjectNotes";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
-import { Card } from "@/components/base/primitives/card";
+import { Card } from "@/components/base/card";
 import { Label } from "@/components/base/label";
 import { Switch } from "@/components/base/primitives/switch";
 import {

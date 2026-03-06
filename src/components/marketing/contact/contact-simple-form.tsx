@@ -6,7 +6,7 @@ import { Form } from "@/components/base/form/form";
 import { Input, InputBase } from "@/components/base/input/input";
 import { InputGroup } from "@/components/base/input/input-group";
 import { NativeSelect } from "@/components/base/select/select-native";
-import { TextArea } from "@/components/base/textarea/textarea";
+import { TextArea } from "@/components/base/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { submitContactMessage } from "@/lib/contact-support";
 import countries, { phoneCodeOptions } from "@/lib/utils/countries";

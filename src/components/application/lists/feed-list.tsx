@@ -4,7 +4,7 @@ import { BadgeGroup } from "@/components/base/badges/badge-groups";
 import { ButtonGroup, ButtonGroupItem } from "@/components/base/button-group/button-group";
 import { ButtonUtility } from "@/components/base/buttons/button-utility";
 import { Avatar, AvatarFallback } from "@/components/base/primitives/avatar";
-import { Card } from "@/components/base/primitives/card";
+import { Card } from "@/components/base/card";
 import { cn } from "@/lib/utils";
 import {
   Bell,

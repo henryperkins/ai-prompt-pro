@@ -1,6 +1,6 @@
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
-import { Card } from "@/components/base/primitives/card";
+import { Card } from "@/components/base/card";
 import { Checkbox } from "@/components/base/primitives/checkbox";
 import { Input } from "@/components/base/input/input";
 import { Label } from "@/components/base/label";

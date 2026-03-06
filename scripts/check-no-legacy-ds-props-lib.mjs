@@ -97,15 +97,6 @@ function collectLegacyAttributesForComponent({ attributes, component, sourceFile
             }
         }
 
-        if (component === "Badge" && propName === "variant") {
-            violations.push({
-                filePath,
-                line: line + 1,
-                component,
-                prop: propName,
-                value: readStringAttributeValue(property.initializer),
-            });
-        }
     }
 
     return violations;

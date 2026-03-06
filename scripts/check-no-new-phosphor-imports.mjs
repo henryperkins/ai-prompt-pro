@@ -23,6 +23,7 @@ const approvedPhosphorImportFiles = new Set([
   "src/components/base/input/input.stories.tsx",
   "src/components/base/input/input.tsx",
   "src/components/base/input/label.tsx",
+  "src/components/base/label.tsx",
   "src/components/base/primitives/accordion.tsx",
   "src/components/base/primitives/breadcrumb.tsx",
   "src/components/base/primitives/calendar.tsx",

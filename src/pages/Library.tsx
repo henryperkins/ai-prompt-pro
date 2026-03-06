@@ -5,7 +5,7 @@ import { PageHero, PageShell } from "@/components/PageShell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/base/primitives/avatar";
 import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
-import { Card } from "@/components/base/primitives/card";
+import { Card } from "@/components/base/card";
 import { Checkbox } from "@/components/base/primitives/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/base/primitives/dropdown-menu";
 import { Input } from "@/components/base/input/input";

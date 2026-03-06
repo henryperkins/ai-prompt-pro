@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { Card } from "@/components/base/primitives/card";
+import { Card } from "@/components/base/card";
 import { Button } from "@/components/base/buttons/button";
 import { DEFAULT_UI_DENSITY, type UIDensity } from "@/lib/ui-density";
 import { cn } from "@/lib/utils";

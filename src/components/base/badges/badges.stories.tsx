@@ -8,8 +8,8 @@ const meta = {
   args: {
     children: "Status",
     size: "md",
-    type: "pill-color",
-    color: "gray",
+    variant: "pill",
+    tone: "default",
   },
   parameters: {
     layout: "centered",
@@ -23,14 +23,14 @@ export const Gray: Story = {};
 
 export const Brand: Story = {
   args: {
-    color: "brand",
+    tone: "brand",
     children: "Featured",
   },
 };
 
 export const Error: Story = {
   args: {
-    color: "error",
+    tone: "error",
     children: "Blocked",
   },
 };
@@ -43,8 +43,8 @@ export const WithDot: Story = {
   ),
   args: {
     size: "md",
-    type: "pill-color",
-    color: "success",
+    variant: "pill",
+    tone: "success",
   },
 };
 
@@ -56,7 +56,15 @@ export const WithIcon: Story = {
   ),
   args: {
     size: "md",
+    variant: "pill",
+    tone: "brand",
+  },
+};
+
+export const LegacyCompat: Story = {
+  args: {
     type: "pill-color",
     color: "brand",
+    children: "Legacy props",
   },
 };

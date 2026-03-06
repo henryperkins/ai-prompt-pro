@@ -3,6 +3,8 @@ export type IconComponentType = React.FunctionComponent<{ className?: string; st
 export type Sizes = "sm" | "md" | "lg";
 
 export type BadgeColors = "gray" | "brand" | "error" | "warning" | "success" | "gray-blue" | "blue-light" | "blue" | "indigo" | "purple" | "pink" | "orange";
+export type BadgeTone = "default" | "brand" | "info" | "success" | "warning" | "error";
+export type BadgeVariant = "pill" | "subtle" | "modern";
 
 export type FlagTypes =
     | "AD"
@@ -262,3 +264,18 @@ export const badgeTypes = {
 } as const;
 
 export type BadgeTypes = (typeof badgeTypes)[keyof typeof badgeTypes];
+
+export const badgeVariantToType: Record<BadgeVariant, BadgeTypes> = {
+    pill: badgeTypes.pillColor,
+    subtle: badgeTypes.badgeColor,
+    modern: badgeTypes.badgeModern,
+};
+
+export const badgeToneToColor: Record<BadgeTone, BadgeColors> = {
+    default: "gray",
+    brand: "brand",
+    info: "blue-light",
+    success: "success",
+    warning: "warning",
+    error: "error",
+};

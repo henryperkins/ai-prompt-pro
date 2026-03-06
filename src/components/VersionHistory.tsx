@@ -5,7 +5,7 @@ import {
   SheetTitle,
 } from "@/components/base/primitives/sheet";
 import { Button } from "@/components/base/buttons/button";
-import { Card } from "@/components/base/primitives/card";
+import { Card } from "@/components/base/card";
 import { StateCard } from "@/components/base/primitives/state-card";
 import { ArrowCounterClockwise as RotateCcw } from "@phosphor-icons/react";
 

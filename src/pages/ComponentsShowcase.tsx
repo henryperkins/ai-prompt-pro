@@ -11,7 +11,7 @@ import { TeamMembersTableBlock } from "@/components/application/tables/team-memb
 import { ProgressBar } from "@/components/base/progress-indicators/progress-indicators";
 import { ProgressBarCircle, ProgressBarHalfCircle } from "@/components/base/progress-indicators/progress-circles";
 import { PageHero, PageShell } from "@/components/PageShell";
-import { Card } from "@/components/base/primitives/card";
+import { Card } from "@/components/base/card";
 import { ArrowCounterClockwise as RotateCcw, Minus, Plus } from "@phosphor-icons/react";
 
 const SNIPPETS = [

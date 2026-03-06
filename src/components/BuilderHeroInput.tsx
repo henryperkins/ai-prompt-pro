@@ -1,5 +1,5 @@
 import { Button } from "@/components/base/buttons/button";
-import { Card } from "@/components/base/primitives/card";
+import { Card } from "@/components/base/card";
 import { Textarea } from "@/components/base/textarea";
 import type { BuilderSuggestionChip } from "@/lib/builder-inference";
 import { ArrowCounterClockwise as RotateCcw, Sparkle as Sparkles, SpinnerGap as Loader2 } from "@phosphor-icons/react";

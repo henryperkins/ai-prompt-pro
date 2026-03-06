@@ -1,4 +1,4 @@
-import { Card } from "@/components/base/primitives/card";
+import { Card } from "@/components/base/card";
 import { Progress } from "@/components/base/primitives/progress";
 import { CheckCircle as CheckCircle2, WarningCircle as AlertCircle } from "@phosphor-icons/react";
 

@@ -2,7 +2,7 @@ import { type ComponentType, type HTMLAttributes, type ReactNode, type Ref, crea
 import type { InputProps as AriaInputProps, TextFieldProps as AriaTextFieldProps } from "react-aria-components";
 import { Group as AriaGroup, Input as AriaInput, TextField as AriaTextField } from "react-aria-components";
 import { HintText } from "@/components/base/input/hint-text";
-import { Label } from "@/components/base/input/label";
+import { Label } from "@/components/base/label";
 import { Tooltip, TooltipTrigger } from "@/components/base/tooltip/tooltip";
 import { cx, sortCx } from "@/lib/utils/cx";
 import { Info as InfoCircle, Question as HelpCircle } from "@phosphor-icons/react";

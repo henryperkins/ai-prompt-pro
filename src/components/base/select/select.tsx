@@ -4,7 +4,7 @@ import type { SelectProps as AriaSelectProps } from "react-aria-components";
 import { Button as AriaButton, ListBox as AriaListBox, Select as AriaSelect, SelectValue as AriaSelectValue } from "react-aria-components";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { HintText } from "@/components/base/input/hint-text";
-import { Label } from "@/components/base/input/label";
+import { Label } from "@/components/base/label";
 import { cx } from "@/lib/utils/cx";
 import { renderIconSlot, type IconSlot } from "@/lib/utils/icon-slot";
 import { ComboBox } from "./combobox";
