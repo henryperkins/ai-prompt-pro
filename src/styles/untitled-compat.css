@@ -1,96 +1,39 @@
 /*
- * Transitional compatibility layer for Untitled UI utility class tokens.
- * Keep this file narrow and delete aliases as call sites migrate to semantic tokens.
+ * Temporary Untitled UI compatibility bridge.
+ * Keep only palette ramps and utility-* aliases here; semantic utility ownership lives in tokens.css.
  */
-
-@theme {
-  /* Legacy text size token used by Untitled components. */
-  --text-md: var(--type-base-size);
-  --text-md--line-height: var(--type-base-line);
-
-  /* Legacy semantic color aliases mapped to the active semantic token set. */
-  --color-brand: hsl(var(--primary));
-  --color-brand-solid: hsl(var(--primary));
-  --color-brand-solid_hover: color-mix(in srgb, hsl(var(--primary)) 88%, black);
-  --color-brand-primary: hsl(var(--primary));
-  --color-brand-primary_alt: hsl(var(--primary));
-  --color-brand-secondary: hsl(var(--primary));
-  --color-brand-secondary_hover: color-mix(in srgb, hsl(var(--primary)) 88%, black);
-  --color-brand-tertiary: hsl(var(--accent-foreground));
-  --color-primary-solid: hsl(var(--primary));
-  --color-primary_hover: color-mix(in srgb, hsl(var(--primary)) 90%, black);
-  --color-secondary_hover: color-mix(in srgb, hsl(var(--secondary)) 85%, black);
-  --color-tertiary: hsl(var(--muted));
-  --color-quaternary: hsl(var(--muted));
-  --color-disabled: hsl(var(--muted));
-  --color-disabled_subtle: hsl(var(--muted));
-  --color-error: hsl(var(--destructive));
-  --color-error-primary: hsl(var(--destructive));
-  --color-error-primary_hover: color-mix(in srgb, hsl(var(--destructive)) 88%, black);
-  --color-error-solid: hsl(var(--destructive));
-  --color-error-solid_hover: color-mix(in srgb, hsl(var(--destructive)) 88%, black);
-  --color-error_subtle: color-mix(in srgb, hsl(var(--destructive)) 24%, hsl(var(--background)));
-  --color-focus-ring: hsl(var(--ring));
-  --color-bg-brand-solid: var(--color-brand-solid);
-  --color-border-brand: hsl(var(--primary));
-  --color-border-primary: hsl(var(--border));
-  --color-border-disabled: hsl(var(--border));
-  --color-border-error_subtle: var(--color-error_subtle);
-  --color-fg-brand-primary: hsl(var(--primary));
-  --color-fg-brand-secondary_alt: hsl(var(--primary));
-  --color-fg-brand-secondary_hover: color-mix(in srgb, hsl(var(--primary)) 88%, black);
-  --color-fg-disabled: hsl(var(--muted-foreground));
-  --color-fg-disabled_subtle: color-mix(in srgb, hsl(var(--muted-foreground)) 70%, hsl(var(--muted)));
-  --color-fg-error-primary: hsl(var(--destructive));
-  --color-fg-error-secondary: color-mix(in srgb, hsl(var(--destructive)) 70%, hsl(var(--muted-foreground)));
-  --color-fg-quaternary: hsl(var(--muted-foreground));
-  --color-fg-quaternary_hover: hsl(var(--foreground));
-  --color-fg-success-secondary: hsl(var(--primary));
-  --color-fg-white: hsl(var(--primary-foreground));
-  --color-placeholder: hsl(var(--muted-foreground));
-  --color-text-placeholder_subtle: color-mix(in srgb, hsl(var(--muted-foreground)) 70%, hsl(var(--background)));
-  --color-text-secondary_hover: hsl(var(--foreground));
-  --color-text-tertiary: hsl(var(--muted-foreground));
-  --color-text-tertiary_hover: hsl(var(--foreground));
-  --color-tooltip-supporting-text: hsl(var(--muted-foreground));
-  --color-button-primary-icon: hsl(var(--primary-foreground));
-  --color-button-primary-icon_hover: hsl(var(--primary-foreground));
-  --color-button-destructive-primary-icon: hsl(var(--destructive-foreground));
-  --color-button-destructive-primary-icon_hover: hsl(var(--destructive-foreground));
-  --shadow-xs-skeumorphic: var(--shadow-xs), inset 0 -1px 0 0 hsl(0 0% 0% / 0.08);
-
-  /* Untitled base palette values used by utility-* aliases. */
-  --color-brand-50: color-mix(in srgb, hsl(var(--primary)) 12%, white);
-  --color-brand-100: color-mix(in srgb, hsl(var(--primary)) 18%, white);
-  --color-brand-200: color-mix(in srgb, hsl(var(--primary)) 28%, white);
-  --color-brand-300: color-mix(in srgb, hsl(var(--primary)) 40%, white);
-  --color-brand-400: color-mix(in srgb, hsl(var(--primary)) 55%, white);
+@theme inline {
+  --color-brand-50: color-mix(in srgb, hsl(var(--primary)) 12%, hsl(var(--background)));
+  --color-brand-100: color-mix(in srgb, hsl(var(--primary)) 18%, hsl(var(--background)));
+  --color-brand-200: color-mix(in srgb, hsl(var(--primary)) 28%, hsl(var(--background)));
+  --color-brand-300: color-mix(in srgb, hsl(var(--primary)) 40%, hsl(var(--background)));
+  --color-brand-400: color-mix(in srgb, hsl(var(--primary)) 55%, hsl(var(--background)));
   --color-brand-500: hsl(var(--primary));
-  --color-brand-700: color-mix(in srgb, hsl(var(--primary)) 70%, black);
+  --color-brand-700: color-mix(in srgb, hsl(var(--primary)) 72%, hsl(var(--foreground)));
 
-  --color-error-50: color-mix(in srgb, hsl(var(--destructive)) 12%, white);
-  --color-error-100: color-mix(in srgb, hsl(var(--destructive)) 18%, white);
-  --color-error-200: color-mix(in srgb, hsl(var(--destructive)) 28%, white);
-  --color-error-300: color-mix(in srgb, hsl(var(--destructive)) 40%, white);
-  --color-error-400: color-mix(in srgb, hsl(var(--destructive)) 55%, white);
+  --color-error-50: color-mix(in srgb, hsl(var(--destructive)) 12%, hsl(var(--background)));
+  --color-error-100: color-mix(in srgb, hsl(var(--destructive)) 18%, hsl(var(--background)));
+  --color-error-200: color-mix(in srgb, hsl(var(--destructive)) 28%, hsl(var(--background)));
+  --color-error-300: color-mix(in srgb, hsl(var(--destructive)) 40%, hsl(var(--background)));
+  --color-error-400: color-mix(in srgb, hsl(var(--destructive)) 55%, hsl(var(--background)));
   --color-error-500: hsl(var(--destructive));
-  --color-error-700: color-mix(in srgb, hsl(var(--destructive)) 70%, black);
+  --color-error-700: color-mix(in srgb, hsl(var(--destructive)) 72%, hsl(var(--foreground)));
 
-  --color-warning-50: color-mix(in srgb, hsl(var(--accent)) 12%, white);
-  --color-warning-100: color-mix(in srgb, hsl(var(--accent)) 18%, white);
-  --color-warning-200: color-mix(in srgb, hsl(var(--accent)) 28%, white);
-  --color-warning-300: color-mix(in srgb, hsl(var(--accent)) 40%, white);
-  --color-warning-400: color-mix(in srgb, hsl(var(--accent)) 55%, white);
+  --color-warning-50: color-mix(in srgb, hsl(var(--accent)) 12%, hsl(var(--background)));
+  --color-warning-100: color-mix(in srgb, hsl(var(--accent)) 18%, hsl(var(--background)));
+  --color-warning-200: color-mix(in srgb, hsl(var(--accent)) 28%, hsl(var(--background)));
+  --color-warning-300: color-mix(in srgb, hsl(var(--accent)) 40%, hsl(var(--background)));
+  --color-warning-400: color-mix(in srgb, hsl(var(--accent)) 55%, hsl(var(--background)));
   --color-warning-500: hsl(var(--accent));
-  --color-warning-700: color-mix(in srgb, hsl(var(--accent)) 70%, black);
+  --color-warning-700: color-mix(in srgb, hsl(var(--accent)) 72%, hsl(var(--foreground)));
 
-  --color-success-50: color-mix(in srgb, hsl(var(--primary)) 12%, white);
-  --color-success-100: color-mix(in srgb, hsl(var(--primary)) 18%, white);
-  --color-success-200: color-mix(in srgb, hsl(var(--primary)) 28%, white);
-  --color-success-300: color-mix(in srgb, hsl(var(--primary)) 40%, white);
-  --color-success-400: color-mix(in srgb, hsl(var(--primary)) 55%, white);
-  --color-success-500: hsl(var(--primary));
-  --color-success-700: color-mix(in srgb, hsl(var(--primary)) 70%, black);
+  --color-success-50: color-mix(in srgb, hsl(var(--delight-cool)) 12%, hsl(var(--background)));
+  --color-success-100: color-mix(in srgb, hsl(var(--delight-cool)) 18%, hsl(var(--background)));
+  --color-success-200: color-mix(in srgb, hsl(var(--delight-cool)) 28%, hsl(var(--background)));
+  --color-success-300: color-mix(in srgb, hsl(var(--delight-cool)) 40%, hsl(var(--background)));
+  --color-success-400: color-mix(in srgb, hsl(var(--delight-cool)) 55%, hsl(var(--background)));
+  --color-success-500: hsl(var(--delight-cool));
+  --color-success-700: color-mix(in srgb, hsl(var(--delight-cool)) 72%, hsl(var(--foreground)));
 
   --color-gray-50: hsl(var(--background));
   --color-gray-100: hsl(var(--card));
@@ -106,57 +49,56 @@
   --color-gray-blue-300: color-mix(in srgb, hsl(var(--primary)) 26%, hsl(var(--card)));
   --color-gray-blue-400: color-mix(in srgb, hsl(var(--primary)) 38%, hsl(var(--card)));
   --color-gray-blue-500: color-mix(in srgb, hsl(var(--primary)) 55%, hsl(var(--card)));
-  --color-gray-blue-700: color-mix(in srgb, hsl(var(--primary)) 70%, black);
+  --color-gray-blue-700: color-mix(in srgb, hsl(var(--primary)) 72%, hsl(var(--foreground)));
 
-  --color-blue-light-50: color-mix(in srgb, hsl(var(--primary)) 12%, white);
-  --color-blue-light-100: color-mix(in srgb, hsl(var(--primary)) 18%, white);
-  --color-blue-light-200: color-mix(in srgb, hsl(var(--primary)) 28%, white);
-  --color-blue-light-300: color-mix(in srgb, hsl(var(--primary)) 40%, white);
-  --color-blue-light-400: color-mix(in srgb, hsl(var(--primary)) 55%, white);
+  --color-blue-light-50: color-mix(in srgb, hsl(var(--primary)) 12%, hsl(var(--background)));
+  --color-blue-light-100: color-mix(in srgb, hsl(var(--primary)) 18%, hsl(var(--background)));
+  --color-blue-light-200: color-mix(in srgb, hsl(var(--primary)) 28%, hsl(var(--background)));
+  --color-blue-light-300: color-mix(in srgb, hsl(var(--primary)) 40%, hsl(var(--background)));
+  --color-blue-light-400: color-mix(in srgb, hsl(var(--primary)) 55%, hsl(var(--background)));
   --color-blue-light-500: hsl(var(--primary));
-  --color-blue-light-700: color-mix(in srgb, hsl(var(--primary)) 70%, black);
+  --color-blue-light-700: color-mix(in srgb, hsl(var(--primary)) 72%, hsl(var(--foreground)));
 
-  --color-blue-50: color-mix(in srgb, hsl(var(--primary)) 12%, white);
-  --color-blue-100: color-mix(in srgb, hsl(var(--primary)) 18%, white);
-  --color-blue-200: color-mix(in srgb, hsl(var(--primary)) 28%, white);
-  --color-blue-300: color-mix(in srgb, hsl(var(--primary)) 40%, white);
-  --color-blue-400: color-mix(in srgb, hsl(var(--primary)) 55%, white);
+  --color-blue-50: color-mix(in srgb, hsl(var(--primary)) 12%, hsl(var(--background)));
+  --color-blue-100: color-mix(in srgb, hsl(var(--primary)) 18%, hsl(var(--background)));
+  --color-blue-200: color-mix(in srgb, hsl(var(--primary)) 28%, hsl(var(--background)));
+  --color-blue-300: color-mix(in srgb, hsl(var(--primary)) 40%, hsl(var(--background)));
+  --color-blue-400: color-mix(in srgb, hsl(var(--primary)) 55%, hsl(var(--background)));
   --color-blue-500: hsl(var(--primary));
-  --color-blue-700: color-mix(in srgb, hsl(var(--primary)) 70%, black);
+  --color-blue-700: color-mix(in srgb, hsl(var(--primary)) 72%, hsl(var(--foreground)));
 
-  --color-indigo-50: color-mix(in srgb, hsl(var(--primary)) 12%, white);
-  --color-indigo-100: color-mix(in srgb, hsl(var(--primary)) 18%, white);
-  --color-indigo-200: color-mix(in srgb, hsl(var(--primary)) 28%, white);
-  --color-indigo-300: color-mix(in srgb, hsl(var(--primary)) 40%, white);
-  --color-indigo-400: color-mix(in srgb, hsl(var(--primary)) 55%, white);
+  --color-indigo-50: color-mix(in srgb, hsl(var(--primary)) 12%, hsl(var(--background)));
+  --color-indigo-100: color-mix(in srgb, hsl(var(--primary)) 18%, hsl(var(--background)));
+  --color-indigo-200: color-mix(in srgb, hsl(var(--primary)) 28%, hsl(var(--background)));
+  --color-indigo-300: color-mix(in srgb, hsl(var(--primary)) 40%, hsl(var(--background)));
+  --color-indigo-400: color-mix(in srgb, hsl(var(--primary)) 55%, hsl(var(--background)));
   --color-indigo-500: hsl(var(--primary));
-  --color-indigo-700: color-mix(in srgb, hsl(var(--primary)) 70%, black);
+  --color-indigo-700: color-mix(in srgb, hsl(var(--primary)) 72%, hsl(var(--foreground)));
 
-  --color-purple-50: color-mix(in srgb, hsl(var(--primary)) 12%, white);
-  --color-purple-100: color-mix(in srgb, hsl(var(--primary)) 18%, white);
-  --color-purple-200: color-mix(in srgb, hsl(var(--primary)) 28%, white);
-  --color-purple-300: color-mix(in srgb, hsl(var(--primary)) 40%, white);
-  --color-purple-400: color-mix(in srgb, hsl(var(--primary)) 55%, white);
+  --color-purple-50: color-mix(in srgb, hsl(var(--primary)) 12%, hsl(var(--background)));
+  --color-purple-100: color-mix(in srgb, hsl(var(--primary)) 18%, hsl(var(--background)));
+  --color-purple-200: color-mix(in srgb, hsl(var(--primary)) 28%, hsl(var(--background)));
+  --color-purple-300: color-mix(in srgb, hsl(var(--primary)) 40%, hsl(var(--background)));
+  --color-purple-400: color-mix(in srgb, hsl(var(--primary)) 55%, hsl(var(--background)));
   --color-purple-500: hsl(var(--primary));
-  --color-purple-700: color-mix(in srgb, hsl(var(--primary)) 70%, black);
+  --color-purple-700: color-mix(in srgb, hsl(var(--primary)) 72%, hsl(var(--foreground)));
 
-  --color-pink-50: color-mix(in srgb, hsl(var(--destructive)) 12%, white);
-  --color-pink-100: color-mix(in srgb, hsl(var(--destructive)) 18%, white);
-  --color-pink-200: color-mix(in srgb, hsl(var(--destructive)) 28%, white);
-  --color-pink-300: color-mix(in srgb, hsl(var(--destructive)) 40%, white);
-  --color-pink-400: color-mix(in srgb, hsl(var(--destructive)) 55%, white);
+  --color-pink-50: color-mix(in srgb, hsl(var(--destructive)) 12%, hsl(var(--background)));
+  --color-pink-100: color-mix(in srgb, hsl(var(--destructive)) 18%, hsl(var(--background)));
+  --color-pink-200: color-mix(in srgb, hsl(var(--destructive)) 28%, hsl(var(--background)));
+  --color-pink-300: color-mix(in srgb, hsl(var(--destructive)) 40%, hsl(var(--background)));
+  --color-pink-400: color-mix(in srgb, hsl(var(--destructive)) 55%, hsl(var(--background)));
   --color-pink-500: hsl(var(--destructive));
-  --color-pink-700: color-mix(in srgb, hsl(var(--destructive)) 70%, black);
+  --color-pink-700: color-mix(in srgb, hsl(var(--destructive)) 72%, hsl(var(--foreground)));
 
-  --color-orange-50: color-mix(in srgb, hsl(var(--destructive)) 12%, white);
-  --color-orange-100: color-mix(in srgb, hsl(var(--destructive)) 18%, white);
-  --color-orange-200: color-mix(in srgb, hsl(var(--destructive)) 28%, white);
-  --color-orange-300: color-mix(in srgb, hsl(var(--destructive)) 40%, white);
-  --color-orange-400: color-mix(in srgb, hsl(var(--destructive)) 55%, white);
+  --color-orange-50: color-mix(in srgb, hsl(var(--destructive)) 12%, hsl(var(--background)));
+  --color-orange-100: color-mix(in srgb, hsl(var(--destructive)) 18%, hsl(var(--background)));
+  --color-orange-200: color-mix(in srgb, hsl(var(--destructive)) 28%, hsl(var(--background)));
+  --color-orange-300: color-mix(in srgb, hsl(var(--destructive)) 40%, hsl(var(--background)));
+  --color-orange-400: color-mix(in srgb, hsl(var(--destructive)) 55%, hsl(var(--background)));
   --color-orange-500: hsl(var(--destructive));
-  --color-orange-700: color-mix(in srgb, hsl(var(--destructive)) 70%, black);
+  --color-orange-700: color-mix(in srgb, hsl(var(--destructive)) 72%, hsl(var(--foreground)));
 
-  /* Utility aliases used by Untitled components. */
   --color-utility-brand-50: var(--color-brand-50);
   --color-utility-brand-100: var(--color-brand-100);
   --color-utility-brand-200: var(--color-brand-200);

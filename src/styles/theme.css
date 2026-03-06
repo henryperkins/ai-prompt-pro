@@ -1,5 +1,5 @@
 /*
- * Temporary theme bridge.
- * Semantic token ownership lives in tokens.css; this file only preserves older imports during migration.
+ * PromptForge runtime theme bridge.
+ * Theme switching is driven by semantic vars in tokens.css; this file only loads the temporary Untitled UI compat bridge.
  */
-@import "./legacy-utility-tokens.css";
+@import "./untitled-compat.css";

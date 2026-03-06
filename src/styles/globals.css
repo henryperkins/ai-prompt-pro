@@ -1,8 +1,8 @@
 @import "tailwindcss";
 @config "../../tailwind.config.ts";
 @import "./typography.css";
-@import "./legacy-utility-tokens.css";
 @import "./tokens.css";
+@import "./theme.css";
 @import "./base.css";
 @import "./components.css";
 @import "./community.css";

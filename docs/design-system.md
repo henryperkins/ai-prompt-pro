@@ -6,21 +6,22 @@ Last updated: 2026-03-06
 
 This project uses a **token-first design system** built on:
 
-- CSS custom properties in `src/styles/tokens.css` (`:root` and `.dark` are the source of truth)
+- CSS custom properties and semantic `@theme inline` mappings in `src/styles/tokens.css` (`:root` and `.dark` remain the source of truth)
 - Tailwind theme extensions mapped to those tokens
 - Radix + shadcn-style UI primitives standardized for typography, spacing, and interaction
 
 Primary source files:
 
 - `src/styles/globals.css` (runtime entrypoint imported by the app)
-- `src/styles/tokens.css` (semantic tokens, type scale, shadows, dark-mode overrides)
+- `src/styles/tokens.css` (canonical semantic tokens, type scale, shadows, dark-mode overrides, and semantic utility mappings)
+- `src/styles/theme.css` (runtime theme bridge that loads the temporary Untitled compatibility layer)
+- `src/styles/untitled-compat.css` (transitional palette + `utility-*` alias bridge loaded via `theme.css`)
+- `src/styles/legacy-utility-tokens.css` (deprecated alias import for older references; no longer the runtime source of truth)
 - `src/styles/base.css` (global element rules and browser resets)
 - `src/styles/components.css` (shared component, layout, and motion classes)
 - `src/styles/community.css` (community typography roles)
-- `src/styles/legacy-utility-tokens.css` (runtime utility-token compatibility layer)
 - `src/styles/typography.css`
 - `src/styles/promptforge-fantasy.css`
-- `src/styles/untitled-compat.css` (transitional legacy token aliases, not currently imported at runtime)
 - `tailwind.config.ts`
 - `src/components/base/*` (canonical Untitled UI React components)
 - `src/components/base/primitives/*` (legacy wrappers for non-targeted primitives)
@@ -28,9 +29,9 @@ Primary source files:
 
 Legacy note:
 
-- `src/styles/legacy-utility-tokens.css` is imported via `src/styles/globals.css` as part of the runtime style stack.
-- `src/styles/theme.css` is now a compatibility shim that re-exports `src/styles/legacy-utility-tokens.css`.
-- `src/styles/untitled-compat.css` is intentionally not part of the runtime style stack.
+- `src/styles/globals.css` now imports `src/styles/theme.css`; it no longer loads `src/styles/legacy-utility-tokens.css` directly.
+- `src/styles/theme.css` loads `src/styles/untitled-compat.css`, while `src/styles/tokens.css` remains the semantic source of truth.
+- `src/styles/legacy-utility-tokens.css` is a deprecated shim that re-exports `src/styles/untitled-compat.css` for legacy imports.
 - `src/index.css` is now a compatibility shim; import `src/styles/globals.css` directly for runtime usage.
 
 Phase 3 status (completed February 22, 2026):
