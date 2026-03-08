@@ -6,11 +6,14 @@ import { Input } from "@/components/base/input/input";
 import { Label } from "@/components/base/label";
 import { Select } from "@/components/base/select/select";
 import { Textarea } from "@/components/base/textarea";
+import type { BuilderFieldOwnershipMap } from "@/lib/builder-inference";
 import {
   PromptConfig,
+  complexityOptions,
+  constraintExclusions,
   constraintOptions,
   formatOptions,
-  lengthOptions,
+  lengthChipOptions,
   roles,
   toneOptions,
 } from "@/lib/prompt-builder";
@@ -25,12 +28,18 @@ interface BuilderAdjustDetailsProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onUpdate: (updates: Partial<PromptConfig>) => void;
+  fieldOwnership?: BuilderFieldOwnershipMap;
 }
 
-export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }: BuilderAdjustDetailsProps) {
+export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate, fieldOwnership }: BuilderAdjustDetailsProps) {
   const selectedRole = config.customRole || config.role;
   const formatCount = config.format.length + (config.customFormat.trim() ? 1 : 0);
   const constraintCount = config.constraints.length + (config.customConstraint.trim() ? 1 : 0);
+
+  const aiTag = (field: string) =>
+    fieldOwnership?.[field as keyof BuilderFieldOwnershipMap] === "ai" ? (
+      <Badge color="brand" type="pill-color" className="ml-1.5 text-[10px] px-1.5 py-0">AI</Badge>
+    ) : null;
 
   const toggleFormat = (format: string) => {
     const next = config.format.includes(format)
@@ -40,9 +49,13 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
   };
 
   const toggleConstraint = (constraint: string) => {
-    const next = config.constraints.includes(constraint)
+    let next = config.constraints.includes(constraint)
       ? config.constraints.filter((entry) => entry !== constraint)
       : [...config.constraints, constraint];
+    const excluded = constraintExclusions[constraint];
+    if (excluded && !config.constraints.includes(constraint)) {
+      next = next.filter((entry) => entry !== excluded);
+    }
     onUpdate({ constraints: next });
   };
 
@@ -74,9 +87,22 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
         </button>
 
         {!isOpen && (
-          <p className="text-sm text-muted-foreground">
-            {formatCount} format option{formatCount === 1 ? "" : "s"}, {constraintCount} constraint
-            {constraintCount === 1 ? "" : "s"}, tone: {config.tone || "none"}.
+          <p className="text-sm text-muted-foreground line-clamp-2">
+            {(() => {
+              const parts: string[] = [];
+              if (selectedRole) parts.push(selectedRole);
+              if (config.tone) parts.push(`${config.tone} tone`);
+              if (config.lengthPreference && config.lengthPreference !== "standard") {
+                parts.push(config.lengthPreference.charAt(0).toUpperCase() + config.lengthPreference.slice(1));
+              }
+              if (formatCount > 0) parts.push(`${formatCount} format${formatCount === 1 ? "" : "s"}`);
+              if (constraintCount > 0) parts.push(`${constraintCount} constraint${constraintCount === 1 ? "" : "s"}`);
+              if (config.examples.trim()) parts.push("has examples");
+              if (config.complexity) parts.push(`${config.complexity} complexity`);
+              if (parts.length === 0) return "No details configured yet.";
+              const hasAi = fieldOwnership && Object.values(fieldOwnership).some((v) => v === "ai");
+              return parts.join(", ") + (hasAi ? " (AI-suggested)" : "");
+            })()}
           </p>
         )}
 
@@ -84,12 +110,12 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
           <div id="builder-zone-2-content" className="space-y-5 border-t border-border pt-3">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label className="text-sm font-medium text-foreground">AI persona</Label>
+                <Label className="text-sm font-medium text-foreground">AI persona{aiTag("role")}</Label>
                 <Select
                   selectedKey={config.role || undefined}
                   onSelectionChange={(value) => {
                     if (value !== null) {
-                      onUpdate({ role: String(value) });
+                      onUpdate({ role: String(value), customRole: "" });
                     }
                   }}
                   placeholder="Select a role"
@@ -102,9 +128,10 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
                     </Select.Item>
                   ))}
                 </Select>
+                <p className="text-xs text-center text-muted-foreground">or</p>
                 <Input
                   value={config.customRole}
-                  onChange={(value) => onUpdate({ customRole: value })}
+                  onChange={(value) => onUpdate({ customRole: value, role: value ? "" : config.role })}
                   placeholder="Or use a custom role"
                   wrapperClassName="bg-background"
                   aria-label="Custom role"
@@ -112,7 +139,7 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
               </div>
 
               <div className="space-y-2">
-                <Label className="text-sm font-medium text-foreground">Tone</Label>
+                <Label className="text-sm font-medium text-foreground">Tone{aiTag("tone")}</Label>
                 <div className="flex flex-wrap gap-2">
                   {toneOptions.map((tone) => (
                     <Button
@@ -128,11 +155,14 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
                     </Button>
                   ))}
                 </div>
+                {!config.tone && (
+                  <p className="text-xs text-muted-foreground">No tone selected — the model will decide.</p>
+                )}
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label className="text-sm font-medium text-foreground">Output format</Label>
+              <Label className="text-sm font-medium text-foreground">Output format{aiTag("format")}</Label>
               <div className="flex flex-wrap gap-2">
                 {formatOptions.map((format) => (
                   <Button
@@ -158,27 +188,50 @@ export function BuilderAdjustDetails({ config, isOpen, onOpenChange, onUpdate }:
             </div>
 
             <div className="space-y-2">
-              <Label className="text-sm font-medium text-foreground">Length</Label>
-              <Select
-                selectedKey={config.lengthPreference || undefined}
-                onSelectionChange={(value) => {
-                  if (value !== null) {
-                    onUpdate({ lengthPreference: String(value) });
-                  }
-                }}
-                aria-label="Length preference"
-                className="bg-background"
-              >
-                {lengthOptions.map((option) => (
-                  <Select.Item key={option.value} id={option.value}>
-                    {option.label}
-                  </Select.Item>
+              <Label className="text-sm font-medium text-foreground">
+                Length{aiTag("lengthPreference")}
+              </Label>
+              <div className="flex flex-wrap gap-2">
+                {lengthChipOptions.map((option) => (
+                  <Button
+                    key={option.value}
+                    type="button"
+                    size="sm"
+                    variant={config.lengthPreference === option.value ? "primary" : "secondary"}
+                    className="h-auto px-2.5 py-1.5 text-left"
+                    onClick={() => onUpdate({ lengthPreference: option.value })}
+                    aria-pressed={config.lengthPreference === option.value}
+                  >
+                    <span className="flex flex-col gap-0.5">
+                      <span className="text-sm">{option.label}</span>
+                      <span className="text-xs text-muted-foreground">{option.hint}</span>
+                    </span>
+                  </Button>
                 ))}
-              </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-foreground">Complexity</Label>
+              <div className="flex flex-wrap gap-2">
+                {complexityOptions.map((option) => (
+                  <Button
+                    key={option}
+                    type="button"
+                    size="sm"
+                    variant={config.complexity === option ? "primary" : "secondary"}
+                    className="h-11 px-2 text-sm sm:h-9"
+                    onClick={() => onUpdate({ complexity: option })}
+                    aria-pressed={config.complexity === option}
+                  >
+                    {option}
+                  </Button>
+                ))}
+              </div>
             </div>
 
             <div className="space-y-3">
-              <Label className="text-sm font-medium text-foreground">Constraints</Label>
+              <Label className="text-sm font-medium text-foreground">Constraints{aiTag("constraints")}</Label>
               <div className="space-y-2">
                 {constraintOptions.map((constraint) => {
                   return (

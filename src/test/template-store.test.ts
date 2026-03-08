@@ -77,7 +77,7 @@ describe("template-store", () => {
     expect(summaries[0].starterPrompt).toContain("Build a safer deployment checklist");
   });
 
-  it("uses original prompt as starter text when both original and task exist", () => {
+  it("merges task into originalPrompt during normalization when both exist", () => {
     saveTemplateSnapshot({
       name: "Remix Starter Priority",
       config: buildConfig({
@@ -90,7 +90,12 @@ describe("template-store", () => {
     expect(summaries[0].starterPrompt).toContain(
       "Rewrite this announcement for non-technical stakeholders.",
     );
-    expect(summaries[0].starterPrompt).not.toContain("Legacy task value");
+    // task is merged into originalPrompt by normalizeTemplateConfig
+    const loaded = loadTemplateById(summaries[0].id);
+    expect(loaded!.record.state.promptConfig.task).toBe("");
+    expect(loaded!.record.state.promptConfig.originalPrompt).toContain(
+      "Rewrite this announcement for non-technical stakeholders.",
+    );
   });
 
   it("stores external sources as references and strips raw payloads", () => {

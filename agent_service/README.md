@@ -128,18 +128,19 @@ Set `REQUIRE_PROVIDER_CONFIG=true` to disable step 3 and fail fast instead of fa
 | `TRUST_PROXY` | `false` | If `true`, honors forwarded IP headers for rate limiting/auth context |
 | `TRUSTED_PROXY_IPS` | _(none)_ | Optional JSON array or comma-delimited list of trusted proxy source IPs when `TRUST_PROXY=true` |
 | `ENHANCE_WS_INITIAL_MESSAGE_TIMEOUT_MS` | `5000` | Time allowed for first websocket message before the socket is closed |
-| `ENHANCE_WS_MAX_PAYLOAD_BYTES` | `65536` | Maximum websocket message payload size in bytes |
+| `ENHANCE_WS_MAX_PAYLOAD_BYTES` | `131072` | Maximum websocket message payload size in bytes |
 | `ENHANCE_WS_MAX_CONNECTIONS_PER_IP` | `10` | Maximum concurrent `/enhance/ws` connections allowed per client IP |
-| `MAX_HTTP_BODY_BYTES` | `262144` | Maximum HTTP JSON body size in bytes before returning `413 payload_too_large` |
+| `MAX_HTTP_BODY_BYTES` | `524288` | Maximum HTTP JSON body size in bytes before returning `413 payload_too_large` |
 | `ALLOW_UNVERIFIED_JWT_FALLBACK` | `false` | Dev-only: allow decoded JWT fallback when Neon Auth config/service is unavailable |
 | `ALLOW_UNVERIFIED_JWT_FALLBACK_IN_PRODUCTION` | `false` | Explicit override to permit decoded-JWT fallback in production (emergency use only) |
-| `MAX_PROMPT_CHARS` | `16000` | Maximum prompt character length |
-| `MAX_INFERENCE_PROMPT_CHARS` | `12000` | Maximum inference prompt length |
-| `MAX_URL_CHARS` | `2048` | Maximum extract-url input URL length |
+| `MAX_PROMPT_CHARS` | `32000` | Maximum prompt character length |
+| `MAX_INFERENCE_PROMPT_CHARS` | `24000` | Maximum inference prompt length |
+| `MAX_URL_CHARS` | `4096` | Maximum extract-url input URL length |
 | `EXTRACT_FETCH_TIMEOUT_MS` | `15000` | Timeout for page/OpenAI extraction calls |
 | `EXTRACT_FETCH_MAX_REDIRECTS` | `5` | Maximum redirects followed during `/extract-url` fetch (each hop re-validates public-network target) |
-| `EXTRACT_MAX_RESPONSE_BYTES` | `1048576` | Max downloaded page size (bytes) |
+| `EXTRACT_MAX_RESPONSE_BYTES` | `2097152` | Max downloaded page size (bytes) |
 | `EXTRACT_MODEL` | Inherits `CODEX_MODEL`/provider model (or `gpt-4.1-mini` for non-Azure) | OpenAI model for URL extraction summarization |
+| `INFER_MODEL` | `gpt-5.4` (non-Azure) or inherits `CODEX_MODEL` (Azure) | Model for `/infer-builder-fields` (reasoning: none, low verbosity) |
 | `SHUTDOWN_DRAIN_TIMEOUT_MS` | `10000` | Time to wait for in-flight connections to drain before forced exit on SIGTERM/SIGINT |
 | `EXTRACT_URL_CACHE_TTL_MS` | `600000` | TTL for cached `/extract-url` responses (milliseconds) |
 | `EXTRACT_URL_CACHE_MAX_ENTRIES` | `200` | Maximum number of cached `/extract-url` responses |
@@ -158,7 +159,7 @@ Set `REQUIRE_PROVIDER_CONFIG=true` to disable step 3 and fail fast instead of fa
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `CODEX_MODEL` | Provider model (`config.toml`), `AZURE_OPENAI_DEPLOYMENT`, or `gpt-5.2` (non-Azure fallback) | Model/deployment name (for Azure, set this to your deployment name) |
+| `CODEX_MODEL` | Provider model (`config.toml`), `AZURE_OPENAI_DEPLOYMENT`, or `gpt-5.4-pro` (non-Azure fallback) | Model/deployment name (for Azure, set this to your deployment name) |
 | `CODEX_SANDBOX_MODE` | _(none)_ | `read-only` \| `workspace-write` \| `danger-full-access` |
 | `CODEX_WORKING_DIRECTORY` | _(none)_ | Working directory for the Codex agent |
 | `CODEX_SKIP_GIT_REPO_CHECK` | `false` | Skip git repo validation |

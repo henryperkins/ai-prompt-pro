@@ -51,8 +51,8 @@ export function getSectionHealth(config: PromptConfig, qualityTotal: number): Se
     (hasValue(config.contextConfig.projectNotes, 30) ? 1 : 0);
 
   const toneSignalCount = [
-    config.tone !== "Professional",
-    config.complexity !== "Moderate",
+    config.tone !== "" && config.tone !== "Professional",
+    config.complexity !== "" && config.complexity !== "Moderate",
   ].filter(Boolean).length;
 
   const rawBuilderState = resolveState(builderSignalCount, { inProgress: 1, complete: 4 });

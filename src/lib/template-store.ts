@@ -209,6 +209,26 @@ export function normalizeTemplateConfig(
     constraints: Array.isArray(config.constraints) ? config.constraints : [],
   };
 
+  // Migrate legacy "Professional" tone default to empty
+  if (merged.tone === "Professional") {
+    merged.tone = "";
+  }
+
+  // Migrate legacy "Moderate" complexity default to empty
+  if (merged.complexity === "Moderate") {
+    merged.complexity = "";
+  }
+
+  // Migrate task field into originalPrompt for Phase 1
+  if (merged.task.trim()) {
+    if (!merged.originalPrompt.trim()) {
+      merged.originalPrompt = merged.task.trim();
+    } else if (merged.originalPrompt.trim() !== merged.task.trim()) {
+      merged.originalPrompt = `${merged.originalPrompt.trim()}\n\n${merged.task.trim()}`;
+    }
+    merged.task = "";
+  }
+
   return {
     ...merged,
     contextConfig: {

@@ -113,7 +113,7 @@ function hydrateConfigV2ToWorkingState(payload: PromptConfigV2): PromptConfig {
       originalPrompt: payload.originalPrompt,
       role: payload.role,
       customRole: "",
-      tone: payload.tone || defaultConfig.tone,
+      tone: payload.tone || "",
       format: toStringArray(payload.format),
       customFormat: "",
       lengthPreference: normalizeLengthPreference(payload.lengthPreference),

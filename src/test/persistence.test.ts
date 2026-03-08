@@ -261,7 +261,9 @@ describe("persistence", () => {
     expect(insertedPayload?.built_prompt).toBe(sanitized);
     expect(insertedPayload?.enhanced_prompt).toBe(sanitized);
     expect(insertedPayload?.tags).toEqual([`tag ${sanitized}`]);
-    expect(insertedConfig.task).toBe(sanitized);
+    // task is migrated into originalPrompt by normalizeTemplateConfig
+    expect(insertedConfig.task).toBe("");
+    expect(insertedConfig.originalPrompt).toContain(sanitized);
     expect(insertedRemixDiff.changes[0]?.field).toBe(sanitized);
     expect(insertedRemixDiff.changes[0]?.from).toBe(sanitized);
     expect(insertedRemixDiff.changes[0]?.to).toBe(sanitized);

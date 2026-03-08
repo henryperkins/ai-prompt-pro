@@ -30,7 +30,7 @@ import {
   type BuilderSuggestionChip,
 } from "@/lib/builder-inference";
 import { getSectionHealth, type SectionHealthState } from "@/lib/section-health";
-import { buildPrompt, defaultConfig, hasBuilderFieldInput, hasPromptInput } from "@/lib/prompt-builder";
+import { buildPrompt, defaultConfig, hasBuilderFieldInput, hasPromptInput, scorePrompt } from "@/lib/prompt-builder";
 import {
   applyEnhanceOutputEvent,
   createEnhanceOutputStreamState,
@@ -622,6 +622,11 @@ const Index = () => {
   const primaryCtaLabel = useMemo(
     () => getPrimaryCtaVariantLabel(primaryCtaVariant),
     [primaryCtaVariant],
+  );
+
+  const tipsWithOwnership = useMemo(
+    () => scorePrompt(config, fieldOwnership).tips,
+    [config, fieldOwnership],
   );
 
   const clearEnhanceTimers = useCallback(() => {
@@ -1575,6 +1580,17 @@ const Index = () => {
           if (token !== suggestionLoadToken.current) return;
 
           const normalized = normalizeRemoteInferenceResult(remote);
+          if (normalized.inferredFields.length > 0) {
+            const { updates, appliedFields } = applyInferenceUpdates(config, fieldOwnership, normalized);
+            if (appliedFields.length > 0) {
+              updateConfig(updates);
+              setFieldOwnership((previous) => markOwnershipFields(previous, appliedFields, "ai"));
+              trackBuilderEvent("builder_inference_applied", {
+                source: "suggestion_remote",
+                fields: appliedFields.join(","),
+              });
+            }
+          }
           if (normalized.suggestionChips.length > 0) {
             setSuggestionChips(normalized.suggestionChips);
           } else {
@@ -1601,6 +1617,7 @@ const Index = () => {
     isBuilderRedesignPhase3,
     config,
     fieldOwnership,
+    updateConfig,
   ]);
 
   const openAndFocusSection = useCallback((section: BuilderSection) => {
@@ -1776,6 +1793,7 @@ const Index = () => {
                     isOpen={isAdjustDetailsOpen}
                     onOpenChange={setIsAdjustDetailsOpen}
                     onUpdate={handleAdjustDetailsUpdate}
+                    fieldOwnership={fieldOwnership}
                   />
 
                   <BuilderSourcesAdvanced
@@ -1959,7 +1977,7 @@ const Index = () => {
                   <div>
                     <p className="text-xs font-medium text-pf-parchment/90">Quality signal</p>
                     <p className="mt-0.5 text-sm text-pf-parchment/70">
-                      {score.tips?.[0] || "Add context and constraints to improve quality."}
+                      {tipsWithOwnership?.[0] || "Add context and constraints to improve quality."}
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1">

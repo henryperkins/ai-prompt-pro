@@ -31,8 +31,8 @@ export const defaultConfig: PromptConfig = {
   examples: "",
   constraints: [],
   customConstraint: "",
-  tone: "Professional",
-  complexity: "Moderate",
+  tone: "",
+  complexity: "",
 };
 
 const hasText = (value: string): boolean => value.trim().length > 0;
@@ -116,12 +116,23 @@ export const constraintOptions = [
   "Think step-by-step",
 ];
 
+export const constraintExclusions: Record<string, string> = {
+  "Use formal tone": "Be conversational",
+  "Be conversational": "Use formal tone",
+};
+
 export const toneOptions = ["Professional", "Casual", "Technical", "Creative", "Academic"];
 export const complexityOptions = ["Simple", "Moderate", "Advanced"];
 export const lengthOptions = [
   { value: "brief", label: "Brief (~100 words)" },
   { value: "standard", label: "Standard (~300 words)" },
   { value: "detailed", label: "Detailed (500+ words)" },
+];
+
+export const lengthChipOptions = [
+  { value: "brief", label: "Brief", hint: "~100 words" },
+  { value: "standard", label: "Standard", hint: "~300 words" },
+  { value: "detailed", label: "Detailed", hint: "500+ words" },
 ];
 
 export function buildPrompt(config: PromptConfig): string {
@@ -180,7 +191,10 @@ export function buildPrompt(config: PromptConfig): string {
   return parts.join("\n\n");
 }
 
-export function scorePrompt(config: PromptConfig): {
+export function scorePrompt(
+  config: PromptConfig,
+  fieldOwnership?: Partial<Record<string, string>>,
+): {
   total: number;
   clarity: number;
   context: number;
@@ -216,7 +230,13 @@ export function scorePrompt(config: PromptConfig): {
   if (ctx.projectNotes.trim()) context += 2;
   if (config.role || config.customRole) context = Math.min(25, context + 5);
   context = Math.min(25, context);
-  if (context < 15) tips.push("Use the Context & Sources panel to add structured background info.");
+  if (context < 15) {
+    if (fieldOwnership?.role === "ai") {
+      tips.push("AI suggested a role — review or customize it for better results.");
+    } else if (fieldOwnership?.role !== "user") {
+      tips.push("Use the Context & Sources panel to add structured background info.");
+    }
+  }
 
   // Specificity (0-25)
   if (config.format.length > 0) specificity += 8;
@@ -224,7 +244,16 @@ export function scorePrompt(config: PromptConfig): {
   if (config.examples) specificity += 7;
   if (config.constraints.length > 0) specificity += 5;
   specificity = Math.min(25, specificity);
-  if (specificity < 15) tips.push("Specify output format, length, or provide examples for better results.");
+  if (specificity < 15) {
+    const aiFields = ["format", "lengthPreference", "constraints"].filter(
+      (f) => fieldOwnership?.[f] === "ai",
+    );
+    if (aiFields.length > 0) {
+      tips.push("AI filled some format details — review them to ensure they match your needs.");
+    } else {
+      tips.push("Specify output format, length, or provide examples for better results.");
+    }
+  }
 
   // Structure (0-25)
   if (config.role || config.customRole) structure += 7;
@@ -233,7 +262,15 @@ export function scorePrompt(config: PromptConfig): {
   if (config.constraints.length >= 2) structure += 4;
   if (config.format.length > 0) structure += 4;
   structure = Math.min(25, structure);
-  if (structure < 15) tips.push("Select a role, tone, and constraints to improve prompt structure.");
+  if (structure < 15) {
+    const aiStructure = ["role", "tone"].filter((f) => fieldOwnership?.[f] === "ai");
+    const userStructure = ["role", "tone"].filter((f) => fieldOwnership?.[f] === "user");
+    if (aiStructure.length > 0 && userStructure.length === 0) {
+      tips.push("AI suggested role and tone — confirm or adjust them for the best structure.");
+    } else if (userStructure.length < 2) {
+      tips.push("Select a role, tone, and constraints to improve prompt structure.");
+    }
+  }
 
   if (tips.length === 0) tips.push("Great prompt! You've covered all the essentials.");
 

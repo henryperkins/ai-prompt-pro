@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/card";
 import { Textarea } from "@/components/base/textarea";
@@ -33,6 +34,14 @@ export function BuilderHeroInput({
 }: BuilderHeroInputProps) {
   const promptInputId = "builder-phase1-hero-prompt";
   const promptInputMetaId = "builder-phase1-hero-prompt-meta";
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
 
   return (
     <Card className="border-border/70 bg-card/80 p-3 sm:p-4">
@@ -42,8 +51,20 @@ export function BuilderHeroInput({
             <label htmlFor={promptInputId} className="text-sm font-medium text-foreground">
               What should the model do?
             </label>
-            <span id={promptInputMetaId} className="text-sm text-muted-foreground">
-              {value.length} chars
+            <span
+              id={promptInputMetaId}
+              className={`text-sm ${
+                value.length > 31000
+                  ? "text-error-primary"
+                  : value.length > 28000
+                    ? "text-warning-primary"
+                    : "text-muted-foreground"
+              }`}
+            >
+              {value.length.toLocaleString()} / 32,000
+              {value.length > 31000 && (
+                <span className="ml-1 text-xs">Approaching limit</span>
+              )}
             </span>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
@@ -76,40 +97,34 @@ export function BuilderHeroInput({
         </div>
 
         <Textarea
+          ref={textareaRef}
           id={promptInputId}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="Describe the task in 1-2 sentences. Example: Draft a concise project update for executives using these notes."
-          className="min-h-28 resize-y text-foreground placeholder:text-muted-foreground sm:min-h-32"
+          className="min-h-28 max-h-[60vh] overflow-y-auto text-foreground placeholder:text-muted-foreground sm:min-h-32"
           aria-describedby={promptInputMetaId}
         />
 
-        <div className="rounded-md border border-dashed border-primary/40 bg-primary/5 px-3 py-2">
-          <div className="flex items-center justify-between gap-2">
-            <p className="flex items-center gap-1.5 text-sm font-medium text-primary">
-              <Sparkles className="h-3.5 w-3.5" />
-              Smart suggestions
-            </p>
-            {phase3Enabled && canResetInferred && onResetInferred && (
-              <Button
-                type="button"
-                variant="tertiary"
-                size="sm"
-                className="h-11 px-3 text-sm sm:h-10 sm:px-2.5 sm:text-sm"
-                onClick={onResetInferred}
-              >
-                Reset AI details
-              </Button>
-            )}
-          </div>
-
-          {!phase3Enabled && (
-            <p className="mt-1 text-sm text-muted-foreground">
-              AI suggestion chips will appear here in Phase 3. For now, continue by adjusting details below.
-            </p>
-          )}
-
-          {phase3Enabled && (
+        {phase3Enabled && (isInferringSuggestions || suggestionChips.length > 0 || canResetInferred) && (
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-200 rounded-md border border-dashed border-primary/40 bg-primary/5 px-3 py-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="flex items-center gap-1.5 text-sm font-medium text-primary">
+                <Sparkles className="h-3.5 w-3.5" />
+                Smart suggestions
+              </p>
+              {canResetInferred && onResetInferred && (
+                <Button
+                  type="button"
+                  variant="tertiary"
+                  size="sm"
+                  className="h-11 px-3 text-sm sm:h-10 sm:px-2.5 sm:text-sm"
+                  onClick={onResetInferred}
+                >
+                  Reset AI details
+                </Button>
+              )}
+            </div>
             <div className="mt-2 space-y-2">
               {isInferringSuggestions && (
                 <p className="flex items-center gap-1.5 text-sm text-foreground/85">
@@ -117,7 +132,6 @@ export function BuilderHeroInput({
                   Generating suggestions...
                 </p>
               )}
-
               {suggestionChips.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {suggestionChips.map((chip) => (
@@ -126,29 +140,28 @@ export function BuilderHeroInput({
                       type="button"
                       variant="secondary"
                       size="sm"
-                      className="h-11 px-2.5 text-sm sm:h-10 sm:text-sm"
+                      className="h-auto max-w-[220px] px-2.5 py-1.5 text-left"
                       onClick={() => onApplySuggestion?.(chip)}
                     >
-                      {chip.label}
+                      <span className="flex flex-col gap-0.5">
+                        <span className="text-sm font-medium">{chip.label}</span>
+                        {chip.description && (
+                          <span className="text-xs text-muted-foreground">{chip.description}</span>
+                        )}
+                      </span>
                     </Button>
                   ))}
                 </div>
               )}
-
-              {!isInferringSuggestions && suggestionChips.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  Keep typing to get AI-generated detail suggestions.
-                </p>
-              )}
-
-              {hasInferenceError && (
-                <p className="text-sm text-muted-foreground">
-                  AI suggestions are temporarily unavailable. Local hints are shown when possible.
-                </p>
-              )}
             </div>
-          )}
-        </div>
+          </div>
+        )}
+
+        {phase3Enabled && hasInferenceError && !isInferringSuggestions && suggestionChips.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            AI suggestions are temporarily unavailable.
+          </p>
+        )}
       </div>
     </Card>
   );

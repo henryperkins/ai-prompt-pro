@@ -41,6 +41,7 @@ import {
   hasOnlyRetrySafeCodexPreludeEvents,
   isRetrySafeCodexPreludeEvent,
 } from "./codex-stream-prelude.mjs";
+import { resolveActiveCodexThreadId } from "./codex-thread-state.mjs";
 
 // ---------------------------------------------------------------------------
 // Resolve provider from ~/.codex/config.toml (preferred) or CODEX_CONFIG_JSON.
@@ -90,17 +91,17 @@ if (REQUIRE_PROVIDER_CONFIG && !CODEX_CONFIG) {
   );
 }
 
-const MAX_PROMPT_CHARS = Number.parseInt(process.env.MAX_PROMPT_CHARS || "16000", 10);
+const MAX_PROMPT_CHARS = Number.parseInt(process.env.MAX_PROMPT_CHARS || "32000", 10);
 if (!Number.isFinite(MAX_PROMPT_CHARS) || MAX_PROMPT_CHARS <= 0) {
   throw new Error("MAX_PROMPT_CHARS must be a positive integer.");
 }
 
-const MAX_INFERENCE_PROMPT_CHARS = Number.parseInt(process.env.MAX_INFERENCE_PROMPT_CHARS || "12000", 10);
+const MAX_INFERENCE_PROMPT_CHARS = Number.parseInt(process.env.MAX_INFERENCE_PROMPT_CHARS || "24000", 10);
 if (!Number.isFinite(MAX_INFERENCE_PROMPT_CHARS) || MAX_INFERENCE_PROMPT_CHARS <= 0) {
   throw new Error("MAX_INFERENCE_PROMPT_CHARS must be a positive integer.");
 }
 
-const MAX_URL_CHARS = Number.parseInt(process.env.MAX_URL_CHARS || "2048", 10);
+const MAX_URL_CHARS = Number.parseInt(process.env.MAX_URL_CHARS || "4096", 10);
 if (!Number.isFinite(MAX_URL_CHARS) || MAX_URL_CHARS <= 0) {
   throw new Error("MAX_URL_CHARS must be a positive integer.");
 }
@@ -111,7 +112,7 @@ if (!Number.isFinite(FETCH_TIMEOUT_MS) || FETCH_TIMEOUT_MS <= 0) {
 }
 
 const MAX_RESPONSE_BYTES = Number.parseInt(
-  process.env.EXTRACT_MAX_RESPONSE_BYTES || String(1024 * 1024),
+  process.env.EXTRACT_MAX_RESPONSE_BYTES || String(2 * 1024 * 1024),
   10,
 );
 if (!Number.isFinite(MAX_RESPONSE_BYTES) || MAX_RESPONSE_BYTES <= 0) {
@@ -130,11 +131,11 @@ const ENHANCE_WS_INITIAL_MESSAGE_TIMEOUT_MS = parsePositiveIntegerEnv(
 );
 const ENHANCE_WS_MAX_PAYLOAD_BYTES = parsePositiveIntegerEnv(
   "ENHANCE_WS_MAX_PAYLOAD_BYTES",
-  64 * 1024,
+  128 * 1024,
 );
 const MAX_HTTP_BODY_BYTES = parsePositiveIntegerEnv(
   "MAX_HTTP_BODY_BYTES",
-  256 * 1024,
+  512 * 1024,
 );
 const ENHANCE_WS_MAX_CONNECTIONS_PER_IP = parsePositiveIntegerEnv(
   "ENHANCE_WS_MAX_CONNECTIONS_PER_IP",
@@ -154,11 +155,11 @@ const EXTRACT_URL_CACHE_MAX_ENTRIES = parsePositiveIntegerEnv(
 );
 const MAX_SESSION_CONTEXT_SUMMARY_CHARS = parsePositiveIntegerEnv(
   "MAX_SESSION_CONTEXT_SUMMARY_CHARS",
-  4_000,
+  8_000,
 );
 const MAX_SESSION_LATEST_PROMPT_CHARS = parsePositiveIntegerEnv(
   "MAX_SESSION_LATEST_PROMPT_CHARS",
-  12_000,
+  24_000,
 );
 
 const OPENAI_API_BASE_URL = (CODEX_CONFIG?.baseUrl ? CODEX_CONFIG.baseUrl.replace(/\/+$/, "") : null)
@@ -167,6 +168,8 @@ const OPENAI_API_BASE_URL = (CODEX_CONFIG?.baseUrl ? CODEX_CONFIG.baseUrl.replac
 const EXTRACT_MODEL = normalizeEnvValue("EXTRACT_MODEL")
   || RESOLVED_CODEX_MODEL
   || (!IS_AZURE_PROVIDER ? "gpt-4.1-mini" : undefined);
+const INFER_MODEL = normalizeEnvValue("INFER_MODEL")
+  || (!IS_AZURE_PROVIDER ? "gpt-5.4" : RESOLVED_CODEX_MODEL);
 
 // ---------------------------------------------------------------------------
 // 429 retry configuration
@@ -467,7 +470,7 @@ function resolveConfiguredCodexModel() {
   if (providerModel) return providerModel;
 
   // Use a default model only for non-Azure providers.
-  if (!IS_AZURE_PROVIDER) return "gpt-5.2";
+  if (!IS_AZURE_PROVIDER) return "gpt-5.4-pro";
   return undefined;
 }
 
@@ -643,14 +646,6 @@ const INFERENCE_FIELD_LABELS = {
   lengthPreference: "Tune response length",
   format: "Choose output format",
   constraints: "Add guidance constraints",
-};
-
-const INFERENCE_FIELD_CONFIDENCE = {
-  role: 0.78,
-  tone: 0.72,
-  lengthPreference: 0.66,
-  format: 0.7,
-  constraints: 0.64,
 };
 
 const ENHANCE_WS_PATH = "/enhance/ws";
@@ -1544,117 +1539,143 @@ function createSuggestionChip(field, updates) {
   };
 }
 
-function normalizePromptForInference(prompt) {
-  return prompt.trim().toLowerCase();
+const INFER_SYSTEM_PROMPT = [
+  "You infer builder fields for a prompt-engineering UI. Given a user's draft prompt and context, return JSON only.",
+  "",
+  "Fields to infer (skip any the user already set or locked):",
+  "- role: string — best AI persona (e.g. \"Software Developer\", \"Data Analyst\", \"Expert Copywriter\", \"Teacher\", \"Marketing Strategist\")",
+  "- tone: string — \"Casual\"|\"Technical\"|\"Creative\"|\"Academic\"|\"Professional\"|\"Empathetic\"|\"Persuasive\"",
+  "- lengthPreference: string — \"brief\"|\"moderate\"|\"detailed\"",
+  "- format: string[] — e.g. [\"JSON\"], [\"Bullet points\"], [\"Table\"], [\"Markdown\"], [\"Numbered steps\"]",
+  "- constraints: string[] — e.g. [\"Include citations\", \"Avoid jargon\", \"Use examples\"]",
+  "",
+  "Return ONLY valid JSON (no markdown fences, no prose):",
+  "{",
+  "  \"role\": { \"value\": \"...\", \"confidence\": 0.0-1.0 },",
+  "  \"tone\": { \"value\": \"...\", \"confidence\": 0.0-1.0 },",
+  "  \"lengthPreference\": { \"value\": \"...\", \"confidence\": 0.0-1.0 },",
+  "  \"format\": { \"value\": [\"...\"], \"confidence\": 0.0-1.0 },",
+  "  \"constraints\": { \"value\": [\"...\"], \"confidence\": 0.0-1.0 }",
+  "}",
+  "",
+  "Omit a field entirely if you cannot infer it with >0.4 confidence.",
+].join("\n");
+
+function buildInferUserMessage(prompt, currentFields, lockMetadata) {
+  const lockedList = Object.entries(lockMetadata)
+    .filter(([, v]) => v === "user")
+    .map(([k]) => k);
+  const setList = Object.entries(currentFields)
+    .filter(([, v]) => {
+      if (Array.isArray(v)) return v.some((e) => typeof e === "string" && e.trim());
+      return typeof v === "string" && v.trim();
+    })
+    .map(([k, v]) => `${k}=${JSON.stringify(v)}`);
+
+  const parts = [`Prompt:\n"""${prompt}"""`];
+  if (setList.length > 0) parts.push(`Already set: ${setList.join(", ")}`);
+  if (lockedList.length > 0) parts.push(`Locked (skip): ${lockedList.join(", ")}`);
+  return parts.join("\n");
 }
 
-function chooseRole(prompt) {
-  const normalized = normalizePromptForInference(prompt);
-  if (/(code|debug|refactor|typescript|javascript|react|python|api)\b/.test(normalized)) {
-    return "Software Developer";
+function parseInferModelResponse(raw) {
+  if (typeof raw !== "string") return null;
+  let text = raw.trim();
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced) text = fenced[1].trim();
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start === -1 || end <= start) return null;
+  try {
+    const parsed = JSON.parse(text.slice(start, end + 1));
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    return parsed;
+  } catch {
+    return null;
   }
-  if (/(analy[sz]e|dashboard|metrics|kpi|sql|cohort|forecast)\b/.test(normalized)) {
-    return "Data Analyst";
+}
+
+async function inferBuilderFieldUpdates(prompt, currentFields, lockMetadata) {
+  if (!INFER_MODEL) {
+    return { inferredUpdates: {}, inferredFields: [], suggestionChips: [], confidence: {} };
   }
-  if (/(email|announcement|campaign|copy|headline|landing page)\b/.test(normalized)) {
-    return "Expert Copywriter";
+
+  const apiKey = CODEX_CONFIG
+    ? RESOLVED_API_KEY
+    : (normalizeEnvValue("OPENAI_API_KEY") || normalizeEnvValue("CODEX_API_KEY"));
+  if (!apiKey) {
+    return { inferredUpdates: {}, inferredFields: [], suggestionChips: [], confidence: {} };
   }
-  if (/(lesson|teach|syllabus|quiz|curriculum)\b/.test(normalized)) {
-    return "Teacher";
+
+  const headers = IS_AZURE_PROVIDER
+    ? { "api-key": apiKey, "Content-Type": "application/json" }
+    : { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
+
+  let raw;
+  try {
+    const response = await fetchWithTimeout(`${OPENAI_API_BASE_URL.replace(/\/+$/, "")}/chat/completions`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        model: INFER_MODEL,
+        messages: [
+          { role: "system", content: INFER_SYSTEM_PROMPT },
+          { role: "user", content: buildInferUserMessage(prompt, currentFields, lockMetadata) },
+        ],
+        reasoning: { effort: "none" },
+        temperature: 0.3,
+        max_completion_tokens: 400,
+        stream: false,
+      }),
+    }, 10_000);
+
+    if (!response.ok) {
+      logEvent("warn", "infer_model_error", { status: response.status });
+      return { inferredUpdates: {}, inferredFields: [], suggestionChips: [], confidence: {} };
+    }
+
+    const data = await response.json().catch(() => ({}));
+    raw = extractTextFromOpenAiContent(data?.choices?.[0]?.message?.content);
+  } catch (error) {
+    logEvent("warn", "infer_model_exception", { error_message: toErrorMessage(error) });
+    return { inferredUpdates: {}, inferredFields: [], suggestionChips: [], confidence: {} };
   }
-  return null;
-}
 
-function chooseTone(prompt) {
-  const normalized = normalizePromptForInference(prompt);
-  if (/(friendly|casual|informal|conversational)\b/.test(normalized)) return "Casual";
-  if (/(technical|architecture|spec|implementation)\b/.test(normalized)) return "Technical";
-  if (/(creative|story|brainstorm|campaign)\b/.test(normalized)) return "Creative";
-  if (/(academic|citation|research)\b/.test(normalized)) return "Academic";
-  if (/(executive|stakeholder|board|client)\b/.test(normalized)) return "Professional";
-  return null;
-}
+  const parsed = parseInferModelResponse(raw);
+  if (!parsed) {
+    return { inferredUpdates: {}, inferredFields: [], suggestionChips: [], confidence: {} };
+  }
 
-function chooseLengthPreference(prompt) {
-  const normalized = normalizePromptForInference(prompt);
-  if (/(brief|short|tl;dr|concise|summary)\b/.test(normalized)) return "brief";
-  if (/(detailed|deep dive|comprehensive|thorough)\b/.test(normalized)) return "detailed";
-  return null;
-}
-
-function chooseFormat(prompt) {
-  const normalized = normalizePromptForInference(prompt);
-  if (/(json)\b/.test(normalized)) return ["JSON"];
-  if (/(table|tabular)\b/.test(normalized)) return ["Table"];
-  if (/(bullet|bulleted|list|checklist|steps)\b/.test(normalized)) return ["Bullet points"];
-  if (/(markdown)\b/.test(normalized)) return ["Markdown"];
-  return [];
-}
-
-function chooseConstraints(prompt) {
-  const normalized = normalizePromptForInference(prompt);
-  const values = [];
-  if (/(cite|citation|source)\b/.test(normalized)) values.push("Include citations");
-  if (/(plain language|simple wording|no jargon)\b/.test(normalized)) values.push("Avoid jargon");
-  return values;
-}
-
-function inferBuilderFieldUpdates(prompt, currentFields, lockMetadata) {
-  const normalizedPrompt = prompt.toLowerCase();
   const inferredUpdates = {};
   const inferredFields = [];
   const suggestionChips = [];
   const confidence = {};
 
-  const role = chooseRole(normalizedPrompt);
-  if (role && !hasText(currentFields.role) && !isLockedToUser(lockMetadata, "role")) {
-    inferredUpdates.role = role;
-    inferredFields.push("role");
-    suggestionChips.push(createSuggestionChip("role", { role }));
-    confidence.role = INFERENCE_FIELD_CONFIDENCE.role;
+  for (const field of ["role", "tone", "lengthPreference"]) {
+    const entry = parsed[field];
+    if (!entry || typeof entry.value !== "string" || !entry.value.trim()) continue;
+    if (hasText(currentFields[field]) || isLockedToUser(lockMetadata, field)) continue;
+    inferredUpdates[field] = entry.value.trim();
+    inferredFields.push(field);
+    suggestionChips.push(createSuggestionChip(field, { [field]: entry.value.trim() }));
+    confidence[field] = typeof entry.confidence === "number" ? entry.confidence : 0.8;
   }
 
-  const tone = chooseTone(normalizedPrompt);
-  if (tone && !hasText(currentFields.tone) && !isLockedToUser(lockMetadata, "tone")) {
-    inferredUpdates.tone = tone;
-    inferredFields.push("tone");
-    suggestionChips.push(createSuggestionChip("tone", { tone }));
-    confidence.tone = INFERENCE_FIELD_CONFIDENCE.tone;
+  for (const field of ["format", "constraints"]) {
+    const entry = parsed[field];
+    if (!entry || !Array.isArray(entry.value) || entry.value.length === 0) continue;
+    const values = entry.value.filter((v) => typeof v === "string" && v.trim()).map((v) => v.trim());
+    if (values.length === 0) continue;
+    if (field === "format" && hasListValue(currentFields.format)) continue;
+    if (field === "constraints" && hasListValue(currentFields.constraints)) continue;
+    if (isLockedToUser(lockMetadata, field)) continue;
+    inferredUpdates[field] = values;
+    inferredFields.push(field);
+    suggestionChips.push(createSuggestionChip(field, { [field]: values }));
+    confidence[field] = typeof entry.confidence === "number" ? entry.confidence : 0.8;
   }
 
-  const lengthPreference = chooseLengthPreference(normalizedPrompt);
-  if (
-    lengthPreference &&
-    !hasText(currentFields.lengthPreference) &&
-    !isLockedToUser(lockMetadata, "lengthPreference")
-  ) {
-    inferredUpdates.lengthPreference = lengthPreference;
-    inferredFields.push("lengthPreference");
-    suggestionChips.push(createSuggestionChip("lengthPreference", { lengthPreference }));
-    confidence.lengthPreference = INFERENCE_FIELD_CONFIDENCE.lengthPreference;
-  }
-
-  const format = chooseFormat(normalizedPrompt);
-  if (format.length > 0 && !hasListValue(currentFields.format) && !isLockedToUser(lockMetadata, "format")) {
-    inferredUpdates.format = format;
-    inferredFields.push("format");
-    suggestionChips.push(createSuggestionChip("format", { format }));
-    confidence.format = INFERENCE_FIELD_CONFIDENCE.format;
-  }
-
-  const constraints = chooseConstraints(normalizedPrompt);
-  if (
-    constraints.length > 0 &&
-    !hasListValue(currentFields.constraints) &&
-    !isLockedToUser(lockMetadata, "constraints")
-  ) {
-    inferredUpdates.constraints = constraints;
-    inferredFields.push("constraints");
-    suggestionChips.push(createSuggestionChip("constraints", { constraints }));
-    confidence.constraints = INFERENCE_FIELD_CONFIDENCE.constraints;
-  }
-
-  if (suggestionChips.length === 0 && normalizedPrompt.length > 20) {
+  if (suggestionChips.length === 0 && prompt.trim().length > 20) {
     suggestionChips.push({
       id: "append-audience",
       label: "Add audience details",
@@ -1796,7 +1817,7 @@ function normalizeExtractableText(rawBody, mimeType) {
   return rawBody.replace(/\s+/g, " ").trim();
 }
 
-function clampExtractText(text, maxChars = 8000) {
+function clampExtractText(text, maxChars = 16000) {
   if (text.length <= maxChars) return text;
   return `${text.slice(0, maxChars)}…`;
 }
@@ -2207,10 +2228,11 @@ async function runEnhanceTurnStream(requestData, options) {
   const agentMessageItemOrder = [];
   let emittedAgentOutput = false;
   let activeThreadId = requestedThreadId || null;
+  let thread = null;
 
   try {
     const codex = getCodexClient();
-    const thread = requestedThreadId
+    thread = requestedThreadId
       ? codex.resumeThread(requestedThreadId, threadOptions)
       : codex.startThread(threadOptions);
     const { events } = await runStreamedWithRetry(
@@ -2219,6 +2241,7 @@ async function runEnhanceTurnStream(requestData, options) {
       { signal },
       { requestContext },
     );
+    activeThreadId = resolveActiveCodexThreadId(activeThreadId, thread);
 
     let turnFailed = false;
     let turnError = false;
@@ -2432,6 +2455,7 @@ async function runEnhanceTurnStream(requestData, options) {
       });
     }
   } catch (error) {
+    activeThreadId = resolveActiveCodexThreadId(activeThreadId, thread);
     const failure = classifyStreamFailure({ message: toErrorMessage(error) }, {
       defaultCode: "service_error",
       defaultStatus: 500,
@@ -3069,7 +3093,7 @@ async function handleInferBuilderFields(req, res, body, corsHeaders, requestCont
   const currentFields = parseCurrentFields(body?.current_fields ?? body?.currentFields);
   const lockMetadata = parseCurrentFields(body?.lock_metadata ?? body?.lockMetadata);
 
-  const inference = inferBuilderFieldUpdates(prompt, currentFields, lockMetadata);
+  const inference = await inferBuilderFieldUpdates(prompt, currentFields, lockMetadata);
   json(res, 200, inference, corsHeaders);
 }
 
@@ -3290,6 +3314,7 @@ server.listen(SERVICE_CONFIG.port, SERVICE_CONFIG.host, () => {
     provider_base_url: CODEX_CONFIG?.baseUrl || "https://api.openai.com/v1",
     model: DEFAULT_THREAD_OPTIONS.model || null,
     extract_model: EXTRACT_MODEL,
+    infer_model: INFER_MODEL,
     sandbox_mode: DEFAULT_THREAD_OPTIONS.sandboxMode || null,
     strict_public_api_key: STRICT_PUBLIC_API_KEY,
     trust_proxy: TRUST_PROXY,
