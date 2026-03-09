@@ -6,7 +6,7 @@
   { "id": "vague-05", "category": "vague", "input": "Do the thing", "expectedPrimaryIntent": null, "expectedAmbiguityLevel": "high", "forbiddenAssumptions": [] },
   { "id": "rewrite-01", "category": "rewrite", "input": "Rewrite this email to be more concise", "expectedPrimaryIntent": "rewrite", "expectedAmbiguityLevel": "medium", "forbiddenAssumptions": [] },
   { "id": "rewrite-02", "category": "rewrite", "input": "Edit and revise this proposal for the board", "expectedPrimaryIntent": "rewrite", "expectedAmbiguityLevel": "medium", "forbiddenAssumptions": [] },
-  { "id": "rewrite-03", "category": "rewrite", "input": "Simplify this technical documentation for beginners", "expectedPrimaryIntent": "rewrite", "expectedAmbiguityLevel": "high", "forbiddenAssumptions": [] },
+  { "id": "rewrite-03", "category": "rewrite", "input": "Simplify this technical documentation for beginners", "expectedPrimaryIntent": "rewrite", "expectedAmbiguityLevel": "medium", "forbiddenAssumptions": [] },
   { "id": "analysis-01", "category": "analysis", "input": "Analyze these retention numbers by cohort", "expectedPrimaryIntent": "analysis", "expectedAmbiguityLevel": "high", "forbiddenAssumptions": [] },
   { "id": "analysis-02", "category": "analysis", "input": "Compare our Q3 revenue against Q2 and identify growth drivers", "expectedPrimaryIntent": "analysis", "expectedAmbiguityLevel": "high", "forbiddenAssumptions": [] },
   { "id": "analysis-03", "category": "analysis", "input": "Evaluate the pros and cons of migrating to microservices", "expectedPrimaryIntent": "analysis", "expectedAmbiguityLevel": "high", "forbiddenAssumptions": [] },

@@ -92,8 +92,8 @@ describe("Phase 2 accessibility and validation", () => {
         enhancePhase="starting"
         onEnhance={() => undefined}
         onSaveVersion={() => undefined}
-        onSavePrompt={() => undefined}
-        onSaveAndSharePrompt={() => undefined}
+        onSavePrompt={async () => true}
+        onSaveAndSharePrompt={async () => true}
         canSavePrompt
         canSharePrompt
       />,
@@ -110,8 +110,8 @@ describe("Phase 2 accessibility and validation", () => {
         enhancePhase="done"
         onEnhance={() => undefined}
         onSaveVersion={() => undefined}
-        onSavePrompt={() => undefined}
-        onSaveAndSharePrompt={() => undefined}
+        onSavePrompt={async () => true}
+        onSaveAndSharePrompt={async () => true}
         canSavePrompt
         canSharePrompt
       />,

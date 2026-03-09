@@ -114,4 +114,56 @@ describe("Telemetry listener", () => {
     const log = getTelemetryLog();
     expect(Array.isArray(log)).toBe(true);
   });
+
+  it("merges events from multiple tab-scoped keys", () => {
+    // Simulate two different tabs by directly writing tab-scoped keys.
+    const tab1Events: BuilderTelemetryEnvelope[] = [
+      { event: "builder_loaded", payload: { tab: 1 }, timestamp: 100 },
+      { event: "builder_first_input", payload: { tab: 1 }, timestamp: 300 },
+    ];
+    const tab2Events: BuilderTelemetryEnvelope[] = [
+      { event: "builder_enhance_clicked", payload: { tab: 2 }, timestamp: 200 },
+      { event: "builder_enhance_completed", payload: { tab: 2 }, timestamp: 400 },
+    ];
+
+    localStorage.setItem("promptforge-telemetry-log:tab-a", JSON.stringify(tab1Events));
+    localStorage.setItem("promptforge-telemetry-log:tab-b", JSON.stringify(tab2Events));
+
+    const log = getTelemetryLog();
+    expect(log).toHaveLength(4);
+    // Merged and sorted by timestamp
+    expect(log.map((e) => e.timestamp)).toEqual([100, 200, 300, 400]);
+    expect(log[0].payload).toEqual({ tab: 1 });
+    expect(log[1].payload).toEqual({ tab: 2 });
+  });
+
+  it("includes legacy key events in merged reads", () => {
+    const legacyEvents: BuilderTelemetryEnvelope[] = [
+      { event: "builder_loaded", payload: { legacy: true }, timestamp: 50 },
+    ];
+    const tabEvents: BuilderTelemetryEnvelope[] = [
+      { event: "builder_first_input", payload: { scoped: true }, timestamp: 150 },
+    ];
+
+    localStorage.setItem("promptforge-telemetry-log", JSON.stringify(legacyEvents));
+    localStorage.setItem("promptforge-telemetry-log:tab-x", JSON.stringify(tabEvents));
+
+    const log = getTelemetryLog();
+    expect(log).toHaveLength(2);
+    expect(log[0].payload).toEqual({ legacy: true });
+    expect(log[1].payload).toEqual({ scoped: true });
+  });
+
+  it("clearTelemetryLog removes all scoped keys and legacy key", () => {
+    localStorage.setItem("promptforge-telemetry-log", JSON.stringify([{ event: "builder_loaded", payload: {}, timestamp: 1 }]));
+    localStorage.setItem("promptforge-telemetry-log:tab-a", JSON.stringify([{ event: "builder_loaded", payload: {}, timestamp: 2 }]));
+    localStorage.setItem("promptforge-telemetry-log:tab-b", JSON.stringify([{ event: "builder_loaded", payload: {}, timestamp: 3 }]));
+
+    clearTelemetryLog();
+
+    expect(localStorage.getItem("promptforge-telemetry-log")).toBeNull();
+    expect(localStorage.getItem("promptforge-telemetry-log:tab-a")).toBeNull();
+    expect(localStorage.getItem("promptforge-telemetry-log:tab-b")).toBeNull();
+    expect(getTelemetryLog()).toEqual([]);
+  });
 });

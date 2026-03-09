@@ -46,6 +46,48 @@ describe("enhancement pipeline ambiguity handling", () => {
       const ctx = detectEnhancementContext("Write an email to the team about the launch");
       expect(ctx.missingSlots).not.toContain("target_deliverable");
     });
+
+    it("still flags target_deliverable when builder task mirrors the raw prompt", () => {
+      const ctx = detectEnhancementContext("Help", {
+        builderFields: { task: "Help" },
+      });
+      expect(ctx.missingSlots).toContain("target_deliverable");
+    });
+
+    it("suppresses target_deliverable when builder task adds a real artifact noun", () => {
+      const ctx = detectEnhancementContext("Help", {
+        builderFields: { task: "Write a project plan for Q3" },
+      });
+      expect(ctx.missingSlots).not.toContain("target_deliverable");
+    });
+
+    it("detects audience from label-style builder context (Audience: CFOs)", () => {
+      const ctx = detectEnhancementContext("Write a proposal", {
+        builderFields: { context: "Audience: CFOs" },
+      });
+      expect(ctx.missingSlots).not.toContain("audience");
+    });
+
+    it("detects audience from 'Target audience - internal stakeholders'", () => {
+      const ctx = detectEnhancementContext("Write a proposal", {
+        builderFields: { context: "Target audience - internal stakeholders" },
+      });
+      expect(ctx.missingSlots).not.toContain("audience");
+    });
+
+    it("detects audience from 'For executives'", () => {
+      const ctx = detectEnhancementContext("Write a proposal", {
+        builderFields: { context: "For executives" },
+      });
+      expect(ctx.missingSlots).not.toContain("audience");
+    });
+
+    it("handles uppercase audience text the same as lowercase", () => {
+      const ctx = detectEnhancementContext("Write a proposal", {
+        builderFields: { context: "AUDIENCE: EXECUTIVES" },
+      });
+      expect(ctx.missingSlots).not.toContain("audience");
+    });
   });
 
   describe("ambiguity level", () => {

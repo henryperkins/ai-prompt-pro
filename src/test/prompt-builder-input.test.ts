@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultConfig, hasPromptInput, type PromptConfig } from "@/lib/prompt-builder";
+import { defaultConfig, hasPromptInput, reconcileFormatLength, type PromptConfig } from "@/lib/prompt-builder";
 
 function buildConfig(overrides?: Partial<PromptConfig>): PromptConfig {
   return {
@@ -67,5 +67,43 @@ describe("hasPromptInput", () => {
         }),
       ),
     ).toBe(false);
+  });
+});
+
+describe("reconcileFormatLength", () => {
+  it("extracts Length: standard from inspector format", () => {
+    const result = reconcileFormatLength("Table | Length: standard");
+    expect(result.customFormat).toBe("Table");
+    expect(result.lengthPreference).toBe("standard");
+  });
+
+  it("extracts Length: brief", () => {
+    const result = reconcileFormatLength("Bullet points | Length: brief");
+    expect(result.customFormat).toBe("Bullet points");
+    expect(result.lengthPreference).toBe("brief");
+  });
+
+  it("extracts Length: detailed", () => {
+    const result = reconcileFormatLength("Markdown | Length: detailed");
+    expect(result.customFormat).toBe("Markdown");
+    expect(result.lengthPreference).toBe("detailed");
+  });
+
+  it("returns null lengthPreference when no Length: token is present", () => {
+    const result = reconcileFormatLength("Table");
+    expect(result.customFormat).toBe("Table");
+    expect(result.lengthPreference).toBeNull();
+  });
+
+  it("returns empty customFormat when only a Length: token is present", () => {
+    const result = reconcileFormatLength("| Length: standard");
+    expect(result.customFormat).toBe("");
+    expect(result.lengthPreference).toBe("standard");
+  });
+
+  it("returns null lengthPreference for unrecognized length values", () => {
+    const result = reconcileFormatLength("Table | Length: verbose");
+    expect(result.customFormat).toBe("Table");
+    expect(result.lengthPreference).toBeNull();
   });
 });

@@ -78,3 +78,6 @@ archive/
 # Archived documentation (historical reference only)
 docs/archive/
 .worktrees/
+
+# Generated investigative/audit output (local scratch, screenshots, git dumps)
+output/

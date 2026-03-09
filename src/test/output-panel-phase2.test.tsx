@@ -16,8 +16,8 @@ vi.mock("@/lib/telemetry", () => ({
 }));
 
 function renderPanel(overrides?: Partial<Parameters<typeof OutputPanel>[0]>) {
-  const onSavePrompt = vi.fn();
-  const onSaveAndSharePrompt = vi.fn();
+  const onSavePrompt = vi.fn().mockResolvedValue(true);
+  const onSaveAndSharePrompt = vi.fn().mockResolvedValue(true);
 
   render(
     <OutputPanel
@@ -276,8 +276,8 @@ describe("OutputPanel phase 2 save flow", () => {
       isEnhancing: false,
       onEnhance: () => undefined,
       onSaveVersion: () => undefined,
-      onSavePrompt: () => undefined,
-      onSaveAndSharePrompt: () => undefined,
+      onSavePrompt: async () => true,
+      onSaveAndSharePrompt: async () => true,
       canSavePrompt: true,
       canSharePrompt: true,
       reasoningSummary: "Fade this summary slowly.",

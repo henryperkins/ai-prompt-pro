@@ -103,4 +103,37 @@ describe("useContextConfig", () => {
     expect(result.current.updateRagParameters).toBe(first.updateRagParameters);
     expect(result.current.toggleDelimiters).toBe(first.toggleDelimiters);
   });
+
+  // Medium-4 regression: high RAG values survive load/edit/save
+  it("preserves high topK value (50) through update flow", async () => {
+    const { useContextConfig } = await import("@/hooks/useContextConfig");
+    const setConfig = vi.fn();
+    const markDraftDirty = vi.fn();
+
+    const { result } = renderHook(() => useContextConfig(setConfig, markDraftDirty));
+
+    act(() => {
+      result.current.updateRagParameters({ topK: 50 });
+    });
+
+    const updater = setConfig.mock.calls[0][0] as (prev: PromptConfig) => PromptConfig;
+    const updated = updater(defaultConfig);
+    expect(updated.contextConfig.rag.topK).toBe(50);
+  });
+
+  it("preserves high chunkWindow value (15) through update flow", async () => {
+    const { useContextConfig } = await import("@/hooks/useContextConfig");
+    const setConfig = vi.fn();
+    const markDraftDirty = vi.fn();
+
+    const { result } = renderHook(() => useContextConfig(setConfig, markDraftDirty));
+
+    act(() => {
+      result.current.updateRagParameters({ chunkWindow: 15 });
+    });
+
+    const updater = setConfig.mock.calls[0][0] as (prev: PromptConfig) => PromptConfig;
+    const updated = updater(defaultConfig);
+    expect(updated.contextConfig.rag.chunkWindow).toBe(15);
+  });
 });

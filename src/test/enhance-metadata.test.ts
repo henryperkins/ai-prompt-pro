@@ -124,6 +124,28 @@ describe("parseEnhanceMetadata", () => {
     expect(result!.alternativeVersions).toBeUndefined();
   });
 
+  it("preserves detectedContext when only primary_intent is populated", () => {
+    const raw = {
+      enhanced_prompt: "Prompt with intent only",
+      detected_context: {
+        primary_intent: "analysis",
+      },
+    };
+    const result = parseEnhanceMetadata(raw);
+    expect(result).not.toBeNull();
+    expect(result!.detectedContext).toBeDefined();
+    expect(result!.detectedContext!.primaryIntent).toBe("analysis");
+  });
+
+  it("still returns undefined detectedContext for a completely empty object", () => {
+    const raw = {
+      enhanced_prompt: "Prompt",
+      detected_context: {},
+    };
+    const result = parseEnhanceMetadata(raw);
+    expect(result!.detectedContext).toBeUndefined();
+  });
+
   it("suppresses structured inspector fields for fallback metadata", () => {
     const raw = {
       parse_status: "fallback",

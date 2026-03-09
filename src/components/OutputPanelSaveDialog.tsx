@@ -43,8 +43,8 @@ interface OutputPanelSaveDialogProps {
   canSharePrompt: boolean;
   phase2Enabled: boolean;
   remixContext?: { title: string; authorName: string };
-  onSavePrompt: (input: SavePromptInput) => void;
-  onSaveAndSharePrompt: (input: SaveAndSharePromptInput) => void;
+  onSavePrompt: (input: SavePromptInput) => Promise<boolean>;
+  onSaveAndSharePrompt: (input: SaveAndSharePromptInput) => Promise<boolean>;
 }
 
 function parseTags(value: string): string[] | undefined {
@@ -82,6 +82,7 @@ export function OutputPanelSaveDialog({
   const [saveUseCaseTouched, setSaveUseCaseTouched] = useState(false);
   const [saveConfirmedSafeTouched, setSaveConfirmedSafeTouched] = useState(false);
   const [saveSubmitAttempted, setSaveSubmitAttempted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [shareEnabled, setShareEnabled] = useState(initialShareEnabled);
 
@@ -125,9 +126,11 @@ export function OutputPanelSaveDialog({
     setSaveUseCaseTouched(false);
     setSaveConfirmedSafeTouched(false);
     setSaveSubmitAttempted(false);
+    setIsSubmitting(false);
   };
 
   const handleOpenChange = (nextOpen: boolean) => {
+    if (isSubmitting) return;
     onOpenChange(nextOpen);
     if (!nextOpen) {
       setSaveNameTouched(false);
@@ -147,7 +150,8 @@ export function OutputPanelSaveDialog({
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (isSubmitting) return;
     setSaveSubmitAttempted(true);
 
     const canShareNow = shareEnabled && canSharePrompt;
@@ -167,28 +171,36 @@ export function OutputPanelSaveDialog({
       return;
     }
 
-    if (canShareNow) {
-      onSaveAndSharePrompt({
-        name: saveName.trim(),
-        description: saveDescription.trim() || undefined,
-        tags: parseTags(saveTags),
-        category: saveCategory,
-        useCase: saveUseCase.trim(),
-        targetModel: saveTargetModel.trim() || undefined,
-        remixNote: remixContext ? saveRemixNote.trim() || undefined : undefined,
-      });
-    } else {
-      onSavePrompt({
-        name: saveName.trim(),
-        description: saveDescription.trim() || undefined,
-        tags: parseTags(saveTags),
-        category: saveCategory,
-        remixNote: remixContext ? saveRemixNote.trim() || undefined : undefined,
-      });
-    }
+    setIsSubmitting(true);
+    try {
+      let success: boolean;
+      if (canShareNow) {
+        success = await onSaveAndSharePrompt({
+          name: saveName.trim(),
+          description: saveDescription.trim() || undefined,
+          tags: parseTags(saveTags),
+          category: saveCategory,
+          useCase: saveUseCase.trim(),
+          targetModel: saveTargetModel.trim() || undefined,
+          remixNote: remixContext ? saveRemixNote.trim() || undefined : undefined,
+        });
+      } else {
+        success = await onSavePrompt({
+          name: saveName.trim(),
+          description: saveDescription.trim() || undefined,
+          tags: parseTags(saveTags),
+          category: saveCategory,
+          remixNote: remixContext ? saveRemixNote.trim() || undefined : undefined,
+        });
+      }
 
-    onOpenChange(false);
-    resetState();
+      if (success) {
+        onOpenChange(false);
+        resetState();
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -377,11 +389,11 @@ export function OutputPanelSaveDialog({
           )}
         </div>
         <DialogFooter>
-          <Button variant="secondary" onClick={() => handleOpenChange(false)}>
+          <Button variant="secondary" onClick={() => handleOpenChange(false)} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleSubmit}>
-            {shareEnabledForUi ? "Save & Share" : "Save Prompt"}
+          <Button variant="primary" onClick={handleSubmit} disabled={isSubmitting}>
+            {isSubmitting ? "Saving…" : shareEnabledForUi ? "Save & Share" : "Save Prompt"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -215,7 +215,7 @@ export function ContextIntegrations({
             valueLabel={String(rag.topK)}
             value={[rag.topK]}
             min={1}
-            max={20}
+            max={100}
             step={1}
             onChange={(value) => onUpdateRag({ topK: value })}
             disabled={!rag.enabled}
@@ -235,7 +235,7 @@ export function ContextIntegrations({
             valueLabel={String(rag.chunkWindow)}
             value={[rag.chunkWindow]}
             min={1}
-            max={10}
+            max={20}
             step={1}
             onChange={(value) => onUpdateRag({ chunkWindow: value })}
             disabled={!rag.enabled}

@@ -175,7 +175,7 @@ function parseDetectedContext(
   const input_language = typeof obj.input_language === "string" ? obj.input_language : "";
   const primaryIntent = typeof obj.primary_intent === "string" ? obj.primary_intent : undefined;
 
-  if (intent.length === 0 && domain.length === 0 && complexity === 0 && !mode && !input_language) {
+  if (intent.length === 0 && domain.length === 0 && complexity === 0 && !mode && !input_language && !primaryIntent) {
     return undefined;
   }
 

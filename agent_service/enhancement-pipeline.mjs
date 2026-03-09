@@ -249,16 +249,31 @@ function normalizeAmbiguityMode(rawMode) {
 }
 
 function detectMissingSlots(prompt, builderFields = {}) {
-  const normalized = typeof prompt === "string" ? prompt.toLowerCase() : "";
+  const normalized = typeof prompt === "string" ? prompt.toLowerCase().trim() : "";
+  const normalizedTask = (builderFields.task || "").toLowerCase().trim();
+  const normalizedContext = (builderFields.context || "").toLowerCase().trim();
   const slots = [];
 
-  const hasArtifactSignal = /\b(email|report|prd|proposal|presentation|blog|doc|code|function|script|plan|guide|memo|letter|article)\b/.test(normalized);
-  if (!hasArtifactSignal && !(builderFields.task || "").trim()) {
+  const ARTIFACT_RE = /\b(email|report|prd|proposal|presentation|blog|doc|code|function|script|plan|guide|memo|letter|article)\b/;
+  const hasArtifactSignal = ARTIFACT_RE.test(normalized);
+  // Only count builder task as evidence when it adds structured detail beyond the
+  // raw prompt or itself contains an artifact noun.  A mirrored short/vague task
+  // (e.g. "Help" echoed into both prompt and task) should not suppress the slot.
+  const taskAddsDeliverable =
+    normalizedTask.length > 0 &&
+    (ARTIFACT_RE.test(normalizedTask) ||
+      (normalizedTask !== normalized && normalizedTask.length > normalized.length));
+  if (!hasArtifactSignal && !taskAddsDeliverable) {
     slots.push("target_deliverable");
   }
 
-  const hasAudienceSignal = /\b(beginner|expert|executive|developer|customer|team|public|internal|audience|reader|user)\b/.test(normalized);
-  if (!hasAudienceSignal && !(builderFields.context || "").includes("audience")) {
+  const AUDIENCE_RE = /\b(beginners?|experts?|executives?|developers?|customers?|teams?|public|internal|audience|readers?|users?|cfos?|ctos?|ceos?|stakeholders?|managers?|engineers?|analysts?|directors?)\b/;
+  const AUDIENCE_LABEL_RE = /(?:^|\n)\s*(?:audience|target audience)\s*[:\-–—]\s*\S|(?:^|\n)\s*for\s+\S/i;
+  const hasAudienceSignal = AUDIENCE_RE.test(normalized);
+  const contextHasAudience =
+    normalizedContext.length > 0 &&
+    (AUDIENCE_RE.test(normalizedContext) || AUDIENCE_LABEL_RE.test(normalizedContext));
+  if (!hasAudienceSignal && !contextHasAudience) {
     slots.push("audience");
   }
 
@@ -268,7 +283,7 @@ function detectMissingSlots(prompt, builderFields = {}) {
   }
 
   const hasSourceMaterial = /\b(source|data|document|file|input|based on|given|from the|attached|provided)\b/.test(normalized);
-  if (!hasSourceMaterial && !(builderFields.context || "").trim()) {
+  if (!hasSourceMaterial && !normalizedContext) {
     slots.push("source_material");
   }
 
@@ -466,6 +481,9 @@ export function classifyPrimaryIntent(input, options = {}) {
   }
   if (isPlanning && !candidates.includes("planning")) {
     candidates.push("planning");
+  }
+  if (isAnalysis && !candidates.includes("analysis")) {
+    candidates.push("analysis");
   }
 
   candidates = candidates.filter((c) => PRIMARY_INTENT_ROUTES.includes(c));

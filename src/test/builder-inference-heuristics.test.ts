@@ -245,4 +245,40 @@ describe("shared builder inference heuristics", () => {
       expect(multi!.confidence).toBeGreaterThan(single!.confidence);
     });
   });
+
+  /* ---------------------------------------------------------------- */
+  /*  Medium-1 regression: restore "update" in transform detection     */
+  /* ---------------------------------------------------------------- */
+
+  describe("update verb in task-mode detection", () => {
+    it("classifies 'update this document' as transform", () => {
+      const result = chooseTaskMode("update this document with the latest changes");
+      expect(result).not.toBeNull();
+      expect(result!.mode).toBe("transform");
+    });
+
+    it("classifies 'update the API spec' as transform", () => {
+      const result = chooseTaskMode("update the API spec to include new endpoints");
+      expect(result).not.toBeNull();
+      expect(result!.mode).toBe("transform");
+    });
+
+    it("does not match plural 'updates' (word boundary prevents partial match)", () => {
+      // "updates" does NOT match \b(update)\b because "s" follows without a boundary
+      const result = chooseTaskMode("send status updates to the team");
+      expect(result).toBeNull();
+    });
+
+    it("matches exact word 'update' surrounded by other words", () => {
+      const result = chooseTaskMode("please update the README before merging");
+      expect(result).not.toBeNull();
+      expect(result!.mode).toBe("transform");
+    });
+
+    it("preserves existing transform verbs alongside update", () => {
+      expect(chooseTaskMode("rewrite the intro paragraph")!.mode).toBe("transform");
+      expect(chooseTaskMode("edit the configuration file")!.mode).toBe("transform");
+      expect(chooseTaskMode("improve the error handling")!.mode).toBe("transform");
+    });
+  });
 });

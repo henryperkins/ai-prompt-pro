@@ -65,6 +65,28 @@ describe("enhancement pipeline intent routing", () => {
       });
       expect(result.primaryIntent).toBe("code");
     });
+
+    // High-3 regression: analysis route injection
+    it("routes 'audit the codebase' to analysis", () => {
+      const result = classifyPrimaryIntent("audit the codebase for security issues");
+      expect(result.primaryIntent).toBe("analysis");
+    });
+
+    it("routes 'evaluate this architecture' to analysis", () => {
+      const result = classifyPrimaryIntent("evaluate this architecture for scalability");
+      expect(result.primaryIntent).toBe("analysis");
+    });
+
+    it("routes 'assess the team performance' to analysis", () => {
+      const result = classifyPrimaryIntent("assess the team performance metrics");
+      expect(result.primaryIntent).toBe("analysis");
+    });
+
+    it("handles mixed intent 'audit and extract key findings' with stable tie-break", () => {
+      const result = classifyPrimaryIntent("audit and extract key findings from this report");
+      expect(result.primaryIntent).not.toBeNull();
+      expect(result.secondaryIntents.length).toBeGreaterThan(0);
+    });
   });
 
   describe("parseEnhancementRequestIntentOverride", () => {

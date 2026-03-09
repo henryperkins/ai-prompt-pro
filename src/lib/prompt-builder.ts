@@ -368,3 +368,32 @@ export function scorePrompt(
     tips,
   };
 }
+
+/**
+ * Reconcile a `Length:` token inside inspector-applied format text.
+ *
+ * When the inspector emits format strings like `"Table | Length: standard"`,
+ * this helper extracts the length value and syncs it with `lengthPreference`
+ * so the built prompt never contains contradictory length guidance.
+ */
+const KNOWN_LENGTHS = new Set(["brief", "standard", "detailed"]);
+const LENGTH_TOKEN_RE = /\|\s*length\s*:\s*(\w+)/i;
+
+export function reconcileFormatLength(formatText: string): {
+  customFormat: string;
+  lengthPreference: "brief" | "standard" | "detailed" | null;
+} {
+  const match = formatText.match(LENGTH_TOKEN_RE);
+  if (!match) {
+    return { customFormat: formatText, lengthPreference: null };
+  }
+
+  const raw = match[1].toLowerCase();
+  const lengthPreference = KNOWN_LENGTHS.has(raw)
+    ? (raw as "brief" | "standard" | "detailed")
+    : null;
+
+  // Strip the "| Length: value" fragment from the format text.
+  const cleaned = formatText.replace(LENGTH_TOKEN_RE, "").replace(/\s*\|\s*$/, "").trim();
+  return { customFormat: cleaned, lengthPreference };
+}

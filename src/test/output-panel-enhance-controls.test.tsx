@@ -21,8 +21,8 @@ function renderPanel(overrides?: Partial<Parameters<typeof OutputPanel>[0]>) {
       isEnhancing={false}
       onEnhance={() => undefined}
       onSaveVersion={() => undefined}
-      onSavePrompt={() => undefined}
-      onSaveAndSharePrompt={() => undefined}
+      onSavePrompt={async () => true}
+      onSaveAndSharePrompt={async () => true}
       canSavePrompt
       canSharePrompt
       enhancementDepth="guided"
@@ -59,8 +59,8 @@ describe("OutputPanel enhance controls", () => {
         isEnhancing={false}
         onEnhance={() => undefined}
         onSaveVersion={() => undefined}
-        onSavePrompt={() => undefined}
-        onSaveAndSharePrompt={() => undefined}
+        onSavePrompt={async () => true}
+        onSaveAndSharePrompt={async () => true}
         canSavePrompt
         canSharePrompt
       />,

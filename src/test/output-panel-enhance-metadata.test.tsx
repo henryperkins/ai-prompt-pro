@@ -53,8 +53,8 @@ function renderPanel(
       isEnhancing={false}
       onEnhance={() => undefined}
       onSaveVersion={() => undefined}
-      onSavePrompt={() => undefined}
-      onSaveAndSharePrompt={() => undefined}
+      onSavePrompt={async () => true}
+      onSaveAndSharePrompt={async () => true}
       canSavePrompt
       canSharePrompt
       enhancePhase="done"
@@ -98,6 +98,44 @@ describe("OutputPanel enhancement metadata", () => {
     expect(screen.getByText("analytical")).toBeInTheDocument();
     expect(screen.getByText("business")).toBeInTheDocument();
     expect(screen.getByText("complexity 3/5")).toBeInTheDocument();
+  });
+
+  it("renders primaryIntent as the primary chip when present (Medium-2)", () => {
+    const metadataWithPrimary: EnhanceMetadata = {
+      ...BASE_METADATA,
+      detectedContext: {
+        intent: ["extraction"],
+        domain: ["business"],
+        complexity: 3,
+        mode: "guided",
+        input_language: "en",
+        primaryIntent: "research",
+      },
+    };
+
+    renderPanel({ enhanceMetadata: metadataWithPrimary });
+
+    expect(screen.getByText("Detected:")).toBeInTheDocument();
+    // Primary intent should be rendered as the main chip
+    expect(screen.getByText("research")).toBeInTheDocument();
+    // Secondary intent "extraction" should be rendered with muted style
+    expect(screen.getByText("extraction")).toBeInTheDocument();
+
+    // Verify styling: primary chip gets primary color classes
+    const primaryChip = screen.getByText("research");
+    expect(primaryChip.className).toContain("text-primary");
+
+    // Secondary chip gets muted style
+    const secondaryChip = screen.getByText("extraction");
+    expect(secondaryChip.className).toContain("text-muted-foreground");
+  });
+
+  it("renders all intents as secondary when primaryIntent is absent (Medium-2 fallback)", () => {
+    renderPanel({ enhanceMetadata: BASE_METADATA });
+
+    // Without primaryIntent, "analytical" should still be rendered but as secondary
+    const chip = screen.getByText("analytical");
+    expect(chip.className).toContain("text-muted-foreground");
   });
 
   it("renders missing parts as watch-outs", () => {

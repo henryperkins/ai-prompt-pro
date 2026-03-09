@@ -33,7 +33,7 @@ npm run agent:codex
   "builder_mode": "guided",                 // optional: quick|guided|advanced
   "rewrite_strictness": "balanced",         // optional: preserve|balanced|aggressive
   "ambiguity_mode": "infer_conservatively", // optional: ask_me|placeholders|infer_conservatively
-  "intent_override": "code",               // optional: explicit intent route (brainstorm|planning|code|analysis|extraction|critique|explanation)
+  "intent_override": "code",               // optional: explicit intent route (brainstorm|rewrite|analysis|code|extraction|planning|research) — must match PRIMARY_INTENT_ROUTES in enhancement-pipeline.mjs
   "builder_fields": {                       // optional but recommended: pass all 6 keys, even empty
     "role": "",
     "context": "",

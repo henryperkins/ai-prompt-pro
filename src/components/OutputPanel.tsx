@@ -62,8 +62,8 @@ interface OutputPanelProps {
   isEnhancing: boolean;
   onEnhance: () => void;
   onSaveVersion: () => void;
-  onSavePrompt: (input: SavePromptInput) => void;
-  onSaveAndSharePrompt: (input: SaveAndSharePromptInput) => void;
+  onSavePrompt: (input: SavePromptInput) => Promise<boolean>;
+  onSaveAndSharePrompt: (input: SaveAndSharePromptInput) => Promise<boolean>;
   canSavePrompt: boolean;
   canSharePrompt: boolean;
   hideEnhanceButton?: boolean;
@@ -89,6 +89,8 @@ interface OutputPanelProps {
   ambiguityMode?: AmbiguityMode;
   onAmbiguityModeChange?: (mode: AmbiguityMode) => void;
   onApplyToBuilder?: (updates: ApplyToBuilderUpdate) => void;
+  /** When false, the structured inspector and apply-to-builder actions are hidden. */
+  showStructuredInspector?: boolean;
 }
 
 export type { ApplyToBuilderUpdate };
@@ -139,6 +141,7 @@ export function OutputPanel({
   ambiguityMode = "infer_conservatively",
   onAmbiguityModeChange,
   onApplyToBuilder,
+  showStructuredInspector = true,
 }: OutputPanelProps) {
   const [copied, setCopied] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -516,7 +519,7 @@ export function OutputPanel({
         />
       )}
 
-      {enhanceMetadata && !isEnhancing && (enhanceMetadata.partsBreakdown || enhanceMetadata.enhancementPlan) && (
+      {showStructuredInspector && enhanceMetadata && !isEnhancing && (enhanceMetadata.partsBreakdown || enhanceMetadata.enhancementPlan) && (
         <EnhancementInspector
           metadata={enhanceMetadata}
           onApplyToBuilder={onApplyToBuilder}
@@ -712,10 +715,20 @@ function EnhancementSummary({
       {hasDetected && (
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-xs font-medium text-muted-foreground">Detected:</span>
-          {ctx.intent.map((intent) => (
+          {ctx.primaryIntent && (
+            <span
+              className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+            >
+              {ctx.primaryIntent}
+            </span>
+          )}
+          {(ctx.primaryIntent
+            ? ctx.intent.filter((i) => i !== ctx.primaryIntent)
+            : ctx.intent
+          ).map((intent) => (
             <span
               key={intent}
-              className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+              className="inline-flex items-center rounded-full border border-border/60 bg-muted/50 px-2 py-0.5 text-xs font-medium text-muted-foreground"
             >
               {intent}
             </span>

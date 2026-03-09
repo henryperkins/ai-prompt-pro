@@ -285,7 +285,7 @@ export function chooseAudience(prompt: string): AudienceInference | null {
 
 export type TaskMode = "transform" | "generate";
 
-const TRANSFORM_PATTERN = /\b(rewrite|edit|revise|improve|fix|convert|translate|summarize|shorten|simplify|refine|rephrase|correct|polish)\b/g;
+const TRANSFORM_PATTERN = /\b(rewrite|edit|revise|improve|fix|convert|translate|summarize|shorten|simplify|refine|rephrase|correct|polish|update)\b/g;
 const GENERATE_PATTERN = /\b(write|create|draft|build|design|brainstorm|plan|compose|generate|produce|develop|outline|propose|invent)\b/g;
 
 export interface TaskModeInference {

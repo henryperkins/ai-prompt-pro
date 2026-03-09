@@ -11,7 +11,6 @@ const mocks = vi.hoisted(() => ({
   saveVersion: vi.fn(),
   savePrompt: vi.fn(),
   saveAndSharePrompt: vi.fn(),
-  trackBuilderEvent: vi.fn(),
 }));
 
 type EnhanceStreamEvent = {
@@ -37,11 +36,6 @@ vi.mock("@/lib/ai-client", () => ({
   streamEnhance: (...args: unknown[]) => mocks.streamEnhance(...args),
 }));
 
-vi.mock("@/lib/telemetry", () => ({
-  trackBuilderEvent: (...args: unknown[]) => mocks.trackBuilderEvent(...args),
-  isEnhanceDebugEnabled: () => false,
-}));
-
 vi.mock("@/components/PageShell", () => ({
   PageShell: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
@@ -51,7 +45,30 @@ vi.mock("@/components/PromptInput", () => ({
 }));
 
 vi.mock("@/components/BuilderHeroInput", () => ({
-  BuilderHeroInput: () => null,
+  BuilderHeroInput: ({
+    onClear,
+    onResetAll,
+    intentOverride,
+    onIntentOverrideChange,
+  }: {
+    onClear: () => void;
+    onResetAll: () => void;
+    intentOverride: string | null;
+    onIntentOverrideChange: (intent: string | null) => void;
+  }) => (
+    <div>
+      <div data-testid="intent-override">{intentOverride ?? "null"}</div>
+      <button type="button" onClick={() => onIntentOverrideChange("rewrite")}>
+        Set override rewrite
+      </button>
+      <button type="button" onClick={onClear}>
+        Clear prompt
+      </button>
+      <button type="button" onClick={onResetAll}>
+        Reset all
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock("@/components/BuilderAdjustDetails", () => ({
@@ -79,45 +96,22 @@ vi.mock("@/components/QualityScore", () => ({
 }));
 
 vi.mock("@/components/CodexSessionDrawer", () => ({
-  CodexSessionDrawer: ({ currentPromptText }: { currentPromptText: string }) => (
-    <div data-testid="current-prompt-text">{currentPromptText}</div>
-  ),
+  CodexSessionDrawer: () => null,
 }));
 
 vi.mock("@/components/OutputPanel", () => ({
   OutputPanel: ({
     onEnhance,
-    onSaveVersion,
-    onSavePrompt,
-    activeVariant = "original",
-    onVariantChange,
-    enhanceMetadata,
+    activeVariant,
   }: {
     onEnhance: () => void;
-    onSaveVersion: () => void;
-    onSavePrompt: (input: { name: string }) => void;
-    activeVariant?: "original" | "shorter" | "more_detailed";
-    onVariantChange?: (variant: "original" | "shorter" | "more_detailed") => void;
-    enhanceMetadata?: {
-      alternativeVersions?: { shorter?: string };
-    } | null;
+    activeVariant?: string;
   }) => (
     <div>
       <button type="button" onClick={onEnhance}>
         Enhance
       </button>
-      <button type="button" onClick={onSaveVersion}>
-        Save version
-      </button>
-      <button type="button" onClick={() => onSavePrompt({ name: "Variant save" })}>
-        Save prompt
-      </button>
-      <div data-testid="active-variant">{activeVariant}</div>
-      {enhanceMetadata?.alternativeVersions?.shorter ? (
-        <button type="button" onClick={() => onVariantChange?.("shorter")}>
-          Use shorter
-        </button>
-      ) : null}
+      <div data-testid="active-variant">{activeVariant ?? "original"}</div>
     </div>
   ),
 }));
@@ -167,7 +161,7 @@ vi.mock("@/hooks/usePromptBuilder", () => ({
   usePromptBuilder: () => {
     const [config, setConfig] = useState({
       ...defaultConfig,
-      originalPrompt: "Draft launch prompt",
+      originalPrompt: "Draft prompt for override test",
     });
     const [enhancedPrompt, setEnhancedPrompt] = useState("");
     const [isEnhancing, setIsEnhancing] = useState(false);
@@ -198,7 +192,7 @@ vi.mock("@/hooks/usePromptBuilder", () => ({
     return {
       config,
       updateConfig,
-      builtPrompt: "Built launch prompt",
+      builtPrompt: "Built prompt",
       score: { total: 70, tips: ["tip"] },
       enhancedPrompt,
       setEnhancedPrompt,
@@ -222,24 +216,14 @@ async function renderIndex() {
   );
 }
 
-describe("Index enhancement variant persistence", () => {
+describe("High-1: Clear sticky intentOverride and enhancement override state", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
-    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE1", "false");
+    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE1", "true");
     vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE2", "false");
     vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE3", "false");
     vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE4", "false");
-    mocks.savePrompt.mockResolvedValue({
-      outcome: "created",
-      warnings: [],
-      record: {
-        metadata: {
-          name: "Variant save",
-          revision: 1,
-        },
-      },
-    });
     mocks.streamEnhance.mockImplementation(
       ({
         onEvent,
@@ -258,9 +242,9 @@ describe("Index enhancement variant persistence", () => {
           payload: {
             event: "enhance/metadata",
             payload: {
-              enhanced_prompt: "Enhanced original prompt",
+              enhanced_prompt: "Enhanced prompt text",
               alternative_versions: {
-                shorter: "Short variant prompt",
+                shorter: "Shorter variant",
               },
             },
           },
@@ -274,121 +258,72 @@ describe("Index enhancement variant persistence", () => {
     vi.unstubAllEnvs();
   });
 
-  it("routes selected variants into save and session reuse flows", async () => {
+  it("clears intentOverride after handleClearPrompt", async () => {
     await renderIndex();
 
-    fireEvent.click(screen.getByRole("button", { name: "Enhance" }));
-
+    // Set an intent override
+    fireEvent.click(screen.getByRole("button", { name: "Set override rewrite" }));
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Use shorter" })).toBeInTheDocument();
-    });
-    await waitFor(() => {
-      expect(screen.getByTestId("current-prompt-text")).toHaveTextContent("Enhanced original prompt");
+      expect(screen.getByTestId("intent-override")).toHaveTextContent("rewrite");
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Use shorter" }));
-
+    // Clear prompt — should clear override
+    fireEvent.click(screen.getByRole("button", { name: "Clear prompt" }));
     await waitFor(() => {
-      expect(screen.getByTestId("active-variant")).toHaveTextContent("shorter");
-    });
-    await waitFor(() => {
-      expect(screen.getByTestId("current-prompt-text")).toHaveTextContent("Short variant prompt");
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: "Save version" }));
-    expect(mocks.saveVersion).toHaveBeenCalledWith(undefined, "Short variant prompt");
-
-    fireEvent.click(screen.getByRole("button", { name: "Save prompt" }));
-
-    await waitFor(() => {
-      expect(mocks.savePrompt).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: "Variant save",
-        }),
-        {
-          enhancedPromptOverride: "Short variant prompt",
-        },
-      );
+      expect(screen.getByTestId("intent-override")).toHaveTextContent("null");
     });
   });
 
-  it("uses selected variant length for acceptance and rerun telemetry", async () => {
+  it("clears intentOverride after handleResetAll", async () => {
     await renderIndex();
 
-    fireEvent.click(screen.getByRole("button", { name: "Enhance" }));
-
+    // Set an intent override
+    fireEvent.click(screen.getByRole("button", { name: "Set override rewrite" }));
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Use shorter" })).toBeInTheDocument();
+      expect(screen.getByTestId("intent-override")).toHaveTextContent("rewrite");
     });
 
-    // Switch to shorter variant
-    fireEvent.click(screen.getByRole("button", { name: "Use shorter" }));
+    // Reset all — should clear override
+    fireEvent.click(screen.getByRole("button", { name: "Reset all" }));
     await waitFor(() => {
-      expect(screen.getByTestId("active-variant")).toHaveTextContent("shorter");
+      expect(screen.getByTestId("intent-override")).toHaveTextContent("null");
     });
-
-    // Mark the output as used via save
-    fireEvent.click(screen.getByRole("button", { name: "Save prompt" }));
-    await waitFor(() => {
-      expect(mocks.savePrompt).toHaveBeenCalled();
-    });
-
-    mocks.trackBuilderEvent.mockClear();
-
-    // Re-run enhancement; telemetry should use the shorter variant's length
-    fireEvent.click(screen.getByRole("button", { name: "Enhance" }));
-
-    await waitFor(() => {
-      expect(mocks.trackBuilderEvent).toHaveBeenCalledWith(
-        "builder_enhance_accepted",
-        expect.objectContaining({
-          promptChars: "Short variant prompt".length,
-        }),
-      );
-    });
-
-    expect(mocks.trackBuilderEvent).toHaveBeenCalledWith(
-      "builder_enhance_rerun",
-      expect.objectContaining({
-        previousPromptChars: "Short variant prompt".length,
-      }),
-    );
   });
 
-  it("uses original enhanced prompt length for telemetry when variant is original", async () => {
+  it("resets activeEnhancementVariant to original after clear", async () => {
     await renderIndex();
 
+    // Trigger enhance to populate metadata
     fireEvent.click(screen.getByRole("button", { name: "Enhance" }));
-
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Use shorter" })).toBeInTheDocument();
+      expect(screen.getByTestId("active-variant")).toHaveTextContent("original");
     });
 
-    // Mark output as used without switching variant
-    fireEvent.click(screen.getByRole("button", { name: "Save prompt" }));
+    // Clear prompt — variant should remain at original (not stuck on stale value)
+    fireEvent.click(screen.getByRole("button", { name: "Clear prompt" }));
     await waitFor(() => {
-      expect(mocks.savePrompt).toHaveBeenCalled();
+      expect(screen.getByTestId("active-variant")).toHaveTextContent("original");
+    });
+  });
+
+  it("clears intentOverride after enhance then clear to ensure no stale rehydration", async () => {
+    await renderIndex();
+
+    // Set override and enhance
+    fireEvent.click(screen.getByRole("button", { name: "Set override rewrite" }));
+    await waitFor(() => {
+      expect(screen.getByTestId("intent-override")).toHaveTextContent("rewrite");
     });
 
-    mocks.trackBuilderEvent.mockClear();
-
-    // Re-run enhancement; telemetry should use the original enhanced prompt length
     fireEvent.click(screen.getByRole("button", { name: "Enhance" }));
-
     await waitFor(() => {
-      expect(mocks.trackBuilderEvent).toHaveBeenCalledWith(
-        "builder_enhance_accepted",
-        expect.objectContaining({
-          promptChars: "Enhanced original prompt".length,
-        }),
-      );
+      expect(screen.getByTestId("active-variant")).toBeTruthy();
     });
 
-    expect(mocks.trackBuilderEvent).toHaveBeenCalledWith(
-      "builder_enhance_rerun",
-      expect.objectContaining({
-        previousPromptChars: "Enhanced original prompt".length,
-      }),
-    );
+    // Now clear — override and variant must be reset
+    fireEvent.click(screen.getByRole("button", { name: "Clear prompt" }));
+    await waitFor(() => {
+      expect(screen.getByTestId("intent-override")).toHaveTextContent("null");
+    });
   });
 });

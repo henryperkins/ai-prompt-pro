@@ -45,6 +45,7 @@ import {
   hasBuilderFieldInput,
   hasPromptInput,
   normalizeConstraintSelections,
+  reconcileFormatLength,
   scorePrompt,
 } from "@/lib/prompt-builder";
 import {
@@ -70,8 +71,14 @@ import { loadPost, loadProfilesByIds } from "@/lib/community";
 import { consumeRestoredVersionPrompt } from "@/lib/history-restore";
 import {
   builderRedesignFlags,
+  enhancementFeatureFlags,
   launchExperimentFlags,
 } from "@/lib/feature-flags";
+import {
+  recordEnhancementAction,
+  loadEnhancementProfile,
+  getMostUsedPreference,
+} from "@/lib/prompt-enhancement-profile";
 import { trackBuilderEvent } from "@/lib/telemetry";
 import {
   parseEnhanceMetadata,
@@ -777,6 +784,12 @@ const Index = () => {
     enhancePhaseTimers.current = [];
   }, []);
 
+  const clearEnhanceOverrides = useCallback(() => {
+    setIntentOverride(null);
+    setActiveEnhancementVariant("original");
+    setEnhanceMetadata(null);
+  }, []);
+
   const resetEnhanceSessionState = useCallback(() => {
     clearEnhanceTimers();
     enhancePending.current = false;
@@ -787,12 +800,12 @@ const Index = () => {
     setSessionDrawerOpen(false);
     setEnhanceSession(createCodexSession());
     setReasoningSummary("");
-    setEnhanceMetadata(null);
+    clearEnhanceOverrides();
     setWebSearchSources([]);
     setWebSearchActivity(IDLE_WEB_SEARCH_ACTIVITY);
     setIsEnhancing(false);
     setEnhancePhase("idle");
-  }, [clearEnhanceTimers, setIsEnhancing]);
+  }, [clearEnhanceTimers, clearEnhanceOverrides, setIsEnhancing]);
 
   useEffect(() => {
     if (hasTrackedBuilderLoaded.current) return;
@@ -1086,13 +1099,14 @@ const Index = () => {
 
       enhanceStartedAt.current = Date.now();
       if (enhancedPrompt.trim()) {
+        const selectedPromptLength = selectedEnhancedPrompt.length;
         if (enhanceOutputUsed.current) {
           trackBuilderEvent("builder_enhance_accepted", {
-            promptChars: enhancedPrompt.length,
+            promptChars: selectedPromptLength,
           });
         }
         trackBuilderEvent("builder_enhance_rerun", {
-          previousPromptChars: enhancedPrompt.length,
+          previousPromptChars: selectedPromptLength,
         });
       }
       enhanceOutputUsed.current = false;
@@ -1183,7 +1197,7 @@ const Index = () => {
         builderMode: enhancementDepth,
         rewriteStrictness,
         intentOverride,
-        ambiguityMode,
+        ambiguityMode: enhancementFeatureFlags.enhancementAmbiguityPolicy ? ambiguityMode : undefined,
         builderFields: {
           role: (
             configForEnhance.customRole ||
@@ -1362,6 +1376,14 @@ const Index = () => {
             durationMs,
             outputChars: accumulated.length,
           });
+          if (enhancementFeatureFlags.enhancementPersonalization) {
+            recordEnhancementAction({
+              type: "enhancement_completed",
+              depth: enhancementDepth,
+              strictness: rewriteStrictness,
+              ambiguityMode,
+            });
+          }
           setIsEnhancing(false);
           setEnhancePhase("settling");
           const doneTimer = window.setTimeout(() => {
@@ -1415,6 +1437,7 @@ const Index = () => {
     enhanceSession,
     enhancedPrompt,
     enhancementDepth,
+    selectedEnhancedPrompt,
     intentOverride,
     isBuilderRedesignPhase1,
     isEnhancing,
@@ -1439,9 +1462,43 @@ const Index = () => {
     setReasoningSummary((prev) => (prev ? "" : prev));
   }, [enhancedPrompt, isEnhancing]);
 
+  const handleVariantChange = useCallback(
+    (variant: EnhancementVariant) => {
+      setActiveEnhancementVariant(variant);
+      if (variant !== "original" && enhancementFeatureFlags.enhancementPersonalization) {
+        recordEnhancementAction({ type: "variant_applied", variant });
+      }
+    },
+    [],
+  );
+
   useEffect(() => {
     setActiveEnhancementVariant("original");
   }, [enhancedPrompt, enhanceMetadata?.enhancedPrompt]);
+
+  // Personalization: apply preferred defaults from profile when user hasn't explicitly chosen
+  useEffect(() => {
+    if (!enhancementFeatureFlags.enhancementPersonalization) return;
+    const profile = loadEnhancementProfile();
+    if (profile.totalEnhancements < 3) return; // Need enough data before personalizing
+
+    const prefs = getUserPreferences();
+
+    const preferredDepth = getMostUsedPreference(profile.depthCounts);
+    if (preferredDepth && prefs.enhancementDepth === "guided") {
+      setEnhancementDepth(preferredDepth as EnhancementDepth);
+    }
+
+    const preferredStrictness = getMostUsedPreference(profile.strictnessCounts);
+    if (preferredStrictness && prefs.rewriteStrictness === "balanced") {
+      setRewriteStrictness(preferredStrictness as RewriteStrictness);
+    }
+
+    const preferredAmbiguity = getMostUsedPreference(profile.ambiguityModeCounts);
+    if (preferredAmbiguity && prefs.ambiguityMode === "infer_conservatively") {
+      setAmbiguityMode(preferredAmbiguity as AmbiguityMode);
+    }
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -1459,7 +1516,7 @@ const Index = () => {
       tags?: string[];
       category?: string;
       remixNote?: string;
-    }) => {
+    }): Promise<boolean> => {
       enhanceOutputUsed.current = true;
       try {
         const result = await savePrompt({
@@ -1488,6 +1545,7 @@ const Index = () => {
         if (remixContext) {
           handleClearRemix();
         }
+        return true;
       } catch (error) {
         toast({
           title: "Failed to save prompt",
@@ -1495,6 +1553,7 @@ const Index = () => {
             error instanceof Error ? error.message : "Unexpected error",
           variant: "destructive",
         });
+        return false;
       }
     },
     [savePrompt, toast, remixContext, handleClearRemix, selectedEnhancedPrompt],
@@ -1509,7 +1568,7 @@ const Index = () => {
       useCase: string;
       targetModel?: string;
       remixNote?: string;
-    }) => {
+    }): Promise<boolean> => {
       enhanceOutputUsed.current = true;
       if (!isSignedIn) {
         toast({
@@ -1517,7 +1576,7 @@ const Index = () => {
           description: "Sign in to share prompts.",
           variant: "destructive",
         });
-        return;
+        return false;
       }
 
       try {
@@ -1544,6 +1603,7 @@ const Index = () => {
         if (remixContext) {
           handleClearRemix();
         }
+        return true;
       } catch (error) {
         toast({
           title: "Failed to save & share prompt",
@@ -1551,6 +1611,7 @@ const Index = () => {
             error instanceof Error ? error.message : "Unexpected error",
           variant: "destructive",
         });
+        return false;
       }
     },
     [
@@ -1564,6 +1625,9 @@ const Index = () => {
   );
 
   const handlePromptUsed = useCallback(() => {
+    if (!enhanceOutputUsed.current && enhancementFeatureFlags.enhancementPersonalization) {
+      recordEnhancementAction({ type: "accepted" });
+    }
     enhanceOutputUsed.current = true;
   }, []);
 
@@ -1616,10 +1680,24 @@ const Index = () => {
 
   const handleApplyToBuilder = useCallback((updates: ApplyToBuilderUpdate) => {
     const configUpdates: Partial<typeof config> = {};
-    if (updates.role) configUpdates.customRole = updates.role;
+    if (updates.role) {
+      configUpdates.customRole = updates.role;
+      configUpdates.role = "";
+    }
     if (updates.context) configUpdates.context = updates.context;
-    if (updates.format) configUpdates.customFormat = updates.format;
-    if (updates.constraints) configUpdates.customConstraint = updates.constraints;
+    if (updates.format) {
+      // Reconcile a Length: token inside the inspector format with lengthPreference.
+      const { customFormat, lengthPreference } = reconcileFormatLength(updates.format);
+      configUpdates.customFormat = customFormat;
+      configUpdates.format = [];
+      if (lengthPreference) {
+        configUpdates.lengthPreference = lengthPreference;
+      }
+    }
+    if (updates.constraints) {
+      configUpdates.customConstraint = updates.constraints;
+      configUpdates.constraints = [];
+    }
     updateConfig(configUpdates);
     const fields = listInferenceFieldsFromUpdates(configUpdates);
     if (fields.length > 0) {
@@ -2131,9 +2209,9 @@ const Index = () => {
                 onApplySuggestion={handleApplySuggestionChip}
                 onResetInferred={handleResetInferredDetails}
                 canResetInferred={hasAiOwnedFields}
-                detectedIntent={detectedIntent}
-                intentOverride={intentOverride}
-                onIntentOverrideChange={handleIntentOverrideChange}
+                detectedIntent={enhancementFeatureFlags.enhancementIntentConfirmation ? detectedIntent : null}
+                intentOverride={enhancementFeatureFlags.enhancementIntentConfirmation ? intentOverride : null}
+                onIntentOverrideChange={enhancementFeatureFlags.enhancementIntentConfirmation ? handleIntentOverrideChange : () => {}}
               />
 
               {showEnhanceFirstCard && (
@@ -2469,15 +2547,16 @@ const Index = () => {
               enhanceIdleLabel={primaryCtaLabel}
               enhanceMetadata={enhanceMetadata}
               activeVariant={activeEnhancementVariant}
-              onVariantChange={setActiveEnhancementVariant}
+              onVariantChange={handleVariantChange}
               onPromptUsed={handlePromptUsed}
               enhancementDepth={enhancementDepth}
               rewriteStrictness={rewriteStrictness}
               onEnhancementDepthChange={handleEnhancementDepthChange}
               onRewriteStrictnessChange={handleRewriteStrictnessChange}
-              ambiguityMode={ambiguityMode}
-              onAmbiguityModeChange={handleAmbiguityModeChange}
-              onApplyToBuilder={handleApplyToBuilder}
+              ambiguityMode={enhancementFeatureFlags.enhancementAmbiguityPolicy ? ambiguityMode : undefined}
+              onAmbiguityModeChange={enhancementFeatureFlags.enhancementAmbiguityPolicy ? handleAmbiguityModeChange : undefined}
+              onApplyToBuilder={enhancementFeatureFlags.enhancementStructuredInspector ? handleApplyToBuilder : undefined}
+              showStructuredInspector={enhancementFeatureFlags.enhancementStructuredInspector}
               remixContext={
                 remixContext
                   ? {
@@ -2713,7 +2792,7 @@ const Index = () => {
                 enhanceIdleLabel={primaryCtaLabel}
                 enhanceMetadata={enhanceMetadata}
                 activeVariant={activeEnhancementVariant}
-                onVariantChange={setActiveEnhancementVariant}
+                onVariantChange={handleVariantChange}
                 onPromptUsed={handlePromptUsed}
                 onApplyToBuilder={handleApplyToBuilder}
                 // Enhancement depth/strictness/ambiguity controls omitted — hideEnhanceButton hides the section they render in
