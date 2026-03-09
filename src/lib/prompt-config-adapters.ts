@@ -1,4 +1,8 @@
-import type { ContextSource, DatabaseConnection, RagParameters } from "@/lib/context-types";
+import type {
+  ContextSource,
+  DatabaseConnection,
+  RagParameters,
+} from "@/lib/context-types";
 import { defaultContextConfig } from "@/lib/context-types";
 import { defaultConfig, type PromptConfig } from "@/lib/prompt-builder";
 import { normalizeTemplateConfig } from "@/lib/template-store";
@@ -29,7 +33,11 @@ export interface PromptConfigV2 {
   };
 }
 
-interface SerializeWorkingStateToV1Options {
+interface WorkingStateNormalizationOptions {
+  migrateTaskToOriginalPrompt?: boolean;
+}
+
+interface SerializeWorkingStateToV1Options extends WorkingStateNormalizationOptions {
   includeV2Compat?: boolean;
   preserveSourceRawContent?: boolean;
 }
@@ -43,7 +51,9 @@ function toStringArray(value: unknown): string[] {
   return value.filter((entry): entry is string => typeof entry === "string");
 }
 
-function normalizeLengthPreference(value: unknown): "brief" | "standard" | "detailed" {
+function normalizeLengthPreference(
+  value: unknown,
+): "brief" | "standard" | "detailed" {
   return value === "brief" || value === "detailed" ? value : "standard";
 }
 
@@ -70,7 +80,11 @@ function toOriginalPrompt(originalPrompt: string, task: string): string {
   const normalizedOriginal = originalPrompt.trim();
   const normalizedTask = task.trim();
 
-  if (normalizedOriginal && normalizedTask && normalizedOriginal !== normalizedTask) {
+  if (
+    normalizedOriginal &&
+    normalizedTask &&
+    normalizedOriginal !== normalizedTask
+  ) {
     return `${normalizedOriginal}\n\n${normalizedTask}`;
   }
 
@@ -105,7 +119,10 @@ function isPromptConfigV2Payload(value: unknown): value is PromptConfigV2 {
   );
 }
 
-function hydrateConfigV2ToWorkingState(payload: PromptConfigV2): PromptConfig {
+function hydrateConfigV2ToWorkingState(
+  payload: PromptConfigV2,
+  options: WorkingStateNormalizationOptions = {},
+): PromptConfig {
   const { advanced } = payload;
   const normalized = normalizeTemplateConfig(
     {
@@ -140,25 +157,33 @@ function hydrateConfigV2ToWorkingState(payload: PromptConfigV2): PromptConfig {
         interviewAnswers: [],
       },
     },
-    { preserveSourceRawContent: true },
+    {
+      preserveSourceRawContent: true,
+      migrateTaskToOriginalPrompt: options.migrateTaskToOriginalPrompt,
+    },
   );
 
   return toPromptConfig(normalized);
 }
 
-export function hydrateConfigV1ToWorkingState(raw: unknown): PromptConfig {
+export function hydrateConfigV1ToWorkingState(
+  raw: unknown,
+  options: WorkingStateNormalizationOptions = {},
+): PromptConfig {
   if (!isRecord(raw)) return defaultConfig;
   const embeddedV2Raw = raw[PROMPT_CONFIG_V2_COMPAT_KEY];
-  const embeddedV2: PromptConfigV2 | null = isPromptConfigV2Payload(embeddedV2Raw)
+  const embeddedV2: PromptConfigV2 | null = isPromptConfigV2Payload(
+    embeddedV2Raw,
+  )
     ? embeddedV2Raw
     : null;
 
   if (!hasLegacyV1Fields(raw)) {
     if (isPromptConfigV2Payload(raw)) {
-      return hydrateConfigV2ToWorkingState(raw);
+      return hydrateConfigV2ToWorkingState(raw, options);
     }
     if (embeddedV2) {
-      return hydrateConfigV2ToWorkingState(embeddedV2);
+      return hydrateConfigV2ToWorkingState(embeddedV2, options);
     }
   }
 
@@ -192,7 +217,9 @@ export function hydrateConfigV1ToWorkingState(raw: unknown): PromptConfig {
       structured: {
         ...defaultContextConfig.structured,
         ...(isRecord(rawContextConfig.structured)
-          ? (rawContextConfig.structured as Partial<typeof defaultContextConfig.structured>)
+          ? (rawContextConfig.structured as Partial<
+              typeof defaultContextConfig.structured
+            >)
           : {}),
       },
       interviewAnswers: Array.isArray(rawContextConfig.interviewAnswers)
@@ -201,7 +228,12 @@ export function hydrateConfigV1ToWorkingState(raw: unknown): PromptConfig {
     },
   };
 
-  return toPromptConfig(normalizeTemplateConfig(hydrated, { preserveSourceRawContent: true }));
+  return toPromptConfig(
+    normalizeTemplateConfig(hydrated, {
+      preserveSourceRawContent: true,
+      migrateTaskToOriginalPrompt: options.migrateTaskToOriginalPrompt,
+    }),
+  );
 }
 
 export function serializeWorkingStateToV1(
@@ -211,13 +243,14 @@ export function serializeWorkingStateToV1(
   const normalized = toPromptConfig(
     normalizeTemplateConfig(config, {
       preserveSourceRawContent: options.preserveSourceRawContent === true,
+      migrateTaskToOriginalPrompt: options.migrateTaskToOriginalPrompt,
     }),
   );
   if (options.includeV2Compat === false) {
     return normalized;
   }
 
-  const v2 = serializeWorkingStateToV2(normalized);
+  const v2 = serializeWorkingStateToV2(normalized, options);
   return {
     ...normalized,
     [PROMPT_CONFIG_SCHEMA_VERSION_KEY]: 2,
@@ -225,8 +258,13 @@ export function serializeWorkingStateToV1(
   } as PromptConfig;
 }
 
-export function serializeWorkingStateToV2(config: PromptConfig): PromptConfigV2 {
-  const normalized = normalizeTemplateConfig(config);
+export function serializeWorkingStateToV2(
+  config: PromptConfig,
+  options: WorkingStateNormalizationOptions = {},
+): PromptConfigV2 {
+  const normalized = normalizeTemplateConfig(config, {
+    migrateTaskToOriginalPrompt: options.migrateTaskToOriginalPrompt,
+  });
   const format = [...normalized.format];
   if (normalized.customFormat.trim()) {
     format.push(normalized.customFormat.trim());
@@ -238,12 +276,16 @@ export function serializeWorkingStateToV2(config: PromptConfig): PromptConfigV2 
   }
 
   const lengthPreference: "brief" | "standard" | "detailed" =
-    normalized.lengthPreference === "brief" || normalized.lengthPreference === "detailed"
+    normalized.lengthPreference === "brief" ||
+    normalized.lengthPreference === "detailed"
       ? normalized.lengthPreference
       : "standard";
 
   return {
-    originalPrompt: toOriginalPrompt(normalized.originalPrompt, normalized.task),
+    originalPrompt: toOriginalPrompt(
+      normalized.originalPrompt,
+      normalized.task,
+    ),
     role: (normalized.customRole || normalized.role || "").trim(),
     audience: normalized.contextConfig.structured.audience,
     tone: normalized.tone,

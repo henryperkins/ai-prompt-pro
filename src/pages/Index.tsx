@@ -10,7 +10,11 @@ import { CodexSessionDrawer } from "@/components/CodexSessionDrawer";
 import { ContextPanel } from "@/components/ContextPanel";
 import { ToneControls } from "@/components/ToneControls";
 import { QualityScore } from "@/components/QualityScore";
-import { OutputPanel, type EnhancePhase, type OutputPreviewSource } from "@/components/OutputPanel";
+import {
+  OutputPanel,
+  type EnhancePhase,
+  type OutputPreviewSource,
+} from "@/components/OutputPanel";
 import { usePromptBuilder } from "@/hooks/usePromptBuilder";
 import {
   inferBuilderFields,
@@ -29,8 +33,18 @@ import {
   type BuilderFieldOwnershipMap,
   type BuilderSuggestionChip,
 } from "@/lib/builder-inference";
-import { getSectionHealth, type SectionHealthState } from "@/lib/section-health";
-import { buildPrompt, defaultConfig, hasBuilderFieldInput, hasPromptInput, scorePrompt } from "@/lib/prompt-builder";
+import {
+  getSectionHealth,
+  type SectionHealthState,
+} from "@/lib/section-health";
+import {
+  buildPrompt,
+  defaultConfig,
+  hasBuilderFieldInput,
+  hasPromptInput,
+  normalizeConstraintSelections,
+  scorePrompt,
+} from "@/lib/prompt-builder";
 import {
   applyEnhanceOutputEvent,
   createEnhanceOutputStreamState,
@@ -52,7 +66,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { loadPost, loadProfilesByIds } from "@/lib/community";
 import { consumeRestoredVersionPrompt } from "@/lib/history-restore";
-import { builderRedesignFlags, launchExperimentFlags } from "@/lib/feature-flags";
+import {
+  builderRedesignFlags,
+  launchExperimentFlags,
+} from "@/lib/feature-flags";
 import { trackBuilderEvent } from "@/lib/telemetry";
 import { templates } from "@/lib/templates";
 import { getUserPreferences, setUserPreference } from "@/lib/user-preferences";
@@ -138,7 +155,10 @@ function SectionHealthBadge({ state }: { state: SectionHealthState }) {
 
 type BuilderSection = "builder" | "context" | "tone" | "quality";
 
-const ENHANCE_THREAD_OPTIONS_BASE: Omit<EnhanceThreadOptions, "webSearchEnabled"> = {
+const ENHANCE_THREAD_OPTIONS_BASE: Omit<
+  EnhanceThreadOptions,
+  "webSearchEnabled"
+> = {
   modelReasoningEffort: "xhigh",
 };
 
@@ -164,7 +184,10 @@ type EnhanceDebugEventSnapshot = {
   payloadPreview: string;
 };
 
-function isReasoningSummaryEvent(meta: EnhanceStreamEvent, payload: unknown): boolean {
+function isReasoningSummaryEvent(
+  meta: EnhanceStreamEvent,
+  payload: unknown,
+): boolean {
   if (isCodexReasoningItemType(meta.itemType)) return true;
 
   if (hasCodexReasoningSegment(meta.eventType)) return true;
@@ -172,8 +195,14 @@ function isReasoningSummaryEvent(meta: EnhanceStreamEvent, payload: unknown): bo
   if (hasCodexReasoningSegment(meta.responseType)) return true;
 
   if (payload && typeof payload === "object") {
-    const payloadItemType = (payload as { item?: { type?: unknown } }).item?.type;
-    if (isCodexReasoningItemType(typeof payloadItemType === "string" ? payloadItemType : null)) return true;
+    const payloadItemType = (payload as { item?: { type?: unknown } }).item
+      ?.type;
+    if (
+      isCodexReasoningItemType(
+        typeof payloadItemType === "string" ? payloadItemType : null,
+      )
+    )
+      return true;
   }
 
   return false;
@@ -193,9 +222,9 @@ function hasExplicitReasoningDelta(payload: unknown): boolean {
     payload?: { delta?: unknown } | null;
   };
   return (
-    hasDeltaFieldValue(data.delta)
-    || hasDeltaFieldValue(data.item?.delta)
-    || hasDeltaFieldValue(data.payload?.delta)
+    hasDeltaFieldValue(data.delta) ||
+    hasDeltaFieldValue(data.item?.delta) ||
+    hasDeltaFieldValue(data.payload?.delta)
   );
 }
 
@@ -209,7 +238,8 @@ function extractReasoningSummaryChunk(
   const hasExplicitDelta = hasExplicitReasoningDelta(payload);
   if (isDeltaEvent || hasExplicitDelta) {
     const deltaText = extractCodexDeltaText(payload);
-    if (deltaText) return { text: deltaText, isDelta: true, itemId: meta.itemId };
+    if (deltaText)
+      return { text: deltaText, isDelta: true, itemId: meta.itemId };
   }
 
   const directText = extractCodexReasoningText(payload);
@@ -245,7 +275,8 @@ function extractEnhancedPromptFromJsonArtifact(text: string): string | null {
 
   try {
     const parsed = JSON.parse(candidate) as { enhanced_prompt?: unknown };
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+      return null;
     if (typeof parsed.enhanced_prompt !== "string") return null;
     const enhancedPrompt = parsed.enhanced_prompt.trim();
     return enhancedPrompt || null;
@@ -254,9 +285,14 @@ function extractEnhancedPromptFromJsonArtifact(text: string): string | null {
   }
 }
 
-function splitEnhancedPromptAndSources(input: string): { promptText: string; sources: string[] } {
+function splitEnhancedPromptAndSources(input: string): {
+  promptText: string;
+  sources: string[];
+} {
   const normalizedInput = extractEnhancedPromptFromJsonArtifact(input) ?? input;
-  const separatorIdx = normalizedInput.search(ENHANCED_PROMPT_SOURCES_SEPARATOR);
+  const separatorIdx = normalizedInput.search(
+    ENHANCED_PROMPT_SOURCES_SEPARATOR,
+  );
   if (separatorIdx === -1) {
     return {
       promptText: normalizedInput,
@@ -278,7 +314,10 @@ function splitEnhancedPromptAndSources(input: string): { promptText: string; sou
   };
 }
 
-function shouldPreferMetadataPrompt(currentOutput: string, metadataPrompt: string): boolean {
+function shouldPreferMetadataPrompt(
+  currentOutput: string,
+  metadataPrompt: string,
+): boolean {
   const normalizedCurrent = currentOutput.trim();
   const normalizedMetadata = metadataPrompt.trim();
   if (!normalizedMetadata) return false;
@@ -288,21 +327,29 @@ function shouldPreferMetadataPrompt(currentOutput: string, metadataPrompt: strin
   return Boolean(extractEnhancedPromptFromJsonArtifact(normalizedCurrent));
 }
 
-function extractEnhancedPromptFromMetadataEvent(payload: unknown): string | null {
+function extractEnhancedPromptFromMetadataEvent(
+  payload: unknown,
+): string | null {
   if (!payload || typeof payload !== "object") return null;
   const data = payload as {
     event?: unknown;
     type?: unknown;
     payload?: unknown;
   };
-  const eventType = normalizeCodexToken(typeof data.event === "string" ? data.event : null);
-  const responseType = normalizeCodexToken(typeof data.type === "string" ? data.type : null);
-  if (eventType !== "enhance/metadata" && responseType !== "enhance.metadata") return null;
+  const eventType = normalizeCodexToken(
+    typeof data.event === "string" ? data.event : null,
+  );
+  const responseType = normalizeCodexToken(
+    typeof data.type === "string" ? data.type : null,
+  );
+  if (eventType !== "enhance/metadata" && responseType !== "enhance.metadata")
+    return null;
 
   const metadata = data.payload;
   if (!metadata || typeof metadata !== "object") return null;
 
-  const enhancedPrompt = (metadata as { enhanced_prompt?: unknown }).enhanced_prompt;
+  const enhancedPrompt = (metadata as { enhanced_prompt?: unknown })
+    .enhanced_prompt;
   if (typeof enhancedPrompt !== "string") return null;
   const normalized = enhancedPrompt.trim();
   return normalized || null;
@@ -313,14 +360,17 @@ function previewEnhancePayload(payload: unknown): string {
   try {
     const serialized = JSON.stringify(payload);
     if (!serialized) return "";
-    if (serialized.length <= DEBUG_ENHANCE_PAYLOAD_PREVIEW_CHARS) return serialized;
+    if (serialized.length <= DEBUG_ENHANCE_PAYLOAD_PREVIEW_CHARS)
+      return serialized;
     return `${serialized.slice(0, DEBUG_ENHANCE_PAYLOAD_PREVIEW_CHARS)}...`;
   } catch {
     return "[unserializable payload]";
   }
 }
 
-function toEnhanceDebugEventSnapshot(event: EnhanceStreamEvent): EnhanceDebugEventSnapshot {
+function toEnhanceDebugEventSnapshot(
+  event: EnhanceStreamEvent,
+): EnhanceDebugEventSnapshot {
   return {
     at: Date.now(),
     eventType: event.eventType,
@@ -378,114 +428,145 @@ function normalizeRemoteInferenceResult(
     );
   }
   if (Array.isArray(inferredUpdatesRaw?.constraints)) {
-    inferredUpdates.constraints = inferredUpdatesRaw.constraints.filter(
-      (entry): entry is string => typeof entry === "string",
+    inferredUpdates.constraints = normalizeConstraintSelections(
+      inferredUpdatesRaw.constraints.filter(
+        (entry): entry is string => typeof entry === "string",
+      ),
     );
   }
 
   const inferredFields = Array.isArray(inferredFieldsRaw)
     ? inferredFieldsRaw.filter(
-      (field): field is "role" | "tone" | "lengthPreference" | "format" | "constraints" =>
-        field === "role" ||
-        field === "tone" ||
-        field === "lengthPreference" ||
-        field === "format" ||
-        field === "constraints",
-    )
+        (
+          field,
+        ): field is
+          | "role"
+          | "tone"
+          | "lengthPreference"
+          | "format"
+          | "constraints" =>
+          field === "role" ||
+          field === "tone" ||
+          field === "lengthPreference" ||
+          field === "format" ||
+          field === "constraints",
+      )
     : [];
   if (inferredFields.length === 0) {
     if (typeof inferredUpdates.role === "string") inferredFields.push("role");
     if (typeof inferredUpdates.tone === "string") inferredFields.push("tone");
-    if (typeof inferredUpdates.lengthPreference === "string") inferredFields.push("lengthPreference");
+    if (typeof inferredUpdates.lengthPreference === "string")
+      inferredFields.push("lengthPreference");
     if (Array.isArray(inferredUpdates.format)) inferredFields.push("format");
-    if (Array.isArray(inferredUpdates.constraints)) inferredFields.push("constraints");
+    if (Array.isArray(inferredUpdates.constraints))
+      inferredFields.push("constraints");
   }
 
   const suggestionChips = Array.isArray(suggestionChipsRaw)
     ? suggestionChipsRaw
-      .map((chip): BuilderSuggestionChip | null => {
-        if (!chip || typeof chip !== "object") return null;
-        const id = typeof chip.id === "string" ? chip.id : null;
-        const label = typeof chip.label === "string" ? chip.label : null;
-        const description = typeof chip.description === "string" ? chip.description : "";
-        const action = chip.action;
-        if (!id || !label || !action || typeof action !== "object") return null;
+        .map((chip): BuilderSuggestionChip | null => {
+          if (!chip || typeof chip !== "object") return null;
+          const id = typeof chip.id === "string" ? chip.id : null;
+          const label = typeof chip.label === "string" ? chip.label : null;
+          const description =
+            typeof chip.description === "string" ? chip.description : "";
+          const action = chip.action;
+          if (!id || !label || !action || typeof action !== "object")
+            return null;
 
-        const actionType = action.type;
-        if (actionType === "append_prompt" && typeof action.text === "string") {
-          return {
-            id,
-            label,
-            description,
-            action: {
-              type: "append_prompt",
-              text: action.text,
-            },
-          };
-        }
+          const actionType = action.type;
+          if (
+            actionType === "append_prompt" &&
+            typeof action.text === "string"
+          ) {
+            return {
+              id,
+              label,
+              description,
+              action: {
+                type: "append_prompt",
+                text: action.text,
+              },
+            };
+          }
 
-        if (actionType === "set_fields" && action.updates && typeof action.updates === "object") {
-          const updates = action.updates as Record<string, unknown>;
-          const fields = Array.isArray(action.fields)
-            ? action.fields.filter(
-              (field): field is "role" | "tone" | "lengthPreference" | "format" | "constraints" =>
-                field === "role" ||
-                field === "tone" ||
-                field === "lengthPreference" ||
-                field === "format" ||
-                field === "constraints",
-            )
-            : [];
+          if (
+            actionType === "set_fields" &&
+            action.updates &&
+            typeof action.updates === "object"
+          ) {
+            const updates = action.updates as Record<string, unknown>;
+            const fields = Array.isArray(action.fields)
+              ? action.fields.filter(
+                  (
+                    field,
+                  ): field is
+                    | "role"
+                    | "tone"
+                    | "lengthPreference"
+                    | "format"
+                    | "constraints" =>
+                    field === "role" ||
+                    field === "tone" ||
+                    field === "lengthPreference" ||
+                    field === "format" ||
+                    field === "constraints",
+                )
+              : [];
 
-          return {
-            id,
-            label,
-            description,
-            action: {
-              type: "set_fields",
-              updates: (() => {
-                const normalizedUpdates: {
-                  role?: string;
-                  tone?: string;
-                  lengthPreference?: string;
-                  format?: string[];
-                  constraints?: string[];
-                  customRole?: string;
-                  customFormat?: string;
-                  customConstraint?: string;
-                } = {};
-                if (typeof updates.role === "string") {
-                  normalizedUpdates.role = updates.role;
-                  normalizedUpdates.customRole = "";
-                }
-                if (typeof updates.tone === "string") {
-                  normalizedUpdates.tone = updates.tone;
-                }
-                if (typeof updates.lengthPreference === "string") {
-                  normalizedUpdates.lengthPreference = updates.lengthPreference;
-                }
-                if (Array.isArray(updates.format)) {
-                  normalizedUpdates.format = updates.format.filter(
-                    (entry): entry is string => typeof entry === "string",
-                  );
-                  normalizedUpdates.customFormat = "";
-                }
-                if (Array.isArray(updates.constraints)) {
-                  normalizedUpdates.constraints = updates.constraints.filter(
-                    (entry): entry is string => typeof entry === "string",
-                  );
-                  normalizedUpdates.customConstraint = "";
-                }
-                return normalizedUpdates;
-              })(),
-              fields,
-            },
-          };
-        }
+            return {
+              id,
+              label,
+              description,
+              action: {
+                type: "set_fields",
+                updates: (() => {
+                  const normalizedUpdates: {
+                    role?: string;
+                    tone?: string;
+                    lengthPreference?: string;
+                    format?: string[];
+                    constraints?: string[];
+                    customRole?: string;
+                    customFormat?: string;
+                    customConstraint?: string;
+                  } = {};
+                  if (typeof updates.role === "string") {
+                    normalizedUpdates.role = updates.role;
+                    normalizedUpdates.customRole = "";
+                  }
+                  if (typeof updates.tone === "string") {
+                    normalizedUpdates.tone = updates.tone;
+                  }
+                  if (typeof updates.lengthPreference === "string") {
+                    normalizedUpdates.lengthPreference =
+                      updates.lengthPreference;
+                  }
+                  if (Array.isArray(updates.format)) {
+                    normalizedUpdates.format = updates.format.filter(
+                      (entry): entry is string => typeof entry === "string",
+                    );
+                    normalizedUpdates.customFormat = "";
+                  }
+                  if (Array.isArray(updates.constraints)) {
+                    normalizedUpdates.constraints =
+                      normalizeConstraintSelections(
+                        updates.constraints.filter(
+                          (entry): entry is string => typeof entry === "string",
+                        ),
+                      );
+                    normalizedUpdates.customConstraint = "";
+                  }
+                  return normalizedUpdates;
+                })(),
+                fields,
+              },
+            };
+          }
 
-        return null;
-      })
-      .filter((chip): chip is BuilderSuggestionChip => chip !== null)
+          return null;
+        })
+        .filter((chip): chip is BuilderSuggestionChip => chip !== null)
     : [];
 
   return {
@@ -512,7 +593,10 @@ const buildInferenceCurrentFields = (config: typeof defaultConfig) => {
   if (config.tone && config.tone !== defaultConfig.tone) {
     currentFields.tone = config.tone;
   }
-  if (config.lengthPreference && config.lengthPreference !== defaultConfig.lengthPreference) {
+  if (
+    config.lengthPreference &&
+    config.lengthPreference !== defaultConfig.lengthPreference
+  ) {
     currentFields.lengthPreference = config.lengthPreference;
   }
 
@@ -531,10 +615,14 @@ const Index = () => {
   const remixLoadToken = useRef(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [sessionDrawerOpen, setSessionDrawerOpen] = useState(false);
-  const [openSections, setOpenSections] = useState<BuilderSection[]>(["builder"]);
+  const [openSections, setOpenSections] = useState<BuilderSection[]>([
+    "builder",
+  ]);
   const [isAdjustDetailsOpen, setIsAdjustDetailsOpen] = useState(false);
   const [isSourcesAdvancedOpen, setIsSourcesAdvancedOpen] = useState(false);
-  const [showAdvancedControls, setShowAdvancedControls] = useState(() => getUserPreferences().showAdvancedControls);
+  const [showAdvancedControls, setShowAdvancedControls] = useState(
+    () => getUserPreferences().showAdvancedControls,
+  );
   const [enhancePhase, setEnhancePhase] = useState<EnhancePhase>("idle");
   const enhancePhaseTimers = useRef<number[]>([]);
   const hasTrackedBuilderLoaded = useRef(false);
@@ -546,27 +634,39 @@ const Index = () => {
   const enhancePending = useRef(false);
   const enhanceAbortController = useRef<AbortController | null>(null);
   const enhanceStreamToken = useRef(0);
-  const [suggestionChips, setSuggestionChips] = useState<BuilderSuggestionChip[]>([]);
+  const [suggestionChips, setSuggestionChips] = useState<
+    BuilderSuggestionChip[]
+  >([]);
   const [isInferringSuggestions, setIsInferringSuggestions] = useState(false);
   const [hasInferenceError, setHasInferenceError] = useState(false);
-  const [webSearchEnabled, setWebSearchEnabled] = useState(() => getUserPreferences().webSearchEnabled);
-  const [webSearchSources, setWebSearchSources] = useState<string[]>([]);
-  const [webSearchActivity, setWebSearchActivity] = useState<WebSearchActivity>(IDLE_WEB_SEARCH_ACTIVITY);
-  const [reasoningSummary, setReasoningSummary] = useState("");
-  const [enhanceSession, setEnhanceSession] = useState<CodexSession>(() => createCodexSession());
-  const [fieldOwnership, setFieldOwnership] = useState<BuilderFieldOwnershipMap>(() =>
-    createFieldOwnershipFromConfig(defaultConfig),
+  const [webSearchEnabled, setWebSearchEnabled] = useState(
+    () => getUserPreferences().webSearchEnabled,
   );
+  const [webSearchSources, setWebSearchSources] = useState<string[]>([]);
+  const [webSearchActivity, setWebSearchActivity] = useState<WebSearchActivity>(
+    IDLE_WEB_SEARCH_ACTIVITY,
+  );
+  const [reasoningSummary, setReasoningSummary] = useState("");
+  const [enhanceSession, setEnhanceSession] = useState<CodexSession>(() =>
+    createCodexSession(),
+  );
+  const [fieldOwnership, setFieldOwnership] =
+    useState<BuilderFieldOwnershipMap>(() =>
+      createFieldOwnershipFromConfig(defaultConfig),
+    );
   const { toast } = useToast();
   const isMobile = useIsMobile();
 
-  const persistedSetWebSearchEnabled = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
-    setWebSearchEnabled((prev) => {
-      const next = typeof value === "function" ? value(prev) : value;
-      setUserPreference("webSearchEnabled", next);
-      return next;
-    });
-  }, []);
+  const persistedSetWebSearchEnabled = useCallback(
+    (value: boolean | ((prev: boolean) => boolean)) => {
+      setWebSearchEnabled((prev) => {
+        const next = typeof value === "function" ? value(prev) : value;
+        setUserPreference("webSearchEnabled", next);
+        return next;
+      });
+    },
+    [],
+  );
 
   const handleWebSearchToggle = useCallback(
     (value: boolean | ((prev: boolean) => boolean)) => {
@@ -575,13 +675,16 @@ const Index = () => {
     [persistedSetWebSearchEnabled],
   );
 
-  const persistedSetShowAdvancedControls = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
-    setShowAdvancedControls((prev) => {
-      const next = typeof value === "function" ? value(prev) : value;
-      setUserPreference("showAdvancedControls", next);
-      return next;
-    });
-  }, []);
+  const persistedSetShowAdvancedControls = useCallback(
+    (value: boolean | ((prev: boolean) => boolean)) => {
+      setShowAdvancedControls((prev) => {
+        const next = typeof value === "function" ? value(prev) : value;
+        setUserPreference("showAdvancedControls", next);
+        return next;
+      });
+    },
+    [],
+  );
 
   const {
     config,
@@ -618,7 +721,10 @@ const Index = () => {
   const primaryCtaVariant = launchExperimentFlags.launchPrimaryCtaExperiment
     ? launchAssignments.primaryCta
     : "control";
-  const heroCopy = useMemo(() => getHeroCopyVariant(heroCopyVariant), [heroCopyVariant]);
+  const heroCopy = useMemo(
+    () => getHeroCopyVariant(heroCopyVariant),
+    [heroCopyVariant],
+  );
   const primaryCtaLabel = useMemo(
     () => getPrimaryCtaVariantLabel(primaryCtaVariant),
     [primaryCtaVariant],
@@ -662,7 +768,8 @@ const Index = () => {
       hasRemixParam: Boolean(remixId),
       hasPresetParam: Boolean(presetId),
       heroCopyExperimentEnabled: launchExperimentFlags.launchHeroCopyExperiment,
-      primaryCtaExperimentEnabled: launchExperimentFlags.launchPrimaryCtaExperiment,
+      primaryCtaExperimentEnabled:
+        launchExperimentFlags.launchPrimaryCtaExperiment,
       heroCopyVariant,
       primaryCtaVariant,
     });
@@ -697,8 +804,17 @@ const Index = () => {
       trackBuilderEvent("preset_not_found", {
         presetId,
       });
-      toast({ title: "Preset not found", description: `No preset with id "${presetId}".` });
-      setSearchParams((prev) => { prev.delete("preset"); return prev; }, { replace: true });
+      toast({
+        title: "Preset not found",
+        description: `No preset with id "${presetId}".`,
+      });
+      setSearchParams(
+        (prev) => {
+          prev.delete("preset");
+          return prev;
+        },
+        { replace: true },
+      );
       return;
     }
     resetEnhanceSessionState();
@@ -714,9 +830,24 @@ const Index = () => {
       presetCategory: preset.category,
       hasStarterPrompt: Boolean(preset.starterPrompt.trim()),
     });
-    toast({ title: "Preset loaded", description: `"${preset.name}" applied to the builder.` });
-    setSearchParams((prev) => { prev.delete("preset"); return prev; }, { replace: true });
-  }, [presetId, loadTemplate, resetEnhanceSessionState, toast, setSearchParams]);
+    toast({
+      title: "Preset loaded",
+      description: `"${preset.name}" applied to the builder.`,
+    });
+    setSearchParams(
+      (prev) => {
+        prev.delete("preset");
+        return prev;
+      },
+      { replace: true },
+    );
+  }, [
+    presetId,
+    loadTemplate,
+    resetEnhanceSessionState,
+    toast,
+    setSearchParams,
+  ]);
 
   useEffect(() => {
     if (!remixId) return;
@@ -728,7 +859,10 @@ const Index = () => {
         const post = await loadPost(remixId);
         if (token !== remixLoadToken.current) return;
         if (!post) {
-          toast({ title: "Remix unavailable", description: "That community prompt could not be loaded." });
+          toast({
+            title: "Remix unavailable",
+            description: "That community prompt could not be loaded.",
+          });
           return;
         }
         const [author] = await loadProfilesByIds([post.authorId]);
@@ -751,12 +885,19 @@ const Index = () => {
         if (token !== remixLoadToken.current) return;
         toast({
           title: "Failed to load remix",
-          description: error instanceof Error ? error.message : "Unexpected error",
+          description:
+            error instanceof Error ? error.message : "Unexpected error",
           variant: "destructive",
         });
       }
     })();
-  }, [remixId, remixContext?.postId, resetEnhanceSessionState, startRemix, toast]);
+  }, [
+    remixId,
+    remixContext?.postId,
+    resetEnhanceSessionState,
+    startRemix,
+    toast,
+  ]);
 
   const handleClearRemix = useCallback(() => {
     resetEnhanceSessionState();
@@ -765,7 +906,13 @@ const Index = () => {
     const next = new URLSearchParams(searchParams);
     next.delete("remix");
     setSearchParams(next, { replace: true });
-  }, [clearRemix, remixId, resetEnhanceSessionState, searchParams, setSearchParams]);
+  }, [
+    clearRemix,
+    remixId,
+    resetEnhanceSessionState,
+    searchParams,
+    setSearchParams,
+  ]);
 
   useEffect(() => {
     return () => clearEnhanceTimers();
@@ -776,7 +923,9 @@ const Index = () => {
       if (isBuilderRedesignPhase3) {
         const fields = listInferenceFieldsFromUpdates(updates);
         if (fields.length > 0) {
-          setFieldOwnership((previous) => markOwnershipFields(previous, fields, "user"));
+          setFieldOwnership((previous) =>
+            markOwnershipFields(previous, fields, "user"),
+          );
           trackBuilderEvent("builder_field_manual_override", {
             fields: fields.join(","),
           });
@@ -801,7 +950,11 @@ const Index = () => {
   }, [isSignedIn, toast]);
 
   const handleUpdateEnhanceSession = useCallback(
-    (updates: Partial<Pick<CodexSession, "contextSummary" | "latestEnhancedPrompt">>) => {
+    (
+      updates: Partial<
+        Pick<CodexSession, "contextSummary" | "latestEnhancedPrompt">
+      >,
+    ) => {
       setEnhanceSession((previous) =>
         createCodexSession({
           ...previous,
@@ -838,11 +991,14 @@ const Index = () => {
         return;
       }
 
-      const fields = chip.action.fields.length > 0
-        ? chip.action.fields
-        : listInferenceFieldsFromUpdates(chip.action.updates);
+      const fields =
+        chip.action.fields.length > 0
+          ? chip.action.fields
+          : listInferenceFieldsFromUpdates(chip.action.updates);
       updateConfig(chip.action.updates);
-      setFieldOwnership((previous) => markOwnershipFields(previous, fields, "ai"));
+      setFieldOwnership((previous) =>
+        markOwnershipFields(previous, fields, "ai"),
+      );
       setIsAdjustDetailsOpen(true);
       trackBuilderEvent("builder_inference_applied", {
         source: "chip",
@@ -853,7 +1009,8 @@ const Index = () => {
   );
 
   const handleResetInferredDetails = useCallback(() => {
-    const { updates, clearedFields, nextOwnership } = clearAiOwnedFields(fieldOwnership);
+    const { updates, clearedFields, nextOwnership } =
+      clearAiOwnedFields(fieldOwnership);
     if (clearedFields.length === 0) return;
     updateConfig(updates);
     setFieldOwnership(nextOwnership);
@@ -890,11 +1047,17 @@ const Index = () => {
             setSuggestionChips(inference.suggestionChips);
           }
 
-          const { updates, appliedFields } = applyInferenceUpdates(configForEnhance, fieldOwnership, inference);
+          const { updates, appliedFields } = applyInferenceUpdates(
+            configForEnhance,
+            fieldOwnership,
+            inference,
+          );
           if (appliedFields.length === 0) return;
 
           updateConfig(updates);
-          setFieldOwnership((previous) => markOwnershipFields(previous, appliedFields, "ai"));
+          setFieldOwnership((previous) =>
+            markOwnershipFields(previous, appliedFields, "ai"),
+          );
           setIsAdjustDetailsOpen(true);
           configForEnhance = { ...configForEnhance, ...updates };
           promptForEnhance = buildPrompt(configForEnhance);
@@ -912,15 +1075,24 @@ const Index = () => {
           });
 
           const normalized = normalizeRemoteInferenceResult(remote);
-          if (normalized.inferredFields.length > 0 || normalized.suggestionChips.length > 0) {
+          if (
+            normalized.inferredFields.length > 0 ||
+            normalized.suggestionChips.length > 0
+          ) {
             applyInferenceResult(normalized, "enhance_remote");
           } else {
-            applyInferenceResult(inferBuilderFieldsLocally(config.originalPrompt, config), "enhance_local");
+            applyInferenceResult(
+              inferBuilderFieldsLocally(config.originalPrompt, config),
+              "enhance_local",
+            );
           }
           setHasInferenceError(false);
         } catch {
           setHasInferenceError(true);
-          applyInferenceResult(inferBuilderFieldsLocally(config.originalPrompt, config), "enhance_local");
+          applyInferenceResult(
+            inferBuilderFieldsLocally(config.originalPrompt, config),
+            "enhance_local",
+          );
         }
       }
 
@@ -963,13 +1135,18 @@ const Index = () => {
       const reasoningByItemId = new Map<string, string>();
       const reasoningItemOrder: string[] = [];
       const REASONING_FALLBACK_ITEM_ID = "__reasoning_summary__";
-      let currentSearchActivity: WebSearchActivity = { ...IDLE_WEB_SEARCH_ACTIVITY };
+      let currentSearchActivity: WebSearchActivity = {
+        ...IDLE_WEB_SEARCH_ACTIVITY,
+      };
       const outputState = createEnhanceOutputStreamState();
       const debugEnhanceEvents = isEnhanceDebugEnabled();
       const debugEventStore =
         debugEnhanceEvents && typeof window !== "undefined"
-          ? ((window as typeof window & { __promptforgeEnhanceEvents?: EnhanceDebugEventSnapshot[] })
-            .__promptforgeEnhanceEvents ??= [])
+          ? ((
+              window as typeof window & {
+                __promptforgeEnhanceEvents?: EnhanceDebugEventSnapshot[];
+              }
+            ).__promptforgeEnhanceEvents ??= [])
           : null;
       const outputFormats = [
         ...configForEnhance.format,
@@ -977,7 +1154,9 @@ const Index = () => {
       ].filter((value) => value.length > 0);
       const outputFormatField = [
         outputFormats.join(", "),
-        configForEnhance.lengthPreference ? `Length: ${configForEnhance.lengthPreference}` : "",
+        configForEnhance.lengthPreference
+          ? `Length: ${configForEnhance.lengthPreference}`
+          : "",
       ]
         .filter((value) => value.length > 0)
         .join(" | ");
@@ -985,10 +1164,16 @@ const Index = () => {
         ...configForEnhance.constraints,
         configForEnhance.customConstraint.trim(),
         configForEnhance.tone ? `Tone: ${configForEnhance.tone}` : "",
-        configForEnhance.complexity ? `Complexity: ${configForEnhance.complexity}` : "",
+        configForEnhance.complexity
+          ? `Complexity: ${configForEnhance.complexity}`
+          : "",
       ].filter((value) => value.length > 0);
-      const applyEnhancedOutput = (nextOutput: string, clearSourcesWhenMissing = false) => {
-        const { promptText, sources } = splitEnhancedPromptAndSources(nextOutput);
+      const applyEnhancedOutput = (
+        nextOutput: string,
+        clearSourcesWhenMissing = false,
+      ) => {
+        const { promptText, sources } =
+          splitEnhancedPromptAndSources(nextOutput);
         if (sources.length > 0) {
           setEnhancedPrompt(promptText);
           setWebSearchSources(sources);
@@ -1005,9 +1190,17 @@ const Index = () => {
         session: enhanceSession,
         threadOptions: { ...ENHANCE_THREAD_OPTIONS_BASE, webSearchEnabled },
         builderFields: {
-          role: (configForEnhance.customRole || configForEnhance.role || "").trim(),
+          role: (
+            configForEnhance.customRole ||
+            configForEnhance.role ||
+            ""
+          ).trim(),
           context: configForEnhance.context.trim(),
-          task: (configForEnhance.originalPrompt || configForEnhance.task || "").trim(),
+          task: (
+            configForEnhance.originalPrompt ||
+            configForEnhance.task ||
+            ""
+          ).trim(),
           outputFormat: outputFormatField,
           examples: configForEnhance.examples.trim(),
           guardrails: guardrailItems.join("; "),
@@ -1029,16 +1222,23 @@ const Index = () => {
           if (debugEventStore) {
             debugEventStore.push(toEnhanceDebugEventSnapshot(event));
             if (debugEventStore.length > DEBUG_ENHANCE_EVENTS_MAX) {
-              debugEventStore.splice(0, debugEventStore.length - DEBUG_ENHANCE_EVENTS_MAX);
+              debugEventStore.splice(
+                0,
+                debugEventStore.length - DEBUG_ENHANCE_EVENTS_MAX,
+              );
             }
           }
 
-          const outputUpdate = applyEnhanceOutputEvent(outputState, {
-            eventType: event.eventType,
-            responseType: event.responseType,
-            itemId: event.itemId,
-            itemType: event.itemType,
-          }, event.payload);
+          const outputUpdate = applyEnhanceOutputEvent(
+            outputState,
+            {
+              eventType: event.eventType,
+              responseType: event.responseType,
+              itemId: event.itemId,
+              itemType: event.itemType,
+            },
+            event.payload,
+          );
           if (outputUpdate.didHandle) {
             hasStructuredOutput = true;
             if (!hasReceivedStreamSignal) {
@@ -1050,11 +1250,13 @@ const Index = () => {
             applyEnhancedOutput(accumulated);
           }
 
-          const metadataPrompt = extractEnhancedPromptFromMetadataEvent(event.payload);
+          const metadataPrompt = extractEnhancedPromptFromMetadataEvent(
+            event.payload,
+          );
           if (metadataPrompt) {
             const shouldApplyMetadata =
-              !hasReceivedDelta
-              || shouldPreferMetadataPrompt(accumulated, metadataPrompt);
+              !hasReceivedDelta ||
+              shouldPreferMetadataPrompt(accumulated, metadataPrompt);
             if (shouldApplyMetadata) {
               accumulated = metadataPrompt;
               applyEnhancedOutput(metadataPrompt, true);
@@ -1116,7 +1318,9 @@ const Index = () => {
             enhanceAbortController.current = null;
           }
           const startedAt = enhanceStartedAt.current;
-          const durationMs = startedAt ? Math.max(Date.now() - startedAt, 0) : -1;
+          const durationMs = startedAt
+            ? Math.max(Date.now() - startedAt, 0)
+            : -1;
           enhanceStartedAt.current = null;
           trackBuilderEvent("builder_enhance_completed", {
             success: true,
@@ -1134,7 +1338,8 @@ const Index = () => {
           enhancePhaseTimers.current.push(doneTimer, idleTimer);
           toast({
             title: "Quality pass complete",
-            description: "Prompt updated with clearer structure, context, and constraints.",
+            description:
+              "Prompt updated with clearer structure, context, and constraints.",
           });
         },
         onError: (error: AIClientError) => {
@@ -1146,7 +1351,9 @@ const Index = () => {
 
           const errorMessage = error.message;
           const startedAt = enhanceStartedAt.current;
-          const durationMs = startedAt ? Math.max(Date.now() - startedAt, 0) : -1;
+          const durationMs = startedAt
+            ? Math.max(Date.now() - startedAt, 0)
+            : -1;
           enhanceStartedAt.current = null;
           trackBuilderEvent("builder_enhance_completed", {
             success: false,
@@ -1158,7 +1365,11 @@ const Index = () => {
           setIsEnhancing(false);
           setEnhancePhase("idle");
           setWebSearchActivity(IDLE_WEB_SEARCH_ACTIVITY);
-          toast({ title: "Enhancement failed", description: errorMessage, variant: "destructive" });
+          toast({
+            title: "Enhancement failed",
+            description: errorMessage,
+            variant: "destructive",
+          });
         },
       });
     })();
@@ -1202,7 +1413,13 @@ const Index = () => {
   }, [clearEnhanceTimers]);
 
   const handleSavePrompt = useCallback(
-    async (input: { name: string; description?: string; tags?: string[]; category?: string; remixNote?: string }) => {
+    async (input: {
+      name: string;
+      description?: string;
+      tags?: string[];
+      category?: string;
+      remixNote?: string;
+    }) => {
       try {
         const result = await savePrompt({
           title: input.name,
@@ -1231,12 +1448,13 @@ const Index = () => {
       } catch (error) {
         toast({
           title: "Failed to save prompt",
-          description: error instanceof Error ? error.message : "Unexpected error",
+          description:
+            error instanceof Error ? error.message : "Unexpected error",
           variant: "destructive",
         });
       }
     },
-    [savePrompt, toast, remixContext, handleClearRemix]
+    [savePrompt, toast, remixContext, handleClearRemix],
   );
 
   const handleSaveAndSharePrompt = useCallback(
@@ -1250,7 +1468,11 @@ const Index = () => {
       remixNote?: string;
     }) => {
       if (!isSignedIn) {
-        toast({ title: "Sign in required", description: "Sign in to share prompts.", variant: "destructive" });
+        toast({
+          title: "Sign in required",
+          description: "Sign in to share prompts.",
+          variant: "destructive",
+        });
         return;
       }
 
@@ -1279,12 +1501,13 @@ const Index = () => {
       } catch (error) {
         toast({
           title: "Failed to save & share prompt",
-          description: error instanceof Error ? error.message : "Unexpected error",
+          description:
+            error instanceof Error ? error.message : "Unexpected error",
           variant: "destructive",
         });
       }
     },
-    [isSignedIn, saveAndSharePrompt, toast, remixContext, handleClearRemix]
+    [isSignedIn, saveAndSharePrompt, toast, remixContext, handleClearRemix],
   );
 
   // Keyboard shortcut: Ctrl+Enter to enhance
@@ -1324,7 +1547,8 @@ const Index = () => {
     sectionHealth.builder === "complete" &&
     sectionHealth.context === "complete" &&
     sectionHealth.tone === "complete";
-  const showEnhanceFirstCard = !hasEnhancedOnce && (isBuilderRedesignPhase1 || !allSectionsComplete);
+  const showEnhanceFirstCard =
+    !hasEnhancedOnce && (isBuilderRedesignPhase1 || !allSectionsComplete);
   const hasDetailSelections = Boolean(
     selectedRole ||
     config.format.length ||
@@ -1340,7 +1564,10 @@ const Index = () => {
     config.contextConfig.rag.enabled,
   );
   const shouldShowAdvancedControls =
-    showAdvancedControls || hasEnhancedOnce || hasDetailSelections || hasSourceOrAdvancedSelections;
+    showAdvancedControls ||
+    hasEnhancedOnce ||
+    hasDetailSelections ||
+    hasSourceOrAdvancedSelections;
   const previewSource: OutputPreviewSource = hasEnhancedOnce
     ? "enhanced"
     : hasBuiltPrompt
@@ -1350,7 +1577,8 @@ const Index = () => {
           ? "prompt_text"
           : "builder_fields"
       : "empty";
-  const hasUnenhancedPreview = !hasEnhancedOnce && builtPrompt.trim().length > 0;
+  const hasUnenhancedPreview =
+    !hasEnhancedOnce && builtPrompt.trim().length > 0;
   const canSavePrompt = hasPromptInput(config);
   const canSharePrompt = canSavePrompt && isSignedIn;
   const mobileEnhanceLabel = isEnhancing
@@ -1405,31 +1633,44 @@ const Index = () => {
     isSignedIn,
   ]);
   const refineSuggestions = useMemo(() => {
-    const suggestions: Array<{ id: BuilderSection; title: string; description: string }> = [];
+    const suggestions: Array<{
+      id: BuilderSection;
+      title: string;
+      description: string;
+    }> = [];
     if (sectionHealth.builder !== "complete") {
       suggestions.push({
         id: "builder",
         title: selectedRole ? "Add task details" : "Add a role",
-        description: "Clarify who the model should be and what outcome you need.",
+        description:
+          "Clarify who the model should be and what outcome you need.",
       });
     }
     if (sectionHealth.context !== "complete") {
       suggestions.push({
         id: "context",
         title: "Add context",
-        description: "Include sources, notes, or constraints from your environment.",
+        description:
+          "Include sources, notes, or constraints from your environment.",
       });
     }
     if (sectionHealth.tone !== "complete") {
       suggestions.push({
         id: "tone",
         title: "Tune tone",
-        description: "Set style and complexity to better match the target audience.",
+        description:
+          "Set style and complexity to better match the target audience.",
       });
     }
     return suggestions.slice(0, 3);
-  }, [sectionHealth.builder, sectionHealth.context, sectionHealth.tone, selectedRole]);
-  const showRefineSuggestions = Boolean(enhancedPrompt.trim()) && refineSuggestions.length > 0;
+  }, [
+    sectionHealth.builder,
+    sectionHealth.context,
+    sectionHealth.tone,
+    selectedRole,
+  ]);
+  const showRefineSuggestions =
+    Boolean(enhancedPrompt.trim()) && refineSuggestions.length > 0;
   const hasAiOwnedFields = hasFieldOwnershipValue(fieldOwnership, "ai");
 
   useEffect(() => {
@@ -1452,7 +1693,12 @@ const Index = () => {
     }
     resetEnhanceSessionState();
     clearOriginalPrompt();
-  }, [clearOriginalPrompt, hasUnenhancedPreview, previewSource, resetEnhanceSessionState]);
+  }, [
+    clearOriginalPrompt,
+    hasUnenhancedPreview,
+    previewSource,
+    resetEnhanceSessionState,
+  ]);
 
   const handleResetAll = useCallback(() => {
     resetEnhanceSessionState();
@@ -1473,16 +1719,18 @@ const Index = () => {
       const baseline = createFieldOwnershipFromConfig(config);
       let changed = false;
       const next: BuilderFieldOwnershipMap = { ...previous };
-      (Object.keys(next) as Array<keyof BuilderFieldOwnershipMap>).forEach((field) => {
-        if (baseline[field] === "user" && previous[field] === "empty") {
-          next[field] = "user";
-          changed = true;
-        }
-        if (baseline[field] === "empty" && previous[field] === "user") {
-          next[field] = "empty";
-          changed = true;
-        }
-      });
+      (Object.keys(next) as Array<keyof BuilderFieldOwnershipMap>).forEach(
+        (field) => {
+          if (baseline[field] === "user" && previous[field] === "empty") {
+            next[field] = "user";
+            changed = true;
+          }
+          if (baseline[field] === "empty" && previous[field] === "user") {
+            next[field] = "empty";
+            changed = true;
+          }
+        },
+      );
       return changed ? next : previous;
     });
   }, [isBuilderRedesignPhase3, config]);
@@ -1490,7 +1738,11 @@ const Index = () => {
   useEffect(() => {
     if (!isBuilderRedesignPhase1) return;
 
-    if (hasEnhancedOnce || hasDetailSelections || hasSourceOrAdvancedSelections) {
+    if (
+      hasEnhancedOnce ||
+      hasDetailSelections ||
+      hasSourceOrAdvancedSelections
+    ) {
       persistedSetShowAdvancedControls(true);
     }
     if (hasDetailSelections || hasEnhancedOnce) {
@@ -1581,10 +1833,16 @@ const Index = () => {
 
           const normalized = normalizeRemoteInferenceResult(remote);
           if (normalized.inferredFields.length > 0) {
-            const { updates, appliedFields } = applyInferenceUpdates(config, fieldOwnership, normalized);
+            const { updates, appliedFields } = applyInferenceUpdates(
+              config,
+              fieldOwnership,
+              normalized,
+            );
             if (appliedFields.length > 0) {
               updateConfig(updates);
-              setFieldOwnership((previous) => markOwnershipFields(previous, appliedFields, "ai"));
+              setFieldOwnership((previous) =>
+                markOwnershipFields(previous, appliedFields, "ai"),
+              );
               trackBuilderEvent("builder_inference_applied", {
                 source: "suggestion_remote",
                 fields: appliedFields.join(","),
@@ -1594,12 +1852,16 @@ const Index = () => {
           if (normalized.suggestionChips.length > 0) {
             setSuggestionChips(normalized.suggestionChips);
           } else {
-            setSuggestionChips(inferBuilderFieldsLocally(prompt, config).suggestionChips);
+            setSuggestionChips(
+              inferBuilderFieldsLocally(prompt, config).suggestionChips,
+            );
           }
           setHasInferenceError(false);
         } catch {
           if (token !== suggestionLoadToken.current) return;
-          setSuggestionChips(inferBuilderFieldsLocally(prompt, config).suggestionChips);
+          setSuggestionChips(
+            inferBuilderFieldsLocally(prompt, config).suggestionChips,
+          );
           setHasInferenceError(true);
         } finally {
           if (token === suggestionLoadToken.current) {
@@ -1613,45 +1875,51 @@ const Index = () => {
       window.clearTimeout(timer);
       suggestionLoadToken.current += 1;
     };
-  }, [
-    isBuilderRedesignPhase3,
-    config,
-    fieldOwnership,
-    updateConfig,
-  ]);
+  }, [isBuilderRedesignPhase3, config, fieldOwnership, updateConfig]);
 
-  const openAndFocusSection = useCallback((section: BuilderSection) => {
-    if (isBuilderRedesignPhase1) {
-      const targetId = section === "context" ? "builder-zone-3" : "builder-zone-2";
-      persistedSetShowAdvancedControls(true);
-      if (section === "context") {
-        setIsSourcesAdvancedOpen(true);
-      } else {
-        setIsAdjustDetailsOpen(true);
-      }
-      window.requestAnimationFrame(() => {
+  const openAndFocusSection = useCallback(
+    (section: BuilderSection) => {
+      if (isBuilderRedesignPhase1) {
+        const targetId =
+          section === "context" ? "builder-zone-3" : "builder-zone-2";
+        persistedSetShowAdvancedControls(true);
+        if (section === "context") {
+          setIsSourcesAdvancedOpen(true);
+        } else {
+          setIsAdjustDetailsOpen(true);
+        }
         window.requestAnimationFrame(() => {
-          document.getElementById(targetId)?.scrollIntoView({
-            behavior: "smooth",
-            block: "center",
+          window.requestAnimationFrame(() => {
+            document.getElementById(targetId)?.scrollIntoView({
+              behavior: "smooth",
+              block: "center",
+            });
           });
         });
+        return;
+      }
+      setOpenSections((prev) =>
+        prev.includes(section) ? prev : [...prev, section],
+      );
+      window.requestAnimationFrame(() => {
+        document.getElementById(`accordion-${section}`)?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
       });
-      return;
-    }
-    setOpenSections((prev) => (prev.includes(section) ? prev : [...prev, section]));
-    window.requestAnimationFrame(() => {
-      document.getElementById(`accordion-${section}`)?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-    });
-  }, [isBuilderRedesignPhase1, persistedSetShowAdvancedControls]);
+    },
+    [isBuilderRedesignPhase1, persistedSetShowAdvancedControls],
+  );
 
   return (
     <PageShell mainClassName="py-3 sm:py-6">
       {isMobile && (
-        <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        <p
+          className="sr-only"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
           {enhanceLiveMessage}
         </p>
       )}
@@ -1686,7 +1954,8 @@ const Index = () => {
             <div className="space-y-1">
               <p className="type-label-caps text-xs text-primary">Remix mode</p>
               <p className="text-sm font-medium text-foreground">
-                Remixing {remixContext.parentAuthor}’s “{remixContext.parentTitle}”
+                Remixing {remixContext.parentAuthor}’s “
+                {remixContext.parentTitle}”
               </p>
               <p className="text-xs text-muted-foreground">
                 Your changes will be attributed when you save or share.
@@ -1728,14 +1997,19 @@ const Index = () => {
               {showEnhanceFirstCard && (
                 <Card className="border-border/70 bg-card/80 p-3">
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-foreground">Start in 3 steps</p>
+                    <p className="text-sm font-medium text-foreground">
+                      Start in 3 steps
+                    </p>
                     <ol className="grid gap-1 text-sm text-muted-foreground sm:grid-cols-3">
                       <li>1. Add your rough prompt</li>
-                      <li>2. {isMobile ? "Tap" : "Click"} {primaryCtaLabel}</li>
+                      <li>
+                        2. {isMobile ? "Tap" : "Click"} {primaryCtaLabel}
+                      </li>
                       <li>3. Refine details</li>
                     </ol>
                     <p className="text-sm text-muted-foreground">
-                      Keep the first pass simple, then strengthen quality, context, and remix readiness.
+                      Keep the first pass simple, then strengthen quality,
+                      context, and remix readiness.
                     </p>
                   </div>
                 </Card>
@@ -1743,7 +2017,9 @@ const Index = () => {
 
               {showRefineSuggestions && (
                 <Card className="border-primary/25 bg-primary/5 p-3">
-                  <p className="text-xs font-medium text-primary">Improve this result</p>
+                  <p className="text-xs font-medium text-primary">
+                    Improve this result
+                  </p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {refineSuggestions.map((suggestion) => (
                       <Button
@@ -1768,7 +2044,9 @@ const Index = () => {
                 <Card className="border-border/70 bg-card/80 p-3">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <p className="text-sm font-medium text-foreground">Need more control?</p>
+                      <p className="text-sm font-medium text-foreground">
+                        Need more control?
+                      </p>
                       <p className="text-xs text-muted-foreground">
                         Reveal advanced settings when you are ready to refine.
                       </p>
@@ -1824,14 +2102,19 @@ const Index = () => {
               {showEnhanceFirstCard && (
                 <Card className="border-border/70 bg-card/80 p-3">
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-foreground">Start in 3 steps</p>
+                    <p className="text-sm font-medium text-foreground">
+                      Start in 3 steps
+                    </p>
                     <ol className="grid gap-1 text-sm text-muted-foreground sm:grid-cols-3">
                       <li>1. Add your rough prompt</li>
-                      <li>2. {isMobile ? "Tap" : "Click"} {primaryCtaLabel}</li>
+                      <li>
+                        2. {isMobile ? "Tap" : "Click"} {primaryCtaLabel}
+                      </li>
                       <li>3. Refine details</li>
                     </ol>
                     <p className="text-sm text-muted-foreground">
-                      Keep the first pass simple, then strengthen quality, context, and remix readiness.
+                      Keep the first pass simple, then strengthen quality,
+                      context, and remix readiness.
                     </p>
                   </div>
                 </Card>
@@ -1839,7 +2122,9 @@ const Index = () => {
 
               {showRefineSuggestions && (
                 <Card className="border-primary/25 bg-primary/5 p-3">
-                  <p className="text-xs font-medium text-primary">Improve this result</p>
+                  <p className="text-xs font-medium text-primary">
+                    Improve this result
+                  </p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {refineSuggestions.map((suggestion) => (
                       <Button
@@ -1863,10 +2148,16 @@ const Index = () => {
               <Accordion
                 type="multiple"
                 value={openSections}
-                onValueChange={(value) => setOpenSections(value as BuilderSection[])}
+                onValueChange={(value) =>
+                  setOpenSections(value as BuilderSection[])
+                }
                 className="space-y-1"
               >
-                <AccordionItem id="accordion-builder" value="builder" className="border rounded-lg px-3">
+                <AccordionItem
+                  id="accordion-builder"
+                  value="builder"
+                  className="border rounded-lg px-3"
+                >
                   <AccordionTrigger className="py-3 text-sm hover:no-underline gap-2">
                     <span className="flex items-center gap-2">
                       <Target className="w-3.5 h-3.5 text-muted-foreground" />
@@ -1886,7 +2177,11 @@ const Index = () => {
                   </AccordionContent>
                 </AccordionItem>
 
-                <AccordionItem id="accordion-context" value="context" className="border rounded-lg px-3">
+                <AccordionItem
+                  id="accordion-context"
+                  value="context"
+                  className="border rounded-lg px-3"
+                >
                   <AccordionTrigger className="py-3 text-sm hover:no-underline gap-2">
                     <span className="flex items-center gap-2">
                       <LayoutIcon className="w-3.5 h-3.5 text-muted-foreground" />
@@ -1918,7 +2213,11 @@ const Index = () => {
                   </AccordionContent>
                 </AccordionItem>
 
-                <AccordionItem id="accordion-tone" value="tone" className="border rounded-lg px-3">
+                <AccordionItem
+                  id="accordion-tone"
+                  value="tone"
+                  className="border rounded-lg px-3"
+                >
                   <AccordionTrigger className="py-3 text-sm hover:no-underline gap-2">
                     <span className="flex items-center gap-2">
                       <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
@@ -1942,7 +2241,11 @@ const Index = () => {
                   </AccordionContent>
                 </AccordionItem>
 
-                <AccordionItem id="accordion-quality" value="quality" className="border rounded-lg px-3">
+                <AccordionItem
+                  id="accordion-quality"
+                  value="quality"
+                  className="border rounded-lg px-3"
+                >
                   <AccordionTrigger className="py-3 text-sm hover:no-underline gap-2">
                     <span className="flex items-center gap-2">
                       <BarChart3 className="w-3.5 h-3.5 text-muted-foreground" />
@@ -1975,22 +2278,39 @@ const Index = () => {
               <Card className="pf-panel mb-3 border-pf-gold/30 bg-card/80 p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs font-medium text-pf-parchment/90">Quality signal</p>
+                    <p className="text-xs font-medium text-pf-parchment/90">
+                      Quality signal
+                    </p>
                     <p className="mt-0.5 text-sm text-pf-parchment/70">
-                      {tipsWithOwnership?.[0] || "Add context and constraints to improve quality."}
+                      {tipsWithOwnership?.[0] ||
+                        "Add context and constraints to improve quality."}
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1">
-                    <Badge variant="pill" tone={score.total >= 75 ? "brand" : "default"} className="text-xs">
+                    <Badge
+                      variant="pill"
+                      tone={score.total >= 75 ? "brand" : "default"}
+                      className="text-xs"
+                    >
                       {score.total}/100
                     </Badge>
                     <span className="text-[11px] text-pf-parchment/70">
-                      {score.total >= 90 ? "Legendary" : score.total >= 70 ? "Epic" : score.total >= 40 ? "Rare" : "Common"}
+                      {score.total >= 90
+                        ? "Legendary"
+                        : score.total >= 70
+                          ? "Epic"
+                          : score.total >= 40
+                            ? "Rare"
+                            : "Common"}
                     </span>
                   </div>
                 </div>
                 <div className="mt-3 rounded-2xl border border-pf-parchment/10 bg-pf-coal/20 p-2">
-                  <PFQualityGauge value={score.total} size={92} showLabel={false} />
+                  <PFQualityGauge
+                    value={score.total}
+                    size={92}
+                    showLabel={false}
+                  />
                 </div>
               </Card>
             )}
@@ -2016,14 +2336,19 @@ const Index = () => {
               enhanceIdleLabel={primaryCtaLabel}
               remixContext={
                 remixContext
-                  ? { title: remixContext.parentTitle, authorName: remixContext.parentAuthor }
+                  ? {
+                      title: remixContext.parentTitle,
+                      authorName: remixContext.parentAuthor,
+                    }
                   : undefined
               }
             />
             <Card className="pf-panel border-border/70 bg-card/80 p-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs font-medium text-foreground">Codex session</p>
+                  <p className="text-xs font-medium text-foreground">
+                    Codex session
+                  </p>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {sessionDrawerSummary}
                   </p>
@@ -2040,10 +2365,20 @@ const Index = () => {
               <div className="mt-3 flex flex-wrap gap-2">
                 <Badge
                   variant="pill"
-                  tone={isSignedIn ? (enhanceSession.threadId ? "brand" : "default") : "default"}
+                  tone={
+                    isSignedIn
+                      ? enhanceSession.threadId
+                        ? "brand"
+                        : "default"
+                      : "default"
+                  }
                   className="text-xs"
                 >
-                  {isSignedIn ? (enhanceSession.threadId ? "Thread active" : "New thread") : "Login required"}
+                  {isSignedIn
+                    ? enhanceSession.threadId
+                      ? "Thread active"
+                      : "New thread"
+                    : "Login required"}
                 </Badge>
                 {isSignedIn && enhanceSession.contextSummary.trim() && (
                   <Badge variant="pill" tone="brand" className="text-xs">
@@ -2058,19 +2393,27 @@ const Index = () => {
               </div>
             </Card>
             <Card className="pf-panel border-border/70 bg-card/80 p-3">
-              <p className="text-xs font-medium text-foreground">Next best action</p>
+              <p className="text-xs font-medium text-foreground">
+                Next best action
+              </p>
               <p className="mt-1 text-sm text-muted-foreground">
                 {!hasEnhancedOnce
                   ? "Run your first enhancement to unlock save/share workflows and compare changes."
-                  : (refineSuggestions[0]?.description ?? "Use Improve this result suggestions to keep iterating.")}
+                  : (refineSuggestions[0]?.description ??
+                    "Use Improve this result suggestions to keep iterating.")}
               </p>
             </Card>
             {webSearchSources.length > 0 && (
               <Card className="pf-panel border-border/70 bg-card/80 p-3">
-                <p className="text-xs font-medium text-foreground">Recent web sources</p>
+                <p className="text-xs font-medium text-foreground">
+                  Recent web sources
+                </p>
                 <ul className="mt-2 space-y-1">
                   {webSearchSources.slice(0, 3).map((source, index) => (
-                    <li key={`${source}-${index}`} className="text-xs text-muted-foreground line-clamp-2 break-all">
+                    <li
+                      key={`${source}-${index}`}
+                      className="text-xs text-muted-foreground line-clamp-2 break-all"
+                    >
                       {source}
                     </li>
                   ))}
@@ -2081,14 +2424,21 @@ const Index = () => {
               <p className="text-xs font-medium text-foreground">History</p>
               <p className="mt-1 text-xs text-muted-foreground">
                 Saved versions appear in History. Open{" "}
-                <Link to="/history" className="text-primary underline-offset-2 hover:underline">
+                <Link
+                  to="/history"
+                  className="text-primary underline-offset-2 hover:underline"
+                >
                   Version History
                 </Link>{" "}
                 to restore prior prompts.
               </p>
             </Card>
             <p className="text-xs text-muted-foreground text-center mt-3">
-              Press <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded border border-border font-mono">Ctrl+Enter</kbd> to enhance
+              Press{" "}
+              <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded border border-border font-mono">
+                Ctrl+Enter
+              </kbd>{" "}
+              to enhance
             </p>
           </div>
         )}
@@ -2168,7 +2518,11 @@ const Index = () => {
                 </>
               ) : (
                 <>
-                  {enhancePhase === "done" ? <Check className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
+                  {enhancePhase === "done" ? (
+                    <Check className="w-4 h-4" />
+                  ) : (
+                    <Sparkles className="w-4 h-4" />
+                  )}
                   {mobileEnhanceLabel}
                 </>
               )}
@@ -2209,7 +2563,10 @@ const Index = () => {
                 hideEnhanceButton
                 remixContext={
                   remixContext
-                    ? { title: remixContext.parentTitle, authorName: remixContext.parentAuthor }
+                    ? {
+                        title: remixContext.parentTitle,
+                        authorName: remixContext.parentAuthor,
+                      }
                     : undefined
                 }
               />

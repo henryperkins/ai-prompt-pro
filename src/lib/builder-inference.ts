@@ -1,4 +1,8 @@
-import { defaultConfig, type PromptConfig } from "@/lib/prompt-builder";
+import {
+  defaultConfig,
+  normalizeConstraintSelections,
+  type PromptConfig,
+} from "@/lib/prompt-builder";
 import {
   chooseConstraints,
   chooseFormat,
@@ -13,7 +17,10 @@ import {
 export type BuilderFieldOwnership = "ai" | "user" | "empty";
 export type BuilderInferenceField = InferenceField;
 
-export type BuilderFieldOwnershipMap = Record<BuilderInferenceField, BuilderFieldOwnership>;
+export type BuilderFieldOwnershipMap = Record<
+  BuilderInferenceField,
+  BuilderFieldOwnership
+>;
 
 export interface BuilderSuggestionChip {
   id: string;
@@ -54,24 +61,32 @@ function hasConstraints(config: PromptConfig): boolean {
   return config.constraints.length > 0 || hasText(config.customConstraint);
 }
 
-export function createFieldOwnershipFromConfig(config: PromptConfig): BuilderFieldOwnershipMap {
+export function createFieldOwnershipFromConfig(
+  config: PromptConfig,
+): BuilderFieldOwnershipMap {
   return {
     role: hasRole(config) ? "user" : "empty",
     tone: config.tone !== defaultConfig.tone ? "user" : "empty",
-    lengthPreference: config.lengthPreference !== defaultConfig.lengthPreference ? "user" : "empty",
+    lengthPreference:
+      config.lengthPreference !== defaultConfig.lengthPreference
+        ? "user"
+        : "empty",
     format: hasFormat(config) ? "user" : "empty",
     constraints: hasConstraints(config) ? "user" : "empty",
   };
 }
 
-export function listInferenceFieldsFromUpdates(updates: Partial<PromptConfig>): BuilderInferenceField[] {
+export function listInferenceFieldsFromUpdates(
+  updates: Partial<PromptConfig>,
+): BuilderInferenceField[] {
   const fields = new Set<BuilderInferenceField>();
 
   if ("role" in updates || "customRole" in updates) fields.add("role");
   if ("tone" in updates) fields.add("tone");
   if ("lengthPreference" in updates) fields.add("lengthPreference");
   if ("format" in updates || "customFormat" in updates) fields.add("format");
-  if ("constraints" in updates || "customConstraint" in updates) fields.add("constraints");
+  if ("constraints" in updates || "customConstraint" in updates)
+    fields.add("constraints");
 
   return Array.from(fields);
 }
@@ -89,10 +104,14 @@ export function markOwnershipFields(
   return next;
 }
 
-function isFieldEmpty(config: PromptConfig, field: BuilderInferenceField): boolean {
+function isFieldEmpty(
+  config: PromptConfig,
+  field: BuilderInferenceField,
+): boolean {
   if (field === "role") return !hasRole(config);
   if (field === "tone") return config.tone === defaultConfig.tone;
-  if (field === "lengthPreference") return config.lengthPreference === defaultConfig.lengthPreference;
+  if (field === "lengthPreference")
+    return config.lengthPreference === defaultConfig.lengthPreference;
   if (field === "format") return !hasFormat(config);
   return !hasConstraints(config);
 }
@@ -127,7 +146,10 @@ export function applyInferenceUpdates(
       appliedFields.push(field);
       continue;
     }
-    if (field === "lengthPreference" && hasText(inference.inferredUpdates.lengthPreference)) {
+    if (
+      field === "lengthPreference" &&
+      hasText(inference.inferredUpdates.lengthPreference)
+    ) {
       updates.lengthPreference = inference.inferredUpdates.lengthPreference;
       appliedFields.push(field);
       continue;
@@ -138,8 +160,13 @@ export function applyInferenceUpdates(
       appliedFields.push(field);
       continue;
     }
-    if (field === "constraints" && Array.isArray(inference.inferredUpdates.constraints)) {
-      updates.constraints = inference.inferredUpdates.constraints;
+    if (
+      field === "constraints" &&
+      Array.isArray(inference.inferredUpdates.constraints)
+    ) {
+      updates.constraints = normalizeConstraintSelections(
+        inference.inferredUpdates.constraints,
+      );
       updates.customConstraint = "";
       appliedFields.push(field);
     }
@@ -148,9 +175,7 @@ export function applyInferenceUpdates(
   return { updates, appliedFields };
 }
 
-export function clearAiOwnedFields(
-  ownership: BuilderFieldOwnershipMap,
-): {
+export function clearAiOwnedFields(ownership: BuilderFieldOwnershipMap): {
   updates: Partial<PromptConfig>;
   clearedFields: BuilderInferenceField[];
   nextOwnership: BuilderFieldOwnershipMap;
@@ -195,10 +220,14 @@ function toChipLabel(field: BuilderInferenceField): string {
   return INFERENCE_FIELD_LABELS[field];
 }
 
-function toChipDescription(field: BuilderInferenceField, updates: Partial<PromptConfig>): string {
+function toChipDescription(
+  field: BuilderInferenceField,
+  updates: Partial<PromptConfig>,
+): string {
   if (field === "role") return `Use role: ${updates.role}`;
   if (field === "tone") return `Use tone: ${updates.tone}`;
-  if (field === "lengthPreference") return `Use length: ${updates.lengthPreference}`;
+  if (field === "lengthPreference")
+    return `Use length: ${updates.lengthPreference}`;
   if (field === "format") return `Use format: ${updates.format?.join(", ")}`;
   return `Use constraints: ${updates.constraints?.join(", ")}`;
 }
@@ -227,7 +256,8 @@ function applySuggestionRelevance(
   const normalizedPrompt = prompt.trim().toLowerCase();
   if (!normalizedPrompt) return [];
 
-  const hasAnyDetails = hasRole(config) || hasFormat(config) || hasConstraints(config);
+  const hasAnyDetails =
+    hasRole(config) || hasFormat(config) || hasConstraints(config);
   if (chips.length > 0) return chips.slice(0, 4);
 
   if (!hasAnyDetails && normalizedPrompt.length > 20) {
@@ -247,7 +277,10 @@ function applySuggestionRelevance(
   return [];
 }
 
-export function inferBuilderFieldsLocally(prompt: string, config: PromptConfig): BuilderInferenceResult {
+export function inferBuilderFieldsLocally(
+  prompt: string,
+  config: PromptConfig,
+): BuilderInferenceResult {
   const normalizedPrompt = prompt.trim().toLowerCase();
   if (!normalizedPrompt) {
     return {
@@ -287,7 +320,11 @@ export function inferBuilderFieldsLocally(prompt: string, config: PromptConfig):
   if (inferredLength) {
     inferredUpdates.lengthPreference = inferredLength;
     inferredFields.push("lengthPreference");
-    chips.push(buildSetFieldChip("lengthPreference", { lengthPreference: inferredLength }));
+    chips.push(
+      buildSetFieldChip("lengthPreference", {
+        lengthPreference: inferredLength,
+      }),
+    );
     confidence.lengthPreference = INFERENCE_FIELD_CONFIDENCE.lengthPreference;
   }
 
@@ -296,7 +333,9 @@ export function inferBuilderFieldsLocally(prompt: string, config: PromptConfig):
     inferredUpdates.format = inferredFormat;
     inferredUpdates.customFormat = "";
     inferredFields.push("format");
-    chips.push(buildSetFieldChip("format", { format: inferredFormat, customFormat: "" }));
+    chips.push(
+      buildSetFieldChip("format", { format: inferredFormat, customFormat: "" }),
+    );
     confidence.format = INFERENCE_FIELD_CONFIDENCE.format;
   }
 

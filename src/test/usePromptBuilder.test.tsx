@@ -401,6 +401,8 @@ describe("usePromptBuilder", () => {
     expect(result.current.config.role).toBe("Preset Role");
     expect(result.current.config.task).toBe("Preset Task");
     expect(result.current.config.originalPrompt).toBe("Preset starter prompt");
+    expect(result.current.config.tone).toBe("Professional");
+    expect(result.current.config.complexity).toBe("Moderate");
   });
 
   it("rejects save-and-share for signed-out users before any save attempt", async () => {

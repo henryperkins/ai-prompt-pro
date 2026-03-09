@@ -57,7 +57,9 @@ describe("prompt-config adapters", () => {
     expect(result.format).toEqual([]);
     expect(result.constraints).toEqual([]);
     expect(result.contextConfig.rag.documentRefs).toEqual(["ok"]);
-    expect(result.contextConfig.sources[0]?.rawContent).toBe("https://example.com");
+    expect(result.contextConfig.sources[0]?.rawContent).toBe(
+      "https://example.com",
+    );
   });
 
   it("serializes working state to v1 using normalized external source handling", () => {
@@ -79,6 +81,47 @@ describe("prompt-config adapters", () => {
 
     const serialized = serializeWorkingStateToV1(config);
     expect(serialized.contextConfig.sources[0]?.rawContent).toBe("");
+  });
+
+  it("preserves legacy task fields when task migration is disabled", () => {
+    const hydrated = hydrateConfigV1ToWorkingState(
+      {
+        task: "Write a production incident summary",
+        originalPrompt: "",
+      },
+      { migrateTaskToOriginalPrompt: false },
+    );
+
+    expect(hydrated.task).toBe("Write a production incident summary");
+    expect(hydrated.originalPrompt).toBe("");
+
+    const serialized = serializeWorkingStateToV1(hydrated, {
+      includeV2Compat: false,
+      migrateTaskToOriginalPrompt: false,
+    });
+
+    expect(serialized.task).toBe("Write a production incident summary");
+    expect(serialized.originalPrompt).toBe("");
+  });
+
+  it("preserves explicit Professional tone and Moderate complexity during serialization and hydration", () => {
+    const config = buildConfig({
+      originalPrompt: "Draft release notes",
+      tone: "Professional",
+      complexity: "Moderate",
+    });
+
+    const serialized = serializeWorkingStateToV1(config, {
+      includeV2Compat: false,
+    });
+
+    expect(serialized.tone).toBe("Professional");
+    expect(serialized.complexity).toBe("Moderate");
+
+    const hydrated = hydrateConfigV1ToWorkingState(serialized);
+
+    expect(hydrated.tone).toBe("Professional");
+    expect(hydrated.complexity).toBe("Moderate");
   });
 
   it("hydrates direct v2 payloads into working state", () => {
@@ -111,9 +154,20 @@ describe("prompt-config adapters", () => {
 
     expect(hydrated.originalPrompt).toBe("Draft release notes");
     expect(hydrated.role).toBe("Product marketer");
-    expect(hydrated.contextConfig.structured.audience).toBe("Engineering managers");
+    expect(hydrated.contextConfig.structured.audience).toBe(
+      "Engineering managers",
+    );
     expect(hydrated.contextConfig.useDelimiters).toBe(false);
     expect(hydrated.contextConfig.rag.vectorStoreRef).toBe("vs-1");
+  });
+
+  it("normalizes mutually exclusive constraints when hydrating saved configs", () => {
+    const hydrated = hydrateConfigV1ToWorkingState({
+      originalPrompt: "Draft release notes",
+      constraints: ["Use formal tone", "Be conversational"],
+    });
+
+    expect(hydrated.constraints).toEqual(["Be conversational"]);
   });
 
   it("serializes working state to v2 with merged custom fields", () => {
@@ -157,8 +211,11 @@ describe("prompt-config adapters", () => {
       },
     });
 
-    const serialized = serializeWorkingStateToV1(config) as PromptConfig & Record<string, unknown>;
-    const embedded = serialized[PROMPT_CONFIG_V2_COMPAT_KEY] as Record<string, unknown> | undefined;
+    const serialized = serializeWorkingStateToV1(config) as PromptConfig &
+      Record<string, unknown>;
+    const embedded = serialized[PROMPT_CONFIG_V2_COMPAT_KEY] as
+      | Record<string, unknown>
+      | undefined;
 
     expect(serialized[PROMPT_CONFIG_SCHEMA_VERSION_KEY]).toBe(2);
     expect(embedded?.role).toBe("Data Analyst");

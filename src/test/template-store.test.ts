@@ -217,4 +217,29 @@ describe("template-store", () => {
     expect(loaded).not.toBeNull();
     expect(loaded!.record.metadata.schemaVersion).toBe(2);
   });
+
+  it("keeps missing tone and complexity unset when migrating legacy template payloads", () => {
+    localStorage.setItem(
+      TEMPLATE_STORAGE_KEY,
+      JSON.stringify([
+        {
+          id: "legacy-2",
+          name: "Legacy defaults",
+          description: "old format without explicit tone fields",
+          role: "Senior Developer",
+          task: "Review architecture",
+          context: "Legacy context",
+        },
+      ]),
+    );
+
+    const summaries = listTemplateSummaries();
+    const migrated = loadTemplateById(
+      summaries.find((summary) => summary.id === "legacy-2")?.id || "legacy-2",
+    );
+
+    expect(migrated).not.toBeNull();
+    expect(migrated!.record.state.promptConfig.tone).toBe("");
+    expect(migrated!.record.state.promptConfig.complexity).toBe("");
+  });
 });

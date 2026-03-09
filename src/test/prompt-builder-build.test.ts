@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildPrompt, defaultConfig, type PromptConfig } from "@/lib/prompt-builder";
+import {
+  buildPrompt,
+  defaultConfig,
+  type PromptConfig,
+} from "@/lib/prompt-builder";
 
 function buildConfig(overrides?: Partial<PromptConfig>): PromptConfig {
   return {
@@ -57,7 +61,21 @@ describe("buildPrompt", () => {
       }),
     );
 
-    expect(prompt).toContain("**Task:** Draft a concise customer-facing outage update.");
+    expect(prompt).toContain(
+      "**Task:** Draft a concise customer-facing outage update.",
+    );
     expect(prompt).not.toContain("Legacy internal task text");
+  });
+
+  it("omits mutually exclusive constraint pairs from the rendered prompt", () => {
+    const prompt = buildPrompt(
+      buildConfig({
+        originalPrompt: "Draft release notes for customers.",
+        constraints: ["Use formal tone", "Be conversational"],
+      }),
+    );
+
+    expect(prompt).toContain("- Be conversational");
+    expect(prompt).not.toContain("- Use formal tone");
   });
 });

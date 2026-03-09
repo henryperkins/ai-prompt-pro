@@ -1,7 +1,7 @@
+import type { ReactNode } from "react";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
-import { ThemeProvider } from "@/hooks/theme-provider";
 import type { PromptSummary } from "@/lib/persistence";
 
 const mocks = vi.hoisted(() => ({
@@ -20,6 +20,24 @@ vi.mock("@/hooks/useAuth", () => ({
 
 vi.mock("@/hooks/usePromptBuilder", () => ({
   usePromptBuilder: () => mocks.usePromptBuilder(),
+}));
+
+vi.mock("@/hooks/use-mobile", () => ({
+  useIsMobile: () => false,
+}));
+
+vi.mock("@/components/PageShell", () => ({
+  PageShell: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  PageHero: ({ title, subtitle }: { title: string; subtitle?: string }) => (
+    <div>
+      <h1>{title}</h1>
+      {subtitle ? <p>{subtitle}</p> : null}
+    </div>
+  ),
+}));
+
+vi.mock("@/components/fantasy/PFTemplateCard", () => ({
+  PFTemplateCard: ({ title }: { title: string }) => <div>{title}</div>,
 }));
 
 function buildPrompt(overrides: Partial<PromptSummary> = {}): PromptSummary {
@@ -55,6 +73,7 @@ function buildPrompt(overrides: Partial<PromptSummary> = {}): PromptSummary {
 describe("Library featured layout", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.sessionStorage.clear();
   });
 
   it("uses a compact single-column featured layout when only one prompt is available", async () => {
@@ -70,11 +89,9 @@ describe("Library featured layout", () => {
 
     const { default: Library } = await import("@/pages/Library");
     render(
-      <ThemeProvider>
-        <MemoryRouter>
-          <Library />
-        </MemoryRouter>
-      </ThemeProvider>,
+      <MemoryRouter>
+        <Library />
+      </MemoryRouter>,
     );
 
     const grid = screen.getByTestId("library-featured-grid");

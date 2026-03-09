@@ -8,8 +8,12 @@ import type {
   SourceValidationStatus,
 } from "@/lib/context-types";
 import { defaultContextConfig } from "@/lib/context-types";
-import type { PromptConfig } from "@/lib/prompt-builder";
-import { defaultConfig } from "@/lib/prompt-builder";
+import { builderRedesignFlags } from "@/lib/feature-flags";
+import {
+  applyPromptConfigInvariants,
+  defaultConfig,
+  type PromptConfig,
+} from "@/lib/prompt-builder";
 
 const STORAGE_KEY = "promptforge-template-snapshots";
 const CURRENT_SCHEMA_VERSION = 2;
@@ -103,7 +107,9 @@ interface LegacyTemplateRecordV1 {
   examples?: string;
 }
 
-function isLegacyTemplateRecordV1(value: unknown): value is LegacyTemplateRecordV1 {
+function isLegacyTemplateRecordV1(
+  value: unknown,
+): value is LegacyTemplateRecordV1 {
   if (!isRecord(value)) return false;
   return (
     typeof value.name === "string" &&
@@ -121,7 +127,15 @@ export const TEMPLATE_JSON_SCHEMA = {
   properties: {
     metadata: {
       type: "object",
-      required: ["id", "name", "schemaVersion", "revision", "fingerprint", "createdAt", "updatedAt"],
+      required: [
+        "id",
+        "name",
+        "schemaVersion",
+        "revision",
+        "fingerprint",
+        "createdAt",
+        "updatedAt",
+      ],
       properties: {
         id: { type: "string" },
         name: { type: "string" },
@@ -144,7 +158,14 @@ export const TEMPLATE_JSON_SCHEMA = {
           type: "array",
           items: {
             type: "object",
-            required: ["sourceId", "sourceType", "refId", "locator", "title", "status"],
+            required: [
+              "sourceId",
+              "sourceType",
+              "refId",
+              "locator",
+              "title",
+              "status",
+            ],
           },
         },
       },
@@ -167,10 +188,14 @@ function mergeContextConfig(input?: ContextConfig): ContextConfig {
   const rag: RagParameters = {
     ...defaultContextConfig.rag,
     ...raw.rag,
-    documentRefs: Array.isArray(raw.rag?.documentRefs) ? raw.rag.documentRefs : [],
+    documentRefs: Array.isArray(raw.rag?.documentRefs)
+      ? raw.rag.documentRefs
+      : [],
   };
 
-  const databaseConnections: DatabaseConnection[] = Array.isArray(raw.databaseConnections)
+  const databaseConnections: DatabaseConnection[] = Array.isArray(
+    raw.databaseConnections,
+  )
     ? raw.databaseConnections.map((db) => ({
         id: db.id || generateId("db"),
         label: db.label || db.connectionRef || "Database",
@@ -191,7 +216,9 @@ function mergeContextConfig(input?: ContextConfig): ContextConfig {
     databaseConnections,
     rag,
     structured: { ...defaultContextConfig.structured, ...raw.structured },
-    interviewAnswers: Array.isArray(raw.interviewAnswers) ? raw.interviewAnswers : [],
+    interviewAnswers: Array.isArray(raw.interviewAnswers)
+      ? raw.interviewAnswers
+      : [],
   };
 }
 
@@ -199,9 +226,14 @@ export function normalizeTemplateConfig(
   config: PromptConfig,
   options?: {
     preserveSourceRawContent?: boolean;
+    migrateTaskToOriginalPrompt?: boolean;
   },
 ): PromptConfig {
-  const merged: PromptConfig = {
+  const shouldMigrateTaskToOriginalPrompt =
+    options?.migrateTaskToOriginalPrompt ??
+    builderRedesignFlags.builderRedesignPhase1;
+
+  let merged: PromptConfig = {
     ...defaultConfig,
     ...config,
     contextConfig: mergeContextConfig(config.contextConfig),
@@ -209,18 +241,8 @@ export function normalizeTemplateConfig(
     constraints: Array.isArray(config.constraints) ? config.constraints : [],
   };
 
-  // Migrate legacy "Professional" tone default to empty
-  if (merged.tone === "Professional") {
-    merged.tone = "";
-  }
-
-  // Migrate legacy "Moderate" complexity default to empty
-  if (merged.complexity === "Moderate") {
-    merged.complexity = "";
-  }
-
-  // Migrate task field into originalPrompt for Phase 1
-  if (merged.task.trim()) {
+  // Migrate task field into originalPrompt only when the phase-1 builder path is active.
+  if (shouldMigrateTaskToOriginalPrompt && merged.task.trim()) {
     if (!merged.originalPrompt.trim()) {
       merged.originalPrompt = merged.task.trim();
     } else if (merged.originalPrompt.trim() !== merged.task.trim()) {
@@ -228,6 +250,8 @@ export function normalizeTemplateConfig(
     }
     merged.task = "";
   }
+
+  merged = applyPromptConfigInvariants(merged);
 
   return {
     ...merged,
@@ -242,20 +266,23 @@ export function normalizeTemplateConfig(
 
 export function computeTemplateFingerprint(config: PromptConfig): string {
   const canonical = cloneDeep(config);
-  canonical.contextConfig.sources = canonical.contextConfig.sources.map((source) => ({
-    ...source,
-    addedAt: 0,
-    validation: source.validation
-      ? {
-          ...source.validation,
-          checkedAt: 0,
-        }
-      : source.validation,
-  }));
-  canonical.contextConfig.databaseConnections = canonical.contextConfig.databaseConnections.map((db) => ({
-    ...db,
-    lastValidatedAt: 0,
-  }));
+  canonical.contextConfig.sources = canonical.contextConfig.sources.map(
+    (source) => ({
+      ...source,
+      addedAt: 0,
+      validation: source.validation
+        ? {
+            ...source.validation,
+            checkedAt: 0,
+          }
+        : source.validation,
+    }),
+  );
+  canonical.contextConfig.databaseConnections =
+    canonical.contextConfig.databaseConnections.map((db) => ({
+      ...db,
+      lastValidatedAt: 0,
+    }));
   return fnv1aHash(stableStringify(canonical));
 }
 
@@ -269,7 +296,12 @@ function createReference(source: ContextSource): ContextReference | undefined {
         : source.title || source.id;
   const fallbackRefId = `${source.type}:${source.id}`;
 
-  if (source.type === "url" || source.type === "file" || source.type === "database" || source.type === "rag") {
+  if (
+    source.type === "url" ||
+    source.type === "file" ||
+    source.type === "database" ||
+    source.type === "rag"
+  ) {
     return {
       kind: source.type,
       refId: source.reference?.refId || fallbackRefId,
@@ -281,15 +313,22 @@ function createReference(source: ContextSource): ContextReference | undefined {
   return source.reference;
 }
 
-function normalizeSource(source: ContextSource, preserveRawContent: boolean): ContextSource {
+function normalizeSource(
+  source: ContextSource,
+  preserveRawContent: boolean,
+): ContextSource {
   const normalizedReference = createReference(source);
   const shouldStripRaw =
-    source.type === "url" || source.type === "file" || source.type === "database" || source.type === "rag";
+    source.type === "url" ||
+    source.type === "file" ||
+    source.type === "database" ||
+    source.type === "rag";
 
   return {
     ...source,
     title: source.title || "Source",
-    rawContent: shouldStripRaw && !preserveRawContent ? "" : source.rawContent || "",
+    rawContent:
+      shouldStripRaw && !preserveRawContent ? "" : source.rawContent || "",
     summary: source.summary || "",
     reference: normalizedReference,
     validation: validateSource({ ...source, reference: normalizedReference }),
@@ -303,35 +342,62 @@ function validateSource(source: ContextSource): ContextSource["validation"] {
   }
 
   if (!source.reference?.refId || !source.reference.locator) {
-    return { status: "invalid", checkedAt, message: "Missing external reference ID or locator." };
+    return {
+      status: "invalid",
+      checkedAt,
+      message: "Missing external reference ID or locator.",
+    };
   }
 
   if (source.type === "url") {
     try {
       const url = new URL(source.reference.locator);
       if (url.protocol !== "http:" && url.protocol !== "https:") {
-        return { status: "invalid", checkedAt, message: "URL sources must use http(s)." };
+        return {
+          status: "invalid",
+          checkedAt,
+          message: "URL sources must use http(s).",
+        };
       }
     } catch {
-      return { status: "invalid", checkedAt, message: "Malformed URL reference." };
+      return {
+        status: "invalid",
+        checkedAt,
+        message: "Malformed URL reference.",
+      };
     }
   }
 
-  if (source.validation?.checkedAt && checkedAt - source.validation.checkedAt > STALE_AFTER_MS) {
-    return { status: "stale", checkedAt: source.validation.checkedAt, message: "Source requires re-validation." };
+  if (
+    source.validation?.checkedAt &&
+    checkedAt - source.validation.checkedAt > STALE_AFTER_MS
+  ) {
+    return {
+      status: "stale",
+      checkedAt: source.validation.checkedAt,
+      message: "Source requires re-validation.",
+    };
   }
 
   return { status: "unknown", checkedAt };
 }
 
-function validateDatabaseConnections(databases: DatabaseConnection[]): string[] {
+function validateDatabaseConnections(
+  databases: DatabaseConnection[],
+): string[] {
   const warnings: string[] = [];
 
   databases.forEach((db) => {
-    if (!db.connectionRef.trim()) warnings.push(`DB "${db.label}" is missing connectionRef.`);
-    if (!db.database.trim()) warnings.push(`DB "${db.label}" is missing database name.`);
-    if (!db.readOnly) warnings.push(`DB "${db.label}" should be readOnly for template safety.`);
-    if (db.lastValidatedAt && Date.now() - db.lastValidatedAt > STALE_AFTER_MS) {
+    if (!db.connectionRef.trim())
+      warnings.push(`DB "${db.label}" is missing connectionRef.`);
+    if (!db.database.trim())
+      warnings.push(`DB "${db.label}" is missing database name.`);
+    if (!db.readOnly)
+      warnings.push(`DB "${db.label}" should be readOnly for template safety.`);
+    if (
+      db.lastValidatedAt &&
+      Date.now() - db.lastValidatedAt > STALE_AFTER_MS
+    ) {
       warnings.push(`DB "${db.label}" permissions may be stale.`);
     }
   });
@@ -342,10 +408,14 @@ function validateDatabaseConnections(databases: DatabaseConnection[]): string[] 
 function validateRag(rag: RagParameters): string[] {
   if (!rag.enabled) return [];
   const warnings: string[] = [];
-  if (!rag.vectorStoreRef.trim()) warnings.push("RAG is enabled but vectorStoreRef is missing.");
-  if (rag.topK < 1 || rag.topK > 100) warnings.push("RAG topK must be between 1 and 100.");
-  if (rag.minScore < 0 || rag.minScore > 1) warnings.push("RAG minScore must be between 0 and 1.");
-  if (rag.chunkWindow < 1 || rag.chunkWindow > 20) warnings.push("RAG chunkWindow must be between 1 and 20.");
+  if (!rag.vectorStoreRef.trim())
+    warnings.push("RAG is enabled but vectorStoreRef is missing.");
+  if (rag.topK < 1 || rag.topK > 100)
+    warnings.push("RAG topK must be between 1 and 100.");
+  if (rag.minScore < 0 || rag.minScore > 1)
+    warnings.push("RAG minScore must be between 0 and 1.");
+  if (rag.chunkWindow < 1 || rag.chunkWindow > 20)
+    warnings.push("RAG chunkWindow must be between 1 and 20.");
   return warnings;
 }
 
@@ -353,19 +423,27 @@ export function collectTemplateWarnings(config: PromptConfig): string[] {
   const warnings: string[] = [];
   config.contextConfig.sources.forEach((source) => {
     if (source.validation?.status === "invalid") {
-      warnings.push(`${source.title}: ${source.validation.message || "Invalid source reference."}`);
+      warnings.push(
+        `${source.title}: ${source.validation.message || "Invalid source reference."}`,
+      );
     }
     if (source.validation?.status === "stale") {
-      warnings.push(`${source.title}: source reference should be re-validated.`);
+      warnings.push(
+        `${source.title}: source reference should be re-validated.`,
+      );
     }
   });
 
-  warnings.push(...validateDatabaseConnections(config.contextConfig.databaseConnections));
+  warnings.push(
+    ...validateDatabaseConnections(config.contextConfig.databaseConnections),
+  );
   warnings.push(...validateRag(config.contextConfig.rag));
   return warnings;
 }
 
-export function deriveExternalReferencesFromConfig(config: PromptConfig): TemplateExternalReference[] {
+export function deriveExternalReferencesFromConfig(
+  config: PromptConfig,
+): TemplateExternalReference[] {
   const sourceRefs: TemplateExternalReference[] = config.contextConfig.sources
     .filter((source) => source.type !== "text")
     .map((source) => ({
@@ -379,19 +457,22 @@ export function deriveExternalReferencesFromConfig(config: PromptConfig): Templa
       checkedAt: source.validation?.checkedAt,
     }));
 
-  const dbRefs: TemplateExternalReference[] = config.contextConfig.databaseConnections.map((db) => ({
-    sourceId: db.id,
-    sourceType: "database",
-    refId: db.connectionRef,
-    locator: `${db.database}${db.schema ? `.${db.schema}` : ""}`,
-    title: db.label,
-    permissionScope: db.readOnly ? "read_only" : "read_write",
-    status: db.connectionRef.trim() && db.database.trim() ? "unknown" : "invalid",
-    checkedAt: db.lastValidatedAt,
-  }));
+  const dbRefs: TemplateExternalReference[] =
+    config.contextConfig.databaseConnections.map((db) => ({
+      sourceId: db.id,
+      sourceType: "database",
+      refId: db.connectionRef,
+      locator: `${db.database}${db.schema ? `.${db.schema}` : ""}`,
+      title: db.label,
+      permissionScope: db.readOnly ? "read_only" : "read_write",
+      status:
+        db.connectionRef.trim() && db.database.trim() ? "unknown" : "invalid",
+      checkedAt: db.lastValidatedAt,
+    }));
 
   const ragRefs: TemplateExternalReference[] =
-    config.contextConfig.rag.enabled && config.contextConfig.rag.vectorStoreRef.trim()
+    config.contextConfig.rag.enabled &&
+    config.contextConfig.rag.vectorStoreRef.trim()
       ? [
           {
             sourceId: `rag:${config.contextConfig.rag.vectorStoreRef}`,
@@ -432,13 +513,17 @@ function fnv1aHash(input: string): string {
   let hash = 2166136261;
   for (let i = 0; i < input.length; i += 1) {
     hash ^= input.charCodeAt(i);
-    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+    hash +=
+      (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
   }
   return `fnv1a-${(hash >>> 0).toString(16)}`;
 }
 
 function generateId(prefix: string): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
     return `${prefix}_${crypto.randomUUID()}`;
   }
   return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
@@ -454,7 +539,9 @@ function parseEnvelope(raw: string | null): TemplateEnvelope {
     if (isRecord(parsed) && Array.isArray(parsed.records)) {
       return {
         schemaVersion:
-          typeof parsed.schemaVersion === "number" ? parsed.schemaVersion : CURRENT_SCHEMA_VERSION,
+          typeof parsed.schemaVersion === "number"
+            ? parsed.schemaVersion
+            : CURRENT_SCHEMA_VERSION,
         records: parsed.records,
       };
     }
@@ -473,8 +560,8 @@ function migrateLegacyV1(legacy: LegacyTemplateRecordV1): TemplateRecord {
     context: legacy.context || "",
     format: Array.isArray(legacy.format) ? legacy.format : [],
     lengthPreference: legacy.lengthPreference || "standard",
-    tone: legacy.tone || "Professional",
-    complexity: legacy.complexity || "Moderate",
+    tone: legacy.tone || "",
+    complexity: legacy.complexity || "",
     constraints: Array.isArray(legacy.constraints) ? legacy.constraints : [],
     examples: legacy.examples || "",
   });
@@ -501,11 +588,19 @@ function migrateLegacyV1(legacy: LegacyTemplateRecordV1): TemplateRecord {
 function parseTemplateRecord(raw: unknown): TemplateRecord | null {
   if (!isRecord(raw)) return null;
 
-  if ("metadata" in raw && "state" in raw && isRecord(raw.metadata) && isRecord(raw.state)) {
+  if (
+    "metadata" in raw &&
+    "state" in raw &&
+    isRecord(raw.metadata) &&
+    isRecord(raw.state)
+  ) {
     const metadata = raw.metadata;
     const state = raw.state;
-    if (typeof metadata.name !== "string" || typeof metadata.id !== "string") return null;
-    const normalizedConfig = normalizeTemplateConfig((state.promptConfig || defaultConfig) as PromptConfig);
+    if (typeof metadata.name !== "string" || typeof metadata.id !== "string")
+      return null;
+    const normalizedConfig = normalizeTemplateConfig(
+      (state.promptConfig || defaultConfig) as PromptConfig,
+    );
     const externalReferences = Array.isArray(state.externalReferences)
       ? (state.externalReferences as TemplateExternalReference[])
       : deriveExternalReferencesFromConfig(normalizedConfig);
@@ -514,17 +609,31 @@ function parseTemplateRecord(raw: unknown): TemplateRecord | null {
       metadata: {
         id: metadata.id,
         name: metadata.name,
-        description: typeof metadata.description === "string" ? metadata.description : "",
-        tags: Array.isArray(metadata.tags) ? metadata.tags.filter((t): t is string => typeof t === "string") : [],
+        description:
+          typeof metadata.description === "string" ? metadata.description : "",
+        tags: Array.isArray(metadata.tags)
+          ? metadata.tags.filter((t): t is string => typeof t === "string")
+          : [],
         schemaVersion:
-          typeof metadata.schemaVersion === "number" ? metadata.schemaVersion : CURRENT_SCHEMA_VERSION,
-        revision: typeof metadata.revision === "number" && metadata.revision > 0 ? metadata.revision : 1,
+          typeof metadata.schemaVersion === "number"
+            ? metadata.schemaVersion
+            : CURRENT_SCHEMA_VERSION,
+        revision:
+          typeof metadata.revision === "number" && metadata.revision > 0
+            ? metadata.revision
+            : 1,
         fingerprint:
           typeof metadata.fingerprint === "string"
             ? metadata.fingerprint
             : computeTemplateFingerprint(normalizedConfig),
-        createdAt: typeof metadata.createdAt === "number" ? metadata.createdAt : Date.now(),
-        updatedAt: typeof metadata.updatedAt === "number" ? metadata.updatedAt : Date.now(),
+        createdAt:
+          typeof metadata.createdAt === "number"
+            ? metadata.createdAt
+            : Date.now(),
+        updatedAt:
+          typeof metadata.updatedAt === "number"
+            ? metadata.updatedAt
+            : Date.now(),
       },
       state: {
         promptConfig: normalizedConfig,
@@ -548,7 +657,9 @@ function readAllRecords(): TemplateRecord[] {
     return [];
   }
   const envelope = parseEnvelope(raw);
-  const records = envelope.records.map(parseTemplateRecord).filter((r): r is TemplateRecord => !!r);
+  const records = envelope.records
+    .map(parseTemplateRecord)
+    .filter((r): r is TemplateRecord => !!r);
   return records.sort((a, b) => b.metadata.updatedAt - a.metadata.updatedAt);
 }
 
@@ -600,7 +711,8 @@ export function listTemplateSummaries(): TemplateSummary[] {
     revision: record.metadata.revision,
     schemaVersion: record.metadata.schemaVersion,
     sourceCount: record.state.promptConfig.contextConfig.sources.length,
-    databaseCount: record.state.promptConfig.contextConfig.databaseConnections.length,
+    databaseCount:
+      record.state.promptConfig.contextConfig.databaseConnections.length,
     ragEnabled: record.state.promptConfig.contextConfig.rag.enabled,
   }));
 }
@@ -615,17 +727,22 @@ export function loadTemplateById(id: string): TemplateLoadResult | null {
   };
 }
 
-export function saveTemplateSnapshot(input: TemplateSaveInput): SaveTemplateResult {
+export function saveTemplateSnapshot(
+  input: TemplateSaveInput,
+): SaveTemplateResult {
   const name = input.name.trim();
   if (!name) throw new Error("Preset name is required.");
 
   const now = Date.now();
   const normalizedConfig = normalizeTemplateConfig(input.config);
-  const normalizedDescription = input.description === undefined ? undefined : input.description.trim();
+  const normalizedDescription =
+    input.description === undefined ? undefined : input.description.trim();
   const fingerprint = computeTemplateFingerprint(normalizedConfig);
   const warnings = collectTemplateWarnings(normalizedConfig);
   const records = readAllRecords();
-  const existingIndex = records.findIndex((record) => record.metadata.name.toLowerCase() === name.toLowerCase());
+  const existingIndex = records.findIndex(
+    (record) => record.metadata.name.toLowerCase() === name.toLowerCase(),
+  );
 
   if (existingIndex >= 0) {
     const existing = records[existingIndex];
@@ -641,14 +758,17 @@ export function saveTemplateSnapshot(input: TemplateSaveInput): SaveTemplateResu
       metadata: {
         ...existing.metadata,
         description: normalizedDescription ?? existing.metadata.description,
-        tags: Array.isArray(input.tags) ? input.tags.map((tag) => tag.trim()).filter(Boolean) : existing.metadata.tags,
+        tags: Array.isArray(input.tags)
+          ? input.tags.map((tag) => tag.trim()).filter(Boolean)
+          : existing.metadata.tags,
         revision: existing.metadata.revision + 1,
         fingerprint,
         updatedAt: now,
       },
       state: {
         promptConfig: normalizedConfig,
-        externalReferences: deriveExternalReferencesFromConfig(normalizedConfig),
+        externalReferences:
+          deriveExternalReferencesFromConfig(normalizedConfig),
       },
     };
 
@@ -663,7 +783,9 @@ export function saveTemplateSnapshot(input: TemplateSaveInput): SaveTemplateResu
       id: generateId("tpl"),
       name,
       description: normalizedDescription ?? "",
-      tags: Array.isArray(input.tags) ? input.tags.map((tag) => tag.trim()).filter(Boolean) : [],
+      tags: Array.isArray(input.tags)
+        ? input.tags.map((tag) => tag.trim()).filter(Boolean)
+        : [],
       schemaVersion: CURRENT_SCHEMA_VERSION,
       revision: 1,
       fingerprint,

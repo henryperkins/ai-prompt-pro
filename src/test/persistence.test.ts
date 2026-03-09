@@ -137,6 +137,8 @@ describe("persistence", () => {
       name: "Risky",
       config: buildConfig({
         task: "Investigate incident",
+        tone: "Professional",
+        complexity: "Moderate",
         contextConfig: {
           ...defaultConfig.contextConfig,
           sources: [
@@ -174,6 +176,8 @@ describe("persistence", () => {
     const source = (insertedPayload?.config as PromptConfig).contextConfig.sources[0];
     const serializedConfig = insertedPayload?.config as PromptConfig & Record<string, unknown>;
     expect(source.rawContent).toBe("");
+    expect(serializedConfig.tone).toBe("Professional");
+    expect(serializedConfig.complexity).toBe("Moderate");
     expect(serializedConfig[PROMPT_CONFIG_SCHEMA_VERSION_KEY]).toBe(2);
     expect(serializedConfig[PROMPT_CONFIG_V2_COMPAT_KEY]).toBeTruthy();
     expect(typeof insertedPayload?.fingerprint).toBe("string");
@@ -293,6 +297,21 @@ describe("persistence", () => {
     await saveDraft(null, config);
     const loaded = await loadDraft(null);
     expect(loaded?.contextConfig.sources[0]?.rawContent).toBe("https://example.com/runbook");
+  });
+
+  it("preserves explicit Professional tone and Moderate complexity during local draft round-trip", async () => {
+    const { saveDraft, loadDraft } = await import("@/lib/persistence");
+    const config = buildConfig({
+      originalPrompt: "Draft release notes",
+      tone: "Professional",
+      complexity: "Moderate",
+    });
+
+    await saveDraft(null, config);
+    const loaded = await loadDraft(null);
+
+    expect(loaded?.tone).toBe("Professional");
+    expect(loaded?.complexity).toBe("Moderate");
   });
 
   it("returns false on delete when no row is removed", async () => {

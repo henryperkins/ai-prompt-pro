@@ -1,7 +1,8 @@
-import type { ReactNode } from "react";
-import { act, fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
+import { defaultConfig } from "@/lib/prompt-builder";
 
 const mocks = vi.hoisted(() => ({
   toast: vi.fn(),
@@ -114,32 +115,21 @@ vi.mock("@/components/base/card", () => ({
   Card: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
-vi.mock("@/hooks/usePromptBuilder", async () => {
-  const React = await import("react");
-  const { defaultConfig } = await import("@/lib/prompt-builder");
-  return {
-    usePromptBuilder: () => {
-      const [config, setConfig] = React.useState(defaultConfig);
-      const updateConfig = (updates: Partial<typeof defaultConfig>) =>
-        setConfig((previous) => ({ ...previous, ...updates }));
-
-      return {
-        config,
-        updateConfig,
+vi.mock("@/hooks/usePromptBuilder", () => ({
+  usePromptBuilder: () => {
+    const [config, setConfig] = useState(defaultConfig);
+    const updateConfig = useCallback((updates: Partial<typeof defaultConfig>) => {
+      setConfig((previous) => ({ ...previous, ...updates }));
+    }, []);
+    const stableFns = useMemo(
+      () => ({
         resetConfig: vi.fn(),
-        clearOriginalPrompt: () => updateConfig({ originalPrompt: "" }),
-        builtPrompt: "Built prompt",
-        score: { total: 70, tips: ["tip"] },
-        enhancedPrompt: "",
         setEnhancedPrompt: vi.fn(),
-        isEnhancing: false,
         setIsEnhancing: vi.fn(),
-        isSignedIn: false,
         saveVersion: vi.fn(),
         savePrompt: vi.fn(),
         saveAndSharePrompt: vi.fn(),
         loadTemplate: vi.fn(),
-        remixContext: null,
         startRemix: vi.fn(),
         clearRemix: vi.fn(),
         updateContextSources: vi.fn(),
@@ -149,10 +139,27 @@ vi.mock("@/hooks/usePromptBuilder", async () => {
         updateContextInterview: vi.fn(),
         updateProjectNotes: vi.fn(),
         toggleDelimiters: vi.fn(),
-      };
-    },
-  };
-});
+      }),
+      [],
+    );
+    const clearOriginalPrompt = useCallback(() => {
+      updateConfig({ originalPrompt: "" });
+    }, [updateConfig]);
+
+    return {
+      config,
+      updateConfig,
+      clearOriginalPrompt,
+      builtPrompt: "Built prompt",
+      score: { total: 70, tips: ["tip"] },
+      enhancedPrompt: "",
+      isEnhancing: false,
+      isSignedIn: false,
+      remixContext: null,
+      ...stableFns,
+    };
+  },
+}));
 
 async function renderIndex() {
   const { default: Index } = await import("@/pages/Index");
@@ -171,8 +178,12 @@ describe("Index suggestion inference cancellation", () => {
     vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE3", "true");
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllEnvs();
+  });
+
   it("ignores stale remote suggestions after prompt is cleared", async () => {
-    vi.useFakeTimers();
     let resolveInference: ((value: unknown) => void) | null = null;
 
     mocks.inferBuilderFields.mockImplementation(
@@ -189,12 +200,9 @@ describe("Index suggestion inference cancellation", () => {
       target: { value: "Draft a detailed update in bullet points for executive stakeholders." },
     });
 
-    await act(async () => {
-      vi.advanceTimersByTime(500);
-      await Promise.resolve();
+    await waitFor(() => {
+      expect(mocks.inferBuilderFields).toHaveBeenCalledTimes(1);
     });
-
-    expect(mocks.inferBuilderFields).toHaveBeenCalledTimes(1);
 
     fireEvent.change(promptInput, {
       target: { value: "" },
@@ -220,6 +228,5 @@ describe("Index suggestion inference cancellation", () => {
     });
 
     expect(screen.queryByText("Stale suggestion")).not.toBeInTheDocument();
-    vi.useRealTimers();
-  });
+  }, 15_000);
 });

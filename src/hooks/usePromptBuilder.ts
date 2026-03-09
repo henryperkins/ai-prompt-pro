@@ -1,5 +1,11 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { PromptConfig, defaultConfig, buildPrompt, scorePrompt } from "@/lib/prompt-builder";
+import {
+  applyPromptConfigInvariants,
+  PromptConfig,
+  defaultConfig,
+  buildPrompt,
+  scorePrompt,
+} from "@/lib/prompt-builder";
 import {
   listTemplateSummaries as listLocalTemplateSummaries,
   type SaveTemplateResult,
@@ -35,12 +41,14 @@ export function usePromptBuilder() {
   const [config, setConfig] = useState<PromptConfig>(loadLocalDraft);
   const [enhancedPrompt, setEnhancedPrompt] = useState("");
   const [isEnhancing, setIsEnhancing] = useState(false);
-  const [versions, setVersions] = useState<persistence.PromptVersion[]>(loadLocalVersions);
-  const [templateSummaries, setTemplateSummaries] = useState<persistence.PromptSummary[]>(() =>
-    listLocalTemplateSummaries().map(toPromptSummary),
-  );
+  const [versions, setVersions] =
+    useState<persistence.PromptVersion[]>(loadLocalVersions);
+  const [templateSummaries, setTemplateSummaries] = useState<
+    persistence.PromptSummary[]
+  >(() => listLocalTemplateSummaries().map(toPromptSummary));
   const [isCloudHydrated, setIsCloudHydrated] = useState(false);
-  const [remixContext, setRemixContext] = useState<PromptBuilderRemixContext | null>(null);
+  const [remixContext, setRemixContext] =
+    useState<PromptBuilderRemixContext | null>(null);
 
   const prevUserId = useRef<string | null>(null);
   const authLoadToken = useRef(0);
@@ -87,7 +95,9 @@ export function usePromptBuilder() {
       setConfig(defaultConfig);
     }
     setTemplateSummaries([]);
-    setVersions(nextUserId ? loadCachedCloudVersions(nextUserId) : loadLocalVersions());
+    setVersions(
+      nextUserId ? loadCachedCloudVersions(nextUserId) : loadLocalVersions(),
+    );
     if (!hadPendingEdits) {
       setRemixContext(null);
     }
@@ -108,9 +118,13 @@ export function usePromptBuilder() {
           if (localVersions.length === 0) return;
 
           const migration = await Promise.allSettled(
-            localVersions.map((version) => persistence.saveVersion(nextUserId, version.name, version.prompt)),
+            localVersions.map((version) =>
+              persistence.saveVersion(nextUserId, version.name, version.prompt),
+            ),
           );
-          const failedVersions = localVersions.filter((_, index) => migration[index]?.status === "rejected");
+          const failedVersions = localVersions.filter(
+            (_, index) => migration[index]?.status === "rejected",
+          );
           const failedCount = failedVersions.length;
           if (failedCount > 0) {
             saveLocalVersions(failedVersions);
@@ -141,23 +155,39 @@ export function usePromptBuilder() {
       if (token !== authLoadToken.current) return;
 
       if (draftResult.status === "fulfilled") {
-        if (draftResult.value && !editsSinceAuthChange.current && !hadPendingEdits) {
+        if (
+          draftResult.value &&
+          !editsSinceAuthChange.current &&
+          !hadPendingEdits
+        ) {
           setConfig(hydrateConfig(draftResult.value));
-        } else if (draftResult.value && (editsSinceAuthChange.current || hadPendingEdits)) {
+        } else if (
+          draftResult.value &&
+          (editsSinceAuthChange.current || hadPendingEdits)
+        ) {
           toast({
             title: "Cloud draft was not applied",
-            description: "You started editing before cloud draft finished loading, so your current edits were kept.",
+            description:
+              "You started editing before cloud draft finished loading, so your current edits were kept.",
           });
         }
       } else {
-        showPersistenceError("Failed to load draft", draftResult.reason, "Failed to load draft.");
+        showPersistenceError(
+          "Failed to load draft",
+          draftResult.reason,
+          "Failed to load draft.",
+        );
       }
 
       if (promptsResult.status === "fulfilled") {
         setTemplateSummaries(promptsResult.value);
       } else {
         setTemplateSummaries([]);
-        showPersistenceError("Failed to load prompts", promptsResult.reason, "Failed to load prompts.");
+        showPersistenceError(
+          "Failed to load prompts",
+          promptsResult.reason,
+          "Failed to load prompts.",
+        );
       }
 
       if (versionsResult.status === "fulfilled") {
@@ -181,7 +211,14 @@ export function usePromptBuilder() {
       setIsCloudHydrated(true);
       clearDirtyIfClean();
     });
-  }, [userId, showPersistenceError, toast, resetDraftState, clearDirtyIfClean, editsSinceAuthChange]);
+  }, [
+    userId,
+    showPersistenceError,
+    toast,
+    resetDraftState,
+    clearDirtyIfClean,
+    editsSinceAuthChange,
+  ]);
 
   const refreshTemplateSummaries = useCallback(async () => {
     if (userId) {
@@ -189,7 +226,11 @@ export function usePromptBuilder() {
         const summaries = await persistence.loadPrompts(userId);
         setTemplateSummaries(summaries);
       } catch (error) {
-        showPersistenceError("Failed to refresh prompts", error, "Failed to refresh prompts.");
+        showPersistenceError(
+          "Failed to refresh prompts",
+          error,
+          "Failed to refresh prompts.",
+        );
       }
     } else {
       setTemplateSummaries(listLocalTemplateSummaries().map(toPromptSummary));
@@ -198,7 +239,7 @@ export function usePromptBuilder() {
 
   const updateConfig = useCallback(
     (updates: Partial<PromptConfig>) => {
-      setConfig((prev) => ({ ...prev, ...updates }));
+      setConfig((prev) => applyPromptConfigInvariants({ ...prev, ...updates }));
       markDraftDirty();
     },
     [markDraftDirty],
@@ -247,33 +288,48 @@ export function usePromptBuilder() {
         };
         const optimisticCache = [
           optimisticVersion,
-          ...loadCachedCloudVersions(userId).filter((version) => version.id !== optimisticId),
+          ...loadCachedCloudVersions(userId).filter(
+            (version) => version.id !== optimisticId,
+          ),
         ].slice(0, MAX_LOCAL_VERSIONS);
 
-        setVersions((prev) => [optimisticVersion, ...prev.filter((version) => version.id !== optimisticId)].slice(
-          0,
-          MAX_LOCAL_VERSIONS,
-        ));
+        setVersions((prev) =>
+          [
+            optimisticVersion,
+            ...prev.filter((version) => version.id !== optimisticId),
+          ].slice(0, MAX_LOCAL_VERSIONS),
+        );
         saveCachedCloudVersions(userId, optimisticCache);
 
         const replaceOptimistic = (saved: persistence.PromptVersion) => {
           setVersions((prev) =>
-            [saved, ...prev.filter((version) => version.id !== optimisticId)].slice(0, MAX_LOCAL_VERSIONS),
+            [
+              saved,
+              ...prev.filter((version) => version.id !== optimisticId),
+            ].slice(0, MAX_LOCAL_VERSIONS),
           );
           saveCachedCloudVersions(
             userId,
-            [saved, ...loadCachedCloudVersions(userId).filter((version) => version.id !== optimisticId)].slice(
-              0,
-              MAX_LOCAL_VERSIONS,
-            ),
+            [
+              saved,
+              ...loadCachedCloudVersions(userId).filter(
+                (version) => version.id !== optimisticId,
+              ),
+            ].slice(0, MAX_LOCAL_VERSIONS),
           );
         };
 
         const rollbackOptimistic = () => {
-          setVersions((prev) => prev.filter((version) => version.id !== optimisticId).slice(0, MAX_LOCAL_VERSIONS));
+          setVersions((prev) =>
+            prev
+              .filter((version) => version.id !== optimisticId)
+              .slice(0, MAX_LOCAL_VERSIONS),
+          );
           saveCachedCloudVersions(
             userId,
-            loadCachedCloudVersions(userId).filter((version) => version.id !== optimisticId),
+            loadCachedCloudVersions(userId).filter(
+              (version) => version.id !== optimisticId,
+            ),
           );
         };
 
@@ -282,14 +338,22 @@ export function usePromptBuilder() {
           .then((saved) => {
             if (!saved) {
               rollbackOptimistic();
-              showPersistenceError("Failed to save version", null, "Failed to save version.");
+              showPersistenceError(
+                "Failed to save version",
+                null,
+                "Failed to save version.",
+              );
               return;
             }
             replaceOptimistic(saved);
           })
           .catch((error) => {
             rollbackOptimistic();
-            showPersistenceError("Failed to save version", error, "Failed to save version.");
+            showPersistenceError(
+              "Failed to save version",
+              error,
+              "Failed to save version.",
+            );
           });
       } else {
         const version: persistence.PromptVersion = {
@@ -298,12 +362,21 @@ export function usePromptBuilder() {
           prompt: promptToSave,
           timestamp: Date.now(),
         };
-        const next = [version, ...loadLocalVersions()].slice(0, MAX_LOCAL_VERSIONS);
+        const next = [version, ...loadLocalVersions()].slice(
+          0,
+          MAX_LOCAL_VERSIONS,
+        );
         saveLocalVersions(next);
         setVersions(next);
       }
     },
-    [enhancedPrompt, builtPrompt, versions.length, userId, showPersistenceError],
+    [
+      enhancedPrompt,
+      builtPrompt,
+      versions.length,
+      userId,
+      showPersistenceError,
+    ],
   );
 
   const loadTemplate = useCallback(
@@ -320,17 +393,19 @@ export function usePromptBuilder() {
       examples: string;
     }) => {
       setConfig({
-        ...defaultConfig,
-        originalPrompt: (template.starterPrompt || template.task).trim(),
-        role: template.role,
-        task: template.task,
-        context: template.context,
-        format: template.format,
-        lengthPreference: template.lengthPreference,
-        tone: template.tone,
-        complexity: template.complexity,
-        constraints: template.constraints,
-        examples: template.examples,
+        ...applyPromptConfigInvariants({
+          ...defaultConfig,
+          originalPrompt: (template.starterPrompt || template.task).trim(),
+          role: template.role,
+          task: template.task,
+          context: template.context,
+          format: template.format,
+          lengthPreference: template.lengthPreference,
+          tone: template.tone,
+          complexity: template.complexity,
+          constraints: template.constraints,
+          examples: template.examples,
+        }),
       });
       setEnhancedPrompt("");
       setRemixContext(null);
@@ -398,7 +473,14 @@ export function usePromptBuilder() {
       if (remixContext) setRemixContext(null);
       return result;
     },
-    [config, builtPrompt, enhancedPrompt, userId, refreshTemplateSummaries, remixContext],
+    [
+      config,
+      builtPrompt,
+      enhancedPrompt,
+      userId,
+      refreshTemplateSummaries,
+      remixContext,
+    ],
   );
 
   const saveAndSharePrompt = useCallback(
@@ -433,14 +515,18 @@ export function usePromptBuilder() {
         ...remixPayload,
       });
 
-      const shareResult = await persistence.sharePrompt(userId, result.record.metadata.id, {
-        title: input.title,
-        description: input.description,
-        category: input.category,
-        tags: input.tags,
-        targetModel: input.targetModel,
-        useCase: input.useCase,
-      });
+      const shareResult = await persistence.sharePrompt(
+        userId,
+        result.record.metadata.id,
+        {
+          title: input.title,
+          description: input.description,
+          category: input.category,
+          tags: input.tags,
+          targetModel: input.targetModel,
+          useCase: input.useCase,
+        },
+      );
       if (!shareResult.shared) {
         throw new Error("Prompt was saved but could not be shared.");
       }
@@ -449,11 +535,21 @@ export function usePromptBuilder() {
       if (remixContext) setRemixContext(null);
       return { ...result, postId: shareResult.postId };
     },
-    [config, builtPrompt, enhancedPrompt, userId, refreshTemplateSummaries, remixContext],
+    [
+      config,
+      builtPrompt,
+      enhancedPrompt,
+      userId,
+      refreshTemplateSummaries,
+      remixContext,
+    ],
   );
 
   const shareSavedPrompt = useCallback(
-    async (id: string, input?: persistence.PromptShareInput): Promise<persistence.ShareResult> => {
+    async (
+      id: string,
+      input?: persistence.PromptShareInput,
+    ): Promise<persistence.ShareResult> => {
       const result = await persistence.sharePrompt(userId, id, input);
       if (result.shared) await refreshTemplateSummaries();
       return result;

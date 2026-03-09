@@ -53,6 +53,21 @@ describe("getSectionHealth", () => {
     expect(health.quality).toBe("complete");
   });
 
+  it("counts originalPrompt toward builder completion", () => {
+    const health = getSectionHealth(
+      buildConfig({
+        originalPrompt:
+          "Draft a concise stakeholder launch brief with rollout risks and mitigations.",
+        role: "Software Developer",
+        format: ["Markdown"],
+        constraints: ["Avoid jargon"],
+      }),
+      80,
+    );
+
+    expect(health.builder).toBe("complete");
+  });
+
   it("marks context complete when channels include objective and background", () => {
     const health = getSectionHealth(
       buildConfig({
@@ -71,9 +86,11 @@ describe("getSectionHealth", () => {
           structured: {
             ...defaultConfig.contextConfig.structured,
             audience: "Engineering managers",
-            offer: "Launch a release readiness brief for engineering leadership.",
+            offer:
+              "Launch a release readiness brief for engineering leadership.",
           },
-          projectNotes: "Ship by Friday with launch notes, QA checklist, and rollback plan.",
+          projectNotes:
+            "Ship by Friday with launch notes, QA checklist, and rollback plan.",
         },
       }),
       58,
@@ -95,13 +112,37 @@ describe("getSectionHealth", () => {
     expect(health.quality).toBe("empty");
   });
 
+  it("counts Professional tone as an explicit tone choice", () => {
+    const health = getSectionHealth(
+      buildConfig({
+        tone: "Professional",
+      }),
+      45,
+    );
+
+    expect(health.tone).toBe("in_progress");
+  });
+
+  it("counts Professional tone and Moderate complexity as complete tone configuration", () => {
+    const health = getSectionHealth(
+      buildConfig({
+        tone: "Professional",
+        complexity: "Moderate",
+      }),
+      45,
+    );
+
+    expect(health.tone).toBe("complete");
+  });
+
   it("does not mark builder complete without a core intent signal", () => {
     const health = getSectionHealth(
       buildConfig({
         role: "Software Developer",
         format: ["Markdown"],
         constraints: ["Avoid jargon"],
-        examples: "Use an onboarding checklist with dependencies and approvals.",
+        examples:
+          "Use an onboarding checklist with dependencies and approvals.",
       }),
       80,
     );
@@ -137,7 +178,8 @@ describe("getSectionHealth", () => {
               readOnly: true,
             },
           ],
-          projectNotes: "Coordinate release notes, QA, and stakeholder comms with a rollback plan before cutover.",
+          projectNotes:
+            "Coordinate release notes, QA, and stakeholder comms with a rollback plan before cutover.",
         },
       }),
       58,

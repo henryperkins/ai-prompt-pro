@@ -37,6 +37,13 @@ export const defaultConfig: PromptConfig = {
 
 const hasText = (value: string): boolean => value.trim().length > 0;
 
+function arraysEqual(left: string[], right: string[]): boolean {
+  return (
+    left.length === right.length &&
+    left.every((value, index) => value === right[index])
+  );
+}
+
 function getPrimaryTaskInput(config: PromptConfig): string {
   const originalPrompt = config.originalPrompt.trim();
   if (originalPrompt) return originalPrompt;
@@ -44,11 +51,15 @@ function getPrimaryTaskInput(config: PromptConfig): string {
 }
 
 export function hasBuilderFieldInput(config: PromptConfig): boolean {
-  const hasStructuredContext = Object.values(config.contextConfig.structured).some(
-    (value) => typeof value === "string" && hasText(value),
+  const hasStructuredContext = Object.values(
+    config.contextConfig.structured,
+  ).some((value) => typeof value === "string" && hasText(value));
+  const hasInterviewAnswers = config.contextConfig.interviewAnswers.some(
+    (answer) => hasText(answer.answer),
   );
-  const hasInterviewAnswers = config.contextConfig.interviewAnswers.some((answer) => hasText(answer.answer));
-  const hasRagDocumentRefs = config.contextConfig.rag.documentRefs.some((reference) => hasText(reference));
+  const hasRagDocumentRefs = config.contextConfig.rag.documentRefs.some(
+    (reference) => hasText(reference),
+  );
   const hasRagSignal =
     config.contextConfig.rag.enabled ||
     hasText(config.contextConfig.rag.vectorStoreRef) ||
@@ -121,7 +132,50 @@ export const constraintExclusions: Record<string, string> = {
   "Be conversational": "Use formal tone",
 };
 
-export const toneOptions = ["Professional", "Casual", "Technical", "Creative", "Academic"];
+export function normalizeConstraintSelections(constraints: string[]): string[] {
+  const normalized: string[] = [];
+
+  constraints.forEach((constraint) => {
+    const trimmed = constraint.trim();
+    if (!trimmed) return;
+
+    const excluded = constraintExclusions[trimmed];
+    if (excluded) {
+      const excludedIndex = normalized.indexOf(excluded);
+      if (excludedIndex >= 0) {
+        normalized.splice(excludedIndex, 1);
+      }
+    }
+
+    if (!normalized.includes(trimmed)) {
+      normalized.push(trimmed);
+    }
+  });
+
+  return normalized;
+}
+
+export function applyPromptConfigInvariants(
+  config: PromptConfig,
+): PromptConfig {
+  const constraints = normalizeConstraintSelections(config.constraints);
+  if (arraysEqual(constraints, config.constraints)) {
+    return config;
+  }
+
+  return {
+    ...config,
+    constraints,
+  };
+}
+
+export const toneOptions = [
+  "Professional",
+  "Casual",
+  "Technical",
+  "Creative",
+  "Academic",
+];
 export const complexityOptions = ["Simple", "Moderate", "Advanced"];
 export const lengthOptions = [
   { value: "brief", label: "Brief (~100 words)" },
@@ -149,7 +203,10 @@ export function buildPrompt(config: PromptConfig): string {
   }
 
   // Rich context from ContextPanel
-  const contextBlock = buildContextBlock(config.contextConfig, config.contextConfig.useDelimiters);
+  const contextBlock = buildContextBlock(
+    config.contextConfig,
+    config.contextConfig.useDelimiters,
+  );
   if (contextBlock) {
     parts.push(contextBlock);
   }
@@ -168,24 +225,30 @@ export function buildPrompt(config: PromptConfig): string {
         : config.lengthPreference === "detailed"
           ? "Be detailed (500+ words)"
           : "Standard length (~300 words)";
-    parts.push(`**Format:** Present the response as ${formats.join(", ")}. ${lengthLabel}.`);
+    parts.push(
+      `**Format:** Present the response as ${formats.join(", ")}. ${lengthLabel}.`,
+    );
   }
 
   if (config.examples) {
     parts.push(`**Examples:**\n${config.examples}`);
   }
 
-  const allConstraints = [...config.constraints];
+  const allConstraints = [...normalizeConstraintSelections(config.constraints)];
   if (config.customConstraint) allConstraints.push(config.customConstraint);
   if (config.tone && config.tone !== defaultConfig.tone) {
     allConstraints.push(`Use a ${config.tone.toLowerCase()} tone`);
   }
   if (config.complexity && config.complexity !== defaultConfig.complexity) {
-    allConstraints.push(`Target ${config.complexity.toLowerCase()} complexity level`);
+    allConstraints.push(
+      `Target ${config.complexity.toLowerCase()} complexity level`,
+    );
   }
 
   if (allConstraints.length > 0) {
-    parts.push(`**Constraints:**\n${allConstraints.map((c) => `- ${c}`).join("\n")}`);
+    parts.push(
+      `**Constraints:**\n${allConstraints.map((c) => `- ${c}`).join("\n")}`,
+    );
   }
 
   return parts.join("\n\n");
@@ -207,6 +270,9 @@ export function scorePrompt(
   let specificity = 0;
   let structure = 0;
   const tips: string[] = [];
+  const normalizedConstraints = normalizeConstraintSelections(
+    config.constraints,
+  );
 
   // Clarity (0-25)
   const primaryTaskInput = getPrimaryTaskInput(config);
@@ -214,7 +280,8 @@ export function scorePrompt(
     const taskLen = primaryTaskInput.length;
     clarity = Math.min(25, Math.round((taskLen / 100) * 25));
   }
-  if (clarity < 15) tips.push("Make your task description more specific and detailed.");
+  if (clarity < 15)
+    tips.push("Make your task description more specific and detailed.");
 
   // Context (0-25) — now includes structured context
   if (config.context) {
@@ -226,15 +293,20 @@ export function scorePrompt(
   if (ctx.rag.enabled && ctx.rag.vectorStoreRef.trim()) context += 3;
   if (ctx.structured.audience || ctx.structured.product) context += 4;
   if (ctx.structured.offer) context += 3;
-  if (ctx.interviewAnswers.filter((a) => a.answer.trim()).length > 0) context += 3;
+  if (ctx.interviewAnswers.filter((a) => a.answer.trim()).length > 0)
+    context += 3;
   if (ctx.projectNotes.trim()) context += 2;
   if (config.role || config.customRole) context = Math.min(25, context + 5);
   context = Math.min(25, context);
   if (context < 15) {
     if (fieldOwnership?.role === "ai") {
-      tips.push("AI suggested a role — review or customize it for better results.");
+      tips.push(
+        "AI suggested a role — review or customize it for better results.",
+      );
     } else if (fieldOwnership?.role !== "user") {
-      tips.push("Use the Context & Sources panel to add structured background info.");
+      tips.push(
+        "Use the Context & Sources panel to add structured background info.",
+      );
     }
   }
 
@@ -242,16 +314,20 @@ export function scorePrompt(
   if (config.format.length > 0) specificity += 8;
   if (config.lengthPreference) specificity += 5;
   if (config.examples) specificity += 7;
-  if (config.constraints.length > 0) specificity += 5;
+  if (normalizedConstraints.length > 0) specificity += 5;
   specificity = Math.min(25, specificity);
   if (specificity < 15) {
     const aiFields = ["format", "lengthPreference", "constraints"].filter(
       (f) => fieldOwnership?.[f] === "ai",
     );
     if (aiFields.length > 0) {
-      tips.push("AI filled some format details — review them to ensure they match your needs.");
+      tips.push(
+        "AI filled some format details — review them to ensure they match your needs.",
+      );
     } else {
-      tips.push("Specify output format, length, or provide examples for better results.");
+      tips.push(
+        "Specify output format, length, or provide examples for better results.",
+      );
     }
   }
 
@@ -259,20 +335,29 @@ export function scorePrompt(
   if (config.role || config.customRole) structure += 7;
   if (config.tone) structure += 5;
   if (config.complexity) structure += 5;
-  if (config.constraints.length >= 2) structure += 4;
+  if (normalizedConstraints.length >= 2) structure += 4;
   if (config.format.length > 0) structure += 4;
   structure = Math.min(25, structure);
   if (structure < 15) {
-    const aiStructure = ["role", "tone"].filter((f) => fieldOwnership?.[f] === "ai");
-    const userStructure = ["role", "tone"].filter((f) => fieldOwnership?.[f] === "user");
+    const aiStructure = ["role", "tone"].filter(
+      (f) => fieldOwnership?.[f] === "ai",
+    );
+    const userStructure = ["role", "tone"].filter(
+      (f) => fieldOwnership?.[f] === "user",
+    );
     if (aiStructure.length > 0 && userStructure.length === 0) {
-      tips.push("AI suggested role and tone — confirm or adjust them for the best structure.");
+      tips.push(
+        "AI suggested role and tone — confirm or adjust them for the best structure.",
+      );
     } else if (userStructure.length < 2) {
-      tips.push("Select a role, tone, and constraints to improve prompt structure.");
+      tips.push(
+        "Select a role, tone, and constraints to improve prompt structure.",
+      );
     }
   }
 
-  if (tips.length === 0) tips.push("Great prompt! You've covered all the essentials.");
+  if (tips.length === 0)
+    tips.push("Great prompt! You've covered all the essentials.");
 
   return {
     total: clarity + context + specificity + structure,
@@ -280,6 +365,6 @@ export function scorePrompt(
     context,
     specificity,
     structure,
-  tips,
+    tips,
   };
 }

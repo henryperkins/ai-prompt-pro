@@ -1,17 +1,29 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/base/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/base/tabs";
 import { Input } from "@/components/base/input/input";
 import { Textarea } from "@/components/base/textarea";
 import { Checkbox } from "@/components/base/checkbox";
 import { Label } from "@/components/base/label";
 import { Select } from "@/components/base/select/select";
 import { cx } from "@/lib/utils/cx";
-import { Crosshair as Target, Layout, Lightbulb, Shield, User } from "@phosphor-icons/react";
+import {
+  Crosshair as Target,
+  Layout,
+  Lightbulb,
+  Shield,
+  User,
+} from "@phosphor-icons/react";
 import {
   PromptConfig,
   roles,
   formatOptions,
   constraintOptions,
   lengthOptions,
+  normalizeConstraintSelections,
 } from "@/lib/prompt-builder";
 
 interface BuilderTabsProps {
@@ -31,33 +43,53 @@ export function BuilderTabs({ config, onUpdate }: BuilderTabsProps) {
     const next = config.constraints.includes(constraint)
       ? config.constraints.filter((c) => c !== constraint)
       : [...config.constraints, constraint];
-    onUpdate({ constraints: next });
+    onUpdate({ constraints: normalizeConstraintSelections(next) });
   };
 
   return (
     <Tabs defaultValue="role" className="w-full">
       <TabsList className="w-full grid grid-cols-5 h-auto gap-1 bg-muted/30 p-1">
-        <TabsTrigger value="role" aria-label="Role tab" className="interactive-chip gap-1 px-2 text-xs sm:text-sm">
+        <TabsTrigger
+          value="role"
+          aria-label="Role tab"
+          className="interactive-chip gap-1 px-2 text-xs sm:text-sm"
+        >
           <User className="w-3 h-3" />
           <span className="sm:hidden">Role</span>
           <span className="hidden sm:inline">Role</span>
         </TabsTrigger>
-        <TabsTrigger value="task" aria-label="Task tab" className="interactive-chip gap-1 px-2 text-xs sm:text-sm">
+        <TabsTrigger
+          value="task"
+          aria-label="Task tab"
+          className="interactive-chip gap-1 px-2 text-xs sm:text-sm"
+        >
           <Target className="w-3 h-3" />
           <span className="sm:hidden">Task</span>
           <span className="hidden sm:inline">Task</span>
         </TabsTrigger>
-        <TabsTrigger value="format" aria-label="Format tab" className="interactive-chip gap-1 px-2 text-xs sm:text-sm">
+        <TabsTrigger
+          value="format"
+          aria-label="Format tab"
+          className="interactive-chip gap-1 px-2 text-xs sm:text-sm"
+        >
           <Layout className="w-3 h-3" />
           <span className="sm:hidden">Fmt</span>
           <span className="hidden sm:inline">Format</span>
         </TabsTrigger>
-        <TabsTrigger value="examples" aria-label="Examples tab" className="interactive-chip gap-1 px-2 text-xs sm:text-sm">
+        <TabsTrigger
+          value="examples"
+          aria-label="Examples tab"
+          className="interactive-chip gap-1 px-2 text-xs sm:text-sm"
+        >
           <Lightbulb className="w-3 h-3" />
           <span className="sm:hidden">Ex</span>
           <span className="hidden sm:inline">Examples</span>
         </TabsTrigger>
-        <TabsTrigger value="constraints" aria-label="Rules tab" className="interactive-chip gap-1 px-2 text-xs sm:text-sm">
+        <TabsTrigger
+          value="constraints"
+          aria-label="Rules tab"
+          className="interactive-chip gap-1 px-2 text-xs sm:text-sm"
+        >
           <Shield className="w-3 h-3" />
           <span className="sm:hidden">Rules</span>
           <span className="hidden sm:inline">Rules</span>
@@ -93,7 +125,9 @@ export function BuilderTabs({ config, onUpdate }: BuilderTabsProps) {
       </TabsContent>
 
       <TabsContent value="task" className="space-y-3 mt-4">
-        <p className="text-sm text-muted-foreground">What exactly do you want done?</p>
+        <p className="text-sm text-muted-foreground">
+          What exactly do you want done?
+        </p>
         <Textarea
           placeholder="Define the task clearly..."
           value={config.task}
@@ -104,7 +138,9 @@ export function BuilderTabs({ config, onUpdate }: BuilderTabsProps) {
       </TabsContent>
 
       <TabsContent value="format" className="space-y-4 mt-4">
-        <p className="text-sm text-muted-foreground">How should the answer be structured?</p>
+        <p className="text-sm text-muted-foreground">
+          How should the answer be structured?
+        </p>
         <div className="flex flex-wrap gap-2">
           {formatOptions.map((format) => (
             <button
@@ -115,7 +151,7 @@ export function BuilderTabs({ config, onUpdate }: BuilderTabsProps) {
                 config.format.includes(format)
                   ? "border-primary/30 bg-primary/10 text-primary"
                   : "border-border bg-background text-foreground",
-                "interactive-chip cursor-pointer select-none"
+                "interactive-chip cursor-pointer select-none",
               )}
               onClick={() => toggleFormat(format)}
               aria-pressed={config.format.includes(format)}
@@ -153,7 +189,9 @@ export function BuilderTabs({ config, onUpdate }: BuilderTabsProps) {
       </TabsContent>
 
       <TabsContent value="examples" className="space-y-3 mt-4">
-        <p className="text-sm text-muted-foreground">Show, don't just tell — provide example inputs/outputs</p>
+        <p className="text-sm text-muted-foreground">
+          Show, don't just tell — provide example inputs/outputs
+        </p>
         <Textarea
           placeholder="Add example inputs and outputs to guide the AI..."
           value={config.examples}
@@ -164,7 +202,9 @@ export function BuilderTabs({ config, onUpdate }: BuilderTabsProps) {
       </TabsContent>
 
       <TabsContent value="constraints" className="space-y-4 mt-4">
-        <p className="text-sm text-muted-foreground">Set boundaries to improve quality</p>
+        <p className="text-sm text-muted-foreground">
+          Set boundaries to improve quality
+        </p>
         <div className="space-y-3">
           {constraintOptions.map((constraint) => {
             return (

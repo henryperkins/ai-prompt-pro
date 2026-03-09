@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  normalizeConstraintSelections,
   buildPrompt,
   constraintExclusions,
   defaultConfig,
@@ -12,7 +13,10 @@ describe("tone default", () => {
   });
 
   it("buildPrompt omits tone constraint when tone is empty", () => {
-    const prompt = buildPrompt({ ...defaultConfig, originalPrompt: "Test task" });
+    const prompt = buildPrompt({
+      ...defaultConfig,
+      originalPrompt: "Test task",
+    });
     expect(prompt).not.toContain("tone");
   });
 
@@ -26,7 +30,10 @@ describe("tone default", () => {
   });
 
   it("scorePrompt structure score is 0 when tone is empty", () => {
-    const score = scorePrompt({ ...defaultConfig, originalPrompt: "Test task" });
+    const score = scorePrompt({
+      ...defaultConfig,
+      originalPrompt: "Test task",
+    });
     expect(score.structure).toBeLessThan(5);
   });
 });
@@ -35,5 +42,14 @@ describe("constraintExclusions", () => {
   it("maps formal tone to conversational and vice versa", () => {
     expect(constraintExclusions["Use formal tone"]).toBe("Be conversational");
     expect(constraintExclusions["Be conversational"]).toBe("Use formal tone");
+  });
+
+  it("keeps only the latest mutually exclusive constraint selection", () => {
+    expect(
+      normalizeConstraintSelections(["Use formal tone", "Be conversational"]),
+    ).toEqual(["Be conversational"]);
+    expect(
+      normalizeConstraintSelections(["Be conversational", "Use formal tone"]),
+    ).toEqual(["Use formal tone"]);
   });
 });
