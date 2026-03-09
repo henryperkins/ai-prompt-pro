@@ -147,14 +147,11 @@ describe("OutputPanel phase 2 save flow", () => {
       previewSource: "empty",
     });
 
-    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "More" })).not.toBeInTheDocument();
+    const saveBtn = screen.getByRole("button", { name: "Save" });
+    const moreBtn = screen.getByRole("button", { name: "More" });
+    expect(saveBtn).toBeDisabled();
+    expect(moreBtn).toBeDisabled();
     expect(screen.getByText("Save and developer tools unlock once preview content is available.")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "More (locked)" }));
-    expect(mocks.trackBuilderEvent).toHaveBeenCalledWith("builder_more_pre_enhance_attempt", {
-      previewSource: "empty",
-    });
   });
 
   it("shows utility actions after first enhancement", () => {

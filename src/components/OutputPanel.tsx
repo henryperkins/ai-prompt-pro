@@ -659,28 +659,22 @@ export function OutputPanel({
               variant="secondary"
               size="sm"
               className="ui-toolbar-button gap-1.5"
-              onClick={() =>
-                trackBuilderEvent("builder_save_pre_enhance_attempt", {
-                  previewSource: effectivePreviewSource,
-                })
-              }
+              isDisabled
+              title="Enter a prompt to unlock saving"
             >
               <Save className="w-3 h-3" />
-              Save (locked)
+              Save
             </Button>
             <Button
               type="button"
               variant="tertiary"
               size="sm"
               className="ui-toolbar-button gap-1.5"
-              onClick={() =>
-                trackBuilderEvent("builder_more_pre_enhance_attempt", {
-                  previewSource: effectivePreviewSource,
-                })
-              }
+              isDisabled
+              title="Enter a prompt to unlock options"
             >
               <MoreHorizontal className="w-3 h-3" />
-              More (locked)
+              More
             </Button>
           </div>
         </div>

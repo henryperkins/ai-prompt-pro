@@ -72,8 +72,8 @@ export function PFQualityGauge({ value, size = 128, showLabel = true }: PFQualit
           cy={size / 2}
           r={radius}
           fill="transparent"
-          stroke="rgba(46,58,70,0.65)"
           strokeWidth={strokeWidth}
+          style={{ stroke: "rgb(var(--pf-slate-rgb) / 0.65)" }}
         />
 
         <circle
@@ -93,8 +93,7 @@ export function PFQualityGauge({ value, size = 128, showLabel = true }: PFQualit
           cx={size / 2}
           cy={size / 2}
           r={Math.max(18, radius - strokeWidth * 0.75)}
-          fill="rgba(11,15,20,0.88)"
-          stroke="rgba(214,166,64,0.25)"
+          style={{ fill: "rgb(var(--pf-coal-rgb) / 0.88)", stroke: "rgb(var(--pf-gold-rgb) / 0.25)" }}
         />
 
         <text
@@ -103,8 +102,8 @@ export function PFQualityGauge({ value, size = 128, showLabel = true }: PFQualit
           dominantBaseline="middle"
           textAnchor="middle"
           fontSize={Math.round(size * 0.18)}
-          fill="rgba(230,225,213,0.95)"
           fontWeight="800"
+          style={{ fill: "rgb(var(--pf-parchment-rgb) / 0.95)" }}
         >
           {Math.round(normalizedValue)}
         </text>
@@ -114,8 +113,8 @@ export function PFQualityGauge({ value, size = 128, showLabel = true }: PFQualit
           dominantBaseline="middle"
           textAnchor="middle"
           fontSize={Math.round(size * 0.085)}
-          fill="rgba(230,225,213,0.70)"
           fontWeight="700"
+          style={{ fill: "rgb(var(--pf-parchment-rgb) / 0.70)" }}
         >
           / 100
         </text>
@@ -123,8 +122,8 @@ export function PFQualityGauge({ value, size = 128, showLabel = true }: PFQualit
 
       {showLabel && (
         <div>
-          <div className="text-xs text-[rgba(230,225,213,.65)]">Quality tier</div>
-          <div className="mt-1 text-lg font-extrabold text-[rgba(230,225,213,.95)]">{tier}</div>
+          <div className="text-xs text-muted-foreground">Quality tier</div>
+          <div className="mt-1 text-lg font-extrabold text-foreground">{tier}</div>
         </div>
       )}
     </div>

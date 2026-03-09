@@ -25,7 +25,7 @@ export function ToneControls({
             onClick={() => onUpdate({ tone: "" })}
             aria-label="Let model decide tone"
             aria-pressed={tone === ""}
-            className="h-11 px-2 text-sm sm:h-9 sm:px-3 sm:text-sm"
+            className={`h-11 px-2 text-sm sm:h-9 sm:px-3 sm:text-sm ${tone === "" ? "ring-1 ring-primary/50" : ""}`}
           >
             Model decides
           </Button>
@@ -36,7 +36,7 @@ export function ToneControls({
               size="sm"
               onClick={() => onUpdate({ tone: t })}
               aria-pressed={tone === t}
-              className="h-11 px-2 text-sm sm:h-9 sm:px-3 sm:text-sm"
+              className={`h-11 px-2 text-sm sm:h-9 sm:px-3 sm:text-sm ${tone === t ? "ring-1 ring-primary/50" : ""}`}
             >
               {t}
             </Button>
@@ -54,7 +54,7 @@ export function ToneControls({
             onClick={() => onUpdate({ complexity: "" })}
             aria-label="Let model decide complexity"
             aria-pressed={complexity === ""}
-            className="h-11 px-2 text-sm sm:h-9 sm:px-3 sm:text-sm"
+            className={`h-11 px-2 text-sm sm:h-9 sm:px-3 sm:text-sm ${complexity === "" ? "ring-1 ring-primary/50" : ""}`}
           >
             Model decides
           </Button>
@@ -65,7 +65,7 @@ export function ToneControls({
               size="sm"
               onClick={() => onUpdate({ complexity: c })}
               aria-pressed={complexity === c}
-              className="h-11 px-2 text-sm sm:h-9 sm:px-3 sm:text-sm"
+              className={`h-11 px-2 text-sm sm:h-9 sm:px-3 sm:text-sm ${complexity === c ? "ring-1 ring-primary/50" : ""}`}
             >
               {c}
             </Button>

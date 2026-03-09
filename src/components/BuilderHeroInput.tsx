@@ -77,7 +77,7 @@ export function BuilderHeroInput({
                 aria-label="Reset all builder fields"
                 className="interactive-chip h-11 gap-1 px-3 text-sm sm:h-10 sm:px-2.5 sm:text-sm"
               >
-                Reset all
+                Reset all settings
               </Button>
             )}
             {value && (
@@ -90,7 +90,7 @@ export function BuilderHeroInput({
                 className="interactive-chip h-11 gap-1 px-3 text-sm sm:h-10 sm:px-2.5 sm:text-sm"
               >
                 <RotateCcw className="w-3 h-3" />
-                Clear
+                Clear prompt
               </Button>
             )}
           </div>
@@ -101,7 +101,7 @@ export function BuilderHeroInput({
           id={promptInputId}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="Describe the task in 1-2 sentences. Example: Draft a concise project update for executives using these notes."
+          placeholder="Describe what the model should do..."
           className="min-h-28 max-h-[60vh] overflow-y-auto text-foreground placeholder:text-muted-foreground sm:min-h-32"
           aria-describedby={promptInputMetaId}
         />

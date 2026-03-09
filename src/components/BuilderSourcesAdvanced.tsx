@@ -76,13 +76,14 @@ export function BuilderSourcesAdvanced({
           onClick={() => onOpenChange(!isOpen)}
           aria-expanded={isOpen}
           aria-controls="builder-zone-3-content"
+          aria-label="Add sources or advanced settings"
         >
           <div>
             <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
               <Layers3 className="h-4 w-4 text-muted-foreground" />
               Add sources or advanced settings
             </p>
-            <p className="text-sm text-muted-foreground">Optional references and integrations.</p>
+            <p className="text-sm text-muted-foreground" aria-hidden="true">Optional references and integrations.</p>
           </div>
           <div className="flex items-center gap-2">
             {sourceCount > 0 && (

@@ -101,6 +101,7 @@ import type { Icon as IconType } from "@phosphor-icons/react";
 import { UI_STATUS_SURFACE_CLASSES } from "@/lib/ui-status";
 import { PFQualityGauge } from "@/components/fantasy/PFQualityGauge";
 import {
+  CaretRight,
   ChartBar as BarChart3,
   Chat as MessageSquare,
   Check,
@@ -113,7 +114,6 @@ import {
   Layout as LayoutIcon,
   Sparkle as Sparkles,
   SpinnerGap as Loader2,
-  StackSimple,
   X,
 } from "@phosphor-icons/react";
 
@@ -615,6 +615,13 @@ const Index = () => {
   const remixLoadToken = useRef(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [sessionDrawerOpen, setSessionDrawerOpen] = useState(false);
+  const [heroCollapsed, setHeroCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem("pf-hero-dismissed") === "1";
+    } catch {
+      return false;
+    }
+  });
   const [openSections, setOpenSections] = useState<BuilderSection[]>([
     "builder",
   ]);
@@ -1573,26 +1580,6 @@ const Index = () => {
     : displayPrompt.trim()
       ? "Built prompt"
       : "Live preview";
-  const mobileSessionText = useMemo(() => {
-    if (!isSignedIn) {
-      return "Sign in required";
-    }
-    if (enhanceSession.contextSummary.trim()) {
-      return "Context ready";
-    }
-    if (enhanceSession.latestEnhancedPrompt.trim()) {
-      return "Prompt saved";
-    }
-    if (enhanceSession.threadId) {
-      return "Thread active";
-    }
-    return "Add context";
-  }, [
-    enhanceSession.contextSummary,
-    enhanceSession.latestEnhancedPrompt,
-    enhanceSession.threadId,
-    isSignedIn,
-  ]);
   const refineSuggestions = useMemo(() => {
     const suggestions: Array<{
       id: BuilderSection;
@@ -1884,30 +1871,56 @@ const Index = () => {
           {enhanceLiveMessage}
         </p>
       )}
-      {/* Hero — compact on mobile */}
-      <div
-        className="pf-gilded-frame pf-hero-surface mb-4 px-4 py-4 text-center sm:mb-8 sm:px-6 sm:py-6"
-        data-testid="builder-hero"
-      >
-        <h1 className="pf-text-display mb-1 text-[1.75rem] font-bold tracking-tight text-pf-parchment/95 sm:mb-2 sm:text-3xl md:text-4xl">
-          {heroCopy.headline}
-        </h1>
-        <p className="mx-auto max-w-2xl text-sm text-pf-parchment/90 sm:text-base">
-          {heroCopy.subhead}
-        </p>
-        <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
-          {brandCopy.pillars.map((pillar) => (
-            <Badge
-              key={pillar.title}
-              variant="modern"
-              className="border border-pf-gold/35 bg-pf-coal/35 text-xs text-pf-parchment/90"
-            >
-              {pillar.title}
-            </Badge>
-          ))}
+      {/* Hero — collapsible for returning users */}
+      {heroCollapsed ? (
+        <button
+          type="button"
+          onClick={() => {
+            setHeroCollapsed(false);
+            try { localStorage.removeItem("pf-hero-dismissed"); } catch { /* noop */ }
+          }}
+          className="mb-4 flex w-full items-center justify-center gap-2 rounded-lg border border-border/50 bg-card/60 px-3 py-1.5 text-xs text-muted-foreground hover:bg-card/80 sm:mb-8"
+          data-testid="builder-hero-collapsed"
+        >
+          <Sparkles className="h-3 w-3" />
+          PromptForge — Turn rough ideas into quality prompts
+        </button>
+      ) : (
+        <div
+          className="pf-gilded-frame pf-hero-surface relative mb-4 px-4 py-4 text-center sm:mb-8 sm:px-6 sm:py-6"
+          data-testid="builder-hero"
+        >
+          <button
+            type="button"
+            onClick={() => {
+              setHeroCollapsed(true);
+              try { localStorage.setItem("pf-hero-dismissed", "1"); } catch { /* noop */ }
+            }}
+            className="absolute right-3 top-3 rounded-md p-1 text-pf-parchment/60 hover:text-pf-parchment/90 transition-colors"
+            aria-label="Collapse hero"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          <h1 className="pf-text-display mb-1 text-[1.75rem] font-bold tracking-tight text-pf-parchment/95 sm:mb-2 sm:text-3xl md:text-4xl">
+            {heroCopy.headline}
+          </h1>
+          <p className="mx-auto max-w-2xl text-sm text-pf-parchment/90 sm:text-base">
+            {heroCopy.subhead}
+          </p>
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
+            {brandCopy.pillars.map((pillar) => (
+              <Badge
+                key={pillar.title}
+                variant="modern"
+                className="border border-pf-gold/35 bg-pf-coal/35 text-xs text-pf-parchment/90"
+              >
+                {pillar.title}
+              </Badge>
+            ))}
+          </div>
+          <div className="mx-auto mt-3 w-44 pf-divider" />
         </div>
-        <div className="mx-auto mt-3 w-44 pf-divider" />
-      </div>
+      )}
 
       {remixContext && (
         <Card className="mb-4 border-primary/30 bg-primary/5 p-3 sm:p-4">
@@ -2236,13 +2249,13 @@ const Index = () => {
         {!isMobile && (
           <div className="space-y-3 lg:sticky lg:top-20 lg:self-start">
             {isBuilderRedesignPhase1 && (
-              <Card className="pf-panel mb-3 border-pf-gold/30 bg-card/80 p-3">
+              <Card className="pf-panel mb-3 border-border/70 bg-card/80 p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs font-medium text-pf-parchment/90">
+                    <p className="text-xs font-medium text-foreground">
                       Quality signal
                     </p>
-                    <p className="mt-0.5 text-sm text-pf-parchment/70">
+                    <p className="mt-0.5 text-sm text-muted-foreground">
                       {tipsWithOwnership?.[0] ||
                         "Add context and constraints to improve quality."}
                     </p>
@@ -2255,21 +2268,12 @@ const Index = () => {
                     >
                       {score.total}/100
                     </Badge>
-                    <span className="text-[11px] text-pf-parchment/70">
-                      {score.total >= 90
-                        ? "Legendary"
-                        : score.total >= 70
-                          ? "Epic"
-                          : score.total >= 40
-                            ? "Rare"
-                            : "Common"}
-                    </span>
                   </div>
                 </div>
                 <div className="mt-3 rounded-2xl border border-pf-parchment/10 bg-pf-coal/20 p-2">
                   <PFQualityGauge
                     value={score.total}
-                    size={92}
+                    size={128}
                     showLabel={false}
                   />
                 </div>
@@ -2304,98 +2308,106 @@ const Index = () => {
                   : undefined
               }
             />
-            <Card className="pf-panel border-border/70 bg-card/80 p-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-medium text-foreground">
-                    Codex session
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {sessionDrawerSummary}
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleOpenSessionDrawer}
-                >
-                  {isSignedIn ? "Open drawer" : "Sign in to use"}
-                </Button>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Badge
-                  variant="pill"
-                  tone={
-                    isSignedIn
-                      ? enhanceSession.threadId
-                        ? "brand"
-                        : "default"
-                      : "default"
-                  }
-                  className="text-xs"
-                >
-                  {isSignedIn
-                    ? enhanceSession.threadId
-                      ? "Thread active"
-                      : "New thread"
-                    : "Login required"}
-                </Badge>
-                {isSignedIn && enhanceSession.contextSummary.trim() && (
-                  <Badge variant="pill" tone="brand" className="text-xs">
-                    Context saved
-                  </Badge>
-                )}
-                {isSignedIn && enhanceSession.latestEnhancedPrompt.trim() && (
-                  <Badge variant="pill" tone="brand" className="text-xs">
-                    Prompt saved
-                  </Badge>
-                )}
-              </div>
-            </Card>
-            <Card className="pf-panel border-border/70 bg-card/80 p-3">
-              <p className="text-xs font-medium text-foreground">
-                Next best action
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {!hasEnhancedOnce
-                  ? canSharePrompt
-                    ? `Preview is ready to copy, save, or share. ${primaryCtaLabel} to compare changes and get AI refinement suggestions.`
-                    : `Preview is ready to copy or save. Sign in to share, or ${primaryCtaLabel} to compare changes and get AI refinement suggestions.`
-                  : (refineSuggestions[0]?.description ??
-                    "Use Improve this result suggestions to keep iterating.")}
-              </p>
-            </Card>
-            {webSearchSources.length > 0 && (
-              <Card className="pf-panel border-border/70 bg-card/80 p-3">
-                <p className="text-xs font-medium text-foreground">
-                  Recent web sources
-                </p>
-                <ul className="mt-2 space-y-1">
-                  {webSearchSources.slice(0, 3).map((source, index) => (
-                    <li
-                      key={`${source}-${index}`}
-                      className="text-xs text-muted-foreground line-clamp-2 break-all"
+            <details className="group">
+              <summary className="flex cursor-pointer items-center gap-2 rounded-lg border border-border/50 bg-card/60 px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-card/80 [&::-webkit-details-marker]:hidden">
+                <CaretRight className="h-3 w-3 transition-transform group-open:rotate-90" />
+                Session, tips & history
+              </summary>
+              <div className="mt-2 space-y-3">
+                <Card className="pf-panel border-border/70 bg-card/80 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">
+                        Codex session
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {sessionDrawerSummary}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleOpenSessionDrawer}
                     >
-                      {source}
-                    </li>
-                  ))}
-                </ul>
-              </Card>
-            )}
-            <Card className="pf-panel border-border/70 bg-card/80 p-3">
-              <p className="text-xs font-medium text-foreground">History</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Saved versions appear in History. Open{" "}
-                <Link
-                  to="/history"
-                  className="text-primary underline-offset-2 hover:underline"
-                >
-                  Version History
-                </Link>{" "}
-                to restore prior prompts.
-              </p>
-            </Card>
+                      {isSignedIn ? "Open drawer" : "Sign in to use"}
+                    </Button>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Badge
+                      variant="pill"
+                      tone={
+                        isSignedIn
+                          ? enhanceSession.threadId
+                            ? "brand"
+                            : "default"
+                          : "default"
+                      }
+                      className="text-xs"
+                    >
+                      {isSignedIn
+                        ? enhanceSession.threadId
+                          ? "Thread active"
+                          : "New thread"
+                        : "Login required"}
+                    </Badge>
+                    {isSignedIn && enhanceSession.contextSummary.trim() && (
+                      <Badge variant="pill" tone="brand" className="text-xs">
+                        Context saved
+                      </Badge>
+                    )}
+                    {isSignedIn && enhanceSession.latestEnhancedPrompt.trim() && (
+                      <Badge variant="pill" tone="brand" className="text-xs">
+                        Prompt saved
+                      </Badge>
+                    )}
+                  </div>
+                </Card>
+                <Card className="pf-panel border-border/70 bg-card/80 p-3">
+                  <p className="text-sm font-medium text-foreground">
+                    Next best action
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {!hasEnhancedOnce
+                      ? canSharePrompt
+                        ? `Preview is ready to copy, save, or share. ${primaryCtaLabel} to compare changes and get AI refinement suggestions.`
+                        : `Preview is ready to copy or save. Sign in to share, or ${primaryCtaLabel} to compare changes and get AI refinement suggestions.`
+                      : (refineSuggestions[0]?.description ??
+                        "Use Improve this result suggestions to keep iterating.")}
+                  </p>
+                </Card>
+                {webSearchSources.length > 0 && (
+                  <Card className="pf-panel border-border/70 bg-card/80 p-3">
+                    <p className="text-sm font-medium text-foreground">
+                      Recent web sources
+                    </p>
+                    <ul className="mt-2 space-y-1">
+                      {webSearchSources.slice(0, 3).map((source, index) => (
+                        <li
+                          key={`${source}-${index}`}
+                          className="text-xs text-muted-foreground line-clamp-2 break-all"
+                        >
+                          {source}
+                        </li>
+                      ))}
+                    </ul>
+                  </Card>
+                )}
+                <Card className="pf-panel border-border/70 bg-card/80 p-3">
+                  <p className="text-sm font-medium text-foreground">History</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Saved versions appear in History. Open{" "}
+                    <Link
+                      to="/history"
+                      className="text-primary underline-offset-2 hover:underline"
+                    >
+                      Version History
+                    </Link>{" "}
+                    to restore prior prompts.
+                  </p>
+                </Card>
+              </div>
+            </details>
             <p className="text-xs text-muted-foreground text-center mt-3">
               Press{" "}
               <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded border border-border font-mono">
@@ -2413,66 +2425,25 @@ const Index = () => {
           className="fixed inset-x-0 bottom-[calc(4.375rem+env(safe-area-inset-bottom)+1px)] z-30 border-t border-border bg-card/95 px-3 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:bottom-0"
           data-testid="builder-mobile-sticky-bar"
         >
-          <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-2">
-            <button
-              type="button"
-              onClick={() => setDrawerOpen(true)}
-              className="interactive-chip min-h-11 rounded-lg border border-border/80 bg-background/70 px-3 py-2 text-left"
-              aria-label="Open output preview"
-              data-testid="builder-mobile-preview-trigger"
-            >
-              <div className="type-label-caps flex items-center gap-1.5 text-[0.7rem] font-medium text-foreground/85">
-                <Eye className="h-3.5 w-3.5" />
-                {mobilePreviewLabel}
-              </div>
-              <p className="mt-1 truncate text-[0.75rem] leading-4 text-foreground/92">
-                {mobilePreviewText}
-              </p>
-            </button>
-            <button
-              type="button"
-              onClick={handleOpenSessionDrawer}
-              className="interactive-chip min-h-11 rounded-lg border border-border/80 bg-background/70 px-3 py-2 text-left"
-              aria-label="Open Codex session drawer"
-              data-testid="builder-mobile-session-trigger"
-            >
-              <div className="type-label-caps flex items-center gap-1.5 text-[0.7rem] font-medium text-foreground/85">
-                <StackSimple className="h-3.5 w-3.5" />
-                Session
-              </div>
-              <p className="mt-1 truncate text-[0.75rem] leading-4 text-foreground/92">
-                {mobileSessionText}
-              </p>
-            </button>
-          </div>
-
-          <div className="mt-2 flex items-center gap-2 max-[360px]:grid max-[360px]:grid-cols-2">
-            <label
-              className="flex min-h-10 min-w-23 items-center justify-center gap-2 rounded-md border border-border/70 bg-background/70 px-2 text-sm text-muted-foreground cursor-pointer select-none max-[360px]:min-w-0"
-              data-testid="builder-mobile-web-toggle"
-            >
-              <Switch
-                checked={webSearchEnabled}
-                onCheckedChange={handleWebSearchToggle}
-                disabled={isEnhancing}
-                aria-label="Enable web search during enhancement"
-              />
-              <Globe className="h-3.5 w-3.5" />
-              <span>Web</span>
-            </label>
+          {/* Row 1: Score + Enhance (primary actions) */}
+          <div className="flex items-center gap-2">
             <Badge
               variant="pill"
               tone={score.total >= 75 ? "brand" : "default"}
-              className="h-10 min-w-16 justify-center rounded-md px-2 text-sm font-semibold max-[360px]:min-w-0 max-[360px]:justify-self-end sm:text-base"
+              className="relative h-10 min-w-16 justify-center overflow-hidden rounded-md px-2 text-sm font-semibold"
             >
-              {score.total}/100
+              <span
+                className="absolute inset-y-0 left-0 bg-primary/20 transition-all duration-300"
+                style={{ width: `${score.total}%` }}
+              />
+              <span className="relative">{score.total}/100</span>
             </Badge>
             <Button
               variant="primary"
               size="md"
               onClick={handleEnhance}
               disabled={isEnhancing || !builtPrompt}
-              className="signature-enhance-button h-10 min-w-0 flex-1 gap-2 max-[360px]:col-span-2 max-[360px]:w-full max-[360px]:gap-1 max-[360px]:px-2 max-[360px]:text-xs"
+              className="signature-enhance-button h-10 min-w-0 flex-1 gap-2"
               data-phase={enhancePhase}
               data-testid="builder-mobile-enhance-button"
             >
@@ -2492,6 +2463,38 @@ const Index = () => {
                 </>
               )}
             </Button>
+          </div>
+
+          {/* Row 2: Preview trigger + Web toggle (secondary) */}
+          <div className="mt-2 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setDrawerOpen(true)}
+              className="interactive-chip flex-1 min-h-9 rounded-lg border border-border/80 bg-background/70 px-3 py-1.5 text-left"
+              aria-label="Open output preview"
+              data-testid="builder-mobile-preview-trigger"
+            >
+              <div className="type-label-caps flex items-center gap-1.5 text-[0.7rem] font-medium text-foreground/85">
+                <Eye className="h-3.5 w-3.5" />
+                {mobilePreviewLabel}
+              </div>
+              <p className="mt-0.5 truncate text-[0.7rem] leading-4 text-muted-foreground">
+                {mobilePreviewText}
+              </p>
+            </button>
+            <label
+              className="flex min-h-9 items-center gap-2 rounded-lg border border-border/70 bg-background/70 px-3 text-xs text-muted-foreground cursor-pointer select-none"
+              data-testid="builder-mobile-web-toggle"
+            >
+              <Switch
+                checked={webSearchEnabled}
+                onCheckedChange={handleWebSearchToggle}
+                disabled={isEnhancing}
+                aria-label="Enable web search during enhancement"
+              />
+              <Globe className="h-3.5 w-3.5" />
+              <span>Web</span>
+            </label>
           </div>
         </div>
       )}
