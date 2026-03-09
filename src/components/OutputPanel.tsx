@@ -52,6 +52,7 @@ import {
 
 export type EnhancePhase = "idle" | "starting" | "streaming" | "settling" | "done";
 export type OutputPreviewSource = "empty" | "prompt_text" | "builder_fields" | "enhanced";
+export type EnhancementVariant = "original" | "shorter" | "more_detailed";
 export type { SavePromptInput, SaveAndSharePromptInput };
 const REASONING_SUMMARY_FADE_MS = 900;
 
@@ -78,6 +79,8 @@ interface OutputPanelProps {
   previewSource?: OutputPreviewSource;
   hasEnhancedOnce?: boolean;
   enhanceMetadata?: EnhanceMetadata | null;
+  activeVariant?: EnhancementVariant;
+  onVariantChange?: (variant: EnhancementVariant) => void;
   onPromptUsed?: () => void;
   enhancementDepth?: EnhancementDepth;
   rewriteStrictness?: RewriteStrictness;
@@ -126,6 +129,8 @@ export function OutputPanel({
   previewSource,
   hasEnhancedOnce = true,
   enhanceMetadata,
+  activeVariant,
+  onVariantChange,
   onPromptUsed,
   enhancementDepth = "guided",
   rewriteStrictness = "balanced",
@@ -139,14 +144,15 @@ export function OutputPanel({
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [saveDialogShareIntent, setSaveDialogShareIntent] = useState(false);
   const [compareDialogOpen, setCompareDialogOpen] = useState(false);
-  const [activeVariant, setActiveVariant] = useState<"original" | "shorter" | "more_detailed">("original");
+  const [internalActiveVariant, setInternalActiveVariant] = useState<EnhancementVariant>("original");
 
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const resolvedActiveVariant = activeVariant ?? internalActiveVariant;
   const variantPrompt =
-    activeVariant === "shorter" && enhanceMetadata?.alternativeVersions?.shorter
+    resolvedActiveVariant === "shorter" && enhanceMetadata?.alternativeVersions?.shorter
       ? enhanceMetadata.alternativeVersions.shorter
-      : activeVariant === "more_detailed" && enhanceMetadata?.alternativeVersions?.more_detailed
+      : resolvedActiveVariant === "more_detailed" && enhanceMetadata?.alternativeVersions?.more_detailed
         ? enhanceMetadata.alternativeVersions.more_detailed
         : null;
   const displayPrompt = variantPrompt || enhancedPrompt || builtPrompt;
@@ -169,7 +175,7 @@ export function OutputPanel({
   const [isReasoningSummaryFading, setIsReasoningSummaryFading] = useState(false);
 
   useEffect(() => {
-    setActiveVariant("original");
+    setInternalActiveVariant("original");
   }, [enhanceMetadata]);
 
   useEffect(() => {
@@ -225,7 +231,7 @@ export function OutputPanel({
             ? "Enhancement complete."
             : "";
   const hasCompare = Boolean(
-    builtPrompt.trim() && enhancedPrompt.trim() && builtPrompt.trim() !== enhancedPrompt.trim()
+    builtPrompt.trim() && displayPrompt.trim() && builtPrompt.trim() !== displayPrompt.trim()
   );
   const hasPreviewContent = displayPrompt.trim().length > 0;
   const showUtilityActions = hasEnhancedOnce || hasPreviewContent;
@@ -233,8 +239,26 @@ export function OutputPanel({
 
   const diff = useMemo(() => {
     if (!compareDialogOpen || !hasCompare) return null;
-    return buildLineDiff(builtPrompt, enhancedPrompt);
-  }, [compareDialogOpen, hasCompare, builtPrompt, enhancedPrompt]);
+    return buildLineDiff(builtPrompt, displayPrompt);
+  }, [compareDialogOpen, hasCompare, builtPrompt, displayPrompt]);
+
+  const handleVariantChange = (variant: EnhancementVariant) => {
+    if (activeVariant === undefined) {
+      setInternalActiveVariant(variant);
+    }
+    onVariantChange?.(variant);
+    if (variant !== "original") {
+      const variantText =
+        variant === "shorter"
+          ? enhanceMetadata?.alternativeVersions?.shorter
+          : enhanceMetadata?.alternativeVersions?.more_detailed;
+      trackBuilderEvent("builder_enhance_variant_applied", {
+        variant,
+        originalPromptChars: enhancedPrompt.length,
+        variantPromptChars: variantText?.length ?? 0,
+      });
+    }
+  };
 
   const handleCopy = async () => {
     if (!displayPrompt) return;
@@ -487,21 +511,8 @@ export function OutputPanel({
       {enhanceMetadata && !isEnhancing && (
         <EnhancementSummary
           metadata={enhanceMetadata}
-          activeVariant={activeVariant}
-          onVariantChange={(variant) => {
-            setActiveVariant(variant);
-            if (variant !== "original") {
-              const variantText =
-                variant === "shorter"
-                  ? enhanceMetadata.alternativeVersions?.shorter
-                  : enhanceMetadata.alternativeVersions?.more_detailed;
-              trackBuilderEvent("builder_enhance_variant_applied", {
-                variant,
-                originalPromptChars: enhancedPrompt.length,
-                variantPromptChars: variantText?.length ?? 0,
-              });
-            }
-          }}
+          activeVariant={resolvedActiveVariant}
+          onVariantChange={handleVariantChange}
         />
       )}
 
@@ -678,8 +689,8 @@ function EnhancementSummary({
   onVariantChange,
 }: {
   metadata: EnhanceMetadata;
-  activeVariant: "original" | "shorter" | "more_detailed";
-  onVariantChange: (variant: "original" | "shorter" | "more_detailed") => void;
+  activeVariant: EnhancementVariant;
+  onVariantChange: (variant: EnhancementVariant) => void;
 }) {
   const ctx = metadata.detectedContext;
   const hasDetected = ctx && (ctx.intent.length > 0 || ctx.domain.length > 0);

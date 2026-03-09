@@ -34,6 +34,10 @@ import {
   type PromptBuilderRemixContext,
 } from "@/lib/prompt-builder-remix";
 
+interface PromptPersistenceOverrides {
+  enhancedPromptOverride?: string;
+}
+
 export function usePromptBuilder() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -273,8 +277,8 @@ export function usePromptBuilder() {
   const score = useMemo(() => scorePrompt(config), [config]);
 
   const saveVersion = useCallback(
-    (name?: string) => {
-      const promptToSave = enhancedPrompt || builtPrompt;
+    (name?: string, promptOverride?: string) => {
+      const promptToSave = (promptOverride ?? enhancedPrompt) || builtPrompt;
       if (!promptToSave) return;
       const versionName = name || `Version ${versions.length + 1}`;
 
@@ -443,15 +447,20 @@ export function usePromptBuilder() {
   }, []);
 
   const savePrompt = useCallback(
-    async (input: {
-      title: string;
-      description?: string;
-      tags?: string[];
-      category?: string;
-      targetModel?: string;
-      useCase?: string;
-      remixNote?: string;
-    }): Promise<SaveTemplateResult> => {
+    async (
+      input: {
+        title: string;
+        description?: string;
+        tags?: string[];
+        category?: string;
+        targetModel?: string;
+        useCase?: string;
+        remixNote?: string;
+      },
+      overrides?: PromptPersistenceOverrides,
+    ): Promise<SaveTemplateResult> => {
+      const effectiveEnhancedPrompt =
+        overrides?.enhancedPromptOverride ?? enhancedPrompt;
       const remixPayload = buildRemixPayload(remixContext, config, {
         tags: input.tags,
         category: input.category,
@@ -466,7 +475,7 @@ export function usePromptBuilder() {
         useCase: input.useCase,
         config,
         builtPrompt: builtPrompt || "",
-        enhancedPrompt: enhancedPrompt || "",
+        enhancedPrompt: effectiveEnhancedPrompt || "",
         ...remixPayload,
       });
       await refreshTemplateSummaries();
@@ -484,19 +493,24 @@ export function usePromptBuilder() {
   );
 
   const saveAndSharePrompt = useCallback(
-    async (input: {
-      title: string;
-      description?: string;
-      tags?: string[];
-      category?: string;
-      targetModel?: string;
-      useCase: string;
-      remixNote?: string;
-    }): Promise<SaveTemplateResult & { postId?: string }> => {
+    async (
+      input: {
+        title: string;
+        description?: string;
+        tags?: string[];
+        category?: string;
+        targetModel?: string;
+        useCase: string;
+        remixNote?: string;
+      },
+      overrides?: PromptPersistenceOverrides,
+    ): Promise<SaveTemplateResult & { postId?: string }> => {
       if (!userId) {
         throw new Error("Sign in to share prompts.");
       }
 
+      const effectiveEnhancedPrompt =
+        overrides?.enhancedPromptOverride ?? enhancedPrompt;
       const remixPayload = buildRemixPayload(remixContext, config, {
         tags: input.tags,
         category: input.category,
@@ -511,7 +525,7 @@ export function usePromptBuilder() {
         useCase: input.useCase,
         config,
         builtPrompt: builtPrompt || "",
-        enhancedPrompt: enhancedPrompt || "",
+        enhancedPrompt: effectiveEnhancedPrompt || "",
         ...remixPayload,
       });
 

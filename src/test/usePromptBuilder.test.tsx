@@ -325,6 +325,41 @@ describe("usePromptBuilder", () => {
     );
   });
 
+  it("uses a provided prompt override when saving a version", async () => {
+    mocks.saveVersion.mockResolvedValueOnce({
+      id: "cloud-variant",
+      name: "Variant Version",
+      prompt: "Short variant prompt",
+      timestamp: Date.now(),
+    });
+    const { usePromptBuilder } = await import("@/hooks/usePromptBuilder");
+    const { result } = renderHook(() => usePromptBuilder());
+
+    await waitFor(() => {
+      expect(mocks.loadVersions).toHaveBeenCalledWith("user_a");
+    });
+
+    act(() => {
+      result.current.setEnhancedPrompt("Original enhanced prompt");
+    });
+
+    act(() => {
+      result.current.saveVersion("Variant Version", "Short variant prompt");
+    });
+
+    expect(result.current.versions[0]?.prompt).toBe("Short variant prompt");
+    await waitFor(() => {
+      expect(mocks.saveVersion).toHaveBeenCalledWith(
+        "user_a",
+        "Variant Version",
+        "Short variant prompt",
+      );
+    });
+    await waitFor(() => {
+      expect(result.current.versions[0]?.id).toBe("cloud-variant");
+    });
+  });
+
   it("warns when cloud draft is skipped because user edited during hydration", async () => {
     const { usePromptBuilder } = await import("@/hooks/usePromptBuilder");
     const { result, rerender } = renderHook(() => usePromptBuilder());
@@ -419,5 +454,67 @@ describe("usePromptBuilder", () => {
 
     expect(mocks.savePrompt).not.toHaveBeenCalled();
     expect(mocks.sharePrompt).not.toHaveBeenCalled();
+  });
+
+  it("passes a prompt override through save and share actions", async () => {
+    mocks.savePrompt.mockResolvedValue({
+      outcome: "created",
+      warnings: [],
+      record: {
+        metadata: {
+          id: "prompt_1",
+          name: "Variant prompt",
+          revision: 1,
+        },
+      },
+    });
+    mocks.sharePrompt.mockResolvedValue({
+      shared: true,
+      postId: "post_1",
+    });
+
+    const { usePromptBuilder } = await import("@/hooks/usePromptBuilder");
+    const { result } = renderHook(() => usePromptBuilder());
+
+    await act(async () => {
+      await result.current.savePrompt(
+        { title: "Variant prompt" },
+        { enhancedPromptOverride: "Short variant prompt" },
+      );
+    });
+
+    expect(mocks.savePrompt).toHaveBeenNthCalledWith(
+      1,
+      "user_a",
+      expect.objectContaining({
+        enhancedPrompt: "Short variant prompt",
+      }),
+    );
+
+    await act(async () => {
+      await result.current.saveAndSharePrompt(
+        {
+          title: "Variant prompt",
+          useCase: "Persist the selected variant",
+        },
+        { enhancedPromptOverride: "Short variant prompt" },
+      );
+    });
+
+    expect(mocks.savePrompt).toHaveBeenNthCalledWith(
+      2,
+      "user_a",
+      expect.objectContaining({
+        enhancedPrompt: "Short variant prompt",
+      }),
+    );
+    expect(mocks.sharePrompt).toHaveBeenCalledWith(
+      "user_a",
+      "prompt_1",
+      expect.objectContaining({
+        title: "Variant prompt",
+        useCase: "Persist the selected variant",
+      }),
+    );
   });
 });

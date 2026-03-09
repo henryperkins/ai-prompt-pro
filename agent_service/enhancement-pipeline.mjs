@@ -399,6 +399,40 @@ const INTENT_TO_ROUTE_MAP = {
   reasoning: "analysis",
 };
 
+const PRIMARY_INTENT_ADDONS = {
+  brainstorm: INTENT_ADDONS.creative,
+  rewrite: [
+    "## REWRITE-SPECIFIC ENHANCEMENTS",
+    "- Treat the task as improving or transforming existing material, not inventing a new objective.",
+    "- Preserve the user's original facts, scope, and intent unless the request explicitly asks to change them.",
+    "- Improve clarity, structure, and specificity while keeping the requested voice and constraints aligned to the source.",
+    "- When simplifying or shortening, remove redundancy before removing requirements that affect correctness.",
+  ].join("\n"),
+  analysis: [INTENT_ADDONS.analytical, INTENT_ADDONS.reasoning]
+    .filter((value) => typeof value === "string" && value.length > 0)
+    .join("\n\n"),
+  code: INTENT_ADDONS.coding,
+  extraction: [
+    "## EXTRACTION-SPECIFIC ENHANCEMENTS",
+    "- Focus on faithfully extracting or organizing information already present in the source material or request.",
+    "- Do NOT invent missing facts; call out uncertainty, omissions, or unsupported conclusions explicitly.",
+    "- Prefer structured outputs such as bullets, tables, or labeled fields when they improve scanability.",
+    "- Keep the extracted content concise and traceable to the original source objective.",
+  ].join("\n"),
+  planning: [
+    "## PLANNING-SPECIFIC ENHANCEMENTS",
+    "- Turn the request into a concrete execution plan with clear phases, steps, milestones, or dependencies when relevant.",
+    "- Make success criteria, assumptions, risks, and decision points explicit.",
+    "- Prefer action-oriented language and outputs that are easy to hand off or execute.",
+  ].join("\n"),
+  research: [
+    "## RESEARCH-SPECIFIC ENHANCEMENTS",
+    "- Frame the task around research questions, evidence quality, sources, and synthesis of findings.",
+    "- Distinguish established findings from assumptions, gaps, or open questions.",
+    "- When factual claims matter, ask for citations, source summaries, or verification-friendly structure.",
+  ].join("\n"),
+};
+
 const REWRITE_PATTERN = /\b(rewrite|revise|edit|improve|fix|rephrase|polish|refine|shorten|simplify|update|correct)\b/i;
 const RESEARCH_PATTERN = /\b(research|literature|study|paper|findings|systematic|survey|investigate)\b/i;
 const PLANNING_PATTERN = /\b(plan|roadmap|schedule|timeline|milestones|strategy|project plan|action items)\b/i;
@@ -623,9 +657,9 @@ const WEB_SEARCH_DIRECTIVE_DISABLED = [
 
 export function buildEnhancementMetaPrompt(userInput, context) {
   const modeAddon = MODE_ADDONS[context.builderMode] || MODE_ADDONS.guided;
-  const intentAddons = context.intent
-    .map((intent) => INTENT_ADDONS[intent])
-    .filter((value) => typeof value === "string" && value.length > 0);
+  const primaryIntent = typeof context.primaryIntent === "string" ? context.primaryIntent : "";
+  const intentType = primaryIntent || joinOrDefault(context.intent, "general");
+  const intentAddon = primaryIntent ? PRIMARY_INTENT_ADDONS[primaryIntent] || "" : "";
 
   const edgeCaseNotes = buildEdgeCaseNotes(context);
   const webSearchDirective = context.webSearchEnabled
@@ -637,7 +671,7 @@ export function buildEnhancementMetaPrompt(userInput, context) {
   }).join("\n");
   const template = MASTER_META_PROMPT
     .replaceAll("{{USER_INPUT}}", userInput)
-    .replaceAll("{{INTENT_TYPE}}", joinOrDefault(context.intent, "general"))
+    .replaceAll("{{INTENT_TYPE}}", intentType)
     .replaceAll("{{DOMAIN}}", joinOrDefault(context.domain, "general"))
     .replaceAll("{{COMPLEXITY}}", String(context.complexity))
     .replaceAll("{{BUILDER_MODE}}", context.builderMode)
@@ -665,7 +699,7 @@ export function buildEnhancementMetaPrompt(userInput, context) {
   const strictnessAddon = REWRITE_STRICTNESS_ADDONS[context.rewriteStrictness] || "";
   const ambiguityAddon = AMBIGUITY_MODE_ADDONS[context.ambiguityMode] || "";
 
-  return [template, modeAddon, strictnessAddon, ambiguityAddon, ...intentAddons]
+  return [template, modeAddon, strictnessAddon, ambiguityAddon, intentAddon]
     .filter((s) => s.length > 0)
     .join("\n\n");
 }

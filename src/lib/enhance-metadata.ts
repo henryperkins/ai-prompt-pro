@@ -43,6 +43,8 @@ export interface EnhanceDetectedContext {
   primaryIntent?: string;
 }
 
+export type EnhanceParseStatus = "json" | "fallback";
+
 export interface EnhanceMetadata {
   enhancedPrompt: string;
   partsBreakdown?: EnhancePartsBreakdown;
@@ -58,6 +60,7 @@ export interface EnhanceMetadata {
   openQuestions?: string[];
   ambiguityLevel?: string;
   enhancementPlan?: EnhancementPlan;
+  parseStatus?: EnhanceParseStatus;
 }
 
 export type { EnhancementPlan };
@@ -72,6 +75,11 @@ export function parseEnhanceMetadata(raw: unknown): EnhanceMetadata | null {
   if (!raw || typeof raw !== "object") return null;
 
   const data = raw as Record<string, unknown>;
+  const parseStatus =
+    data.parse_status === "json" || data.parse_status === "fallback"
+      ? data.parse_status
+      : undefined;
+  const allowStructuredInspector = parseStatus !== "fallback";
 
   const enhancedPrompt =
     typeof data.enhanced_prompt === "string" ? data.enhanced_prompt.trim() : "";
@@ -79,7 +87,9 @@ export function parseEnhanceMetadata(raw: unknown): EnhanceMetadata | null {
 
   return {
     enhancedPrompt,
-    partsBreakdown: parsePartsBreakdown(data.parts_breakdown),
+    partsBreakdown: allowStructuredInspector
+      ? parsePartsBreakdown(data.parts_breakdown)
+      : undefined,
     enhancementsMade: parseStringArray(data.enhancements_made),
     qualityScore: parseQualityScore(data.quality_score),
     suggestions: parseStringArray(data.suggestions),
@@ -96,7 +106,10 @@ export function parseEnhanceMetadata(raw: unknown): EnhanceMetadata | null {
     openQuestions: parseStringArray(data.open_questions),
     ambiguityLevel:
       typeof data.ambiguity_level === "string" ? data.ambiguity_level : undefined,
-    enhancementPlan: parseEnhancementPlan(data.enhancement_plan) ?? undefined,
+    enhancementPlan: allowStructuredInspector
+      ? parseEnhancementPlan(data.enhancement_plan) ?? undefined
+      : undefined,
+    parseStatus,
   };
 }
 

@@ -13,6 +13,7 @@ import { QualityScore } from "@/components/QualityScore";
 import {
   OutputPanel,
   type EnhancePhase,
+  type EnhancementVariant,
   type OutputPreviewSource,
   type ApplyToBuilderUpdate,
 } from "@/components/OutputPanel";
@@ -680,6 +681,8 @@ const Index = () => {
   );
   const [reasoningSummary, setReasoningSummary] = useState("");
   const [enhanceMetadata, setEnhanceMetadata] = useState<EnhanceMetadata | null>(null);
+  const [activeEnhancementVariant, setActiveEnhancementVariant] =
+    useState<EnhancementVariant>("original");
   const [intentOverride, setIntentOverride] = useState<IntentRoute | null>(null);
   const [enhanceSession, setEnhanceSession] = useState<CodexSession>(() =>
     createCodexSession(),
@@ -1005,8 +1008,20 @@ const Index = () => {
     setEnhanceSession(createCodexSession());
   }, []);
 
+  const selectedVariantPrompt = useMemo(() => {
+    if (activeEnhancementVariant === "shorter") {
+      return enhanceMetadata?.alternativeVersions?.shorter?.trim() ?? "";
+    }
+    if (activeEnhancementVariant === "more_detailed") {
+      return enhanceMetadata?.alternativeVersions?.more_detailed?.trim() ?? "";
+    }
+    return "";
+  }, [activeEnhancementVariant, enhanceMetadata]);
+
+  const selectedEnhancedPrompt = selectedVariantPrompt || enhancedPrompt;
+
   const handleUseCurrentPromptForSession = useCallback(() => {
-    const promptSnapshot = (enhancedPrompt || builtPrompt).trim();
+    const promptSnapshot = (selectedEnhancedPrompt || builtPrompt).trim();
     if (!promptSnapshot) return;
     setEnhanceSession((previous) =>
       createCodexSession({
@@ -1015,7 +1030,7 @@ const Index = () => {
         updatedAt: Date.now(),
       }),
     );
-  }, [builtPrompt, enhancedPrompt]);
+  }, [builtPrompt, selectedEnhancedPrompt]);
 
   const handleApplySuggestionChip = useCallback(
     (chip: BuilderSuggestionChip) => {
@@ -1425,6 +1440,10 @@ const Index = () => {
   }, [enhancedPrompt, isEnhancing]);
 
   useEffect(() => {
+    setActiveEnhancementVariant("original");
+  }, [enhancedPrompt, enhanceMetadata?.enhancedPrompt]);
+
+  useEffect(() => {
     return () => {
       clearEnhanceTimers();
       enhanceStreamToken.current += 1;
@@ -1449,6 +1468,8 @@ const Index = () => {
           tags: input.tags,
           category: input.category,
           remixNote: input.remixNote,
+        }, {
+          enhancedPromptOverride: selectedEnhancedPrompt,
         });
         const warningText =
           result.warnings.length > 0
@@ -1476,7 +1497,7 @@ const Index = () => {
         });
       }
     },
-    [savePrompt, toast, remixContext, handleClearRemix],
+    [savePrompt, toast, remixContext, handleClearRemix, selectedEnhancedPrompt],
   );
 
   const handleSaveAndSharePrompt = useCallback(
@@ -1508,6 +1529,8 @@ const Index = () => {
           useCase: input.useCase,
           targetModel: input.targetModel,
           remixNote: input.remixNote,
+        }, {
+          enhancedPromptOverride: selectedEnhancedPrompt,
         });
         toast({
           title: `Prompt shared: ${result.record.metadata.name}`,
@@ -1530,7 +1553,14 @@ const Index = () => {
         });
       }
     },
-    [isSignedIn, saveAndSharePrompt, toast, remixContext, handleClearRemix],
+    [
+      isSignedIn,
+      saveAndSharePrompt,
+      toast,
+      remixContext,
+      handleClearRemix,
+      selectedEnhancedPrompt,
+    ],
   );
 
   const handlePromptUsed = useCallback(() => {
@@ -1613,7 +1643,10 @@ const Index = () => {
   const sourceCount = config.contextConfig.sources.length;
   const sectionHealth = getSectionHealth(config, score.total);
   const selectedRole = config.customRole || config.role;
-  const displayPrompt = enhancedPrompt || builtPrompt;
+  const displayPrompt = selectedEnhancedPrompt || builtPrompt;
+  const handleSaveVersion = useCallback(() => {
+    saveVersion(undefined, displayPrompt);
+  }, [displayPrompt, saveVersion]);
   const sessionDrawerSummary = useMemo(() => {
     if (!isSignedIn) {
       return "Sign in to manage the Codex session and carry supplemental context across turns.";
@@ -2421,7 +2454,7 @@ const Index = () => {
               isEnhancing={isEnhancing}
               enhancePhase={enhancePhase}
               onEnhance={handleEnhance}
-              onSaveVersion={saveVersion}
+              onSaveVersion={handleSaveVersion}
               onSavePrompt={handleSavePrompt}
               onSaveAndSharePrompt={handleSaveAndSharePrompt}
               canSavePrompt={canSavePrompt}
@@ -2435,6 +2468,8 @@ const Index = () => {
               webSearchActivity={webSearchActivity}
               enhanceIdleLabel={primaryCtaLabel}
               enhanceMetadata={enhanceMetadata}
+              activeVariant={activeEnhancementVariant}
+              onVariantChange={setActiveEnhancementVariant}
               onPromptUsed={handlePromptUsed}
               enhancementDepth={enhancementDepth}
               rewriteStrictness={rewriteStrictness}
@@ -2667,7 +2702,7 @@ const Index = () => {
                 isEnhancing={isEnhancing}
                 enhancePhase={enhancePhase}
                 onEnhance={handleEnhance}
-                onSaveVersion={saveVersion}
+                onSaveVersion={handleSaveVersion}
                 onSavePrompt={handleSavePrompt}
                 onSaveAndSharePrompt={handleSaveAndSharePrompt}
                 canSavePrompt={canSavePrompt}
@@ -2677,6 +2712,8 @@ const Index = () => {
                 phase2Enabled={isBuilderRedesignPhase2}
                 enhanceIdleLabel={primaryCtaLabel}
                 enhanceMetadata={enhanceMetadata}
+                activeVariant={activeEnhancementVariant}
+                onVariantChange={setActiveEnhancementVariant}
                 onPromptUsed={handlePromptUsed}
                 onApplyToBuilder={handleApplyToBuilder}
                 // Enhancement depth/strictness/ambiguity controls omitted — hideEnhanceButton hides the section they render in

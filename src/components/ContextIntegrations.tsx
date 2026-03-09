@@ -4,6 +4,7 @@ import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
 import { Label } from "@/components/base/label";
 import { Select } from "@/components/base/select/select";
+import { Slider } from "@/components/base/slider";
 import { Switch } from "@/components/base/switch";
 import type { DatabaseConnection, RagParameters } from "@/lib/context-types";
 import { Database, Plus, X } from "@phosphor-icons/react";
@@ -209,26 +210,35 @@ export function ContextIntegrations({
             <Select.Item id="semantic">Semantic</Select.Item>
             <Select.Item id="keyword">Keyword</Select.Item>
           </Select>
-          <Input
-            value={String(rag.topK)}
-            onChange={(value) => onUpdateRag({ topK: Number(value) || 0 })}
-            placeholder="Top results (topK)"
-            wrapperClassName="h-11 sm:h-10"
-            isDisabled={!rag.enabled}
+          <Slider
+            label="Top results (topK)"
+            valueLabel={String(rag.topK)}
+            value={[rag.topK]}
+            min={1}
+            max={20}
+            step={1}
+            onChange={(value) => onUpdateRag({ topK: value })}
+            disabled={!rag.enabled}
           />
-          <Input
-            value={String(rag.minScore)}
-            onChange={(value) => onUpdateRag({ minScore: Number(value) || 0 })}
-            placeholder="Minimum score (0-1)"
-            wrapperClassName="h-11 sm:h-10"
-            isDisabled={!rag.enabled}
+          <Slider
+            label="Min score"
+            valueLabel={rag.minScore.toFixed(2)}
+            value={[rag.minScore]}
+            min={0}
+            max={1}
+            step={0.05}
+            onChange={(value) => onUpdateRag({ minScore: value })}
+            disabled={!rag.enabled}
           />
-          <Input
-            value={String(rag.chunkWindow)}
-            onChange={(value) => onUpdateRag({ chunkWindow: Number(value) || 0 })}
-            placeholder="Context window (chunks)"
-            wrapperClassName="h-11 sm:h-10"
-            isDisabled={!rag.enabled}
+          <Slider
+            label="Chunk window"
+            valueLabel={String(rag.chunkWindow)}
+            value={[rag.chunkWindow]}
+            min={1}
+            max={10}
+            step={1}
+            onChange={(value) => onUpdateRag({ chunkWindow: value })}
+            disabled={!rag.enabled}
           />
         </div>
         <Input

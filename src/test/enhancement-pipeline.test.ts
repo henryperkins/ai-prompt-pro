@@ -67,6 +67,18 @@ describe("enhancement pipeline", () => {
     expect(prompt).toContain("- guardrails: (empty)");
   });
 
+  it("uses the effective primary intent when an override is provided", () => {
+    const context = detectEnhancementContext("Write a creative story", {
+      intentOverride: "rewrite",
+    });
+
+    const prompt = buildEnhancementMetaPrompt("Write a creative story", context);
+
+    expect(prompt).toContain("- Intent Type: rewrite");
+    expect(prompt).toContain("## REWRITE-SPECIFIC ENHANCEMENTS");
+    expect(prompt).not.toContain("## CREATIVE-SPECIFIC ENHANCEMENTS");
+  });
+
   it("post-processes structured JSON responses and returns quality metadata", () => {
     const context = detectEnhancementContext("Analyze my company sales data", {
       builderMode: "guided",

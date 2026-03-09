@@ -4,6 +4,7 @@ import { parseEnhanceMetadata } from "@/lib/enhance-metadata";
 describe("parseEnhanceMetadata", () => {
   it("parses a complete backend payload", () => {
     const raw = {
+      parse_status: "json",
       enhanced_prompt: "Enhanced prompt text",
       parts_breakdown: {
         role: "Data analyst",
@@ -50,6 +51,7 @@ describe("parseEnhanceMetadata", () => {
     expect(result!.missingParts).toEqual(["examples"]);
     expect(result!.improvementDelta).toBe(2.5);
     expect(result!.sessionContextSummary).toBe("Session summary text");
+    expect(result!.parseStatus).toBe("json");
   });
 
   it("returns null when enhanced_prompt is missing", () => {
@@ -120,5 +122,31 @@ describe("parseEnhanceMetadata", () => {
     };
     const result = parseEnhanceMetadata(raw);
     expect(result!.alternativeVersions).toBeUndefined();
+  });
+
+  it("suppresses structured inspector fields for fallback metadata", () => {
+    const raw = {
+      parse_status: "fallback",
+      enhanced_prompt: "Fallback prompt",
+      parts_breakdown: {
+        role: "Role inferred from user objective and domain.",
+        context: "Context inferred from the source prompt and constraints.",
+        task: "Task clarified and broken into executable instructions.",
+        output_format: "Explicit output structure and length guidance.",
+        examples: null,
+        guardrails: "Safety, quality, and uncertainty handling requirements.",
+      },
+      enhancement_plan: {
+        primary_intent: "analysis",
+        target_deliverable: "Summary",
+      },
+    };
+
+    const result = parseEnhanceMetadata(raw);
+
+    expect(result).not.toBeNull();
+    expect(result!.parseStatus).toBe("fallback");
+    expect(result!.partsBreakdown).toBeUndefined();
+    expect(result!.enhancementPlan).toBeUndefined();
   });
 });
