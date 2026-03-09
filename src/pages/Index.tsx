@@ -1534,8 +1534,12 @@ const Index = () => {
   }, []);
 
   const detectedIntent: IntentRoute | null = useMemo(() => {
-    const raw = enhanceMetadata?.detectedContext?.intent?.[0];
-    // Map existing intent categories to route set
+    const ctx = enhanceMetadata?.detectedContext;
+    // Prefer the backend's authoritative primary_intent field if available
+    const primaryIntent = ctx?.primaryIntent;
+    if (typeof primaryIntent === "string" && isIntentRoute(primaryIntent)) return primaryIntent;
+    // Fall back to legacy intent[0] mapping
+    const raw = ctx?.intent?.[0];
     const intentMap: Record<string, IntentRoute> = {
       creative: "brainstorm",
       analytical: "analysis",
@@ -1580,6 +1584,7 @@ const Index = () => {
     const configUpdates: Partial<typeof config> = {};
     if (updates.role) configUpdates.customRole = updates.role;
     if (updates.context) configUpdates.context = updates.context;
+    if (updates.format) configUpdates.customFormat = updates.format;
     if (updates.constraints) configUpdates.customConstraint = updates.constraints;
     updateConfig(configUpdates);
   }, [updateConfig]);

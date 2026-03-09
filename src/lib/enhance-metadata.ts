@@ -40,6 +40,7 @@ export interface EnhanceDetectedContext {
   complexity: number;
   mode: string;
   input_language: string;
+  primaryIntent?: string;
 }
 
 export interface EnhanceMetadata {
@@ -160,5 +161,6 @@ function parseDetectedContext(
     complexity: typeof obj.complexity === "number" ? obj.complexity : 0,
     mode: typeof obj.mode === "string" ? obj.mode : "",
     input_language: typeof obj.input_language === "string" ? obj.input_language : "",
+    primaryIntent: typeof obj.primary_intent === "string" ? obj.primary_intent : undefined,
   };
 }
