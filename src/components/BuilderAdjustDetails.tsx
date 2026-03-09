@@ -192,7 +192,7 @@ export function BuilderAdjustDetails({
                     type="button"
                     size="sm"
                     variant={config.tone === "" ? "primary" : "secondary"}
-                    className={`h-11 px-2 text-sm sm:h-9 ${config.tone === "" ? "ring-1 ring-primary/50" : ""}`}
+                    className="h-11 px-2 text-sm sm:h-9"
                     onClick={() => onUpdate({ tone: "" })}
                     aria-label="Let model decide tone"
                     aria-pressed={config.tone === ""}
@@ -205,7 +205,7 @@ export function BuilderAdjustDetails({
                       type="button"
                       size="sm"
                       variant={config.tone === tone ? "primary" : "secondary"}
-                      className={`h-11 px-2 text-sm sm:h-9 ${config.tone === tone ? "ring-1 ring-primary/50" : ""}`}
+                      className="h-11 px-2 text-sm sm:h-9"
                       onClick={() => onUpdate({ tone })}
                       aria-pressed={config.tone === tone}
                     >
@@ -234,7 +234,7 @@ export function BuilderAdjustDetails({
                     variant={
                       config.format.includes(format) ? "primary" : "secondary"
                     }
-                    className={`h-11 px-2 text-sm sm:h-9 ${config.format.includes(format) ? "ring-1 ring-primary/50" : ""}`}
+                    className="h-11 px-2 text-sm sm:h-9"
                     onClick={() => toggleFormat(format)}
                     aria-pressed={config.format.includes(format)}
                   >
@@ -266,7 +266,7 @@ export function BuilderAdjustDetails({
                         ? "primary"
                         : "secondary"
                     }
-                    className={`h-auto px-2.5 py-1.5 text-left ${config.lengthPreference === option.value ? "ring-1 ring-primary/50" : ""}`}
+                    className="h-auto px-2.5 py-1.5 text-left"
                     onClick={() => onUpdate({ lengthPreference: option.value })}
                     aria-pressed={config.lengthPreference === option.value}
                   >
@@ -290,7 +290,7 @@ export function BuilderAdjustDetails({
                   type="button"
                   size="sm"
                   variant={config.complexity === "" ? "primary" : "secondary"}
-                  className={`h-11 px-2 text-sm sm:h-9 ${config.complexity === "" ? "ring-1 ring-primary/50" : ""}`}
+                  className="h-11 px-2 text-sm sm:h-9"
                   onClick={() => onUpdate({ complexity: "" })}
                   aria-label="Let model decide complexity"
                   aria-pressed={config.complexity === ""}
@@ -305,7 +305,7 @@ export function BuilderAdjustDetails({
                     variant={
                       config.complexity === option ? "primary" : "secondary"
                     }
-                    className={`h-11 px-2 text-sm sm:h-9 ${config.complexity === option ? "ring-1 ring-primary/50" : ""}`}
+                    className="h-11 px-2 text-sm sm:h-9"
                     onClick={() => onUpdate({ complexity: option })}
                     aria-pressed={config.complexity === option}
                   >

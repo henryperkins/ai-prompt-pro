@@ -41,7 +41,7 @@ const styles = sortCx({
   },
   colors: {
     primary: {
-      root: "bg-primary text-primary-foreground shadow-xs hover:brightness-95 data-loading:brightness-95",
+      root: "bg-primary text-primary-foreground shadow-xs ring-1 ring-inset ring-white/15 hover:brightness-95 data-loading:brightness-95",
     },
     secondary: {
       root: "border border-border bg-background text-foreground shadow-xs hover:bg-muted data-loading:bg-muted",
