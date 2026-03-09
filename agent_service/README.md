@@ -31,6 +31,9 @@ npm run agent:codex
   "prompt": "Your draft prompt text",       // required
   "thread_id": "thread_abc123",             // optional: resume a previous thread
   "builder_mode": "guided",                 // optional: quick|guided|advanced
+  "rewrite_strictness": "balanced",         // optional: preserve|balanced|aggressive
+  "ambiguity_mode": "infer_conservatively", // optional: ask_me|placeholders|infer_conservatively
+  "intent_override": "code",               // optional: explicit intent route (brainstorm|planning|code|analysis|extraction|critique|explanation)
   "builder_fields": {                       // optional but recommended: pass all 6 keys, even empty
     "role": "",
     "context": "",

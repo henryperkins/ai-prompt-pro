@@ -19,7 +19,14 @@ export type BuilderTelemetryEvent =
   | "builder_clear_prompt_with_preview"
   | "builder_save_clicked"
   | "builder_share_toggled"
-  | "builder_dev_export_used";
+  | "builder_dev_export_used"
+  | "builder_enhance_metadata_received"
+  | "builder_enhance_variant_applied"
+  | "builder_enhance_accepted"
+  | "builder_enhance_rerun"
+  | "builder_enhance_too_much_changed"
+  | "builder_enhance_assumption_edited"
+  | "builder_enhance_intent_overridden";
 
 export type BuilderTelemetryValue = string | number | boolean | null;
 
@@ -50,4 +57,56 @@ export function trackBuilderEvent(
       detail,
     }),
   );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Telemetry listener — localStorage ring buffer                     */
+/* ------------------------------------------------------------------ */
+
+const TELEMETRY_LOG_KEY = "promptforge-telemetry-log";
+const TELEMETRY_LOG_MAX = 500;
+
+let listenerAttached = false;
+
+export function startTelemetryListener(): void {
+  if (typeof window === "undefined" || listenerAttached) return;
+  listenerAttached = true;
+
+  window.addEventListener(BUILDER_TELEMETRY_EVENT_NAME, ((
+    e: CustomEvent<BuilderTelemetryEnvelope>,
+  ) => {
+    try {
+      const log = readLog();
+      log.push(e.detail);
+      if (log.length > TELEMETRY_LOG_MAX) {
+        log.splice(0, log.length - TELEMETRY_LOG_MAX);
+      }
+      localStorage.setItem(TELEMETRY_LOG_KEY, JSON.stringify(log));
+    } catch {
+      // localStorage full or unavailable — silently skip
+    }
+  }) as EventListener);
+}
+
+export function getTelemetryLog(): BuilderTelemetryEnvelope[] {
+  return readLog();
+}
+
+export function clearTelemetryLog(): void {
+  try {
+    localStorage.removeItem(TELEMETRY_LOG_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+function readLog(): BuilderTelemetryEnvelope[] {
+  try {
+    const raw = localStorage.getItem(TELEMETRY_LOG_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }

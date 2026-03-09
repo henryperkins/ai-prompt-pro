@@ -14,6 +14,7 @@ import {
   OutputPanel,
   type EnhancePhase,
   type OutputPreviewSource,
+  type ApplyToBuilderUpdate,
 } from "@/components/OutputPanel";
 import { usePromptBuilder } from "@/hooks/usePromptBuilder";
 import {
@@ -71,8 +72,22 @@ import {
   launchExperimentFlags,
 } from "@/lib/feature-flags";
 import { trackBuilderEvent } from "@/lib/telemetry";
+import {
+  parseEnhanceMetadata,
+  type EnhanceMetadata,
+} from "@/lib/enhance-metadata";
+import {
+  isIntentRoute,
+  type IntentRoute,
+} from "@/lib/enhance-intent";
 import { templates } from "@/lib/templates";
-import { getUserPreferences, setUserPreference } from "@/lib/user-preferences";
+import {
+  getUserPreferences,
+  setUserPreference,
+  type AmbiguityMode,
+  type EnhancementDepth,
+  type RewriteStrictness,
+} from "@/lib/user-preferences";
 import { brandCopy } from "@/lib/brand-copy";
 import {
   getHeroCopyVariant,
@@ -630,6 +645,15 @@ const Index = () => {
   const [showAdvancedControls, setShowAdvancedControls] = useState(
     () => getUserPreferences().showAdvancedControls,
   );
+  const [enhancementDepth, setEnhancementDepth] = useState<EnhancementDepth>(
+    () => getUserPreferences().enhancementDepth,
+  );
+  const [rewriteStrictness, setRewriteStrictness] = useState<RewriteStrictness>(
+    () => getUserPreferences().rewriteStrictness,
+  );
+  const [ambiguityMode, setAmbiguityMode] = useState<AmbiguityMode>(
+    () => getUserPreferences().ambiguityMode,
+  );
   const [enhancePhase, setEnhancePhase] = useState<EnhancePhase>("idle");
   const enhancePhaseTimers = useRef<number[]>([]);
   const hasTrackedBuilderLoaded = useRef(false);
@@ -641,6 +665,7 @@ const Index = () => {
   const enhancePending = useRef(false);
   const enhanceAbortController = useRef<AbortController | null>(null);
   const enhanceStreamToken = useRef(0);
+  const enhanceOutputUsed = useRef(false);
   const [suggestionChips, setSuggestionChips] = useState<
     BuilderSuggestionChip[]
   >([]);
@@ -654,6 +679,8 @@ const Index = () => {
     IDLE_WEB_SEARCH_ACTIVITY,
   );
   const [reasoningSummary, setReasoningSummary] = useState("");
+  const [enhanceMetadata, setEnhanceMetadata] = useState<EnhanceMetadata | null>(null);
+  const [intentOverride, setIntentOverride] = useState<IntentRoute | null>(null);
   const [enhanceSession, setEnhanceSession] = useState<CodexSession>(() =>
     createCodexSession(),
   );
@@ -757,6 +784,7 @@ const Index = () => {
     setSessionDrawerOpen(false);
     setEnhanceSession(createCodexSession());
     setReasoningSummary("");
+    setEnhanceMetadata(null);
     setWebSearchSources([]);
     setWebSearchActivity(IDLE_WEB_SEARCH_ACTIVITY);
     setIsEnhancing(false);
@@ -1042,6 +1070,17 @@ const Index = () => {
       }
 
       enhanceStartedAt.current = Date.now();
+      if (enhancedPrompt.trim()) {
+        if (enhanceOutputUsed.current) {
+          trackBuilderEvent("builder_enhance_accepted", {
+            promptChars: enhancedPrompt.length,
+          });
+        }
+        trackBuilderEvent("builder_enhance_rerun", {
+          previousPromptChars: enhancedPrompt.length,
+        });
+      }
+      enhanceOutputUsed.current = false;
       trackBuilderEvent("builder_enhance_clicked", {
         promptChars: promptForEnhance.length,
         redesignPhase1: isBuilderRedesignPhase1,
@@ -1053,6 +1092,7 @@ const Index = () => {
       enhancePending.current = false;
       setEnhancedPrompt("");
       setReasoningSummary("");
+      setEnhanceMetadata(null);
       setWebSearchSources([]);
       setWebSearchActivity(IDLE_WEB_SEARCH_ACTIVITY);
 
@@ -1125,6 +1165,10 @@ const Index = () => {
         prompt: promptForEnhance,
         session: enhanceSession,
         threadOptions: { ...ENHANCE_THREAD_OPTIONS_BASE, webSearchEnabled },
+        builderMode: enhancementDepth,
+        rewriteStrictness,
+        intentOverride,
+        ambiguityMode,
         builderFields: {
           role: (
             configForEnhance.customRole ||
@@ -1190,6 +1234,24 @@ const Index = () => {
             event.payload,
           );
           if (metadataPrompt) {
+            // Capture full metadata payload for the enhancement summary UI
+            const innerPayload = (
+              event.payload as { payload?: unknown }
+            )?.payload;
+            const parsed = parseEnhanceMetadata(innerPayload);
+            if (parsed) {
+              setEnhanceMetadata(parsed);
+              trackBuilderEvent("builder_enhance_metadata_received", {
+                hasAlternatives: Boolean(
+                  parsed.alternativeVersions?.shorter ||
+                  parsed.alternativeVersions?.more_detailed,
+                ),
+                enhancementCount: parsed.enhancementsMade?.length ?? 0,
+                suggestionCount: parsed.suggestions?.length ?? 0,
+                qualityOverall: parsed.qualityScore?.overall ?? null,
+              });
+            }
+
             const shouldApplyMetadata =
               !hasReceivedDelta ||
               shouldPreferMetadataPrompt(accumulated, metadataPrompt);
@@ -1375,6 +1437,7 @@ const Index = () => {
       category?: string;
       remixNote?: string;
     }) => {
+      enhanceOutputUsed.current = true;
       try {
         const result = await savePrompt({
           title: input.name,
@@ -1422,6 +1485,7 @@ const Index = () => {
       targetModel?: string;
       remixNote?: string;
     }) => {
+      enhanceOutputUsed.current = true;
       if (!isSignedIn) {
         toast({
           title: "Sign in required",
@@ -1464,6 +1528,66 @@ const Index = () => {
     },
     [isSignedIn, saveAndSharePrompt, toast, remixContext, handleClearRemix],
   );
+
+  const handlePromptUsed = useCallback(() => {
+    enhanceOutputUsed.current = true;
+  }, []);
+
+  const detectedIntent: IntentRoute | null = useMemo(() => {
+    const ctx = enhanceMetadata?.detectedContext;
+    // Prefer the backend's authoritative primary_intent field if available
+    const primaryIntent = ctx?.primaryIntent;
+    if (typeof primaryIntent === "string" && isIntentRoute(primaryIntent)) return primaryIntent;
+    // Fall back to legacy intent[0] mapping
+    const raw = ctx?.intent?.[0];
+    const intentMap: Record<string, IntentRoute> = {
+      creative: "brainstorm",
+      analytical: "analysis",
+      instructional: "planning",
+      conversational: "brainstorm",
+      extraction: "extraction",
+      coding: "code",
+      reasoning: "analysis",
+    };
+    if (typeof raw === "string" && intentMap[raw]) return intentMap[raw];
+    if (typeof raw === "string" && isIntentRoute(raw)) return raw;
+    return null;
+  }, [enhanceMetadata]);
+
+  const handleIntentOverrideChange = useCallback((intent: IntentRoute | null) => {
+    const previousOverride = intentOverride;
+    setIntentOverride(intent);
+    if (intent && intent !== detectedIntent) {
+      trackBuilderEvent("builder_enhance_intent_overridden", {
+        fromIntent: previousOverride || detectedIntent || "auto",
+        toIntent: intent,
+      });
+    }
+  }, [intentOverride, detectedIntent]);
+
+  const handleEnhancementDepthChange = useCallback((depth: EnhancementDepth) => {
+    setEnhancementDepth(depth);
+    setUserPreference("enhancementDepth", depth);
+  }, []);
+
+  const handleRewriteStrictnessChange = useCallback((strictness: RewriteStrictness) => {
+    setRewriteStrictness(strictness);
+    setUserPreference("rewriteStrictness", strictness);
+  }, []);
+
+  const handleAmbiguityModeChange = useCallback((mode: AmbiguityMode) => {
+    setAmbiguityMode(mode);
+    setUserPreference("ambiguityMode", mode);
+  }, []);
+
+  const handleApplyToBuilder = useCallback((updates: ApplyToBuilderUpdate) => {
+    const configUpdates: Partial<typeof config> = {};
+    if (updates.role) configUpdates.customRole = updates.role;
+    if (updates.context) configUpdates.context = updates.context;
+    if (updates.format) configUpdates.customFormat = updates.format;
+    if (updates.constraints) configUpdates.customConstraint = updates.constraints;
+    updateConfig(configUpdates);
+  }, [updateConfig]);
 
   // Keyboard shortcut: Ctrl+Enter to enhance
   useEffect(() => {
@@ -1966,6 +2090,9 @@ const Index = () => {
                 onApplySuggestion={handleApplySuggestionChip}
                 onResetInferred={handleResetInferredDetails}
                 canResetInferred={hasAiOwnedFields}
+                detectedIntent={detectedIntent}
+                intentOverride={intentOverride}
+                onIntentOverrideChange={handleIntentOverrideChange}
               />
 
               {showEnhanceFirstCard && (
@@ -2299,6 +2426,15 @@ const Index = () => {
               webSearchSources={webSearchSources}
               webSearchActivity={webSearchActivity}
               enhanceIdleLabel={primaryCtaLabel}
+              enhanceMetadata={enhanceMetadata}
+              onPromptUsed={handlePromptUsed}
+              enhancementDepth={enhancementDepth}
+              rewriteStrictness={rewriteStrictness}
+              onEnhancementDepthChange={handleEnhancementDepthChange}
+              onRewriteStrictnessChange={handleRewriteStrictnessChange}
+              ambiguityMode={ambiguityMode}
+              onAmbiguityModeChange={handleAmbiguityModeChange}
+              onApplyToBuilder={handleApplyToBuilder}
               remixContext={
                 remixContext
                   ? {
@@ -2532,6 +2668,8 @@ const Index = () => {
                 hasEnhancedOnce={hasEnhancedOnce}
                 phase2Enabled={isBuilderRedesignPhase2}
                 enhanceIdleLabel={primaryCtaLabel}
+                enhanceMetadata={enhanceMetadata}
+                onPromptUsed={handlePromptUsed}
                 hideEnhanceButton
                 remixContext={
                   remixContext

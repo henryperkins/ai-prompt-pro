@@ -3,36 +3,22 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Card } from "@/components/base/card";
 import { Button } from "@/components/base/buttons/button";
-import { Input } from "@/components/base/input/input";
-import { Label } from "@/components/base/label";
-import { Textarea } from "@/components/base/textarea";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/base/dialog";
-import { Select } from "@/components/base/select/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/base/dropdown-menu";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
-import { PROMPT_CATEGORY_OPTIONS } from "@/lib/prompt-categories";
 import { copyTextToClipboard } from "@/lib/clipboard";
-import {
-  validateSaveDialogInput,
-} from "@/lib/output-panel-validation";
 import { trackBuilderEvent } from "@/lib/telemetry";
 import { buildLineDiff, type DiffLine } from "@/lib/text-diff";
 import {
@@ -42,10 +28,18 @@ import {
 } from "@/lib/ui-status";
 import { cx } from "@/lib/utils/cx";
 import { normalizeHttpUrl } from "@/lib/url-utils";
-import { Checkbox } from "@/components/base/checkbox";
 import { Switch } from "@/components/base/switch";
 import { WebSearchActivityIndicator } from "@/components/WebSearchActivityIndicator";
 import type { WebSearchActivity } from "@/lib/enhance-web-search-stream";
+import type { EnhanceMetadata } from "@/lib/enhance-metadata";
+import type { AmbiguityMode, EnhancementDepth, RewriteStrictness } from "@/lib/user-preferences";
+import {
+  OutputPanelSaveDialog,
+  type SavePromptInput,
+  type SaveAndSharePromptInput,
+} from "@/components/OutputPanelSaveDialog";
+import { OutputPanelDevTools } from "@/components/OutputPanelDevTools";
+import { EnhancementInspector, type ApplyToBuilderUpdate } from "@/components/EnhancementInspector";
 import {
   Check,
   Copy,
@@ -58,20 +52,8 @@ import {
 
 export type EnhancePhase = "idle" | "starting" | "streaming" | "settling" | "done";
 export type OutputPreviewSource = "empty" | "prompt_text" | "builder_fields" | "enhanced";
+export type { SavePromptInput, SaveAndSharePromptInput };
 const REASONING_SUMMARY_FADE_MS = 900;
-
-interface SavePromptInput {
-  name: string;
-  description?: string;
-  tags?: string[];
-  category?: string;
-  remixNote?: string;
-}
-
-interface SaveAndSharePromptInput extends SavePromptInput {
-  useCase: string;
-  targetModel?: string;
-}
 
 interface OutputPanelProps {
   builtPrompt: string;
@@ -95,26 +77,18 @@ interface OutputPanelProps {
   reasoningSummary?: string;
   previewSource?: OutputPreviewSource;
   hasEnhancedOnce?: boolean;
+  enhanceMetadata?: EnhanceMetadata | null;
+  onPromptUsed?: () => void;
+  enhancementDepth?: EnhancementDepth;
+  rewriteStrictness?: RewriteStrictness;
+  onEnhancementDepthChange?: (depth: EnhancementDepth) => void;
+  onRewriteStrictnessChange?: (strictness: RewriteStrictness) => void;
+  ambiguityMode?: AmbiguityMode;
+  onAmbiguityModeChange?: (mode: AmbiguityMode) => void;
+  onApplyToBuilder?: (updates: ApplyToBuilderUpdate) => void;
 }
 
-type CodexExportModule = typeof import("@/lib/codex-export");
-
-async function loadCodexExport(): Promise<CodexExportModule> {
-  return import("@/lib/codex-export");
-}
-
-function parseTags(value: string): string[] | undefined {
-  const tags = Array.from(
-    new Set(
-      value
-        .split(",")
-        .map((tag) => tag.trim().toLowerCase())
-        .filter(Boolean),
-    ),
-  ).slice(0, 8);
-
-  return tags.length > 0 ? tags : undefined;
-}
+export type { ApplyToBuilderUpdate };
 
 function parseWebSourceLink(value: string): { title: string; href: string } | null {
   const mdLink = value.match(/^\[(.+?)]\((.+?)\)$/);
@@ -151,28 +125,31 @@ export function OutputPanel({
   reasoningSummary = "",
   previewSource,
   hasEnhancedOnce = true,
+  enhanceMetadata,
+  onPromptUsed,
+  enhancementDepth = "guided",
+  rewriteStrictness = "balanced",
+  onEnhancementDepthChange,
+  onRewriteStrictnessChange,
+  ambiguityMode = "infer_conservatively",
+  onAmbiguityModeChange,
+  onApplyToBuilder,
 }: OutputPanelProps) {
   const [copied, setCopied] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
-  const [shareEnabled, setShareEnabled] = useState(false);
+  const [saveDialogShareIntent, setSaveDialogShareIntent] = useState(false);
   const [compareDialogOpen, setCompareDialogOpen] = useState(false);
-
-  const [saveName, setSaveName] = useState("");
-  const [saveDescription, setSaveDescription] = useState("");
-  const [saveTags, setSaveTags] = useState("");
-  const [saveCategory, setSaveCategory] = useState("general");
-  const [saveUseCase, setSaveUseCase] = useState("");
-  const [saveTargetModel, setSaveTargetModel] = useState("");
-  const [saveConfirmedSafe, setSaveConfirmedSafe] = useState(false);
-  const [saveRemixNote, setSaveRemixNote] = useState("");
-  const [saveNameTouched, setSaveNameTouched] = useState(false);
-  const [saveUseCaseTouched, setSaveUseCaseTouched] = useState(false);
-  const [saveConfirmedSafeTouched, setSaveConfirmedSafeTouched] = useState(false);
-  const [saveSubmitAttempted, setSaveSubmitAttempted] = useState(false);
+  const [activeVariant, setActiveVariant] = useState<"original" | "shorter" | "more_detailed">("original");
 
   const { toast } = useToast();
   const isMobile = useIsMobile();
-  const displayPrompt = enhancedPrompt || builtPrompt;
+  const variantPrompt =
+    activeVariant === "shorter" && enhanceMetadata?.alternativeVersions?.shorter
+      ? enhanceMetadata.alternativeVersions.shorter
+      : activeVariant === "more_detailed" && enhanceMetadata?.alternativeVersions?.more_detailed
+        ? enhanceMetadata.alternativeVersions.more_detailed
+        : null;
+  const displayPrompt = variantPrompt || enhancedPrompt || builtPrompt;
   const inferredPreviewSource: OutputPreviewSource = enhancedPrompt.trim()
     ? "enhanced"
     : builtPrompt.trim()
@@ -190,7 +167,10 @@ export function OutputPanel({
   const trimmedReasoningSummary = reasoningSummary.trim();
   const [displayedReasoningSummary, setDisplayedReasoningSummary] = useState(trimmedReasoningSummary);
   const [isReasoningSummaryFading, setIsReasoningSummaryFading] = useState(false);
-  const shareEnabledForUi = shareEnabled && canSharePrompt;
+
+  useEffect(() => {
+    setActiveVariant("original");
+  }, [enhanceMetadata]);
 
   useEffect(() => {
     if (trimmedReasoningSummary) {
@@ -212,156 +192,6 @@ export function OutputPanel({
 
     return () => window.clearTimeout(fadeTimer);
   }, [displayedReasoningSummary, trimmedReasoningSummary]);
-
-  const downloadTextFile = (filename: string, content: string) => {
-    const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  };
-
-  const handleCopyCodex = async (variant: "exec" | "tui" | "appServer") => {
-    if (!displayPrompt) return;
-
-    try {
-      const codexExport = await loadCodexExport();
-      const command =
-        variant === "exec"
-          ? codexExport.generateCodexExecCommandBash(displayPrompt)
-          : variant === "tui"
-            ? codexExport.generateCodexTuiCommandBash(displayPrompt)
-            : codexExport.generateCodexAppServerSendMessageV2CommandBash(displayPrompt);
-      await copyTextToClipboard(command);
-      toast({
-        title: "Copied for Codex",
-        description:
-          variant === "exec"
-            ? "Copied `codex exec` stdin command."
-            : variant === "tui"
-              ? "Copied `codex` TUI command."
-              : "Copied app-server debug command.",
-      });
-      trackBuilderEvent("builder_dev_export_used", {
-        action: "copy_codex",
-        variant,
-      });
-    } catch (error) {
-      toast({
-        title: "Copy failed",
-        description: error instanceof Error ? error.message : "Codex command generation is unavailable.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDownloadAgents = async (variant: "agents" | "override") => {
-    if (!displayPrompt) return;
-
-    try {
-      const codexExport = await loadCodexExport();
-      const content =
-        variant === "override"
-          ? codexExport.generateAgentsOverrideMdFromPrompt(displayPrompt)
-          : codexExport.generateAgentsMdFromPrompt(displayPrompt);
-      const filename = variant === "override" ? "AGENTS.override.md" : "AGENTS.md";
-      downloadTextFile(filename, content);
-      toast({
-        title: "Downloaded",
-        description: `${filename} generated from the current output.`,
-      });
-      trackBuilderEvent("builder_dev_export_used", {
-        action: "download_agents",
-        variant,
-      });
-    } catch (error) {
-      toast({
-        title: "Download failed",
-        description: error instanceof Error ? error.message : "AGENTS file generation is unavailable.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleCopyCodexSkillScaffold = async () => {
-    if (!displayPrompt) return;
-
-    try {
-      const codexExport = await loadCodexExport();
-      const command = codexExport.generateCodexSkillScaffoldCommandBash(displayPrompt, {
-        skillName: codexExport.CODEX_DEFAULT_SKILL_NAME,
-      });
-      await copyTextToClipboard(command);
-      toast({
-        title: "Copied for Codex",
-        description: `Copied command to scaffold .agents/skills/${codexExport.CODEX_DEFAULT_SKILL_NAME}/SKILL.md.`,
-      });
-      trackBuilderEvent("builder_dev_export_used", {
-        action: "copy_skill_scaffold",
-      });
-    } catch (error) {
-      toast({
-        title: "Copy failed",
-        description: error instanceof Error ? error.message : "Codex scaffold generation is unavailable.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDownloadSkill = async () => {
-    if (!displayPrompt) return;
-
-    try {
-      const codexExport = await loadCodexExport();
-      const content = codexExport.generateSkillMdFromPrompt(displayPrompt, {
-        skillName: codexExport.CODEX_DEFAULT_SKILL_NAME,
-      });
-      downloadTextFile("SKILL.md", content);
-      toast({
-        title: "Downloaded",
-        description: `SKILL.md generated for skill name "${codexExport.CODEX_DEFAULT_SKILL_NAME}".`,
-      });
-      trackBuilderEvent("builder_dev_export_used", {
-        action: "download_skill",
-      });
-    } catch (error) {
-      toast({
-        title: "Download failed",
-        description: error instanceof Error ? error.message : "SKILL.md generation is unavailable.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const developerToolItems = (
-    <>
-      <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodex("exec")}>
-        Copy Codex exec command
-      </DropdownMenuItem>
-      <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodex("tui")}>
-        Copy Codex TUI command
-      </DropdownMenuItem>
-      <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodex("appServer")}>
-        Copy app server command
-      </DropdownMenuItem>
-      <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleCopyCodexSkillScaffold()}>
-        Copy skill scaffold
-      </DropdownMenuItem>
-      <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleDownloadSkill()}>
-        Download SKILL.md
-      </DropdownMenuItem>
-      <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleDownloadAgents("agents")}>
-        Download AGENTS.md
-      </DropdownMenuItem>
-      <DropdownMenuItem disabled={!displayPrompt} onSelect={() => void handleDownloadAgents("override")}>
-        Download AGENTS.override.md
-      </DropdownMenuItem>
-    </>
-  );
 
   const isStreamingVisual = enhancePhase === "starting" || enhancePhase === "streaming";
   const isSettledVisual = enhancePhase === "settling" || enhancePhase === "done";
@@ -400,20 +230,6 @@ export function OutputPanel({
   const hasPreviewContent = displayPrompt.trim().length > 0;
   const showUtilityActions = hasEnhancedOnce || hasPreviewContent;
   const canUseSaveMenu = canSavePrompt || canSharePrompt || hasPreviewContent;
-  const saveValidationErrors = validateSaveDialogInput({
-    name: saveName,
-    shareEnabled: shareEnabledForUi,
-    useCase: saveUseCase,
-    confirmedSafe: saveConfirmedSafe,
-  });
-  const saveNameError = saveValidationErrors.name ?? null;
-  const showSaveNameError = Boolean(saveNameError && (saveNameTouched || saveSubmitAttempted));
-  const saveUseCaseError = saveValidationErrors.useCase ?? null;
-  const showSaveUseCaseError = Boolean(saveUseCaseError && (saveUseCaseTouched || saveSubmitAttempted));
-  const saveConfirmedSafeError = saveValidationErrors.confirmedSafe ?? null;
-  const showSaveConfirmedSafeError = Boolean(
-    saveConfirmedSafeError && (saveConfirmedSafeTouched || saveSubmitAttempted),
-  );
 
   const diff = useMemo(() => {
     if (!compareDialogOpen || !hasCompare) return null;
@@ -430,6 +246,7 @@ export function OutputPanel({
       }
       await copyTextToClipboard(displayPrompt);
       setCopied(true);
+      onPromptUsed?.();
       toast({ title: "Copied to clipboard!", description: "Paste it into your favorite AI tool." });
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -441,85 +258,6 @@ export function OutputPanel({
     }
   };
 
-  const resetSaveDialogState = () => {
-    setSaveName("");
-    setSaveDescription("");
-    setSaveTags("");
-    setSaveCategory("general");
-    setSaveUseCase("");
-    setSaveTargetModel("");
-    setSaveConfirmedSafe(false);
-    setSaveRemixNote("");
-    setShareEnabled(false);
-    setSaveNameTouched(false);
-    setSaveUseCaseTouched(false);
-    setSaveConfirmedSafeTouched(false);
-    setSaveSubmitAttempted(false);
-  };
-
-  const handleSaveSubmit = () => {
-    setSaveSubmitAttempted(true);
-
-    const canShareNow = shareEnabled && canSharePrompt;
-    if (shareEnabled && !canSharePrompt) {
-      setShareEnabled(false);
-    }
-
-    const effectiveErrors = canShareNow
-      ? { nameErr: saveNameError, useCaseErr: saveUseCaseError, safeErr: saveConfirmedSafeError }
-      : { nameErr: saveNameError, useCaseErr: null, safeErr: null };
-    if (effectiveErrors.nameErr || effectiveErrors.useCaseErr || effectiveErrors.safeErr) {
-      setSaveNameTouched(true);
-      if (canShareNow) {
-        setSaveUseCaseTouched(true);
-        setSaveConfirmedSafeTouched(true);
-      }
-      return;
-    }
-
-    if (canShareNow) {
-      onSaveAndSharePrompt({
-        name: saveName.trim(),
-        description: saveDescription.trim() || undefined,
-        tags: parseTags(saveTags),
-        category: saveCategory,
-        useCase: saveUseCase.trim(),
-        targetModel: saveTargetModel.trim() || undefined,
-        remixNote: remixContext ? saveRemixNote.trim() || undefined : undefined,
-      });
-    } else {
-      onSavePrompt({
-        name: saveName.trim(),
-        description: saveDescription.trim() || undefined,
-        tags: parseTags(saveTags),
-        category: saveCategory,
-        remixNote: remixContext ? saveRemixNote.trim() || undefined : undefined,
-      });
-    }
-
-    setSaveDialogOpen(false);
-    resetSaveDialogState();
-  };
-
-  const handleSaveDialogOpenChange = (open: boolean) => {
-    setSaveDialogOpen(open);
-    if (open) return;
-    setSaveNameTouched(false);
-    setSaveUseCaseTouched(false);
-    setSaveConfirmedSafeTouched(false);
-    setSaveSubmitAttempted(false);
-  };
-
-  const handleShareToggleChange = (enabled: boolean) => {
-    if (enabled && !canSharePrompt) return;
-    setShareEnabled(enabled);
-    trackBuilderEvent("builder_share_toggled", { enabled });
-    if (!enabled) {
-      setSaveUseCaseTouched(false);
-      setSaveConfirmedSafeTouched(false);
-    }
-  };
-
   const openSaveDialog = (share: boolean) => {
     if (!hasEnhancedOnce) {
       trackBuilderEvent("builder_save_pre_enhance_attempt", {
@@ -527,15 +265,8 @@ export function OutputPanel({
       });
     }
     if (share && !canSharePrompt) return;
-    if (remixContext) {
-      if (!saveName.trim()) {
-        setSaveName(`Remix of ${remixContext.title}`);
-      }
-    } else {
-      setSaveRemixNote("");
-    }
-    setShareEnabled(share);
     trackBuilderEvent("builder_save_clicked", { shareEnabled: share });
+    setSaveDialogShareIntent(share);
     setSaveDialogOpen(true);
   };
 
@@ -628,20 +359,7 @@ export function OutputPanel({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  {isMobile ? (
-                    <>
-                      <DropdownMenuLabel>Developer tools</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      {developerToolItems}
-                    </>
-                  ) : (
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger>Developer tools</DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent>
-                        {developerToolItems}
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                  )}
+                  <OutputPanelDevTools displayPrompt={displayPrompt} isMobile={isMobile} />
                 </DropdownMenuContent>
               </DropdownMenu>
             </>
@@ -706,200 +424,16 @@ export function OutputPanel({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={saveDialogOpen} onOpenChange={handleSaveDialogOpenChange}>
-        <DialogContent className="sm:max-w-md max-h-[85vh] overflow-auto">
-          <DialogHeader>
-            <DialogTitle>{shareEnabledForUi ? "Save & Share Prompt" : "Save Prompt"}</DialogTitle>
-            <DialogDescription>
-              {shareEnabledForUi
-                ? "Publish this prompt recipe to the community feed."
-                : "Save a private prompt snapshot to your library."}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            {remixContext && (
-              <div className="rounded-md border border-primary/25 bg-primary/10 px-3 py-2 text-sm text-primary">
-                Remixing {remixContext.authorName}’s “{remixContext.title}”
-              </div>
-            )}
-            <div className="space-y-1">
-              <Label htmlFor="save-dialog-name" className="text-sm font-medium">
-                Prompt title
-              </Label>
-              <Input
-                id="save-dialog-name"
-                value={saveName}
-                onChange={setSaveName}
-                onBlur={() => setSaveNameTouched(true)}
-                placeholder="Prompt title"
-                wrapperClassName="bg-background"
-                inputClassName="text-base"
-                aria-invalid={showSaveNameError}
-                aria-describedby="save-dialog-name-help"
-              />
-              <p
-                id="save-dialog-name-help"
-                className={cx("text-sm", showSaveNameError ? "text-destructive" : "text-muted-foreground")}
-              >
-                {showSaveNameError ? saveNameError : "Required."}
-              </p>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-sm font-medium">
-                Category
-              </Label>
-              <Select
-                selectedKey={saveCategory}
-                onSelectionChange={(value) => {
-                  if (value !== null) {
-                    setSaveCategory(String(value));
-                  }
-                }}
-                placeholder="Category"
-                className="bg-background"
-                aria-label="Category"
-              >
-                {PROMPT_CATEGORY_OPTIONS.map((category) => (
-                  <Select.Item key={category.value} id={category.value}>
-                    {category.label}
-                  </Select.Item>
-                ))}
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="save-dialog-description" className="text-sm font-medium">
-                Description
-              </Label>
-              <Textarea
-                id="save-dialog-description"
-                value={saveDescription}
-                onChange={(event) => setSaveDescription(event.target.value)}
-                placeholder="Description (optional)"
-                className="min-h-[80px] bg-background"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="save-dialog-tags" className="text-sm font-medium">
-                Tags
-              </Label>
-              <Input
-                id="save-dialog-tags"
-                value={saveTags}
-                onChange={setSaveTags}
-                placeholder="Tags (comma-separated, optional)"
-                wrapperClassName="bg-background"
-                inputClassName="text-base"
-              />
-            </div>
-            {remixContext && (
-              <div className="space-y-1">
-                <Label htmlFor="save-dialog-remix-note" className="text-sm font-medium">
-                  Remix note
-                </Label>
-                <Textarea
-                  id="save-dialog-remix-note"
-                  value={saveRemixNote}
-                  onChange={(event) => setSaveRemixNote(event.target.value)}
-                  placeholder="Remix note (optional)"
-                  className="min-h-[80px] bg-background"
-                />
-              </div>
-            )}
-
-            {phase2Enabled && (
-              <div className="rounded-md border border-border/80 bg-muted/30 px-3 py-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label htmlFor="save-dialog-share-toggle" className="text-sm font-medium text-foreground">
-                      Share to community
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      Enable to publish after saving.
-                    </p>
-                  </div>
-                  <Switch
-                    id="save-dialog-share-toggle"
-                    checked={shareEnabledForUi}
-                    onCheckedChange={handleShareToggleChange}
-                    disabled={!canSharePrompt}
-                  />
-                </div>
-                {!canSharePrompt && (
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Sign in to enable sharing.
-                  </p>
-                )}
-              </div>
-            )}
-
-            {shareEnabledForUi && (
-              <>
-                <div className="space-y-1">
-                  <Label htmlFor="save-dialog-use-case" className="text-sm font-medium">
-                    Use case
-                  </Label>
-                  <Textarea
-                    id="save-dialog-use-case"
-                    value={saveUseCase}
-                    onChange={(event) => setSaveUseCase(event.target.value)}
-                    onBlur={() => setSaveUseCaseTouched(true)}
-                    placeholder="Describe how this prompt should be used"
-                    className="min-h-[90px] bg-background"
-                    aria-invalid={showSaveUseCaseError}
-                    aria-describedby="save-dialog-use-case-help"
-                  />
-                  <p
-                    id="save-dialog-use-case-help"
-                    className={cx("text-sm", showSaveUseCaseError ? "text-destructive" : "text-muted-foreground")}
-                  >
-                    {showSaveUseCaseError ? saveUseCaseError : "Required when sharing."}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="save-dialog-target-model" className="text-sm font-medium">
-                    Target model
-                  </Label>
-                  <Input
-                    id="save-dialog-target-model"
-                    value={saveTargetModel}
-                    onChange={setSaveTargetModel}
-                    placeholder="Target model (optional)"
-                    wrapperClassName="bg-background"
-                    inputClassName="text-base"
-                  />
-                </div>
-                <Checkbox
-                  isSelected={saveConfirmedSafe}
-                  onChange={(val) => {
-                    setSaveConfirmedSafe(val);
-                    setSaveConfirmedSafeTouched(true);
-                  }}
-                  isInvalid={showSaveConfirmedSafeError}
-                  aria-describedby="save-dialog-confirm-safe-help"
-                  label="I confirm this prompt contains no secrets or private data."
-                />
-                <p
-                  id="save-dialog-confirm-safe-help"
-                  className={cx(
-                    "text-sm",
-                    showSaveConfirmedSafeError ? "text-destructive" : "text-muted-foreground",
-                  )}
-                >
-                  {showSaveConfirmedSafeError ? saveConfirmedSafeError : "Required when sharing."}
-                </p>
-              </>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="secondary" onClick={() => handleSaveDialogOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" onClick={handleSaveSubmit}>
-              {shareEnabledForUi ? "Save & Share" : "Save Prompt"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <OutputPanelSaveDialog
+        open={saveDialogOpen}
+        onOpenChange={setSaveDialogOpen}
+        initialShareEnabled={saveDialogShareIntent}
+        canSharePrompt={canSharePrompt}
+        phase2Enabled={phase2Enabled}
+        remixContext={remixContext}
+        onSavePrompt={onSavePrompt}
+        onSaveAndSharePrompt={onSaveAndSharePrompt}
+      />
 
       {displayedReasoningSummary && (
         <Card
@@ -950,6 +484,34 @@ export function OutputPanel({
         )}
       </Card>
 
+      {enhanceMetadata && !isEnhancing && (
+        <EnhancementSummary
+          metadata={enhanceMetadata}
+          activeVariant={activeVariant}
+          onVariantChange={(variant) => {
+            setActiveVariant(variant);
+            if (variant !== "original") {
+              const variantText =
+                variant === "shorter"
+                  ? enhanceMetadata.alternativeVersions?.shorter
+                  : enhanceMetadata.alternativeVersions?.more_detailed;
+              trackBuilderEvent("builder_enhance_variant_applied", {
+                variant,
+                originalPromptChars: enhancedPrompt.length,
+                variantPromptChars: variantText?.length ?? 0,
+              });
+            }
+          }}
+        />
+      )}
+
+      {enhanceMetadata && !isEnhancing && (enhanceMetadata.partsBreakdown || enhanceMetadata.enhancementPlan) && (
+        <EnhancementInspector
+          metadata={enhanceMetadata}
+          onApplyToBuilder={onApplyToBuilder}
+        />
+      )}
+
       {webSearchSources.length > 0 && (
         <div className="px-1 pt-1 pb-0">
           <p className="ui-section-label mb-1 text-muted-foreground">Sources</p>
@@ -995,6 +557,37 @@ export function OutputPanel({
               Web lookup: {webSearchEnabled ? "On" : "Off"}
             </p>
           )}
+          {(onEnhancementDepthChange || onRewriteStrictnessChange || onAmbiguityModeChange) && (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+              {onEnhancementDepthChange && (
+                <EnhanceOptionGroup
+                  label="Depth"
+                  value={enhancementDepth}
+                  options={ENHANCEMENT_DEPTH_OPTIONS}
+                  onChange={onEnhancementDepthChange}
+                  disabled={isEnhancing}
+                />
+              )}
+              {onRewriteStrictnessChange && (
+                <EnhanceOptionGroup
+                  label="Strictness"
+                  value={rewriteStrictness}
+                  options={REWRITE_STRICTNESS_OPTIONS}
+                  onChange={onRewriteStrictnessChange}
+                  disabled={isEnhancing}
+                />
+              )}
+              {onAmbiguityModeChange && (
+                <EnhanceOptionGroup
+                  label="Ambiguity"
+                  value={ambiguityMode}
+                  options={AMBIGUITY_MODE_OPTIONS}
+                  onChange={onAmbiguityModeChange}
+                  disabled={isEnhancing}
+                />
+              )}
+            </div>
+          )}
           <Button
             variant="primary"
             size="lg"
@@ -1015,6 +608,221 @@ export function OutputPanel({
               </>
             )}
           </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const ENHANCEMENT_DEPTH_OPTIONS: { value: EnhancementDepth; label: string }[] = [
+  { value: "quick", label: "Light polish" },
+  { value: "guided", label: "Structured rewrite" },
+  { value: "advanced", label: "Expert prompt" },
+];
+
+const AMBIGUITY_MODE_OPTIONS: { value: AmbiguityMode; label: string }[] = [
+  { value: "ask_me", label: "Ask me" },
+  { value: "placeholders", label: "Use placeholders" },
+  { value: "infer_conservatively", label: "Infer conservatively" },
+];
+
+const REWRITE_STRICTNESS_OPTIONS: { value: RewriteStrictness; label: string }[] = [
+  { value: "preserve", label: "Preserve wording" },
+  { value: "balanced", label: "Balanced" },
+  { value: "aggressive", label: "Optimize aggressively" },
+];
+
+function EnhanceOptionGroup<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (value: T) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="text-xs font-medium text-muted-foreground">{label}:</span>
+      <div className="inline-flex rounded-md border border-border/60 bg-muted/30 p-0.5 gap-0.5">
+        {options.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            disabled={disabled}
+            onClick={() => onChange(opt.value)}
+            className={cx(
+              "rounded px-2 py-0.5 text-xs font-medium transition-colors",
+              "disabled:opacity-50 disabled:cursor-not-allowed",
+              opt.value === value
+                ? "bg-primary/15 text-primary border border-primary/25"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-transparent",
+            )}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function EnhancementSummary({
+  metadata,
+  activeVariant,
+  onVariantChange,
+}: {
+  metadata: EnhanceMetadata;
+  activeVariant: "original" | "shorter" | "more_detailed";
+  onVariantChange: (variant: "original" | "shorter" | "more_detailed") => void;
+}) {
+  const ctx = metadata.detectedContext;
+  const hasDetected = ctx && (ctx.intent.length > 0 || ctx.domain.length > 0);
+  const hasChanges = metadata.enhancementsMade && metadata.enhancementsMade.length > 0;
+  const hasMissing = metadata.missingParts && metadata.missingParts.length > 0;
+  const hasSuggestions = metadata.suggestions && metadata.suggestions.length > 0;
+  const hasVariants =
+    metadata.alternativeVersions &&
+    (metadata.alternativeVersions.shorter || metadata.alternativeVersions.more_detailed);
+  const hasAssumptions = metadata.assumptionsMade && metadata.assumptionsMade.length > 0;
+  const hasQuestions = metadata.openQuestions && metadata.openQuestions.length > 0;
+
+  if (!hasDetected && !hasChanges && !hasMissing && !hasSuggestions && !hasVariants && !hasAssumptions && !hasQuestions) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5 space-y-2 text-sm">
+      {hasDetected && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-medium text-muted-foreground">Detected:</span>
+          {ctx.intent.map((intent) => (
+            <span
+              key={intent}
+              className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+            >
+              {intent}
+            </span>
+          ))}
+          {ctx.domain.map((domain) => (
+            <span
+              key={domain}
+              className="inline-flex items-center rounded-full border border-border/60 bg-muted/50 px-2 py-0.5 text-xs font-medium text-muted-foreground"
+            >
+              {domain}
+            </span>
+          ))}
+          {ctx.complexity > 0 && (
+            <span className="text-xs text-muted-foreground">
+              complexity {ctx.complexity}/5
+            </span>
+          )}
+        </div>
+      )}
+
+      {hasChanges && (
+        <div>
+          <p className="text-xs font-medium text-muted-foreground mb-1">What changed:</p>
+          <ul className="space-y-0.5">
+            {metadata.enhancementsMade!.map((change, i) => (
+              <li key={i} className="text-xs text-foreground/80 pl-3 relative before:content-['•'] before:absolute before:left-0 before:text-muted-foreground">
+                {change}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {hasMissing && (
+        <div>
+          <p className="text-xs font-medium text-muted-foreground mb-1">Watch-outs:</p>
+          <ul className="space-y-0.5">
+            {metadata.missingParts!.map((part, i) => (
+              <li key={i} className="text-xs text-warning-primary pl-3 relative before:content-['⚠'] before:absolute before:left-0">
+                Missing: {part}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {hasSuggestions && (
+        <div>
+          <p className="text-xs font-medium text-muted-foreground mb-1">Try next:</p>
+          <ul className="space-y-0.5">
+            {metadata.suggestions!.map((suggestion, i) => (
+              <li key={i} className="text-xs text-foreground/80 pl-3 relative before:content-['→'] before:absolute before:left-0 before:text-muted-foreground">
+                {suggestion}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {hasAssumptions && (
+        <div>
+          <p className="text-xs font-medium text-muted-foreground mb-1">Assumptions made:</p>
+          <ul className="space-y-0.5">
+            {metadata.assumptionsMade!.map((assumption, i) => (
+              <li key={i} className="text-xs text-foreground/80 pl-3 relative before:content-['·'] before:absolute before:left-0 before:text-muted-foreground">
+                {assumption}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {hasQuestions && (
+        <div>
+          <p className="text-xs font-medium text-muted-foreground mb-1">Open questions:</p>
+          <ul className="space-y-0.5">
+            {metadata.openQuestions!.map((question, i) => (
+              <li key={i} className="text-xs text-foreground/80 pl-3 relative before:content-['?'] before:absolute before:left-0 before:text-primary">
+                {question}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {hasVariants && (
+        <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-border/40">
+          <span className="text-xs font-medium text-muted-foreground">Versions:</span>
+          <Button
+            type="button"
+            variant={activeVariant === "original" ? "primary" : "secondary"}
+            size="sm"
+            className="h-6 px-2 text-xs"
+            onClick={() => onVariantChange("original")}
+          >
+            Original
+          </Button>
+          {metadata.alternativeVersions!.shorter && (
+            <Button
+              type="button"
+              variant={activeVariant === "shorter" ? "primary" : "secondary"}
+              size="sm"
+              className="h-6 px-2 text-xs"
+              onClick={() => onVariantChange("shorter")}
+            >
+              Use shorter
+            </Button>
+          )}
+          {metadata.alternativeVersions!.more_detailed && (
+            <Button
+              type="button"
+              variant={activeVariant === "more_detailed" ? "primary" : "secondary"}
+              size="sm"
+              className="h-6 px-2 text-xs"
+              onClick={() => onVariantChange("more_detailed")}
+            >
+              Use more detailed
+            </Button>
+          )}
         </div>
       )}
     </div>

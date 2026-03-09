@@ -9,6 +9,7 @@ import {
   parseEnhancementJsonResponse,
   parseEnhancementRequestBuilderFields,
   parseEnhancementRequestMode,
+  parseEnhancementRequestRewriteStrictness,
   pickPrimaryAgentMessageText,
   postProcessEnhancementResponse,
   scoreComplexity,
@@ -303,6 +304,58 @@ describe("enhancement pipeline", () => {
     it("supports outputFormat alias", () => {
       const result = normalizeBuilderFields({ outputFormat: "JSON" });
       expect(result.output_format).toBe("JSON");
+    });
+  });
+
+  describe("rewrite strictness", () => {
+    it("parses rewrite_strictness from request body", () => {
+      expect(parseEnhancementRequestRewriteStrictness({ rewrite_strictness: "preserve" })).toBe("preserve");
+      expect(parseEnhancementRequestRewriteStrictness({ rewrite_strictness: "aggressive" })).toBe("aggressive");
+      expect(parseEnhancementRequestRewriteStrictness({ rewriteStrictness: "balanced" })).toBe("balanced");
+    });
+
+    it("defaults to balanced for invalid values", () => {
+      expect(parseEnhancementRequestRewriteStrictness({ rewrite_strictness: "unknown" })).toBe("balanced");
+      expect(parseEnhancementRequestRewriteStrictness({})).toBe("balanced");
+      expect(parseEnhancementRequestRewriteStrictness(null)).toBe("balanced");
+    });
+
+    it("includes rewriteStrictness in detected context", () => {
+      const context = detectEnhancementContext("Improve this paragraph", {
+        builderMode: "guided",
+        rewriteStrictness: "preserve",
+      });
+      expect(context.rewriteStrictness).toBe("preserve");
+    });
+
+    it("injects preserve strictness addon into meta-prompt", () => {
+      const context = detectEnhancementContext("Improve this paragraph", {
+        builderMode: "guided",
+        rewriteStrictness: "preserve",
+      });
+      const prompt = buildEnhancementMetaPrompt("Improve this paragraph", context);
+      expect(prompt).toContain("PRESERVE WORDING");
+      expect(prompt).toContain("Minimize paraphrasing");
+    });
+
+    it("injects aggressive strictness addon into meta-prompt", () => {
+      const context = detectEnhancementContext("Improve this paragraph", {
+        builderMode: "guided",
+        rewriteStrictness: "aggressive",
+      });
+      const prompt = buildEnhancementMetaPrompt("Improve this paragraph", context);
+      expect(prompt).toContain("OPTIMIZE AGGRESSIVELY");
+      expect(prompt).toContain("Rewrite freely");
+    });
+
+    it("does not inject strictness addon for balanced mode", () => {
+      const context = detectEnhancementContext("Improve this paragraph", {
+        builderMode: "guided",
+        rewriteStrictness: "balanced",
+      });
+      const prompt = buildEnhancementMetaPrompt("Improve this paragraph", context);
+      expect(prompt).not.toContain("PRESERVE WORDING");
+      expect(prompt).not.toContain("OPTIMIZE AGGRESSIVELY");
     });
   });
 });
