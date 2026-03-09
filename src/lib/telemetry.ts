@@ -67,14 +67,13 @@ const TELEMETRY_LOG_KEY = "promptforge-telemetry-log";
 const TELEMETRY_LOG_MAX = 500;
 
 let listenerAttached = false;
+let activeListener: EventListener | null = null;
 
 export function startTelemetryListener(): void {
   if (typeof window === "undefined" || listenerAttached) return;
   listenerAttached = true;
 
-  window.addEventListener(BUILDER_TELEMETRY_EVENT_NAME, ((
-    e: CustomEvent<BuilderTelemetryEnvelope>,
-  ) => {
+  activeListener = ((e: CustomEvent<BuilderTelemetryEnvelope>) => {
     try {
       const log = readLog();
       log.push(e.detail);
@@ -85,7 +84,18 @@ export function startTelemetryListener(): void {
     } catch {
       // localStorage full or unavailable — silently skip
     }
-  }) as EventListener);
+  }) as EventListener;
+
+  window.addEventListener(BUILDER_TELEMETRY_EVENT_NAME, activeListener);
+}
+
+/** Remove the listener and reset internal state. Useful for test isolation. */
+export function resetTelemetryListener(): void {
+  if (typeof window !== "undefined" && activeListener) {
+    window.removeEventListener(BUILDER_TELEMETRY_EVENT_NAME, activeListener);
+  }
+  activeListener = null;
+  listenerAttached = false;
 }
 
 export function getTelemetryLog(): BuilderTelemetryEnvelope[] {

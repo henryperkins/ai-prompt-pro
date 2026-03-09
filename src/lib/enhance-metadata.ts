@@ -151,16 +151,20 @@ function parseDetectedContext(
 ): EnhanceDetectedContext | undefined {
   if (!value || typeof value !== "object") return undefined;
   const obj = value as Record<string, unknown>;
-  return {
-    intent: Array.isArray(obj.intent)
-      ? obj.intent.filter((i): i is string => typeof i === "string")
-      : [],
-    domain: Array.isArray(obj.domain)
-      ? obj.domain.filter((d): d is string => typeof d === "string")
-      : [],
-    complexity: typeof obj.complexity === "number" ? obj.complexity : 0,
-    mode: typeof obj.mode === "string" ? obj.mode : "",
-    input_language: typeof obj.input_language === "string" ? obj.input_language : "",
-    primaryIntent: typeof obj.primary_intent === "string" ? obj.primary_intent : undefined,
-  };
+  const intent = Array.isArray(obj.intent)
+    ? obj.intent.filter((i): i is string => typeof i === "string")
+    : [];
+  const domain = Array.isArray(obj.domain)
+    ? obj.domain.filter((d): d is string => typeof d === "string")
+    : [];
+  const complexity = typeof obj.complexity === "number" ? obj.complexity : 0;
+  const mode = typeof obj.mode === "string" ? obj.mode : "";
+  const input_language = typeof obj.input_language === "string" ? obj.input_language : "";
+  const primaryIntent = typeof obj.primary_intent === "string" ? obj.primary_intent : undefined;
+
+  if (intent.length === 0 && domain.length === 0 && complexity === 0 && !mode && !input_language) {
+    return undefined;
+  }
+
+  return { intent, domain, complexity, mode, input_language, primaryIntent };
 }

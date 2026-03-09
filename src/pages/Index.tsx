@@ -1394,13 +1394,17 @@ const Index = () => {
       });
     })();
   }, [
+    ambiguityMode,
     clearEnhanceTimers,
     config,
     enhanceSession,
     enhancedPrompt,
+    enhancementDepth,
+    intentOverride,
     isBuilderRedesignPhase1,
     isEnhancing,
     isMobile,
+    rewriteStrictness,
     setEnhancedPrompt,
     setIsEnhancing,
     setReasoningSummary,
@@ -1587,6 +1591,10 @@ const Index = () => {
     if (updates.format) configUpdates.customFormat = updates.format;
     if (updates.constraints) configUpdates.customConstraint = updates.constraints;
     updateConfig(configUpdates);
+    const fields = listInferenceFieldsFromUpdates(configUpdates);
+    if (fields.length > 0) {
+      setFieldOwnership((previous) => markOwnershipFields(previous, fields, "ai"));
+    }
   }, [updateConfig]);
 
   // Keyboard shortcut: Ctrl+Enter to enhance
@@ -2670,6 +2678,8 @@ const Index = () => {
                 enhanceIdleLabel={primaryCtaLabel}
                 enhanceMetadata={enhanceMetadata}
                 onPromptUsed={handlePromptUsed}
+                onApplyToBuilder={handleApplyToBuilder}
+                // Enhancement depth/strictness/ambiguity controls omitted — hideEnhanceButton hides the section they render in
                 hideEnhanceButton
                 remixContext={
                   remixContext

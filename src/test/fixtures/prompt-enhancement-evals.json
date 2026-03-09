@@ -8,7 +8,7 @@
   { "id": "rewrite-02", "category": "rewrite", "input": "Edit and revise this proposal for the board", "expectedPrimaryIntent": "rewrite", "expectedAmbiguityLevel": "medium", "forbiddenAssumptions": [] },
   { "id": "rewrite-03", "category": "rewrite", "input": "Simplify this technical documentation for beginners", "expectedPrimaryIntent": "rewrite", "expectedAmbiguityLevel": "high", "forbiddenAssumptions": [] },
   { "id": "analysis-01", "category": "analysis", "input": "Analyze these retention numbers by cohort", "expectedPrimaryIntent": "analysis", "expectedAmbiguityLevel": "high", "forbiddenAssumptions": [] },
-  { "id": "analysis-02", "category": "analysis", "input": "Compare our Q3 revenue against Q2 and identify growth drivers", "expectedPrimaryIntent": "extraction", "expectedAmbiguityLevel": "high", "forbiddenAssumptions": [] },
+  { "id": "analysis-02", "category": "analysis", "input": "Compare our Q3 revenue against Q2 and identify growth drivers", "expectedPrimaryIntent": "analysis", "expectedAmbiguityLevel": "high", "forbiddenAssumptions": [] },
   { "id": "analysis-03", "category": "analysis", "input": "Evaluate the pros and cons of migrating to microservices", "expectedPrimaryIntent": "analysis", "expectedAmbiguityLevel": "high", "forbiddenAssumptions": [] },
   { "id": "code-01", "category": "code", "input": "Write a Python function to sort a list of dictionaries by multiple keys", "expectedPrimaryIntent": "code", "expectedAmbiguityLevel": "medium", "forbiddenAssumptions": [] },
   { "id": "code-02", "category": "code", "input": "Debug this React component that fails to re-render on state change", "expectedPrimaryIntent": "code", "expectedAmbiguityLevel": "high", "forbiddenAssumptions": [] },
@@ -21,5 +21,5 @@
   { "id": "fact-sensitive-01", "category": "fact-sensitive", "input": "What are the latest AI safety regulations passed this year?", "expectedPrimaryIntent": null, "expectedAmbiguityLevel": "high", "expectedMissingSlots": ["factual_verification"], "forbiddenAssumptions": ["specific regulation names", "specific dates"] },
   { "id": "fact-sensitive-02", "category": "fact-sensitive", "input": "Give me current statistics on global renewable energy adoption", "expectedPrimaryIntent": null, "expectedAmbiguityLevel": "high", "expectedMissingSlots": ["factual_verification"], "forbiddenAssumptions": ["specific numbers", "specific years"] },
   { "id": "planning-01", "category": "planning", "input": "Create a project plan with milestones and timeline for launching a mobile app", "expectedPrimaryIntent": "planning", "expectedAmbiguityLevel": "medium", "forbiddenAssumptions": [] },
-  { "id": "research-01", "category": "research", "input": "Research the latest trends in AI safety and summarize key findings", "expectedPrimaryIntent": "extraction", "expectedAmbiguityLevel": "high", "forbiddenAssumptions": [] }
+  { "id": "research-01", "category": "research", "input": "Research the latest trends in AI safety and summarize key findings", "expectedPrimaryIntent": "research", "expectedAmbiguityLevel": "high", "forbiddenAssumptions": [] }
 ]

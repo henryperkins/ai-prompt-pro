@@ -59,12 +59,24 @@ describe("prompt enhancement profile", () => {
   });
 
   it("resets profile cleanly", () => {
+    recordEnhancementAction({
+      type: "enhancement_completed",
+      depth: "guided",
+      strictness: "balanced",
+      ambiguityMode: "infer_conservatively",
+    });
+    recordEnhancementAction({ type: "variant_applied", variant: "shorter" });
     recordEnhancementAction({ type: "accepted" });
     resetEnhancementProfile();
 
     const profile = loadEnhancementProfile();
     expect(profile.acceptCount).toBe(0);
+    expect(profile.rerunCount).toBe(0);
     expect(profile.totalEnhancements).toBe(0);
+    expect(Object.keys(profile.depthCounts)).toHaveLength(0);
+    expect(Object.keys(profile.variantCounts)).toHaveLength(0);
+    expect(Object.keys(profile.strictnessCounts)).toHaveLength(0);
+    expect(Object.keys(profile.ambiguityModeCounts)).toHaveLength(0);
   });
 
   it("does not mutate when no explicit action", () => {

@@ -646,7 +646,7 @@ function EnhanceOptionGroup<T extends string>({
   disabled?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-1.5" role="group" aria-label={label}>
       <span className="text-xs font-medium text-muted-foreground">{label}:</span>
       <div className="inline-flex rounded-md border border-border/60 bg-muted/30 p-0.5 gap-0.5">
         {options.map((opt) => (
@@ -654,6 +654,7 @@ function EnhanceOptionGroup<T extends string>({
             key={opt.value}
             type="button"
             disabled={disabled}
+            aria-pressed={opt.value === value}
             onClick={() => onChange(opt.value)}
             className={cx(
               "rounded px-2 py-0.5 text-xs font-medium transition-colors",

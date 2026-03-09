@@ -128,6 +128,7 @@ export function BuilderHeroInput({
                 <button
                   key={route}
                   type="button"
+                  aria-pressed={isActive}
                   onClick={() =>
                     onIntentOverrideChange(
                       route === detectedIntent && !intentOverride ? null : route,

@@ -77,3 +77,4 @@ archive/
 
 # Archived documentation (historical reference only)
 docs/archive/
+.worktrees/

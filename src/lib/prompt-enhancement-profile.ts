@@ -10,33 +10,35 @@ export interface EnhancementProfile {
   totalEnhancements: number;
 }
 
-const EMPTY_PROFILE: EnhancementProfile = {
-  depthCounts: {},
-  strictnessCounts: {},
-  ambiguityModeCounts: {},
-  variantCounts: {},
-  acceptCount: 0,
-  rerunCount: 0,
-  totalEnhancements: 0,
-};
+function createEmptyProfile(): EnhancementProfile {
+  return {
+    depthCounts: {},
+    strictnessCounts: {},
+    ambiguityModeCounts: {},
+    variantCounts: {},
+    acceptCount: 0,
+    rerunCount: 0,
+    totalEnhancements: 0,
+  };
+}
 
 export function loadEnhancementProfile(): EnhancementProfile {
   try {
     const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
-    if (!raw) return { ...EMPTY_PROFILE };
+    if (!raw) return createEmptyProfile();
     const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return { ...EMPTY_PROFILE };
+    if (!parsed || typeof parsed !== "object") return createEmptyProfile();
     return {
       depthCounts: safeRecord(parsed.depthCounts),
       strictnessCounts: safeRecord(parsed.strictnessCounts),
       ambiguityModeCounts: safeRecord(parsed.ambiguityModeCounts),
       variantCounts: safeRecord(parsed.variantCounts),
-      acceptCount: typeof parsed.acceptCount === "number" ? parsed.acceptCount : 0,
-      rerunCount: typeof parsed.rerunCount === "number" ? parsed.rerunCount : 0,
-      totalEnhancements: typeof parsed.totalEnhancements === "number" ? parsed.totalEnhancements : 0,
+      acceptCount: safeCounter(parsed.acceptCount),
+      rerunCount: safeCounter(parsed.rerunCount),
+      totalEnhancements: safeCounter(parsed.totalEnhancements),
     };
   } catch {
-    return { ...EMPTY_PROFILE };
+    return createEmptyProfile();
   }
 }
 
@@ -98,11 +100,18 @@ function saveProfile(profile: EnhancementProfile): void {
   }
 }
 
+function safeCounter(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return 0;
+  return Math.floor(value);
+}
+
 function safeRecord(value: unknown): Record<string, number> {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   const result: Record<string, number> = {};
   for (const [k, v] of Object.entries(value)) {
-    if (typeof v === "number") result[k] = v;
+    if (typeof v === "number" && Number.isFinite(v) && v >= 0) {
+      result[k] = Math.floor(v);
+    }
   }
   return result;
 }

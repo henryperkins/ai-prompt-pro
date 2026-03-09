@@ -402,6 +402,7 @@ const INTENT_TO_ROUTE_MAP = {
 const REWRITE_PATTERN = /\b(rewrite|revise|edit|improve|fix|rephrase|polish|refine|shorten|simplify|update|correct)\b/i;
 const RESEARCH_PATTERN = /\b(research|literature|study|paper|findings|systematic|survey|investigate)\b/i;
 const PLANNING_PATTERN = /\b(plan|roadmap|schedule|timeline|milestones|strategy|project plan|action items)\b/i;
+const ANALYSIS_PATTERN = /\b(analy[sz]e|compare|evaluate|assess|benchmark|audit)\b/i;
 
 export function classifyPrimaryIntent(input, options = {}) {
   const prompt = typeof input === "string" ? input.trim() : "";
@@ -413,6 +414,7 @@ export function classifyPrimaryIntent(input, options = {}) {
   const isRewrite = REWRITE_PATTERN.test(normalized);
   const isResearch = RESEARCH_PATTERN.test(normalized);
   const isPlanning = PLANNING_PATTERN.test(normalized);
+  const isAnalysis = ANALYSIS_PATTERN.test(normalized);
   const hasCodeFields = Boolean(
     options.builderFields?.role && /\b(developer|engineer|programmer)\b/i.test(options.builderFields.role),
   );
@@ -439,29 +441,55 @@ export function classifyPrimaryIntent(input, options = {}) {
     return { primaryIntent: null, secondaryIntents: [], intentConfidence: 0 };
   }
 
-  // Priority-based tie-breaking: more specific signals win over broad ones.
-  // Order: rewrite > code > extraction > research > planning > analysis > brainstorm
+  // Explicit signal overrides: rewrite and code-builder-fields always win.
+  // For other explicit signals (research, planning, analysis) that may compete
+  // with extraction, pick the route whose pattern first matches in the text —
+  // the primary action verb typically appears earliest.
   const ROUTE_PRIORITY = ["rewrite", "code", "extraction", "research", "planning", "analysis", "brainstorm"];
 
   let primaryIntent = unique[0];
 
-  // Explicit signal overrides only apply when there's no higher-priority match
   if (isRewrite && unique.includes("rewrite")) {
     primaryIntent = "rewrite";
   } else if (hasCodeFields && unique.includes("code")) {
     primaryIntent = "code";
   } else {
-    // Pick the highest-priority route from candidates
-    for (const route of ROUTE_PRIORITY) {
-      if (unique.includes(route)) {
-        primaryIntent = route;
-        break;
+    const signalCandidates = [
+      { active: isResearch, route: "research", pattern: RESEARCH_PATTERN },
+      { active: isPlanning, route: "planning", pattern: PLANNING_PATTERN },
+      { active: isAnalysis, route: "analysis", pattern: ANALYSIS_PATTERN },
+    ];
+    let best = null;
+    let bestPos = Infinity;
+    for (const { active, route, pattern } of signalCandidates) {
+      if (active && unique.includes(route)) {
+        const m = normalized.match(pattern);
+        if (m) {
+          const pos = normalized.indexOf(m[0]);
+          if (pos < bestPos) { bestPos = pos; best = route; }
+        }
+      }
+    }
+    if (best && unique.includes("extraction")) {
+      // An explicit signal competes with extraction — use text position to
+      // resolve: the route whose defining verb appears first is the primary action.
+      const m = normalized.match(INTENT_PATTERNS.extraction);
+      if (m) {
+        const pos = normalized.indexOf(m[0]);
+        if (pos < bestPos) { best = "extraction"; }
+      }
+    }
+    if (best) {
+      primaryIntent = best;
+    } else {
+      for (const route of ROUTE_PRIORITY) {
+        if (unique.includes(route)) { primaryIntent = route; break; }
       }
     }
   }
 
   const secondaryIntents = unique.filter((i) => i !== primaryIntent);
-  const matchCount = rawIntents.length + (isRewrite ? 1 : 0) + (isResearch ? 1 : 0);
+  const matchCount = rawIntents.length + (isRewrite ? 1 : 0) + (isResearch ? 1 : 0) + (isPlanning ? 1 : 0) + (isAnalysis ? 1 : 0);
   const intentConfidence = Math.min(0.6 + 0.08 * matchCount, 0.95);
 
   return { primaryIntent, secondaryIntents, intentConfidence };

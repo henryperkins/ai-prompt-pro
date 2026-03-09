@@ -34,6 +34,9 @@ describe("getUserPreferences", () => {
         showAdvancedControls: true,
         recentlyUsedPresetIds: ["blog-post", "email-campaign"],
         favoritePresetIds: ["code-review"],
+        enhancementDepth: "advanced",
+        rewriteStrictness: "aggressive",
+        ambiguityMode: "ask_me",
       }),
     );
     resetPreferencesCache();
@@ -43,6 +46,9 @@ describe("getUserPreferences", () => {
     expect(prefs.showAdvancedControls).toBe(true);
     expect(prefs.recentlyUsedPresetIds).toEqual(["blog-post", "email-campaign"]);
     expect(prefs.favoritePresetIds).toEqual(["code-review"]);
+    expect(prefs.enhancementDepth).toBe("advanced");
+    expect(prefs.rewriteStrictness).toBe("aggressive");
+    expect(prefs.ambiguityMode).toBe("ask_me");
   });
 
   it("falls back to defaults for corrupt JSON", () => {

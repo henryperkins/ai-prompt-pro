@@ -3,6 +3,7 @@ import {
   BUILDER_TELEMETRY_EVENT_NAME,
   clearTelemetryLog,
   getTelemetryLog,
+  resetTelemetryListener,
   startTelemetryListener,
   trackBuilderEvent,
   type BuilderTelemetryEnvelope,
@@ -10,10 +11,12 @@ import {
 
 describe("Telemetry listener", () => {
   beforeEach(() => {
+    resetTelemetryListener();
     clearTelemetryLog();
   });
 
   afterEach(() => {
+    resetTelemetryListener();
     clearTelemetryLog();
   });
 
