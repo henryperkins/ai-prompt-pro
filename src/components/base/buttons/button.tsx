@@ -41,7 +41,7 @@ const styles = sortCx({
   },
   colors: {
     primary: {
-      root: "bg-primary text-primary-foreground shadow-xs ring-1 ring-inset ring-white/15 hover:brightness-95 data-loading:brightness-95",
+      root: "bg-brand-solid text-primary_on-brand shadow-xs hover:bg-brand-solid_hover data-loading:bg-brand-solid_hover",
     },
     secondary: {
       root: "border border-border bg-background text-foreground shadow-xs hover:bg-muted data-loading:bg-muted",
@@ -62,7 +62,7 @@ const styles = sortCx({
       ].join(" "),
     },
     "primary-destructive": {
-      root: "bg-destructive text-destructive-foreground shadow-xs hover:brightness-95 data-loading:brightness-95",
+      root: "bg-error-solid text-primary_on-brand shadow-xs hover:bg-error-solid_hover data-loading:bg-error-solid_hover",
     },
     "secondary-destructive": {
       root: "border border-destructive/35 bg-background text-destructive shadow-xs hover:bg-destructive/10 data-loading:bg-destructive/10",

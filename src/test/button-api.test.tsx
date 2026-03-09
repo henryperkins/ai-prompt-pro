@@ -15,8 +15,8 @@ describe("Button API normalization", () => {
     render(<Button variant="primary" tone="destructive">Delete</Button>);
 
     const button = screen.getByRole("button", { name: "Delete" });
-    expect(button).toHaveClass("bg-destructive");
-    expect(button).toHaveClass("text-destructive-foreground");
+    expect(button).toHaveClass("bg-error-solid");
+    expect(button).toHaveClass("text-primary_on-brand");
   });
 
   it("keeps legacy color props working while migration completes", () => {
