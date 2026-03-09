@@ -8,7 +8,10 @@ import {
   chooseFormat,
   chooseLengthPreference,
   chooseRole,
+  chooseRoleWithConfidence,
   chooseTone,
+  chooseToneWithConfidence,
+  chooseTaskMode,
   INFERENCE_FIELD_CONFIDENCE,
   INFERENCE_FIELD_LABELS,
   type InferenceField,
@@ -116,6 +119,8 @@ function isFieldEmpty(
   return !hasConstraints(config);
 }
 
+const AUTO_APPLY_CONFIDENCE_THRESHOLD = 0.70;
+
 export function applyInferenceUpdates(
   config: PromptConfig,
   ownership: BuilderFieldOwnershipMap,
@@ -134,6 +139,9 @@ export function applyInferenceUpdates(
   for (const field of candidateFields) {
     if (ownership[field] === "user") continue;
     if (!isFieldEmpty(config, field) && ownership[field] !== "ai") continue;
+
+    const fieldConfidence = inference.confidence?.[field] ?? INFERENCE_FIELD_CONFIDENCE[field];
+    if (fieldConfidence < AUTO_APPLY_CONFIDENCE_THRESHOLD) continue;
 
     if (field === "role" && hasText(inference.inferredUpdates.role)) {
       updates.role = inference.inferredUpdates.role;
@@ -248,6 +256,44 @@ function buildSetFieldChip(
   };
 }
 
+function buildRouteOrientedChips(prompt: string): BuilderSuggestionChip[] {
+  const taskMode = chooseTaskMode(prompt);
+  if (!taskMode) return [];
+
+  if (taskMode.mode === "transform") {
+    return [
+      {
+        id: "append-source-material",
+        label: "Add source material",
+        description: "Specify what content to transform.",
+        action: { type: "append_prompt", text: "\nSource material: [paste or describe the content to transform]" },
+      },
+      {
+        id: "append-audience",
+        label: "Add target audience",
+        description: "Who will read the result?",
+        action: { type: "append_prompt", text: "\nTarget audience: [who this is for]" },
+      },
+    ];
+  }
+
+  // analysis or generate
+  return [
+    {
+      id: "append-output-format",
+      label: "Specify output format",
+      description: "Define what the deliverable looks like.",
+      action: { type: "append_prompt", text: "\nOutput format: [table, report, bullet points, etc.]" },
+    },
+    {
+      id: "append-evidence",
+      label: "Add evidence requirements",
+      description: "What should back the claims?",
+      action: { type: "append_prompt", text: "\nEvidence: [cite sources, use data, include examples]" },
+    },
+  ];
+}
+
 function applySuggestionRelevance(
   prompt: string,
   config: PromptConfig,
@@ -256,11 +302,18 @@ function applySuggestionRelevance(
   const normalizedPrompt = prompt.trim().toLowerCase();
   if (!normalizedPrompt) return [];
 
+  if (chips.length > 0) {
+    const routeChips = buildRouteOrientedChips(normalizedPrompt);
+    return [...chips, ...routeChips].slice(0, 6);
+  }
+
   const hasAnyDetails =
     hasRole(config) || hasFormat(config) || hasConstraints(config);
-  if (chips.length > 0) return chips.slice(0, 4);
 
   if (!hasAnyDetails && normalizedPrompt.length > 20) {
+    const routeChips = buildRouteOrientedChips(normalizedPrompt);
+    if (routeChips.length > 0) return routeChips.slice(0, 4);
+
     return [
       {
         id: "append-audience",
@@ -295,25 +348,25 @@ export function inferBuilderFieldsLocally(
   const chips: BuilderSuggestionChip[] = [];
   const confidence: Partial<Record<BuilderInferenceField, number>> = {};
 
-  const inferredRole = chooseRole(normalizedPrompt);
-  if (inferredRole) {
-    inferredUpdates.role = inferredRole;
+  const roleResult = chooseRoleWithConfidence(normalizedPrompt);
+  if (roleResult) {
+    inferredUpdates.role = roleResult.role;
     inferredFields.push("role");
     chips.push(
       buildSetFieldChip("role", {
-        role: inferredRole,
+        role: roleResult.role,
         customRole: "",
       }),
     );
-    confidence.role = INFERENCE_FIELD_CONFIDENCE.role;
+    confidence.role = roleResult.confidence;
   }
 
-  const inferredTone = chooseTone(normalizedPrompt);
-  if (inferredTone) {
-    inferredUpdates.tone = inferredTone;
+  const toneResult = chooseToneWithConfidence(normalizedPrompt);
+  if (toneResult) {
+    inferredUpdates.tone = toneResult.tone;
     inferredFields.push("tone");
-    chips.push(buildSetFieldChip("tone", { tone: inferredTone }));
-    confidence.tone = INFERENCE_FIELD_CONFIDENCE.tone;
+    chips.push(buildSetFieldChip("tone", { tone: toneResult.tone }));
+    confidence.tone = toneResult.confidence;
   }
 
   const inferredLength = chooseLengthPreference(normalizedPrompt);

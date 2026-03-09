@@ -1,4 +1,6 @@
 const BUILDER_MODES = new Set(["quick", "guided", "advanced"]);
+const REWRITE_STRICTNESS_VALUES = new Set(["preserve", "balanced", "aggressive"]);
+const AMBIGUITY_MODE_VALUES = new Set(["ask_me", "placeholders", "infer_conservatively"]);
 
 const INTENT_PATTERNS = {
   creative: /\b(write|create|generate|story|poem|design|draft|compose|brainstorm)\b/i,
@@ -149,6 +151,11 @@ const MASTER_META_PROMPT = [
   "## WEB SEARCH",
   "{{WEB_SEARCH_DIRECTIVE}}",
   "",
+  "## ENHANCEMENT PROCESS",
+  "1. First, build an `enhancement_plan` by analyzing the user input for intent, task type, deliverable, audience, inputs, constraints, criteria, assumptions, questions, and verification needs.",
+  "2. Then, generate the `enhanced_prompt` from that plan using the 6-part framework below.",
+  "3. Return both the plan and the prompt in the JSON output.",
+  "",
   "## ENHANCEMENT RULES",
   "1. Replace vague language with specific, actionable wording.",
   "2. Preserve user intent; improve quality without changing objective.",
@@ -185,6 +192,20 @@ const MASTER_META_PROMPT = [
   "  \"alternative_versions\": {",
   "    \"shorter\": \"string\",",
   "    \"more_detailed\": \"string\"",
+  "  },",
+  "  \"assumptions_made\": [\"string\"],",
+  "  \"open_questions\": [\"string\"],",
+  "  \"enhancement_plan\": {",
+  "    \"primary_intent\": \"string\",",
+  "    \"source_task_type\": \"string\",",
+  "    \"target_deliverable\": \"string\",",
+  "    \"audience\": \"string\",",
+  "    \"required_inputs\": [\"string\"],",
+  "    \"constraints\": [\"string\"],",
+  "    \"success_criteria\": [\"string\"],",
+  "    \"assumptions\": [\"string\"],",
+  "    \"open_questions\": [\"string\"],",
+  "    \"verification_needs\": [\"string\"]",
   "  }",
   "}",
 ].join("\n");
@@ -214,6 +235,100 @@ function normalizeBuilderMode(rawMode) {
   const normalized = rawMode.trim().toLowerCase();
   return BUILDER_MODES.has(normalized) ? normalized : "guided";
 }
+
+function normalizeRewriteStrictness(rawStrictness) {
+  if (typeof rawStrictness !== "string") return "balanced";
+  const normalized = rawStrictness.trim().toLowerCase();
+  return REWRITE_STRICTNESS_VALUES.has(normalized) ? normalized : "balanced";
+}
+
+function normalizeAmbiguityMode(rawMode) {
+  if (typeof rawMode !== "string") return "infer_conservatively";
+  const normalized = rawMode.trim().toLowerCase();
+  return AMBIGUITY_MODE_VALUES.has(normalized) ? normalized : "infer_conservatively";
+}
+
+function detectMissingSlots(prompt, builderFields = {}) {
+  const normalized = typeof prompt === "string" ? prompt.toLowerCase() : "";
+  const slots = [];
+
+  const hasArtifactSignal = /\b(email|report|prd|proposal|presentation|blog|doc|code|function|script|plan|guide|memo|letter|article)\b/.test(normalized);
+  if (!hasArtifactSignal && !(builderFields.task || "").trim()) {
+    slots.push("target_deliverable");
+  }
+
+  const hasAudienceSignal = /\b(beginner|expert|executive|developer|customer|team|public|internal|audience|reader|user)\b/.test(normalized);
+  if (!hasAudienceSignal && !(builderFields.context || "").includes("audience")) {
+    slots.push("audience");
+  }
+
+  const hasSuccessCriteria = /\b(criteria|success|goal|objective|measure|metric|outcome|deliverable|requirement)\b/.test(normalized);
+  if (!hasSuccessCriteria) {
+    slots.push("success_criteria");
+  }
+
+  const hasSourceMaterial = /\b(source|data|document|file|input|based on|given|from the|attached|provided)\b/.test(normalized);
+  if (!hasSourceMaterial && !(builderFields.context || "").trim()) {
+    slots.push("source_material");
+  }
+
+  const hasFactSensitivity = /\b(current|latest|recent|today|this year|up to date|real-time|fact|statistic|number|figure)\b/.test(normalized);
+  if (hasFactSensitivity) {
+    slots.push("factual_verification");
+  }
+
+  return slots;
+}
+
+function computeAmbiguityLevel(missingSlots, wordCount) {
+  if (missingSlots.length >= 4 || wordCount < 5) return "high";
+  if (missingSlots.length >= 2) return "medium";
+  return "low";
+}
+
+const AMBIGUITY_MODE_ADDONS = {
+  ask_me: [
+    "## AMBIGUITY MODE: ASK ME",
+    "- When critical context is missing, include a CLARIFICATION BLOCK at the start of `enhanced_prompt`.",
+    "- Format: 'Before I enhance further, I need to know:' followed by numbered questions.",
+    "- After the clarification block, include a provisional enhanced prompt based on reasonable defaults.",
+    "- In `assumptions_made`, list each assumption you used for the provisional version.",
+    "- In `open_questions`, list the questions you asked in the clarification block.",
+  ].join("\n"),
+  placeholders: [
+    "## AMBIGUITY MODE: USE PLACEHOLDERS",
+    "- For any missing critical detail, insert a visible placeholder like [target audience], [deliverable type], [success criteria].",
+    "- Do NOT infer or guess missing information — use a placeholder instead.",
+    "- Placeholders should be descriptive and easy to search-and-replace.",
+    "- In `assumptions_made`, list only assumptions that were truly unavoidable.",
+    "- In `open_questions`, list what each placeholder represents.",
+  ].join("\n"),
+  infer_conservatively: [
+    "## AMBIGUITY MODE: INFER CONSERVATIVELY",
+    "- When context is missing, infer minimal practical defaults.",
+    "- Keep assumptions conservative and list every assumption explicitly in `assumptions_made`.",
+    "- Do NOT invent specific audiences, deliverables, or constraints as if they were known facts.",
+    "- In `open_questions`, note what the user could add to improve the prompt.",
+  ].join("\n"),
+};
+
+const REWRITE_STRICTNESS_ADDONS = {
+  preserve: [
+    "## REWRITE STRICTNESS: PRESERVE WORDING",
+    "- Minimize paraphrasing — keep the user's original phrasing wherever possible.",
+    "- Preserve the original structure and paragraph flow.",
+    "- Only add new content when essential parts are missing.",
+    "- Do NOT reorganize sections unless the original order is clearly wrong.",
+  ].join("\n"),
+  balanced: "",
+  aggressive: [
+    "## REWRITE STRICTNESS: OPTIMIZE AGGRESSIVELY",
+    "- Rewrite freely for clarity, precision, and specificity.",
+    "- Restructure sections if a different order improves logical flow.",
+    "- Replace vague language with concrete, actionable directives.",
+    "- It is acceptable for the enhanced prompt to differ substantially from the input.",
+  ].join("\n"),
+};
 
 function normalizeFieldValue(value) {
   if (typeof value !== "string") return "";
@@ -264,6 +379,94 @@ export function classifyIntent(input) {
     .map(([intent]) => intent);
 }
 
+const PRIMARY_INTENT_ROUTES = [
+  "brainstorm",
+  "rewrite",
+  "analysis",
+  "code",
+  "extraction",
+  "planning",
+  "research",
+];
+
+const INTENT_TO_ROUTE_MAP = {
+  creative: "brainstorm",
+  analytical: "analysis",
+  instructional: "planning",
+  conversational: "brainstorm",
+  extraction: "extraction",
+  coding: "code",
+  reasoning: "analysis",
+};
+
+const REWRITE_PATTERN = /\b(rewrite|revise|edit|improve|fix|rephrase|polish|refine|shorten|simplify|update|correct)\b/i;
+const RESEARCH_PATTERN = /\b(research|literature|study|paper|findings|systematic|survey|investigate)\b/i;
+const PLANNING_PATTERN = /\b(plan|roadmap|schedule|timeline|milestones|strategy|project plan|action items)\b/i;
+
+export function classifyPrimaryIntent(input, options = {}) {
+  const prompt = typeof input === "string" ? input.trim() : "";
+  if (!prompt) return { primaryIntent: null, secondaryIntents: [], intentConfidence: 0 };
+
+  const rawIntents = classifyIntent(prompt);
+  const normalized = prompt.toLowerCase();
+
+  const isRewrite = REWRITE_PATTERN.test(normalized);
+  const isResearch = RESEARCH_PATTERN.test(normalized);
+  const isPlanning = PLANNING_PATTERN.test(normalized);
+  const hasCodeFields = Boolean(
+    options.builderFields?.role && /\b(developer|engineer|programmer)\b/i.test(options.builderFields.role),
+  );
+  const hasFormatRequest = Boolean(
+    options.builderFields?.output_format && options.builderFields.output_format.trim(),
+  );
+
+  let candidates = rawIntents.map((intent) => INTENT_TO_ROUTE_MAP[intent] || intent);
+
+  if (isRewrite && !candidates.includes("rewrite")) {
+    candidates.unshift("rewrite");
+  }
+  if (isResearch && !candidates.includes("research")) {
+    candidates.unshift("research");
+  }
+  if (isPlanning && !candidates.includes("planning")) {
+    candidates.push("planning");
+  }
+
+  candidates = candidates.filter((c) => PRIMARY_INTENT_ROUTES.includes(c));
+  const unique = [...new Set(candidates)];
+
+  if (unique.length === 0) {
+    return { primaryIntent: null, secondaryIntents: [], intentConfidence: 0 };
+  }
+
+  // Priority-based tie-breaking: more specific signals win over broad ones.
+  // Order: rewrite > code > extraction > research > planning > analysis > brainstorm
+  const ROUTE_PRIORITY = ["rewrite", "code", "extraction", "research", "planning", "analysis", "brainstorm"];
+
+  let primaryIntent = unique[0];
+
+  // Explicit signal overrides only apply when there's no higher-priority match
+  if (isRewrite && unique.includes("rewrite")) {
+    primaryIntent = "rewrite";
+  } else if (hasCodeFields && unique.includes("code")) {
+    primaryIntent = "code";
+  } else {
+    // Pick the highest-priority route from candidates
+    for (const route of ROUTE_PRIORITY) {
+      if (unique.includes(route)) {
+        primaryIntent = route;
+        break;
+      }
+    }
+  }
+
+  const secondaryIntents = unique.filter((i) => i !== primaryIntent);
+  const matchCount = rawIntents.length + (isRewrite ? 1 : 0) + (isResearch ? 1 : 0);
+  const intentConfidence = Math.min(0.6 + 0.08 * matchCount, 0.95);
+
+  return { primaryIntent, secondaryIntents, intentConfidence };
+}
+
 export function detectDomain(input) {
   return Object.entries(DOMAIN_PATTERNS)
     .filter(([, regex]) => regex.test(input))
@@ -308,8 +511,18 @@ export function detectEnhancementContext(input, options = {}) {
   const complexity = scoreComplexity(prompt);
   const structure = inspectPromptStructure(prompt);
   const builderMode = normalizeBuilderMode(options.builderMode);
+  const rewriteStrictness = normalizeRewriteStrictness(options.rewriteStrictness);
+  const ambiguityMode = normalizeAmbiguityMode(options.ambiguityMode);
   const inputLanguage = detectInputLanguage(prompt);
   const builderFields = normalizeBuilderFields(options.builderFields);
+  const missingSlots = detectMissingSlots(prompt, builderFields);
+  const ambiguityLevel = computeAmbiguityLevel(missingSlots, words.length);
+  const intentClassification = classifyPrimaryIntent(prompt, { builderFields });
+  const intentOverride = typeof options.intentOverride === "string" && PRIMARY_INTENT_ROUTES.includes(options.intentOverride)
+    ? options.intentOverride
+    : null;
+  const primaryIntent = intentOverride || intentClassification.primaryIntent;
+  const intentSource = intentOverride ? "user" : "auto";
   const webSearchEnabled = typeof options.webSearchEnabled === "boolean" ? options.webSearchEnabled : false;
   const session = {
     contextSummary: normalizeFieldValue(options.session?.contextSummary ?? options.session?.context_summary),
@@ -320,9 +533,17 @@ export function detectEnhancementContext(input, options = {}) {
 
   return {
     intent,
+    primaryIntent,
+    secondaryIntents: intentClassification.secondaryIntents,
+    intentConfidence: intentClassification.intentConfidence,
+    intentSource,
     domain,
     complexity,
     builderMode,
+    rewriteStrictness,
+    ambiguityMode,
+    ambiguityLevel,
+    missingSlots,
     inputLanguage,
     wordCount: words.length,
     hasMultipleTasks: hasMultipleTaskSignals(prompt),
@@ -413,7 +634,12 @@ export function buildEnhancementMetaPrompt(userInput, context) {
     .replaceAll("{{EDGE_CASE_NOTES}}", edgeCaseNotes)
     .replaceAll("{{WEB_SEARCH_DIRECTIVE}}", webSearchDirective);
 
-  return [template, modeAddon, ...intentAddons].join("\n\n");
+  const strictnessAddon = REWRITE_STRICTNESS_ADDONS[context.rewriteStrictness] || "";
+  const ambiguityAddon = AMBIGUITY_MODE_ADDONS[context.ambiguityMode] || "";
+
+  return [template, modeAddon, strictnessAddon, ambiguityAddon, ...intentAddons]
+    .filter((s) => s.length > 0)
+    .join("\n\n");
 }
 
 function stripCodeFence(text) {
@@ -572,6 +798,24 @@ function normalizeAlternatives(value) {
   };
 }
 
+function normalizeEnhancementPlan(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const primaryIntent = typeof value.primary_intent === "string" ? value.primary_intent.trim() : "";
+  if (!primaryIntent) return null;
+  return {
+    primary_intent: primaryIntent,
+    source_task_type: typeof value.source_task_type === "string" ? value.source_task_type.trim() : "",
+    target_deliverable: typeof value.target_deliverable === "string" ? value.target_deliverable.trim() : "",
+    audience: typeof value.audience === "string" ? value.audience.trim() : "",
+    required_inputs: normalizeStringList(value.required_inputs),
+    constraints: normalizeStringList(value.constraints),
+    success_criteria: normalizeStringList(value.success_criteria),
+    assumptions: normalizeStringList(value.assumptions),
+    open_questions: normalizeStringList(value.open_questions),
+    verification_needs: normalizeStringList(value.verification_needs),
+  };
+}
+
 function summarizeSessionField(label, value, maxChars = 220) {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -662,6 +906,9 @@ export function postProcessEnhancementResponse({
   const safeEnhancements = normalizeStringList(parsed?.enhancements_made);
   const safeSuggestions = normalizeStringList(parsed?.suggestions);
   const alternatives = normalizeAlternatives(parsed?.alternative_versions);
+  const assumptionsMade = normalizeStringList(parsed?.assumptions_made);
+  const openQuestions = normalizeStringList(parsed?.open_questions);
+  const enhancementPlan = normalizeEnhancementPlan(parsed?.enhancement_plan);
   const sessionContextSummary = buildEnhancementSessionContextSummary({
     partsBreakdown,
     enhancementsMade: safeEnhancements,
@@ -676,6 +923,10 @@ export function postProcessEnhancementResponse({
     quality_score: qualityScore,
     suggestions: safeSuggestions,
     alternative_versions: alternatives,
+    assumptions_made: assumptionsMade,
+    open_questions: openQuestions,
+    ambiguity_level: context.ambiguityLevel || "low",
+    enhancement_plan: enhancementPlan,
     session_context_summary: sessionContextSummary,
     improvement_delta: enhancementDelta,
     missing_parts: missingParts,
@@ -686,9 +937,17 @@ export function postProcessEnhancementResponse({
     timestamp: new Date().toISOString(),
     detected_context: {
       intent: context.intent,
+      primary_intent: context.primaryIntent,
+      secondary_intents: context.secondaryIntents,
+      intent_confidence: context.intentConfidence,
+      intent_source: context.intentSource,
       domain: context.domain,
       complexity: context.complexity,
       mode: context.builderMode,
+      rewrite_strictness: context.rewriteStrictness,
+      ambiguity_mode: context.ambiguityMode,
+      ambiguity_level: context.ambiguityLevel,
+      missing_slots: context.missingSlots,
       input_language: context.inputLanguage,
     },
     builder_fields: context.builderFields,
@@ -721,6 +980,26 @@ export function parseEnhancementRequestMode(body) {
   if (!body || typeof body !== "object") return "guided";
   const directMode = typeof body.builder_mode === "string" ? body.builder_mode : body.builderMode;
   return normalizeBuilderMode(directMode);
+}
+
+export function parseEnhancementRequestAmbiguityMode(body) {
+  if (!body || typeof body !== "object") return "infer_conservatively";
+  const raw = typeof body.ambiguity_mode === "string" ? body.ambiguity_mode : body.ambiguityMode;
+  return normalizeAmbiguityMode(raw);
+}
+
+export function parseEnhancementRequestIntentOverride(body) {
+  if (!body || typeof body !== "object") return null;
+  const raw = typeof body.intent_override === "string" ? body.intent_override : body.intentOverride;
+  if (typeof raw !== "string") return null;
+  const normalized = raw.trim().toLowerCase();
+  return PRIMARY_INTENT_ROUTES.includes(normalized) ? normalized : null;
+}
+
+export function parseEnhancementRequestRewriteStrictness(body) {
+  if (!body || typeof body !== "object") return "balanced";
+  const raw = typeof body.rewrite_strictness === "string" ? body.rewrite_strictness : body.rewriteStrictness;
+  return normalizeRewriteStrictness(raw);
 }
 
 export function parseEnhancementRequestBuilderFields(body) {

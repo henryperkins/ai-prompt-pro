@@ -1135,6 +1135,9 @@ export async function streamEnhance({
   threadId,
   threadOptions,
   builderMode,
+  rewriteStrictness,
+  intentOverride,
+  ambiguityMode,
   builderFields,
   onDelta,
   onDone,
@@ -1149,6 +1152,9 @@ export async function streamEnhance({
   threadId?: string;
   threadOptions?: EnhanceThreadOptions;
   builderMode?: "quick" | "guided" | "advanced";
+  rewriteStrictness?: "preserve" | "balanced" | "aggressive";
+  intentOverride?: string | null;
+  ambiguityMode?: "ask_me" | "placeholders" | "infer_conservatively";
   builderFields?: EnhanceBuilderFields;
   onDelta: (text: string) => void;
   onDone: () => void;
@@ -1218,6 +1224,15 @@ export async function streamEnhance({
     }
     if (builderMode) {
       payload.builder_mode = builderMode;
+    }
+    if (rewriteStrictness) {
+      payload.rewrite_strictness = rewriteStrictness;
+    }
+    if (intentOverride) {
+      payload.intent_override = intentOverride;
+    }
+    if (ambiguityMode) {
+      payload.ambiguity_mode = ambiguityMode;
     }
     if (builderFields && typeof builderFields === "object") {
       payload.builder_fields = {

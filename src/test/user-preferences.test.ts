@@ -19,6 +19,9 @@ describe("getUserPreferences", () => {
       showAdvancedControls: false,
       recentlyUsedPresetIds: [],
       favoritePresetIds: [],
+      enhancementDepth: "guided",
+      rewriteStrictness: "balanced",
+      ambiguityMode: "infer_conservatively",
     });
   });
 
@@ -57,6 +60,9 @@ describe("getUserPreferences", () => {
     expect(prefs.showAdvancedControls).toBe(false);
     expect(prefs.recentlyUsedPresetIds).toEqual([]);
     expect(prefs.favoritePresetIds).toEqual([]);
+    expect(prefs.enhancementDepth).toBe("guided");
+    expect(prefs.rewriteStrictness).toBe("balanced");
+    expect(prefs.ambiguityMode).toBe("infer_conservatively");
   });
 
   it("maps the legacy light/dark values onto the current theme model", () => {

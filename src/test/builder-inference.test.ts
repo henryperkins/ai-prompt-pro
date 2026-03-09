@@ -43,6 +43,7 @@ describe("builder inference utilities", () => {
       },
       inferredFields: ["role", "tone", "lengthPreference"] as const,
       suggestionChips: [],
+      confidence: { role: 0.78, tone: 0.72, lengthPreference: 0.72 },
     };
 
     const applied = applyInferenceUpdates(config, ownership, inference);
@@ -95,5 +96,57 @@ describe("builder inference utilities", () => {
     });
 
     expect(fields).toEqual(["role", "format", "constraints"]);
+  });
+
+  describe("confidence-gated auto-apply", () => {
+    it("applies field when confidence >= 0.70", () => {
+      const config = { ...defaultConfig };
+      const ownership = createFieldOwnershipFromConfig(config);
+      const inference = inferBuilderFieldsLocally("debug this API code", config);
+
+      const { appliedFields } = applyInferenceUpdates(config, ownership, inference);
+      expect(appliedFields).toContain("role");
+    });
+
+    it("skips field when confidence is artificially below 0.70", () => {
+      const config = { ...defaultConfig };
+      const ownership = createFieldOwnershipFromConfig(config);
+      const inference = inferBuilderFieldsLocally("debug this API code", config);
+
+      if (inference.confidence) {
+        inference.confidence.role = 0.5;
+      }
+
+      const { appliedFields } = applyInferenceUpdates(config, ownership, inference);
+      expect(appliedFields).not.toContain("role");
+    });
+  });
+
+  describe("route-oriented suggestion chips", () => {
+    it("includes source and audience chips for rewrite prompts", () => {
+      const config = { ...defaultConfig };
+      const result = inferBuilderFieldsLocally("rewrite this email to be more professional", config);
+      const chipIds = result.suggestionChips.map((c) => c.id);
+      expect(chipIds).toContain("append-source-material");
+      expect(chipIds).toContain("append-audience");
+    });
+
+    it("includes output format and evidence chips for generate-mode analysis prompts", () => {
+      const config = { ...defaultConfig };
+      // "create" triggers generate mode; "analyze" triggers analytical intent
+      const result = inferBuilderFieldsLocally("create an analysis of the quarterly revenue data with detailed breakdown", config);
+      const chipIds = result.suggestionChips.map((c) => c.id);
+      expect(chipIds).toContain("append-output-format");
+      expect(chipIds).toContain("append-evidence");
+    });
+  });
+
+  describe("per-match confidence from heuristics", () => {
+    it("returns higher confidence for prompts with multiple role keywords", () => {
+      const config = { ...defaultConfig };
+      const single = inferBuilderFieldsLocally("debug this code", config);
+      const multi = inferBuilderFieldsLocally("debug and refactor the code for the API endpoint", config);
+      expect(multi.confidence?.role).toBeGreaterThan(single.confidence?.role ?? 0);
+    });
   });
 });

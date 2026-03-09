@@ -3,6 +3,11 @@ import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/card";
 import { Textarea } from "@/components/base/textarea";
 import type { BuilderSuggestionChip } from "@/lib/builder-inference";
+import {
+  INTENT_ROUTES,
+  INTENT_ROUTE_LABELS,
+  type IntentRoute,
+} from "@/lib/enhance-intent";
 import { ArrowCounterClockwise as RotateCcw, Sparkle as Sparkles, SpinnerGap as Loader2 } from "@phosphor-icons/react";
 
 interface BuilderHeroInputProps {
@@ -17,6 +22,9 @@ interface BuilderHeroInputProps {
   onApplySuggestion?: (chip: BuilderSuggestionChip) => void;
   onResetInferred?: () => void;
   canResetInferred?: boolean;
+  detectedIntent?: IntentRoute | null;
+  intentOverride?: IntentRoute | null;
+  onIntentOverrideChange?: (intent: IntentRoute | null) => void;
 }
 
 export function BuilderHeroInput({
@@ -31,6 +39,9 @@ export function BuilderHeroInput({
   onApplySuggestion,
   onResetInferred,
   canResetInferred = false,
+  detectedIntent,
+  intentOverride,
+  onIntentOverrideChange,
 }: BuilderHeroInputProps) {
   const promptInputId = "builder-phase1-hero-prompt";
   const promptInputMetaId = "builder-phase1-hero-prompt-meta";
@@ -105,6 +116,45 @@ export function BuilderHeroInput({
           className="min-h-28 max-h-[60vh] overflow-y-auto text-foreground placeholder:text-muted-foreground sm:min-h-32"
           aria-describedby={promptInputMetaId}
         />
+
+        {onIntentOverrideChange && detectedIntent && value.trim().length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs font-medium text-muted-foreground">Detected:</span>
+            {INTENT_ROUTES.map((route) => {
+              const isActive = intentOverride
+                ? route === intentOverride
+                : route === detectedIntent;
+              return (
+                <button
+                  key={route}
+                  type="button"
+                  onClick={() =>
+                    onIntentOverrideChange(
+                      route === detectedIntent && !intentOverride ? null : route,
+                    )
+                  }
+                  className={[
+                    "rounded-full px-2 py-0.5 text-xs font-medium transition-colors",
+                    isActive
+                      ? "bg-primary/15 text-primary border border-primary/25"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-transparent",
+                  ].join(" ")}
+                >
+                  {INTENT_ROUTE_LABELS[route]}
+                </button>
+              );
+            })}
+            {intentOverride && (
+              <button
+                type="button"
+                onClick={() => onIntentOverrideChange(null)}
+                className="text-xs text-muted-foreground hover:text-foreground underline"
+              >
+                Use auto-detect
+              </button>
+            )}
+          </div>
+        )}
 
         {phase3Enabled && (isInferringSuggestions || suggestionChips.length > 0 || canResetInferred) && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-200 rounded-md border border-dashed border-primary/40 bg-primary/5 px-3 py-2">

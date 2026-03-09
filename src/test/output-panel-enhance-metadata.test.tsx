@@ -1,0 +1,204 @@
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { OutputPanel } from "@/components/OutputPanel";
+import type { EnhanceMetadata } from "@/lib/enhance-metadata";
+
+vi.mock("@/hooks/use-toast", () => ({
+  useToast: () => ({ toast: vi.fn() }),
+}));
+
+vi.mock("@/lib/telemetry", () => ({
+  trackBuilderEvent: vi.fn(),
+}));
+
+const BASE_METADATA: EnhanceMetadata = {
+  enhancedPrompt: "Enhanced version of the prompt",
+  enhancementsMade: [
+    "Added structured role definition",
+    "Expanded context with domain specifics",
+    "Added output format constraints",
+  ],
+  suggestions: [
+    "Consider adding example outputs",
+    "Specify target audience more precisely",
+  ],
+  missingParts: ["examples"],
+  qualityScore: {
+    clarity: 8,
+    specificity: 7,
+    completeness: 6,
+    actionability: 8,
+    overall: 7.3,
+  },
+  detectedContext: {
+    intent: ["analytical"],
+    domain: ["business"],
+    complexity: 3,
+    mode: "guided",
+    input_language: "en",
+  },
+  alternativeVersions: {
+    shorter: "Short version of the prompt",
+    more_detailed: "Very detailed and comprehensive version of the prompt",
+  },
+};
+
+function renderPanel(
+  overrides?: Partial<Parameters<typeof OutputPanel>[0]>,
+) {
+  return render(
+    <OutputPanel
+      builtPrompt="Draft prompt"
+      enhancedPrompt="Enhanced version of the prompt"
+      isEnhancing={false}
+      onEnhance={() => undefined}
+      onSaveVersion={() => undefined}
+      onSavePrompt={() => undefined}
+      onSaveAndSharePrompt={() => undefined}
+      canSavePrompt
+      canSharePrompt
+      enhancePhase="done"
+      {...overrides}
+    />,
+  );
+}
+
+describe("OutputPanel enhancement metadata", () => {
+  it("renders enhancements_made when metadata is present", () => {
+    renderPanel({ enhanceMetadata: BASE_METADATA });
+
+    expect(screen.getByText("What changed:")).toBeInTheDocument();
+    expect(
+      screen.getByText("Added structured role definition"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Expanded context with domain specifics"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Added output format constraints"),
+    ).toBeInTheDocument();
+  });
+
+  it("renders suggestions when metadata is present", () => {
+    renderPanel({ enhanceMetadata: BASE_METADATA });
+
+    expect(screen.getByText("Try next:")).toBeInTheDocument();
+    expect(
+      screen.getByText("Consider adding example outputs"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Specify target audience more precisely"),
+    ).toBeInTheDocument();
+  });
+
+  it("renders detected context chips", () => {
+    renderPanel({ enhanceMetadata: BASE_METADATA });
+
+    expect(screen.getByText("Detected:")).toBeInTheDocument();
+    expect(screen.getByText("analytical")).toBeInTheDocument();
+    expect(screen.getByText("business")).toBeInTheDocument();
+    expect(screen.getByText("complexity 3/5")).toBeInTheDocument();
+  });
+
+  it("renders missing parts as watch-outs", () => {
+    renderPanel({ enhanceMetadata: BASE_METADATA });
+
+    expect(screen.getByText("Watch-outs:")).toBeInTheDocument();
+    expect(screen.getByText("Missing: examples")).toBeInTheDocument();
+  });
+
+  it("renders alternative version buttons", () => {
+    renderPanel({ enhanceMetadata: BASE_METADATA });
+
+    expect(screen.getByText("Versions:")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Original" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Use shorter" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Use more detailed" }),
+    ).toBeInTheDocument();
+  });
+
+  it("switches displayed prompt when alternative version is selected", async () => {
+    renderPanel({ enhanceMetadata: BASE_METADATA });
+
+    // Initially shows the enhanced prompt
+    expect(
+      screen.getByText("Enhanced version of the prompt"),
+    ).toBeInTheDocument();
+
+    // Click "Use shorter"
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Use shorter" }));
+    });
+
+    expect(
+      screen.getByText("Short version of the prompt"),
+    ).toBeInTheDocument();
+
+    // Click "Use more detailed"
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Use more detailed" }),
+      );
+    });
+
+    expect(
+      screen.getByText(
+        "Very detailed and comprehensive version of the prompt",
+      ),
+    ).toBeInTheDocument();
+
+    // Click "Original" to go back
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Original" }));
+    });
+
+    expect(
+      screen.getByText("Enhanced version of the prompt"),
+    ).toBeInTheDocument();
+  });
+
+  it("does not render summary section when metadata is null", () => {
+    renderPanel({ enhanceMetadata: null });
+
+    expect(screen.queryByText("What changed:")).not.toBeInTheDocument();
+    expect(screen.queryByText("Detected:")).not.toBeInTheDocument();
+    expect(screen.queryByText("Try next:")).not.toBeInTheDocument();
+    expect(screen.queryByText("Versions:")).not.toBeInTheDocument();
+  });
+
+  it("does not render summary section while enhancing", () => {
+    renderPanel({
+      enhanceMetadata: BASE_METADATA,
+      isEnhancing: true,
+      enhancePhase: "streaming",
+    });
+
+    expect(screen.queryByText("What changed:")).not.toBeInTheDocument();
+  });
+
+  it("gracefully handles metadata with missing optional fields", () => {
+    const minimal: EnhanceMetadata = {
+      enhancedPrompt: "Enhanced prompt",
+      detectedContext: {
+        intent: ["creative"],
+        domain: [],
+        complexity: 1,
+        mode: "quick",
+        input_language: "en",
+      },
+    };
+
+    renderPanel({ enhanceMetadata: minimal });
+
+    expect(screen.getByText("Detected:")).toBeInTheDocument();
+    expect(screen.getByText("creative")).toBeInTheDocument();
+    expect(screen.queryByText("What changed:")).not.toBeInTheDocument();
+    expect(screen.queryByText("Try next:")).not.toBeInTheDocument();
+    expect(screen.queryByText("Versions:")).not.toBeInTheDocument();
+  });
+});

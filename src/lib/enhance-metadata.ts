@@ -1,0 +1,164 @@
+/**
+ * Normalized frontend type for the `enhance.metadata` payload.
+ *
+ * The backend emits all of these fields in every `enhance.metadata` SSE event,
+ * but the frontend previously only extracted `enhanced_prompt`. This type
+ * captures the full payload so the UI can surface quality scores, suggestions,
+ * alternative versions, and detected context.
+ *
+ * All fields are optional so the UI degrades gracefully when the backend falls
+ * back to raw-text mode (parse_status = "fallback").
+ */
+
+import { parseEnhancementPlan, type EnhancementPlan } from "@/lib/enhancement-plan";
+
+export interface EnhanceQualityScore {
+  clarity: number;
+  specificity: number;
+  completeness: number;
+  actionability: number;
+  overall: number;
+}
+
+export interface EnhancePartsBreakdown {
+  role: string;
+  context: string;
+  task: string;
+  output_format: string;
+  examples: string | null;
+  guardrails: string;
+}
+
+export interface EnhanceAlternativeVersions {
+  shorter: string;
+  more_detailed: string;
+}
+
+export interface EnhanceDetectedContext {
+  intent: string[];
+  domain: string[];
+  complexity: number;
+  mode: string;
+  input_language: string;
+}
+
+export interface EnhanceMetadata {
+  enhancedPrompt: string;
+  partsBreakdown?: EnhancePartsBreakdown;
+  enhancementsMade?: string[];
+  qualityScore?: EnhanceQualityScore;
+  suggestions?: string[];
+  alternativeVersions?: EnhanceAlternativeVersions;
+  detectedContext?: EnhanceDetectedContext;
+  missingParts?: string[];
+  improvementDelta?: number;
+  sessionContextSummary?: string;
+  assumptionsMade?: string[];
+  openQuestions?: string[];
+  ambiguityLevel?: string;
+  enhancementPlan?: EnhancementPlan;
+}
+
+export type { EnhancementPlan };
+
+/**
+ * Parse the raw `enhance.metadata` event payload into a normalized
+ * `EnhanceMetadata` object.
+ *
+ * Returns `null` if the payload doesn't contain a valid enhanced_prompt.
+ */
+export function parseEnhanceMetadata(raw: unknown): EnhanceMetadata | null {
+  if (!raw || typeof raw !== "object") return null;
+
+  const data = raw as Record<string, unknown>;
+
+  const enhancedPrompt =
+    typeof data.enhanced_prompt === "string" ? data.enhanced_prompt.trim() : "";
+  if (!enhancedPrompt) return null;
+
+  return {
+    enhancedPrompt,
+    partsBreakdown: parsePartsBreakdown(data.parts_breakdown),
+    enhancementsMade: parseStringArray(data.enhancements_made),
+    qualityScore: parseQualityScore(data.quality_score),
+    suggestions: parseStringArray(data.suggestions),
+    alternativeVersions: parseAlternativeVersions(data.alternative_versions),
+    detectedContext: parseDetectedContext(data.detected_context),
+    missingParts: parseStringArray(data.missing_parts),
+    improvementDelta:
+      typeof data.improvement_delta === "number" ? data.improvement_delta : undefined,
+    sessionContextSummary:
+      typeof data.session_context_summary === "string"
+        ? data.session_context_summary
+        : undefined,
+    assumptionsMade: parseStringArray(data.assumptions_made),
+    openQuestions: parseStringArray(data.open_questions),
+    ambiguityLevel:
+      typeof data.ambiguity_level === "string" ? data.ambiguity_level : undefined,
+    enhancementPlan: parseEnhancementPlan(data.enhancement_plan) ?? undefined,
+  };
+}
+
+function parseStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const filtered = value.filter(
+    (item): item is string => typeof item === "string" && item.trim().length > 0,
+  );
+  return filtered.length > 0 ? filtered : undefined;
+}
+
+function parsePartsBreakdown(value: unknown): EnhancePartsBreakdown | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const obj = value as Record<string, unknown>;
+  return {
+    role: typeof obj.role === "string" ? obj.role : "",
+    context: typeof obj.context === "string" ? obj.context : "",
+    task: typeof obj.task === "string" ? obj.task : "",
+    output_format: typeof obj.output_format === "string" ? obj.output_format : "",
+    examples: typeof obj.examples === "string" ? obj.examples : null,
+    guardrails: typeof obj.guardrails === "string" ? obj.guardrails : "",
+  };
+}
+
+function parseQualityScore(value: unknown): EnhanceQualityScore | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const obj = value as Record<string, unknown>;
+  const score = {
+    clarity: typeof obj.clarity === "number" ? obj.clarity : 0,
+    specificity: typeof obj.specificity === "number" ? obj.specificity : 0,
+    completeness: typeof obj.completeness === "number" ? obj.completeness : 0,
+    actionability: typeof obj.actionability === "number" ? obj.actionability : 0,
+    overall: typeof obj.overall === "number" ? obj.overall : 0,
+  };
+  return score.overall > 0 ? score : undefined;
+}
+
+function parseAlternativeVersions(
+  value: unknown,
+): EnhanceAlternativeVersions | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const obj = value as Record<string, unknown>;
+  const shorter = typeof obj.shorter === "string" ? obj.shorter.trim() : "";
+  const moreDetailed =
+    typeof obj.more_detailed === "string" ? obj.more_detailed.trim() : "";
+  if (!shorter && !moreDetailed) return undefined;
+  return { shorter, more_detailed: moreDetailed };
+}
+
+function parseDetectedContext(
+  value: unknown,
+): EnhanceDetectedContext | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const obj = value as Record<string, unknown>;
+  return {
+    intent: Array.isArray(obj.intent)
+      ? obj.intent.filter((i): i is string => typeof i === "string")
+      : [],
+    domain: Array.isArray(obj.domain)
+      ? obj.domain.filter((d): d is string => typeof d === "string")
+      : [],
+    complexity: typeof obj.complexity === "number" ? obj.complexity : 0,
+    mode: typeof obj.mode === "string" ? obj.mode : "",
+    input_language: typeof obj.input_language === "string" ? obj.input_language : "",
+  };
+}

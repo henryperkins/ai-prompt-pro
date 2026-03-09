@@ -44,3 +44,17 @@ export const launchExperimentFlags: LaunchExperimentFlags = {
   launchHeroCopyExperiment: parseBooleanFlag(import.meta.env.VITE_LAUNCH_EXPERIMENT_HERO_COPY),
   launchPrimaryCtaExperiment: parseBooleanFlag(import.meta.env.VITE_LAUNCH_EXPERIMENT_PRIMARY_CTA),
 };
+
+export interface EnhancementFeatureFlags {
+  enhancementStructuredInspector: boolean;
+  enhancementAmbiguityPolicy: boolean;
+  enhancementIntentConfirmation: boolean;
+  enhancementPersonalization: boolean;
+}
+
+export const enhancementFeatureFlags: EnhancementFeatureFlags = {
+  enhancementStructuredInspector: parseBooleanFlag(import.meta.env.VITE_ENHANCEMENT_STRUCTURED_INSPECTOR, true),
+  enhancementAmbiguityPolicy: parseBooleanFlag(import.meta.env.VITE_ENHANCEMENT_AMBIGUITY_POLICY, true),
+  enhancementIntentConfirmation: parseBooleanFlag(import.meta.env.VITE_ENHANCEMENT_INTENT_CONFIRMATION, true),
+  enhancementPersonalization: parseBooleanFlag(import.meta.env.VITE_ENHANCEMENT_PERSONALIZATION, true),
+};

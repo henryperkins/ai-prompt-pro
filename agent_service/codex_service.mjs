@@ -8,8 +8,11 @@ import { isConfiguredPublicApiKey as matchesConfiguredPublicApiKey } from "./pub
 import {
   buildEnhancementMetaPrompt,
   detectEnhancementContext,
+  parseEnhancementRequestAmbiguityMode,
   parseEnhancementRequestBuilderFields,
+  parseEnhancementRequestIntentOverride,
   parseEnhancementRequestMode,
+  parseEnhancementRequestRewriteStrictness,
   pickPrimaryAgentMessageText,
   postProcessEnhancementResponse,
 } from "./enhancement-pipeline.mjs";
@@ -2186,9 +2189,15 @@ function buildEnhanceStreamRequest(body) {
   const requestThreadOptions = extractThreadOptions(requestBody.thread_options || requestBody.threadOptions);
   const threadOptions = mergeEnhanceThreadOptions(DEFAULT_THREAD_OPTIONS, requestThreadOptions);
   const builderMode = parseEnhancementRequestMode(requestBody);
+  const rewriteStrictness = parseEnhancementRequestRewriteStrictness(requestBody);
+  const intentOverride = parseEnhancementRequestIntentOverride(requestBody);
+  const ambiguityMode = parseEnhancementRequestAmbiguityMode(requestBody);
   const builderFields = parseEnhancementRequestBuilderFields(requestBody);
   const enhancementContext = detectEnhancementContext(prompt, {
     builderMode,
+    rewriteStrictness,
+    ambiguityMode,
+    intentOverride,
     builderFields,
     session: requestSession,
     webSearchEnabled: threadOptions.webSearchEnabled === true,
