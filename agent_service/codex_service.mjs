@@ -2424,13 +2424,79 @@ async function runEnhanceTurnStream(requestData, options) {
 
     if (!signal.aborted && !isClosed() && !turnFailed && !turnError) {
       const rawEnhancerOutput = pickPrimaryAgentMessageText(agentMessageByItemId, agentMessageItemOrder);
+
+      // ── Enhancement response diagnostics ─────────────────────────────
+      const agentItemCount = agentMessageByItemId.size;
+      const rawOutputLength = rawEnhancerOutput.length;
+      if (rawOutputLength === 0) {
+        logEvent("warn", "enhance_empty_agent_output", cleanLogFields({
+          request_id: requestContext?.requestId,
+          endpoint: requestContext?.endpoint,
+          thread_id: activeThreadId,
+          turn_id: turnId,
+          agent_item_count: agentItemCount,
+          agent_item_order: agentMessageItemOrder.length,
+          emitted_agent_output: emittedAgentOutput,
+          message: "Codex turn completed but no agent_message text was collected. The model may have only produced reasoning or tool-use items.",
+        }));
+      }
+
       const postProcessed = postProcessEnhancementResponse({
         llmResponseText: rawEnhancerOutput,
         userInput: prompt,
         context: enhancementContext,
       });
+
+      // Log parse outcome for every enhancement to aid failure triage.
+      const diag = postProcessed.parse_diagnostics;
+      logEvent(
+        postProcessed.parse_status === "json" ? "info" : "warn",
+        "enhance_post_process",
+        cleanLogFields({
+          request_id: requestContext?.requestId,
+          endpoint: requestContext?.endpoint,
+          thread_id: activeThreadId,
+          turn_id: turnId,
+          parse_status: postProcessed.parse_status,
+          raw_output_chars: rawOutputLength,
+          enhanced_prompt_chars: postProcessed.enhanced_prompt?.length ?? 0,
+          quality_overall: postProcessed.quality_score?.overall,
+          improvement_delta: postProcessed.improvement_delta,
+          missing_parts: postProcessed.missing_parts?.length > 0
+            ? postProcessed.missing_parts.join(",")
+            : undefined,
+          word_count_original: postProcessed.word_count?.original,
+          word_count_enhanced: postProcessed.word_count?.enhanced,
+          detected_intent: postProcessed.detected_context?.intent?.join(",") || undefined,
+          detected_domain: postProcessed.detected_context?.domain?.join(",") || undefined,
+          builder_mode: postProcessed.detected_context?.mode,
+          // Parse diagnostics (especially useful when parse_status is "fallback")
+          parse_had_code_fence: diag?.had_code_fence,
+          parse_had_json_candidate: diag?.had_json_candidate,
+          parse_json_candidate_chars: diag?.json_candidate_chars || undefined,
+          parse_json_ok: diag?.json_parse_ok,
+          parse_json_error: diag?.json_parse_error || undefined,
+          parse_has_enhanced_prompt: diag?.has_enhanced_prompt_field,
+          parse_has_parts_breakdown: diag?.has_parts_breakdown_field,
+          parse_has_quality_score: diag?.has_quality_score_field,
+        }),
+      );
+
       const finalEnhancedPrompt = postProcessed.enhanced_prompt?.trim() || rawEnhancerOutput.trim();
       const finalContextSummary = postProcessed.session_context_summary || requestSession.contextSummary;
+
+      if (!finalEnhancedPrompt) {
+        logEvent("error", "enhance_empty_result", cleanLogFields({
+          request_id: requestContext?.requestId,
+          endpoint: requestContext?.endpoint,
+          thread_id: activeThreadId,
+          turn_id: turnId,
+          parse_status: postProcessed.parse_status,
+          raw_output_chars: rawOutputLength,
+          raw_output_preview: rawEnhancerOutput.slice(0, 500) || "(empty)",
+          message: "Enhancement produced an empty final prompt. The LLM response could not be parsed or was blank.",
+        }));
+      }
 
       if (finalEnhancedPrompt && !emittedAgentOutput) {
         const syntheticItemId = `item_enhanced_${randomUUID().replaceAll("-", "")}`;

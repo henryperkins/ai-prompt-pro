@@ -475,6 +475,54 @@ export function parseEnhancementJsonResponse(rawText) {
   }
 }
 
+/**
+ * Extended version that returns diagnostics alongside the parse result.
+ * Used by postProcessEnhancementResponse to surface debugging info.
+ */
+export function parseEnhancementJsonResponseWithDiagnostics(rawText) {
+  const diagnostics = {
+    input_type: typeof rawText,
+    input_chars: typeof rawText === "string" ? rawText.length : 0,
+    had_code_fence: false,
+    had_json_candidate: false,
+    json_candidate_chars: 0,
+    json_parse_ok: false,
+    json_parse_error: null,
+    has_enhanced_prompt_field: false,
+    has_parts_breakdown_field: false,
+    has_quality_score_field: false,
+  };
+
+  if (typeof rawText !== "string") {
+    return { parsed: null, diagnostics };
+  }
+
+  diagnostics.had_code_fence = /```(?:json)?/i.test(rawText);
+  const candidate = extractJsonCandidate(rawText);
+  diagnostics.had_json_candidate = candidate !== null;
+  diagnostics.json_candidate_chars = candidate ? candidate.length : 0;
+
+  if (!candidate) {
+    return { parsed: null, diagnostics };
+  }
+
+  try {
+    const parsed = JSON.parse(candidate);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      diagnostics.json_parse_error = "parsed value is not a plain object";
+      return { parsed: null, diagnostics };
+    }
+    diagnostics.json_parse_ok = true;
+    diagnostics.has_enhanced_prompt_field = typeof parsed.enhanced_prompt === "string";
+    diagnostics.has_parts_breakdown_field = parsed.parts_breakdown != null && typeof parsed.parts_breakdown === "object";
+    diagnostics.has_quality_score_field = parsed.quality_score != null && typeof parsed.quality_score === "object";
+    return { parsed, diagnostics };
+  } catch (error) {
+    diagnostics.json_parse_error = error instanceof Error ? error.message.slice(0, 200) : "unknown parse error";
+    return { parsed: null, diagnostics };
+  }
+}
+
 function normalizePartsBreakdown(value, enhancedPrompt) {
   const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
   const output = { ...DEFAULT_PARTS };
@@ -591,7 +639,7 @@ export function postProcessEnhancementResponse({
 }) {
   const originalPrompt = typeof userInput === "string" ? userInput.trim() : "";
   const rawResponse = typeof llmResponseText === "string" ? llmResponseText.trim() : "";
-  const parsed = parseEnhancementJsonResponse(rawResponse);
+  const { parsed, diagnostics: parseDiagnostics } = parseEnhancementJsonResponseWithDiagnostics(rawResponse);
   const originalScore = scorePromptQuality(originalPrompt);
 
   const fallbackEnhancedPrompt = rawResponse;
@@ -645,6 +693,7 @@ export function postProcessEnhancementResponse({
     },
     builder_fields: context.builderFields,
     parse_status: parsed ? "json" : "fallback",
+    parse_diagnostics: parseDiagnostics,
   };
 }
 
