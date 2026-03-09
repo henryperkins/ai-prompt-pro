@@ -70,18 +70,6 @@ export function OutputPanelSaveDialog({
   onSavePrompt,
   onSaveAndSharePrompt,
 }: OutputPanelSaveDialogProps) {
-  const [shareEnabled, setShareEnabled] = useState(initialShareEnabled);
-
-  useEffect(() => {
-    if (open) {
-      setShareEnabled(initialShareEnabled);
-      if (remixContext && !saveName.trim()) {
-        setSaveName(`Remix of ${remixContext.title}`);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
-
   const [saveName, setSaveName] = useState("");
   const [saveDescription, setSaveDescription] = useState("");
   const [saveTags, setSaveTags] = useState("");
@@ -94,6 +82,17 @@ export function OutputPanelSaveDialog({
   const [saveUseCaseTouched, setSaveUseCaseTouched] = useState(false);
   const [saveConfirmedSafeTouched, setSaveConfirmedSafeTouched] = useState(false);
   const [saveSubmitAttempted, setSaveSubmitAttempted] = useState(false);
+
+  const [shareEnabled, setShareEnabled] = useState(initialShareEnabled);
+
+  useEffect(() => {
+    if (open) {
+      setShareEnabled(initialShareEnabled);
+      if (remixContext) {
+        setSaveName((prev) => prev.trim() ? prev : `Remix of ${remixContext.title}`);
+      }
+    }
+  }, [open, initialShareEnabled, remixContext]);
 
   const shareEnabledForUi = shareEnabled && canSharePrompt;
 

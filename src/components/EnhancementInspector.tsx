@@ -40,7 +40,7 @@ function InspectorSection({
             className="h-5 px-1.5 text-[10px]"
             onClick={() => {
               onApply({ [fieldKey]: value });
-              trackBuilderEvent("builder_enhance_accepted", { field: fieldKey });
+              trackBuilderEvent("builder_enhance_assumption_edited", { field: fieldKey });
             }}
           >
             Apply to builder
@@ -108,7 +108,7 @@ export function EnhancementInspector({ metadata, onApplyToBuilder }: Enhancement
     if (parts.output_format) updates.format = parts.output_format;
     if (parts.guardrails) updates.constraints = parts.guardrails;
     onApplyToBuilder(updates);
-    trackBuilderEvent("builder_enhance_accepted", { action: "apply_all" });
+    trackBuilderEvent("builder_enhance_assumption_edited", { action: "apply_all" });
   };
 
   return (
