@@ -83,7 +83,7 @@ jobs:
               AZURE_OPENAI_API_KEY="${{ secrets.AZURE_OPENAI_API_KEY }}" \
               CODEX_CONFIG_JSON='${{ secrets.CODEX_CONFIG_JSON }}' \
               REQUIRE_PROVIDER_CONFIG=true \
-              CODEX_MODEL="gpt-5.4-pro" \
+              CODEX_MODEL="gpt-5.4" \
               CODEX_MODEL_REASONING_EFFORT="xhigh" \
               ALLOWED_ORIGINS="https://gentle-dune-075b4710f.2.azurestaticapps.net,https://prompt.lakefrontdigital.io,http://localhost:5173"
 

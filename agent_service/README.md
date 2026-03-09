@@ -159,7 +159,7 @@ Set `REQUIRE_PROVIDER_CONFIG=true` to disable step 3 and fail fast instead of fa
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `CODEX_MODEL` | Provider model (`config.toml`), `AZURE_OPENAI_DEPLOYMENT`, or `gpt-5.4-pro` (non-Azure fallback) | Model/deployment name (for Azure, set this to your deployment name) |
+| `CODEX_MODEL` | Provider model (`config.toml`), `AZURE_OPENAI_DEPLOYMENT`, or `gpt-5.4` (non-Azure fallback) | Model/deployment name (for Azure, set this to your deployment name) |
 | `CODEX_SANDBOX_MODE` | _(none)_ | `read-only` \| `workspace-write` \| `danger-full-access` |
 | `CODEX_WORKING_DIRECTORY` | _(none)_ | Working directory for the Codex agent |
 | `CODEX_SKIP_GIT_REPO_CHECK` | `false` | Skip git repo validation |

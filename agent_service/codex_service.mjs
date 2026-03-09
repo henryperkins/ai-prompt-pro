@@ -470,7 +470,7 @@ function resolveConfiguredCodexModel() {
   if (providerModel) return providerModel;
 
   // Use a default model only for non-Azure providers.
-  if (!IS_AZURE_PROVIDER) return "gpt-5.4-pro";
+  if (!IS_AZURE_PROVIDER) return "gpt-5.4";
   return undefined;
 }
 
