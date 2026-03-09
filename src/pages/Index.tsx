@@ -1027,80 +1027,9 @@ const Index = () => {
     enhancePending.current = true;
 
     void (async () => {
-      let configForEnhance = config;
-      let promptForEnhance = buildPrompt(configForEnhance);
+      const configForEnhance = config;
+      const promptForEnhance = buildPrompt(configForEnhance);
       if (!promptForEnhance) {
-        enhancePending.current = false;
-        return;
-      }
-
-      if (isBuilderRedesignPhase3) {
-        clearEnhanceTimers();
-        setEnhancePhase("starting");
-        setIsEnhancing(true);
-        enhancePending.current = false;
-        const applyInferenceResult = (
-          inference: ReturnType<typeof inferBuilderFieldsLocally>,
-          source: "enhance_remote" | "enhance_local",
-        ) => {
-          if (inference.suggestionChips.length > 0) {
-            setSuggestionChips(inference.suggestionChips);
-          }
-
-          const { updates, appliedFields } = applyInferenceUpdates(
-            configForEnhance,
-            fieldOwnership,
-            inference,
-          );
-          if (appliedFields.length === 0) return;
-
-          updateConfig(updates);
-          setFieldOwnership((previous) =>
-            markOwnershipFields(previous, appliedFields, "ai"),
-          );
-          setIsAdjustDetailsOpen(true);
-          configForEnhance = { ...configForEnhance, ...updates };
-          promptForEnhance = buildPrompt(configForEnhance);
-          trackBuilderEvent("builder_inference_applied", {
-            source,
-            fields: appliedFields.join(","),
-          });
-        };
-
-        try {
-          const remote = await inferBuilderFields({
-            prompt: config.originalPrompt,
-            currentFields: buildInferenceCurrentFields(configForEnhance),
-            lockMetadata: fieldOwnership,
-          });
-
-          const normalized = normalizeRemoteInferenceResult(remote);
-          if (
-            normalized.inferredFields.length > 0 ||
-            normalized.suggestionChips.length > 0
-          ) {
-            applyInferenceResult(normalized, "enhance_remote");
-          } else {
-            applyInferenceResult(
-              inferBuilderFieldsLocally(config.originalPrompt, config),
-              "enhance_local",
-            );
-          }
-          setHasInferenceError(false);
-        } catch {
-          setHasInferenceError(true);
-          applyInferenceResult(
-            inferBuilderFieldsLocally(config.originalPrompt, config),
-            "enhance_local",
-          );
-        }
-      }
-
-      if (!promptForEnhance) {
-        if (isBuilderRedesignPhase3) {
-          setIsEnhancing(false);
-          setEnhancePhase("idle");
-        }
         enhancePending.current = false;
         return;
       }
@@ -1400,16 +1329,13 @@ const Index = () => {
     config,
     enhanceSession,
     enhancedPrompt,
-    fieldOwnership,
     isBuilderRedesignPhase1,
-    isBuilderRedesignPhase3,
     isEnhancing,
     isMobile,
     setEnhancedPrompt,
     setIsEnhancing,
     setReasoningSummary,
     toast,
-    updateConfig,
     webSearchEnabled,
   ]);
 
@@ -1569,8 +1495,6 @@ const Index = () => {
     sectionHealth.builder === "complete" &&
     sectionHealth.context === "complete" &&
     sectionHealth.tone === "complete";
-  const showEnhanceFirstCard =
-    !hasEnhancedOnce && (isBuilderRedesignPhase1 || !allSectionsComplete);
   const hasDetailSelections = Boolean(
     selectedRole ||
     config.format.length ||
@@ -1585,6 +1509,16 @@ const Index = () => {
     config.contextConfig.databaseConnections.length ||
     config.contextConfig.rag.enabled,
   );
+  const hasStartedBuilderFlow =
+    hasOriginalPromptInput ||
+    hasEnhancedOnce ||
+    hasDetailSelections ||
+    hasSourceOrAdvancedSelections ||
+    showAdvancedControls ||
+    isAdjustDetailsOpen ||
+    isSourcesAdvancedOpen;
+  const showEnhanceFirstCard =
+    !hasStartedBuilderFlow && (isBuilderRedesignPhase1 || !allSectionsComplete);
   const shouldShowAdvancedControls =
     showAdvancedControls ||
     hasEnhancedOnce ||
@@ -1634,6 +1568,11 @@ const Index = () => {
       .slice(0, 1)
       .join(" ");
   }, [displayPrompt]);
+  const mobilePreviewLabel = hasEnhancedOnce
+    ? "Enhanced output"
+    : displayPrompt.trim()
+      ? "Built prompt"
+      : "Live preview";
   const mobileSessionText = useMemo(() => {
     if (!isSignedIn) {
       return "Sign in required";
@@ -2420,7 +2359,9 @@ const Index = () => {
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
                 {!hasEnhancedOnce
-                  ? "Run your first enhancement to unlock save/share workflows and compare changes."
+                  ? canSharePrompt
+                    ? `Preview is ready to copy, save, or share. ${primaryCtaLabel} to compare changes and get AI refinement suggestions.`
+                    : `Preview is ready to copy or save. Sign in to share, or ${primaryCtaLabel} to compare changes and get AI refinement suggestions.`
                   : (refineSuggestions[0]?.description ??
                     "Use Improve this result suggestions to keep iterating.")}
               </p>
@@ -2469,43 +2410,45 @@ const Index = () => {
       {/* Mobile: sticky bottom bar */}
       {isMobile && (
         <div
-          className="fixed inset-x-0 bottom-[calc(4.375rem+env(safe-area-inset-bottom)+1px)] sm:bottom-0 z-30 border-t border-border bg-card/95 px-3 pt-1.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] backdrop-blur-sm"
+          className="fixed inset-x-0 bottom-[calc(4.375rem+env(safe-area-inset-bottom)+1px)] z-30 border-t border-border bg-card/95 px-3 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:bottom-0"
           data-testid="builder-mobile-sticky-bar"
         >
-          <button
-            type="button"
-            onClick={() => setDrawerOpen(true)}
-            className="interactive-chip mb-1.5 flex min-h-11 w-full items-center gap-2 rounded-lg border border-border/80 bg-background/70 px-3 py-2 text-left"
-            aria-label="Open output preview"
-            data-testid="builder-mobile-preview-trigger"
-          >
-            <div className="type-label-caps flex shrink-0 items-center gap-1.5 text-[0.75rem] font-medium text-foreground/85">
-              <Eye className="h-3.5 w-3.5" />
-              Live preview
-            </div>
-            <p className="min-w-0 flex-1 truncate text-right text-[0.8125rem] leading-5 text-foreground/92">
-              {mobilePreviewText}
-            </p>
-          </button>
-          <button
-            type="button"
-            onClick={handleOpenSessionDrawer}
-            className="interactive-chip mb-1.5 flex min-h-11 w-full items-center gap-2 rounded-lg border border-border/80 bg-background/70 px-3 py-2 text-left"
-            aria-label="Open Codex session drawer"
-            data-testid="builder-mobile-session-trigger"
-          >
-            <div className="type-label-caps flex shrink-0 items-center gap-1.5 text-[0.75rem] font-medium text-foreground/85">
-              <StackSimple className="h-3.5 w-3.5" />
-              Codex session
-            </div>
-            <p className="min-w-0 flex-1 truncate text-right text-[0.8125rem] leading-5 text-foreground/92">
-              {mobileSessionText}
-            </p>
-          </button>
+          <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-2">
+            <button
+              type="button"
+              onClick={() => setDrawerOpen(true)}
+              className="interactive-chip min-h-11 rounded-lg border border-border/80 bg-background/70 px-3 py-2 text-left"
+              aria-label="Open output preview"
+              data-testid="builder-mobile-preview-trigger"
+            >
+              <div className="type-label-caps flex items-center gap-1.5 text-[0.7rem] font-medium text-foreground/85">
+                <Eye className="h-3.5 w-3.5" />
+                {mobilePreviewLabel}
+              </div>
+              <p className="mt-1 truncate text-[0.75rem] leading-4 text-foreground/92">
+                {mobilePreviewText}
+              </p>
+            </button>
+            <button
+              type="button"
+              onClick={handleOpenSessionDrawer}
+              className="interactive-chip min-h-11 rounded-lg border border-border/80 bg-background/70 px-3 py-2 text-left"
+              aria-label="Open Codex session drawer"
+              data-testid="builder-mobile-session-trigger"
+            >
+              <div className="type-label-caps flex items-center gap-1.5 text-[0.7rem] font-medium text-foreground/85">
+                <StackSimple className="h-3.5 w-3.5" />
+                Session
+              </div>
+              <p className="mt-1 truncate text-[0.75rem] leading-4 text-foreground/92">
+                {mobileSessionText}
+              </p>
+            </button>
+          </div>
 
-          <div className="flex items-center gap-2 max-[360px]:grid max-[360px]:grid-cols-2">
+          <div className="mt-2 flex items-center gap-2 max-[360px]:grid max-[360px]:grid-cols-2">
             <label
-              className="flex min-h-11 min-w-23 items-center justify-center gap-2 rounded-md border border-border/70 bg-background/70 px-2 text-sm text-muted-foreground cursor-pointer select-none max-[360px]:min-w-0"
+              className="flex min-h-10 min-w-23 items-center justify-center gap-2 rounded-md border border-border/70 bg-background/70 px-2 text-sm text-muted-foreground cursor-pointer select-none max-[360px]:min-w-0"
               data-testid="builder-mobile-web-toggle"
             >
               <Switch
@@ -2520,7 +2463,7 @@ const Index = () => {
             <Badge
               variant="pill"
               tone={score.total >= 75 ? "brand" : "default"}
-              className="h-11 min-w-16 justify-center rounded-md px-2 text-sm font-semibold max-[360px]:min-w-0 max-[360px]:justify-self-end sm:h-10 sm:text-base"
+              className="h-10 min-w-16 justify-center rounded-md px-2 text-sm font-semibold max-[360px]:min-w-0 max-[360px]:justify-self-end sm:text-base"
             >
               {score.total}/100
             </Badge>
@@ -2529,7 +2472,7 @@ const Index = () => {
               size="md"
               onClick={handleEnhance}
               disabled={isEnhancing || !builtPrompt}
-              className="signature-enhance-button h-11 min-w-0 flex-1 gap-2 max-[360px]:col-span-2 max-[360px]:w-full max-[360px]:gap-1 max-[360px]:px-2 max-[360px]:text-xs sm:h-10"
+              className="signature-enhance-button h-10 min-w-0 flex-1 gap-2 max-[360px]:col-span-2 max-[360px]:w-full max-[360px]:gap-1 max-[360px]:px-2 max-[360px]:text-xs"
               data-phase={enhancePhase}
               data-testid="builder-mobile-enhance-button"
             >
@@ -2559,7 +2502,11 @@ const Index = () => {
           <DrawerContent className="max-h-[85vh]">
             <DrawerHeader>
               <DrawerTitle>
-                {enhancedPrompt ? "✨ Enhanced Prompt" : "📝 Preview"}
+                {enhancedPrompt
+                  ? "Enhanced Prompt"
+                  : builtPrompt
+                    ? "Built Prompt"
+                    : "Preview"}
               </DrawerTitle>
               <DrawerDescription className="sr-only">
                 Review, copy, and save your current prompt output.
@@ -2610,7 +2557,7 @@ const Index = () => {
       />
 
       {/* Add bottom padding on mobile for sticky bar */}
-      {isMobile && <div className="h-44 sm:h-32" />}
+      {isMobile && <div className="h-32 sm:h-28" />}
     </PageShell>
   );
 };

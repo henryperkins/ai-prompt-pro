@@ -131,14 +131,13 @@ describe("Index mobile layout spacing", () => {
   it("keeps bottom-nav offset only for sub-sm breakpoints", async () => {
     await renderIndex();
 
-    const previewButton = screen.getByRole("button", { name: "Open output preview" });
-    const stickyBar = previewButton.closest("div");
+    const stickyBar = screen.getByTestId("builder-mobile-sticky-bar");
 
-    expect(stickyBar?.className).toContain("bottom-[calc(4.375rem+env(safe-area-inset-bottom)+1px)]");
-    expect(stickyBar?.className).toContain("sm:bottom-0");
+    expect(stickyBar.className).toContain("bottom-[calc(4.375rem+env(safe-area-inset-bottom)+1px)]");
+    expect(stickyBar.className).toContain("sm:bottom-0");
 
     const spacer = Array.from(document.querySelectorAll("div")).find(
-      (node) => node.className.includes("h-44") && node.className.includes("sm:h-32"),
+      (node) => node.className.includes("h-32") && node.className.includes("sm:h-28"),
     );
     expect(spacer).toBeTruthy();
   });

@@ -155,11 +155,13 @@ describe("Index redesign phase 1 gating", () => {
     await renderIndex();
 
     expect(screen.getByText("Redesign Hero Input")).toBeInTheDocument();
+    expect(screen.getByText("Start in 3 steps")).toBeInTheDocument();
     expect(screen.queryByText("Redesign Adjust Details")).not.toBeInTheDocument();
     expect(screen.queryByText("Redesign Sources Advanced")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Show advanced controls" }));
     expect(screen.getByText("Redesign Adjust Details")).toBeInTheDocument();
     expect(screen.getByText("Redesign Sources Advanced")).toBeInTheDocument();
+    expect(screen.queryByText("Start in 3 steps")).not.toBeInTheDocument();
 
     expect(screen.queryByText("Legacy PromptInput")).not.toBeInTheDocument();
     expect(screen.queryByText("Legacy BuilderTabs")).not.toBeInTheDocument();
@@ -170,6 +172,9 @@ describe("Index redesign phase 1 gating", () => {
     await renderIndex();
 
     expect(screen.getByText("Next best action")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Preview is ready to copy or save\./),
+    ).toBeInTheDocument();
     expect(screen.getByText("History")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Version History" })).toHaveAttribute("href", "/history");
   });

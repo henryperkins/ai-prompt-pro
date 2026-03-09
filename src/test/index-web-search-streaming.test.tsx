@@ -235,8 +235,6 @@ describe("Index web search streaming", () => {
         "[Release notes](https://example.com/release)|[Status page](https://status.example.com/)",
       );
     });
-
-    expect(screen.getByText(/start in 3 steps/i)).toBeInTheDocument();
   });
 
   it("resets web search activity after a successful enhance completes", async () => {

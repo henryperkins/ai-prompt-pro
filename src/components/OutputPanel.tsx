@@ -183,9 +183,9 @@ export function OutputPanel({
     effectivePreviewSource === "enhanced"
       ? "Enhanced output"
       : effectivePreviewSource === "prompt_text"
-        ? "Prompt text"
+        ? "Prompt draft"
         : effectivePreviewSource === "builder_fields"
-          ? "Builder details"
+          ? "Built prompt"
           : "No preview yet";
   const trimmedReasoningSummary = reasoningSummary.trim();
   const [displayedReasoningSummary, setDisplayedReasoningSummary] = useState(trimmedReasoningSummary);

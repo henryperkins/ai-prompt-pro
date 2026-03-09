@@ -131,7 +131,7 @@ describe("OutputPanel phase 2 save flow", () => {
       previewSource: "builder_fields",
     });
 
-    expect(screen.getByText("Source: Builder details")).toBeInTheDocument();
+    expect(screen.getByText("Source: Built prompt")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy preview" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "More" })).toBeInTheDocument();

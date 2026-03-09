@@ -188,10 +188,10 @@ describe("Index UX friction improvements", () => {
     mocks.usePromptBuilder.mockReturnValue(buildPromptBuilderState());
   });
 
-  it("uses desktop step wording and computes preview source from builder fields", async () => {
+  it("computes preview source from builder fields once the builder already has detail input", async () => {
     await renderIndex();
 
-    expect(screen.getByText(/Click\s+/)).toBeInTheDocument();
+    expect(screen.queryByText("Start in 3 steps")).not.toBeInTheDocument();
     expect(screen.getByTestId("preview-source-prop")).toHaveTextContent("builder_fields");
     expect(screen.getByTestId("has-enhanced-once-prop")).toHaveTextContent("false");
   });
@@ -209,5 +209,19 @@ describe("Index UX friction improvements", () => {
 
     expect(screen.getByTestId("preview-source-prop")).toHaveTextContent("builder_fields");
     expect(screen.getByTestId("has-enhanced-once-prop")).toHaveTextContent("false");
+  });
+
+  it("retires the onboarding card after the user starts writing", async () => {
+    mocks.usePromptBuilder.mockReturnValue(
+      buildPromptBuilderState({
+        originalPrompt: "Turn these notes into a concise launch summary.",
+        role: "",
+        builtPrompt: "**Task:** Turn these notes into a concise launch summary.",
+      }),
+    );
+
+    await renderIndex();
+
+    expect(screen.queryByText("Start in 3 steps")).not.toBeInTheDocument();
   });
 });
