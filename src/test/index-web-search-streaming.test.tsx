@@ -75,11 +75,17 @@ vi.mock("@/components/OutputPanel", () => ({
     onEnhance,
     onWebSearchToggle,
     webSearchSources,
+    webSearchActivity,
     reasoningSummary,
   }: {
     onEnhance: () => void;
     onWebSearchToggle?: (enabled: boolean) => void;
     webSearchSources?: string[];
+    webSearchActivity?: {
+      phase?: string;
+      searchCount?: number;
+      query?: string | null;
+    };
     reasoningSummary?: string;
   }) => (
     <div>
@@ -90,6 +96,9 @@ vi.mock("@/components/OutputPanel", () => ({
         enhance
       </button>
       <div data-testid="web-sources">{(webSearchSources || []).join("|")}</div>
+      <div data-testid="web-search-phase">{webSearchActivity?.phase || "idle"}</div>
+      <div data-testid="web-search-count">{String(webSearchActivity?.searchCount || 0)}</div>
+      <div data-testid="web-search-query">{webSearchActivity?.query || ""}</div>
       <div data-testid="reasoning-summary">{reasoningSummary || ""}</div>
     </div>
   ),
@@ -228,6 +237,62 @@ describe("Index web search streaming", () => {
     });
 
     expect(screen.getByText(/start in 3 steps/i)).toBeInTheDocument();
+  });
+
+  it("resets web search activity after a successful enhance completes", async () => {
+    mocks.streamEnhance.mockImplementation(
+      ({
+        onEvent,
+        onDone,
+      }: {
+        onEvent?: (event: EnhanceStreamEvent) => void;
+        onDone?: () => void;
+      }) => {
+        onEvent?.({
+          eventType: "item.started",
+          responseType: "response.output_item.added",
+          threadId: "thread_1",
+          turnId: "turn_1",
+          itemId: "item_ws_1",
+          itemType: "web_search_call",
+          payload: {
+            item: {
+              id: "item_ws_1",
+              type: "web_search_call",
+              arguments: '{"query":"latest React docs"}',
+            },
+          },
+        });
+        onEvent?.({
+          eventType: "item.completed",
+          responseType: "response.output_item.done",
+          threadId: "thread_1",
+          turnId: "turn_1",
+          itemId: "item_prompt_1",
+          itemType: "agent_message",
+          payload: {
+            event: "item.completed",
+            type: "item.completed",
+            item: {
+              id: "item_prompt_1",
+              type: "agent_message",
+              text: "Enhanced launch prompt.",
+            },
+          },
+        });
+        onDone?.();
+      },
+    );
+
+    await renderIndex();
+
+    fireEvent.click(screen.getByRole("button", { name: "enhance" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("web-search-phase")).toHaveTextContent("idle");
+    });
+    expect(screen.getByTestId("web-search-count")).toHaveTextContent("0");
+    expect(screen.getByTestId("web-search-query")).toHaveTextContent("");
   });
 
   it("replaces raw streamed JSON with enhance metadata enhanced_prompt", async () => {
@@ -393,6 +458,33 @@ describe("Index web search streaming", () => {
       }),
     );
     expect(screen.queryByTestId("codex-session-context-summary")).not.toBeInTheDocument();
+  });
+
+  it("surfaces a destructive toast when enhance completes without prompt output", async () => {
+    mocks.streamEnhance.mockImplementation(
+      ({
+        onDone,
+      }: {
+        onDone?: () => void;
+      }) => {
+        onDone?.();
+      },
+    );
+
+    await renderIndex();
+
+    fireEvent.click(screen.getByRole("button", { name: "enhance" }));
+
+    await waitFor(() => {
+      expect(mocks.toast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Enhancement incomplete",
+          description:
+            "The enhancement finished without returning a prompt. Please try again.",
+          variant: "destructive",
+        }),
+      );
+    });
   });
 
   it("sends user-edited Codex session context from the drawer", async () => {

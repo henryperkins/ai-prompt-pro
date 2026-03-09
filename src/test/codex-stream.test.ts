@@ -86,6 +86,11 @@ describe("codex stream helpers", () => {
         })).toBe(true);
 
         expect(hasCodexSessionProgress({
+            eventType: "item.started",
+            responseType: null,
+        })).toBe(false);
+
+        expect(hasCodexSessionProgress({
             eventType: "turn/error",
             responseType: "turn/error",
         })).toBe(false);

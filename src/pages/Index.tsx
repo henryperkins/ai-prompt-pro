@@ -1321,7 +1321,29 @@ const Index = () => {
           const durationMs = startedAt
             ? Math.max(Date.now() - startedAt, 0)
             : -1;
+          const finalPromptText = splitEnhancedPromptAndSources(accumulated)
+            .promptText
+            .trim();
           enhanceStartedAt.current = null;
+          setWebSearchActivity(IDLE_WEB_SEARCH_ACTIVITY);
+          if (!finalPromptText) {
+            trackBuilderEvent("builder_enhance_completed", {
+              success: false,
+              durationMs,
+              error: "Enhancement completed without output.",
+              errorCode: "bad_response",
+            });
+            clearEnhanceTimers();
+            setIsEnhancing(false);
+            setEnhancePhase("idle");
+            toast({
+              title: "Enhancement incomplete",
+              description:
+                "The enhancement finished without returning a prompt. Please try again.",
+              variant: "destructive",
+            });
+            return;
+          }
           trackBuilderEvent("builder_enhance_completed", {
             success: true,
             durationMs,

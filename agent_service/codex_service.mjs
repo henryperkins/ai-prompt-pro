@@ -2078,7 +2078,8 @@ async function runStreamedWithRetry(thread, input, turnOptions, telemetry = {}) 
             await iterator.return().catch(() => undefined);
           }
           const backoff = CODEX_429_BACKOFF_BASE_SECONDS * (2 ** attempt);
-          const delay = Math.min(Math.random() * backoff, CODEX_429_BACKOFF_MAX_SECONDS) * 1000;
+          const jitter = 0.5 + Math.random() * 0.5;
+          const delay = Math.min(backoff * jitter, CODEX_429_BACKOFF_MAX_SECONDS) * 1000;
           if (requestContext) {
             requestContext.retryCount = attempt + 1;
           }
@@ -2109,7 +2110,8 @@ async function runStreamedWithRetry(thread, input, turnOptions, telemetry = {}) 
         throw err;
       }
       const backoff = CODEX_429_BACKOFF_BASE_SECONDS * (2 ** attempt);
-      const delay = Math.min(Math.random() * backoff, CODEX_429_BACKOFF_MAX_SECONDS) * 1000;
+      const jitter = 0.5 + Math.random() * 0.5;
+      const delay = Math.min(backoff * jitter, CODEX_429_BACKOFF_MAX_SECONDS) * 1000;
       if (requestContext) {
         requestContext.retryCount = attempt + 1;
       }
@@ -2416,6 +2418,7 @@ async function runEnhanceTurnStream(requestData, options) {
           item_type: itemType,
           item: event.item,
         });
+        continue;
       }
     }
 

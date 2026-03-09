@@ -30,6 +30,17 @@ function isWebSearchItemType(itemType: string | null | undefined): boolean {
   );
 }
 
+function isCountableWebSearchItemType(itemType: string | null | undefined): boolean {
+  const normalized = normalizeCodexToken(itemType);
+  if (!normalized) return false;
+  if (normalized === "web_search_result") return false;
+  return (
+    normalized === "web_search_call"
+    || normalized === "web_search"
+    || /(^|[./_-])web[_-]?search[_-]?call([./_-]|$)/.test(normalized)
+  );
+}
+
 function extractQueryFromPayload(payload: unknown): string | null {
   if (!payload || typeof payload !== "object") return null;
 
@@ -113,9 +124,9 @@ export function extractWebSearchActivity(
 
   // Increment search count on new items
   const isNewItem = event.itemId !== null && event.itemId !== previous.itemId;
-  const searchCount = isNewItem
+  const searchCount = isNewItem && isCountableWebSearchItemType(event.itemType)
     ? previous.searchCount + 1
-    : Math.max(previous.searchCount, 1);
+    : previous.searchCount;
 
   return { phase, query, itemId, searchCount };
 }

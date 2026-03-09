@@ -33,6 +33,7 @@ type FakeWebSocketBehavior =
   | "connect-hang"
   | "auth-required"
   | "thread-started-then-close"
+  | "item-started-then-close"
   | "prelude-error-with-ids";
 
 class FakeWebSocket {
@@ -112,6 +113,29 @@ class FakeWebSocket {
             event: "thread.started",
             type: "thread.started",
             thread_id: "thread_ws_progress_1",
+          }),
+        });
+        this.readyState = 3;
+        this.emit("close", { code: 1011, reason: "connection_lost" });
+      });
+      return;
+    }
+
+    if (FakeWebSocket.behavior === "item-started-then-close") {
+      queueMicrotask(() => {
+        this.emit("message", {
+          data: JSON.stringify({
+            event: "item.started",
+            type: "item.started",
+            thread_id: "thread_item_prelude_1",
+            turn_id: "turn_item_prelude_1",
+            item_id: "item_web_search_1",
+            item_type: "web_search_call",
+            item: {
+              id: "item_web_search_1",
+              type: "web_search_call",
+              arguments: "{\"query\":\"latest React docs\"}",
+            },
           }),
         });
         this.readyState = 3;
@@ -498,5 +522,40 @@ describe("ai-client websocket enhance transport", () => {
     expect(onError).not.toHaveBeenCalled();
     expect(onDelta).toHaveBeenCalledWith("sse-fallback");
     expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to SSE in auto mode after item-only prelude events without lifecycle start", async () => {
+    vi.stubEnv("VITE_ENHANCE_TRANSPORT", "auto");
+    FakeWebSocket.behavior = "item-started-then-close";
+    vi.stubGlobal("WebSocket", FakeWebSocket as unknown as typeof WebSocket);
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(streamingResponse("sse-after-item"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { streamEnhance } = await import("@/lib/ai-client");
+
+    const onDelta = vi.fn();
+    const onDone = vi.fn();
+    const onError = vi.fn();
+
+    await streamEnhance({
+      prompt: "Improve this",
+      onDelta,
+      onDone,
+      onError,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(onError).not.toHaveBeenCalled();
+    expect(onDelta).toHaveBeenCalledWith("sse-after-item");
+    expect(onDone).toHaveBeenCalledTimes(1);
+
+    const [, requestInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(String(requestInit.body)) as {
+      thread_id?: string;
+      session?: { thread_id?: string };
+    };
+    expect(body.thread_id).toBe("thread_item_prelude_1");
+    expect(body.session?.thread_id).toBe("thread_item_prelude_1");
   });
 });

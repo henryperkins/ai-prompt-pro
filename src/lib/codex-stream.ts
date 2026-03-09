@@ -326,9 +326,6 @@ export function hasCodexSessionProgress(meta: CodexStreamEventLike): boolean {
     if (
         eventType === "thread.started"
         || eventType === "turn.started"
-        || eventType === "item.started"
-        || eventType === "item.updated"
-        || eventType === "item.completed"
     ) {
         return true;
     }

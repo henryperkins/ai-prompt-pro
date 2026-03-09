@@ -427,8 +427,38 @@ function extractJsonCandidate(text) {
   if (!normalized) return null;
   if (normalized.startsWith("{") && normalized.endsWith("}")) return normalized;
   const start = normalized.indexOf("{");
+  if (start === -1) return null;
+  // Walk forward from the first '{' and count braces to find the balanced end
+  // instead of blindly grabbing the last '}' which can span unrelated objects.
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < normalized.length; i++) {
+    const ch = normalized[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (ch === "\\" && inString) {
+      escape = true;
+      continue;
+    }
+    if (ch === "\"") {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) {
+        return normalized.slice(start, i + 1);
+      }
+    }
+  }
+  // Fallback: braces never balanced — try the old heuristic
   const end = normalized.lastIndexOf("}");
-  if (start === -1 || end <= start) return null;
+  if (end <= start) return null;
   return normalized.slice(start, end + 1);
 }
 

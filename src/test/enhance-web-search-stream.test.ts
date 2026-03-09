@@ -114,6 +114,27 @@ describe("extractWebSearchActivity", () => {
     expect(result!.searchCount).toBe(1);
   });
 
+  it("does not increment searchCount for web_search_result items", () => {
+    const previous = {
+      phase: "searching" as const,
+      query: "same query",
+      itemId: "item_ws_1",
+      searchCount: 1,
+    };
+    const result = extractWebSearchActivity(previous, {
+      eventType: "item.completed",
+      responseType: "response.output_item.done",
+      itemId: "item_ws_result_2",
+      itemType: "web_search_result",
+    }, {
+      item: { id: "item_ws_result_2", type: "web_search_result", query: "same query" },
+    });
+
+    expect(result).not.toBeNull();
+    expect(result!.searchCount).toBe(1);
+    expect(result!.phase).toBe("completed");
+  });
+
   it("falls back to previous query when none in payload", () => {
     const previous = {
       phase: "searching" as const,
