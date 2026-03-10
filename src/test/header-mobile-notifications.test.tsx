@@ -102,10 +102,8 @@ vi.mock("@/lib/gravatar", () => ({
   getGravatarUrl: vi.fn().mockResolvedValue(null),
 }));
 
-async function renderHeader(flagEnabled = true, theme: "default" | "midnight" = "default") {
+async function renderHeader(theme: "default" | "midnight" = "default") {
   vi.resetModules();
-  vi.stubEnv("VITE_COMMUNITY_MOBILE_ENHANCEMENTS", flagEnabled ? "true" : "false");
-
   const { Header } = await import("@/components/Header");
 
   await act(async () => {
@@ -130,12 +128,8 @@ describe("Header mobile notifications", () => {
     };
   });
 
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
-
-  it("opens mobile notifications drawer with one tap when the flag is enabled", async () => {
-    await renderHeader(true);
+  it("opens mobile notifications drawer with one tap", async () => {
+    await renderHeader();
 
     fireEvent.click(screen.getByTestId("mobile-notifications-trigger"));
 
@@ -144,22 +138,11 @@ describe("Header mobile notifications", () => {
     expect(screen.getByTestId("notification-panel")).toBeInTheDocument();
   });
 
-  it("keeps notifications reachable from the utilities menu when the flag is disabled", async () => {
-    await renderHeader(false);
-
-    expect(screen.queryByTestId("mobile-notifications-trigger")).toBeNull();
-    expect(screen.queryByTestId("mobile-notifications-sheet")).toBeNull();
-
-    const menuItem = screen.getByTestId("mobile-notifications-menu-item");
-    expect(menuItem).toBeInTheDocument();
-    expect(screen.getByTestId("notification-panel")).toBeInTheDocument();
-  });
-
   it.each([
     ["default", "Switch to midnight theme"],
     ["midnight", "Switch to standard theme"],
   ] as const)("uses truthful toggle copy for the %s theme", async (theme, expectedLabel) => {
-    await renderHeader(false, theme);
+    await renderHeader(theme);
 
     expect(screen.getAllByRole("button", { name: expectedLabel }).length).toBeGreaterThan(0);
   });

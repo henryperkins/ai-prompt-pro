@@ -226,10 +226,6 @@ describe("Index enhancement variant persistence", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
-    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE1", "false");
-    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE2", "false");
-    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE3", "false");
-    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE4", "false");
     mocks.savePrompt.mockResolvedValue({
       outcome: "created",
       warnings: [],
@@ -270,10 +266,6 @@ describe("Index enhancement variant persistence", () => {
     );
   });
 
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
-
   it("routes selected variants into save and session reuse flows", async () => {
     await renderIndex();
 
@@ -312,7 +304,7 @@ describe("Index enhancement variant persistence", () => {
     });
   });
 
-  it("uses selected variant length for acceptance and rerun telemetry", async () => {
+  it("emits acceptance immediately with the selected variant payload", async () => {
     await renderIndex();
 
     fireEvent.click(screen.getByRole("button", { name: "Enhance" }));
@@ -330,32 +322,63 @@ describe("Index enhancement variant persistence", () => {
     // Mark the output as used via save
     fireEvent.click(screen.getByRole("button", { name: "Save prompt" }));
     await waitFor(() => {
-      expect(mocks.savePrompt).toHaveBeenCalled();
+      expect(mocks.trackBuilderEvent).toHaveBeenCalledWith(
+        "builder_enhance_accepted",
+        expect.objectContaining({
+          source: "save",
+          promptChars: "Short variant prompt".length,
+          variant: "shorter",
+        }),
+      );
     });
+  });
 
-    mocks.trackBuilderEvent.mockClear();
+  it("emits rerun without duplicating acceptance after a saved variant", async () => {
+    await renderIndex();
 
-    // Re-run enhancement; telemetry should use the shorter variant's length
     fireEvent.click(screen.getByRole("button", { name: "Enhance" }));
 
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Use shorter" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Use shorter" }));
+    await waitFor(() => {
+      expect(screen.getByTestId("active-variant")).toHaveTextContent("shorter");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Save prompt" }));
     await waitFor(() => {
       expect(mocks.trackBuilderEvent).toHaveBeenCalledWith(
         "builder_enhance_accepted",
         expect.objectContaining({
+          source: "save",
           promptChars: "Short variant prompt".length,
         }),
       );
     });
 
-    expect(mocks.trackBuilderEvent).toHaveBeenCalledWith(
-      "builder_enhance_rerun",
-      expect.objectContaining({
-        previousPromptChars: "Short variant prompt".length,
-      }),
+    mocks.trackBuilderEvent.mockClear();
+
+    fireEvent.click(screen.getByRole("button", { name: "Enhance" }));
+
+    await waitFor(() => {
+      expect(mocks.trackBuilderEvent).toHaveBeenCalledWith(
+        "builder_enhance_rerun",
+        expect.objectContaining({
+          previousPromptChars: "Short variant prompt".length,
+          variant: "shorter",
+        }),
+      );
+    });
+
+    expect(mocks.trackBuilderEvent).not.toHaveBeenCalledWith(
+      "builder_enhance_accepted",
+      expect.anything(),
     );
   });
 
-  it("uses original enhanced prompt length for telemetry when variant is original", async () => {
+  it("uses original enhanced prompt length for acceptance and rerun telemetry when variant is original", async () => {
     await renderIndex();
 
     fireEvent.click(screen.getByRole("button", { name: "Enhance" }));
@@ -367,27 +390,62 @@ describe("Index enhancement variant persistence", () => {
     // Mark output as used without switching variant
     fireEvent.click(screen.getByRole("button", { name: "Save prompt" }));
     await waitFor(() => {
-      expect(mocks.savePrompt).toHaveBeenCalled();
-    });
-
-    mocks.trackBuilderEvent.mockClear();
-
-    // Re-run enhancement; telemetry should use the original enhanced prompt length
-    fireEvent.click(screen.getByRole("button", { name: "Enhance" }));
-
-    await waitFor(() => {
       expect(mocks.trackBuilderEvent).toHaveBeenCalledWith(
         "builder_enhance_accepted",
         expect.objectContaining({
+          source: "save",
           promptChars: "Enhanced original prompt".length,
+          variant: "original",
         }),
       );
     });
 
-    expect(mocks.trackBuilderEvent).toHaveBeenCalledWith(
+    mocks.trackBuilderEvent.mockClear();
+
+    fireEvent.click(screen.getByRole("button", { name: "Enhance" }));
+
+    await waitFor(() => {
+      expect(mocks.trackBuilderEvent).toHaveBeenCalledWith(
+        "builder_enhance_rerun",
+        expect.objectContaining({
+          previousPromptChars: "Enhanced original prompt".length,
+          variant: "original",
+        }),
+      );
+    });
+  });
+
+  it("emits rerun only when the previous output was never accepted", async () => {
+    await renderIndex();
+
+    fireEvent.click(screen.getByRole("button", { name: "Enhance" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Use shorter" })).toBeInTheDocument();
+    });
+
+    mocks.trackBuilderEvent.mockClear();
+
+    fireEvent.click(screen.getByRole("button", { name: "Enhance" }));
+
+    await waitFor(() => {
+      expect(mocks.trackBuilderEvent).toHaveBeenCalledWith(
+        "builder_enhance_rerun",
+        expect.objectContaining({
+          previousPromptChars: "Enhanced original prompt".length,
+          variant: "original",
+        }),
+      );
+    });
+
+    expect(mocks.trackBuilderEvent).not.toHaveBeenCalledWith(
+      "builder_enhance_accepted",
+      expect.anything(),
+    );
+    expect(mocks.trackBuilderEvent).not.toHaveBeenCalledWith(
       "builder_enhance_rerun",
       expect.objectContaining({
-        previousPromptChars: "Enhanced original prompt".length,
+        previousPromptChars: "Short variant prompt".length,
       }),
     );
   });

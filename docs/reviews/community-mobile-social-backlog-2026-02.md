@@ -10,7 +10,7 @@ Increase meaningful mobile social actions on Community (comment, follow, remix) 
 
 ## Scope and Constraints
 - Mobile-first scope for `/community`, `/community/:postId`, and related notification entry points.
-- Rollout remains gated by `VITE_COMMUNITY_MOBILE_ENHANCEMENTS`.
+- Mobile rollout is now always enabled; keep desktop behavior stable unless explicitly called out.
 - Preserve existing moderation and accessibility behavior while improving interaction speed.
 - Keep desktop behavior stable unless explicitly called out.
 
@@ -101,7 +101,7 @@ Increase meaningful mobile social actions on Community (comment, follow, remix) 
 - Acceptance criteria:
   - New unit tests cover routing state and event payload shape.
   - Playwright covers notification-entry comment flow on mobile widths.
-  - Existing mobile flag-on and flag-off tests remain green.
+  - Existing mobile community tests remain green.
 
 ## Sprint 2 Backlog (Weeks 3-4)
 
@@ -183,7 +183,7 @@ Increase meaningful mobile social actions on Community (comment, follow, remix) 
 5. CMOB-204 and CMOB-205 complete Sprint 2 with safety and quality guardrails.
 
 ## Definition of Done
-- Feature works behind `VITE_COMMUNITY_MOBILE_ENHANCEMENTS=true` with no regressions when false.
+- Feature works as the default mobile behavior with no regressions across supported mobile viewports.
 - Unit and mobile Playwright tests cover happy path and fallback path.
 - Telemetry events are emitted for key funnel steps and validated in tests.
 - Manual QA checklist updated in `docs/community-mobile-qa-checklist.md` for any new mobile interactions.

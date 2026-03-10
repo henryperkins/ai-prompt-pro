@@ -195,15 +195,7 @@ describe("Index web search streaming", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
-    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE1", "false");
-    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE2", "false");
-    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE3", "false");
-    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE4", "false");
     mocks.usePromptBuilder.mockReturnValue(buildPromptBuilderState());
-  });
-
-  afterEach(() => {
-    vi.unstubAllEnvs();
   });
 
   it("passes webSearchEnabled and splits sources from streamed output", async () => {

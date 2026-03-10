@@ -8,7 +8,6 @@ import type {
   SourceValidationStatus,
 } from "@/lib/context-types";
 import { defaultContextConfig } from "@/lib/context-types";
-import { builderRedesignFlags } from "@/lib/feature-flags";
 import {
   applyPromptConfigInvariants,
   defaultConfig,
@@ -230,8 +229,7 @@ export function normalizeTemplateConfig(
   },
 ): PromptConfig {
   const shouldMigrateTaskToOriginalPrompt =
-    options?.migrateTaskToOriginalPrompt ??
-    builderRedesignFlags.builderRedesignPhase1;
+    options?.migrateTaskToOriginalPrompt ?? true;
 
   let merged: PromptConfig = {
     ...defaultConfig,

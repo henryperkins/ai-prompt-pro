@@ -1564,7 +1564,33 @@ const INFER_SYSTEM_PROMPT = [
   "Omit a field entirely if you cannot infer it with >0.4 confidence.",
 ].join("\n");
 
-function buildInferUserMessage(prompt, currentFields, lockMetadata) {
+function buildRequestContextSummary(requestContext) {
+  if (!requestContext || typeof requestContext !== "object") return "";
+
+  const lines = [];
+  if (typeof requestContext.hasAttachedSources === "boolean") {
+    const count = typeof requestContext.attachedSourceCount === "number"
+      ? requestContext.attachedSourceCount
+      : 0;
+    lines.push(`- attached_sources: ${requestContext.hasAttachedSources ? `yes (${count})` : "no"}`);
+  }
+  if (typeof requestContext.hasPresetOrRemix === "boolean") {
+    lines.push(`- preset_or_remix_active: ${requestContext.hasPresetOrRemix ? "yes" : "no"}`);
+  }
+  if (typeof requestContext.hasSessionContext === "boolean") {
+    lines.push(`- session_context_present: ${requestContext.hasSessionContext ? "yes" : "no"}`);
+  }
+  if (Array.isArray(requestContext.selectedOutputFormats) && requestContext.selectedOutputFormats.length > 0) {
+    lines.push(`- selected_output_formats: ${requestContext.selectedOutputFormats.join(", ")}`);
+  }
+  if (typeof requestContext.hasPastedSourceMaterial === "boolean") {
+    lines.push(`- pasted_source_material_present: ${requestContext.hasPastedSourceMaterial ? "yes" : "no"}`);
+  }
+
+  return lines.join("\n");
+}
+
+function buildInferUserMessage(prompt, currentFields, lockMetadata, requestContext) {
   const lockedList = Object.entries(lockMetadata)
     .filter(([, v]) => v === "user")
     .map(([k]) => k);
@@ -1578,6 +1604,10 @@ function buildInferUserMessage(prompt, currentFields, lockMetadata) {
   const parts = [`Prompt:\n"""${prompt}"""`];
   if (setList.length > 0) parts.push(`Already set: ${setList.join(", ")}`);
   if (lockedList.length > 0) parts.push(`Locked (skip): ${lockedList.join(", ")}`);
+  const requestContextSummary = buildRequestContextSummary(requestContext);
+  if (requestContextSummary) {
+    parts.push(`Request context:\n${requestContextSummary}`);
+  }
   return parts.join("\n");
 }
 
@@ -1598,7 +1628,7 @@ function parseInferModelResponse(raw) {
   }
 }
 
-async function inferBuilderFieldUpdates(prompt, currentFields, lockMetadata) {
+async function inferBuilderFieldUpdates(prompt, currentFields, lockMetadata, requestContext = {}) {
   if (!INFER_MODEL) {
     return { inferredUpdates: {}, inferredFields: [], suggestionChips: [], confidence: {} };
   }
@@ -1623,7 +1653,15 @@ async function inferBuilderFieldUpdates(prompt, currentFields, lockMetadata) {
         model: INFER_MODEL,
         messages: [
           { role: "system", content: INFER_SYSTEM_PROMPT },
-          { role: "user", content: buildInferUserMessage(prompt, currentFields, lockMetadata) },
+          {
+            role: "user",
+            content: buildInferUserMessage(
+              prompt,
+              currentFields,
+              lockMetadata,
+              requestContext,
+            ),
+          },
         ],
         reasoning: { effort: "none" },
         temperature: 0.3,
@@ -2016,6 +2054,35 @@ async function summarizeExtractedText(plainText) {
 function parseCurrentFields(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   return value;
+}
+
+function parseInferRequestContext(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+
+  const parsed = {};
+
+  if (typeof value.hasAttachedSources === "boolean") {
+    parsed.hasAttachedSources = value.hasAttachedSources;
+  }
+  if (typeof value.attachedSourceCount === "number" && Number.isFinite(value.attachedSourceCount)) {
+    parsed.attachedSourceCount = value.attachedSourceCount;
+  }
+  if (typeof value.hasPresetOrRemix === "boolean") {
+    parsed.hasPresetOrRemix = value.hasPresetOrRemix;
+  }
+  if (typeof value.hasSessionContext === "boolean") {
+    parsed.hasSessionContext = value.hasSessionContext;
+  }
+  if (Array.isArray(value.selectedOutputFormats)) {
+    parsed.selectedOutputFormats = value.selectedOutputFormats
+      .filter((entry) => typeof entry === "string" && entry.trim())
+      .map((entry) => entry.trim());
+  }
+  if (typeof value.hasPastedSourceMaterial === "boolean") {
+    parsed.hasPastedSourceMaterial = value.hasPastedSourceMaterial;
+  }
+
+  return parsed;
 }
 
 // ---------------------------------------------------------------------------
@@ -3170,8 +3237,16 @@ async function handleInferBuilderFields(req, res, body, corsHeaders, requestCont
 
   const currentFields = parseCurrentFields(body?.current_fields ?? body?.currentFields);
   const lockMetadata = parseCurrentFields(body?.lock_metadata ?? body?.lockMetadata);
+  const inferRequestContext = parseInferRequestContext(
+    body?.request_context ?? body?.requestContext,
+  );
 
-  const inference = await inferBuilderFieldUpdates(prompt, currentFields, lockMetadata);
+  const inference = await inferBuilderFieldUpdates(
+    prompt,
+    currentFields,
+    lockMetadata,
+    inferRequestContext,
+  );
   json(res, 200, inference, corsHeaders);
 }
 

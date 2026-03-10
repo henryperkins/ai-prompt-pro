@@ -52,13 +52,13 @@ Findings below are deduplicated. Items marked **Inherited** are still present at
 
      Add a regression test in `src/test/enhancement-pipeline-intent-routing.test.ts`.
 
-2. Enhancement feature flags exist but are not wired into runtime behavior.
+2. Enhancement rollout controls were plan-only and not wired into runtime behavior.
    - Commit: `7cee196`
    - Scope: inherited
-   - Files: `src/lib/feature-flags.ts`, `src/pages/Index.tsx`, `src/components/OutputPanel.tsx`
-   - Problem: `enhancementFeatureFlags` defines `VITE_ENHANCEMENT_*` toggles, but repo-wide usage shows definition-only references. Enhancement controls and inspector behavior render unconditionally.
-   - Blast radius: no operational kill-switch for phased enhancement rollout; rollback requires a code change or deploy.
-   - Remediation: gate the structured inspector, ambiguity controls, intent confirmation UI, and any corresponding payload fields with `enhancementFeatureFlags.*`, or remove the unused flags until they are real.
+   - Files: `src/pages/Index.tsx`, `src/components/OutputPanel.tsx`
+   - Problem: planned enhancement toggles were never wired to meaningful runtime behavior. Enhancement controls and inspector behavior already rendered unconditionally.
+   - Blast radius: rollback requires a code change or deploy.
+   - Remediation: either wire real runtime controls or remove the unused frontend toggle layer. The latter was adopted.
 
 ### Medium
 
@@ -175,7 +175,7 @@ Findings below are deduplicated. Items marked **Inherited** are still present at
 - `91e4e33`: mostly cleanup and follow-up work; the main residual issue is format-sync and doc drift.
 - `3ae0c61`: introduced the audit-intent routing bug, the primary-intent guard regression, and the `update` suggestion coverage regression.
 - `a198cda`: introduced the RAG slider narrowing, variant-telemetry mismatch, and the committed audit debris.
-- `7cee196`: introduced several still-live inherited issues, including unwired feature flags, ambiguity heuristics drift, async save dialog state loss, dead personalization, and the telemetry storage race.
+- `7cee196`: introduced several still-live inherited issues, including unused rollout controls, ambiguity heuristics drift, async save dialog state loss, dead personalization, and the telemetry storage race.
 
 ## Cross-Cutting Patterns
 
@@ -186,7 +186,7 @@ Findings below are deduplicated. Items marked **Inherited** are still present at
 ## Prioritized Fix Plan
 
 1. Hotfix strict-range correctness issues first: analysis candidate injection, `primaryIntent` guard, RAG bounds, and variant telemetry sizing.
-2. Restore operational controls by wiring or removing the enhancement feature flags.
+2. Keep rollout behavior explicit by wiring real controls or deleting unused toggle layers.
 3. Fix async save dialog behavior and normalize apply-to-builder format state.
 4. Clean out committed audit artifacts.
 5. Either wire or delete the dormant personalization subsystem, then harden telemetry storage if local log fidelity matters.

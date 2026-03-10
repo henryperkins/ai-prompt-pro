@@ -32,7 +32,7 @@ Known mobile quality constraints in this repo:
 - Validate portrait + landscape
 - Confirm minimum comfortable touch targets (44x44px intent)
 - Verify no clipping behind bottom nav / safe-area overlays
-- Validate with community mobile feature flag ON and OFF (`VITE_COMMUNITY_MOBILE_ENHANCEMENTS`)
+- Validate the always-on community mobile UX path across supported devices and account states
 
 If required inputs are missing (URL/build, account state, seed data, devices, flows, constraints), state assumptions and list the top questions.
 
@@ -51,7 +51,7 @@ If required inputs are missing (URL/build, account state, seed data, devices, fl
 - Browsers: iOS Safari + Android Chrome
 - Network: normal, slow/throttled, offline/reconnect
 - Accessibility settings: screen reader pass, keyboard/focus order, zoom/text scaling, reduced motion
-- Feature-flag coverage: `VITE_COMMUNITY_MOBILE_ENHANCEMENTS=true` and `false`
+- Coverage: signed-in and signed-out states across supported mobile viewports
 
 3) Audit UX/UI areas:
 - Visual consistency, navigation/IA, hierarchy, readability, typography, icon clarity

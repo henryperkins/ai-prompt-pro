@@ -98,10 +98,8 @@ function createProfile(overrides: Partial<CommunityProfile> = {}): CommunityProf
   };
 }
 
-async function renderCommunityPage(flagEnabled = true) {
+async function renderCommunityPage() {
   vi.resetModules();
-  vi.stubEnv("VITE_COMMUNITY_MOBILE_ENHANCEMENTS", flagEnabled ? "true" : "false");
-
   const { default: Community } = await import("@/pages/Community");
   await act(async () => {
     render(
@@ -118,10 +116,8 @@ async function renderCommunityPage(flagEnabled = true) {
   });
 }
 
-async function importCardAndDetail(flagEnabled = true) {
+async function importCardAndDetail() {
   vi.resetModules();
-  vi.stubEnv("VITE_COMMUNITY_MOBILE_ENHANCEMENTS", flagEnabled ? "true" : "false");
-
   const [{ CommunityPostCard }, { CommunityPostDetail }] = await Promise.all([
     import("@/components/community/CommunityPostCard"),
     import("@/components/community/CommunityPostDetail"),
@@ -144,12 +140,8 @@ describe("community mobile UX", () => {
     mocks.toggleVote.mockResolvedValue({ active: true, rowId: "vote-1" });
   });
 
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
-
   it("supports mobile filter drawer open/select semantics in Community", async () => {
-    await renderCommunityPage(true);
+    await renderCommunityPage();
     await screen.findByText("Mobile test post");
 
     const trigger = await screen.findByTestId("community-filter-trigger");
@@ -176,20 +168,9 @@ describe("community mobile UX", () => {
     });
   }, 15_000);
 
-  it("hides mobile filter drawer trigger when the rollout flag is off", async () => {
-    await renderCommunityPage(false);
-
-    await screen.findByText("Mobile test post");
-    await waitFor(() => {
-      expect(mocks.loadFeed).toHaveBeenCalled();
-    });
-
-    expect(screen.queryByTestId("community-filter-trigger")).toBeNull();
-  });
-
   it("uses pressed-state semantics for category suggestions on desktop", async () => {
     mocks.isMobile = false;
-    await renderCommunityPage(true);
+    await renderCommunityPage();
     await screen.findByText("Mobile test post");
 
     const searchInput = await screen.findByPlaceholderText("Search by title, use case, or context keyword");
@@ -200,7 +181,7 @@ describe("community mobile UX", () => {
   });
 
   it("opens comments drawer from CommunityPostCard on mobile", async () => {
-    const { CommunityPostCard } = await importCardAndDetail(true);
+    const { CommunityPostCard } = await importCardAndDetail();
     const post = createPost({ id: "card-post-1" });
 
     render(
@@ -226,7 +207,7 @@ describe("community mobile UX", () => {
   });
 
   it("opens comments drawer from CommunityPostDetail on mobile", async () => {
-    const { CommunityPostDetail } = await importCardAndDetail(true);
+    const { CommunityPostDetail } = await importCardAndDetail();
     const post = createPost({ id: "detail-post-1" });
 
     render(
@@ -257,7 +238,7 @@ describe("community mobile UX", () => {
   });
 
   it("auto-opens comments drawer on notification entry for CommunityPostDetail", async () => {
-    const { CommunityPostDetail } = await importCardAndDetail(true);
+    const { CommunityPostDetail } = await importCardAndDetail();
     const post = createPost({ id: "detail-post-notification" });
     const onCommentThreadOpen = vi.fn();
 

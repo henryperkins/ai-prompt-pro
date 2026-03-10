@@ -27,7 +27,6 @@ import {
   type VoteType,
 } from "@/lib/community";
 import { toCommunityErrorState, type CommunityErrorState } from "@/lib/community-errors";
-import { communityFeatureFlags } from "@/lib/feature-flags";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import {
   blockCommunityUser,
@@ -59,7 +58,7 @@ const CommunityPost = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const isMobile = useIsMobile();
-  const mobileEnhancementsEnabled = isMobile && communityFeatureFlags.communityMobileEnhancements;
+  const mobileEnhancementsEnabled = isMobile;
   const notificationEntry = searchParams.get("source") === "notification";
   const openCommentsOnMount = mobileEnhancementsEnabled && searchParams.get("openComments") === "1";
   const commentSourceSurface = notificationEntry ? "notification" : "post_detail";

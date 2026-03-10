@@ -20,7 +20,6 @@ import { CommunityComments } from "@/components/community/CommunityComments";
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/base/drawer";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getCommunityPostRarityClass } from "@/lib/community-rarity";
-import { communityFeatureFlags } from "@/lib/feature-flags";
 import { cx } from "@/lib/utils/cx";
 import {
   ArrowUp,
@@ -110,7 +109,7 @@ function CommunityPostCardComponent({
 }: CommunityPostCardProps) {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const useMobileCommentsDrawer = isMobile && communityFeatureFlags.communityMobileEnhancements;
+  const useMobileCommentsDrawer = isMobile;
   const createdAgo = useMemo(
     () => formatDistanceToNow(new Date(post.createdAt), { addSuffix: true }),
     [post.createdAt],

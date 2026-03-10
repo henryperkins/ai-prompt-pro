@@ -1,6 +1,6 @@
 # Documentation Index
 
-Last updated: 2026-03-06
+Last updated: 2026-03-09
 
 Use this file as the starting point for repo documentation.
 
@@ -15,6 +15,12 @@ Use this file as the starting point for repo documentation.
 - `docs/community-mobile-qa-checklist.md` - manual mobile QA checks.
 - `docs/community-mobile-social-backlog.md` - active backlog for mobile social UX.
 - `docs/prompt-build-and-enhancement.md` - prompt build and enhancement architecture.
+
+## Active planning docs
+
+- `docs/plans/2026-03-09-prompt-enhancement-improvements.md` - broader prompt enhancement roadmap and implementation ordering.
+- `docs/plans/2026-03-09-telemetry-findings-remediation.md` - step-by-step remediation plan for the verified enhancement telemetry gaps.
+- `docs/plans/2026-03-10-prompt-enhancement-verification-remediation.md` - step-by-step remediation plan for the remaining prompt-enhancement verification gaps.
 
 ## Campaign and launch docs
 

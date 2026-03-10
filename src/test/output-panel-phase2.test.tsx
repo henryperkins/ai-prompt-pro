@@ -215,6 +215,36 @@ describe("OutputPanel phase 2 save flow", () => {
     expect(await screen.findByRole("menuitem", { name: "Developer tools" })).toBeInTheDocument();
   });
 
+  it("emits too-much-changed feedback from the compare controls", async () => {
+    mocks.trackBuilderEvent.mockReset();
+    renderPanel({
+      builtPrompt: "Original launch plan",
+      enhancedPrompt: "Completely rewritten launch strategy with a different structure",
+      hasEnhancedOnce: true,
+    });
+
+    await clickElement(
+      screen.getByRole("button", { name: "Too much changed" }),
+    );
+
+    expect(mocks.trackBuilderEvent).toHaveBeenCalledWith(
+      "builder_enhance_too_much_changed",
+      expect.objectContaining({
+        variant: "original",
+        promptChars:
+          "Completely rewritten launch strategy with a different structure"
+            .length,
+        editDistanceBaseline: "builder_preview",
+      }),
+    );
+    expect(mocks.trackBuilderEvent).toHaveBeenCalledWith(
+      "builder_enhance_too_much_changed",
+      expect.objectContaining({
+        editDistanceRatio: expect.any(Number),
+      }),
+    );
+  });
+
   it("supports legacy separate save/share entries when phase 2 is disabled", async () => {
     const { onSavePrompt, onSaveAndSharePrompt } = renderPanel({
       phase2Enabled: false,

@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
-import { defaultConfig, buildPrompt } from "@/lib/prompt-builder";
+import { defaultConfig } from "@/lib/prompt-builder";
 
 const mocks = vi.hoisted(() => ({
   toast: vi.fn(),
@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   saveVersion: vi.fn(),
   savePrompt: vi.fn(),
   saveAndSharePrompt: vi.fn(),
-  latestConfig: null as Record<string, unknown> | null,
+  trackBuilderEvent: vi.fn(),
 }));
 
 vi.mock("@/hooks/use-toast", () => ({
@@ -25,6 +25,10 @@ vi.mock("@/hooks/use-mobile", () => ({
 vi.mock("@/lib/ai-client", () => ({
   inferBuilderFields: (...args: unknown[]) => mocks.inferBuilderFields(...args),
   streamEnhance: (...args: unknown[]) => mocks.streamEnhance(...args),
+}));
+
+vi.mock("@/lib/telemetry", () => ({
+  trackBuilderEvent: (...args: unknown[]) => mocks.trackBuilderEvent(...args),
 }));
 
 vi.mock("@/components/PageShell", () => ({
@@ -73,77 +77,59 @@ vi.mock("@/components/CodexSessionDrawer", () => ({
 
 vi.mock("@/components/OutputPanel", () => ({
   OutputPanel: ({
-    onApplyToBuilder,
-    onApplyEditableListToPrompt,
+    onEditableListSaved,
+    onAppendToSessionContext,
   }: {
-    onApplyToBuilder?: (updates: {
-      role?: string;
-      context?: string;
-      format?: string;
-      constraints?: string;
+    onEditableListSaved?: (edit: {
+      field: string;
+      index: number;
+      before: string;
+      after: string;
+      source: "structured_inspector";
     }) => void;
-    onApplyEditableListToPrompt?: (
-      field: string,
-      items: string[],
-    ) => void;
+    onAppendToSessionContext?: (content: string) => void;
   }) => (
     <div>
       <button
         type="button"
-        data-testid="apply-format"
+        data-testid="save-edited-assumption"
         onClick={() =>
-          onApplyToBuilder?.({
-            format: "Present as numbered steps with code blocks",
+          onEditableListSaved?.({
+            field: "assumptions_made",
+            index: 0,
+            before: "Budget is approved",
+            after: "Budget is approved by finance leadership",
+            source: "structured_inspector",
           })
         }
       >
-        Apply format
+        Save edited assumption
       </button>
       <button
         type="button"
-        data-testid="apply-constraints"
+        data-testid="save-noop-assumption"
         onClick={() =>
-          onApplyToBuilder?.({
-            constraints: "Must be under 200 words, no jargon",
+          onEditableListSaved?.({
+            field: "assumptions_made",
+            index: 0,
+            before: "Budget is approved",
+            after: "Budget is approved",
+            source: "structured_inspector",
           })
         }
       >
-        Apply constraints
+        Save unchanged assumption
       </button>
       <button
         type="button"
-        data-testid="apply-role"
+        data-testid="append-edited-assumption-to-session"
         onClick={() =>
-          onApplyToBuilder?.({
-            role: "Senior DevOps Engineer",
-          })
+          onAppendToSessionContext?.(
+            "Assumptions made\n1. Budget is approved by finance leadership",
+          )
         }
       >
-        Apply role
-      </button>
-      <button
-        type="button"
-        data-testid="apply-all"
-        onClick={() =>
-          onApplyToBuilder?.({
-            role: "ML Engineer",
-            format: "Markdown report with tables",
-            constraints: "Use only peer-reviewed sources",
-          })
-        }
-      >
-        Apply all
-      </button>
-      <button
-        type="button"
-        data-testid="apply-open-questions-to-prompt"
-        onClick={() =>
-          onApplyEditableListToPrompt?.("plan_open_questions", [
-            "Which legal reviewer owns final sign-off?",
-          ])
-        }
-      >
-        Apply open questions to prompt
+        Add edited assumption to session context
       </button>
     </div>
   ),
@@ -175,7 +161,12 @@ vi.mock("@/components/base/sheet", () => ({
 }));
 
 vi.mock("@/components/base/buttons/button", () => ({
-  Button: ({ children, ...props }: { children: ReactNode } & Record<string, unknown>) => (
+  Button: ({
+    children,
+    ...props
+  }: {
+    children: ReactNode;
+  } & Record<string, unknown>) => (
     <button type="button" {...props}>
       {children}
     </button>
@@ -190,36 +181,17 @@ vi.mock("@/components/base/card", () => ({
   Card: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
-/**
- * The mock usePromptBuilder tracks config mutations and exposes
- * the latest config via mocks.latestConfig so we can verify
- * that array fields are cleared when custom values are applied.
- */
 vi.mock("@/hooks/usePromptBuilder", () => ({
   usePromptBuilder: () => {
     const [config, setConfig] = useState({
       ...defaultConfig,
-      originalPrompt: "Write a CI/CD pipeline guide",
-      role: "Software Developer",
-      format: ["Bullet points", "Markdown"],
-      constraints: ["Include citations", "Avoid jargon"],
+      originalPrompt: "Draft assumption telemetry prompt",
     });
     const [enhancedPrompt, setEnhancedPrompt] = useState("");
     const [isEnhancing, setIsEnhancing] = useState(false);
-    const updateConfig = useCallback(
-      (updates: Partial<typeof defaultConfig>) => {
-        setConfig((previous) => {
-          const next = { ...previous, ...updates };
-          mocks.latestConfig = next;
-          return next;
-        });
-      },
-      [],
-    );
-
-    // Expose initial config
-    mocks.latestConfig = config;
-
+    const updateConfig = useCallback((updates: Partial<typeof defaultConfig>) => {
+      setConfig((previous) => ({ ...previous, ...updates }));
+    }, []);
     const stableFns = useMemo(
       () => ({
         resetConfig: vi.fn(),
@@ -244,7 +216,7 @@ vi.mock("@/hooks/usePromptBuilder", () => ({
     return {
       config,
       updateConfig,
-      builtPrompt: buildPrompt(config),
+      builtPrompt: "Built prompt",
       score: { total: 70, tips: ["tip"] },
       enhancedPrompt,
       setEnhancedPrompt,
@@ -268,114 +240,64 @@ async function renderIndex() {
   );
 }
 
-describe("High-2: Apply to builder replaces format/constraint/role semantics", () => {
+describe("Index assumption edit telemetry", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
-    mocks.latestConfig = null;
+    localStorage.clear();
+    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE1", "false");
+    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE2", "false");
+    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE3", "false");
+    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE4", "false");
   });
 
-  it("clears format array when applying custom format from inspector", async () => {
-    await renderIndex();
-
-    // Verify initial config has format array values
-    expect(mocks.latestConfig).toBeTruthy();
-    expect((mocks.latestConfig as Record<string, unknown>).format).toEqual([
-      "Bullet points",
-      "Markdown",
-    ]);
-
-    // Apply custom format from inspector
-    fireEvent.click(screen.getByTestId("apply-format"));
-
-    await waitFor(() => {
-      const cfg = mocks.latestConfig as Record<string, unknown>;
-      expect(cfg.format).toEqual([]);
-      expect(cfg.customFormat).toBe(
-        "Present as numbered steps with code blocks",
-      );
-    });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    localStorage.clear();
   });
 
-  it("clears constraints array when applying custom constraints from inspector", async () => {
+  it("emits builder_enhance_assumption_edited and updates the profile on saved edits", async () => {
     await renderIndex();
+    mocks.trackBuilderEvent.mockClear();
 
-    expect((mocks.latestConfig as Record<string, unknown>).constraints).toEqual([
-      "Include citations",
-      "Avoid jargon",
-    ]);
+    fireEvent.click(screen.getByTestId("save-edited-assumption"));
 
-    fireEvent.click(screen.getByTestId("apply-constraints"));
-
-    await waitFor(() => {
-      const cfg = mocks.latestConfig as Record<string, unknown>;
-      expect(cfg.constraints).toEqual([]);
-      expect(cfg.customConstraint).toBe("Must be under 200 words, no jargon");
-    });
-  });
-
-  it("clears role when applying custom role from inspector", async () => {
-    await renderIndex();
-
-    expect((mocks.latestConfig as Record<string, unknown>).role).toBe(
-      "Software Developer",
+    expect(mocks.trackBuilderEvent).toHaveBeenCalledWith(
+      "builder_enhance_assumption_edited",
+      expect.objectContaining({
+        field: "assumptions_made",
+        index: 0,
+        beforeChars: "Budget is approved".length,
+        afterChars: "Budget is approved by finance leadership".length,
+        source: "structured_inspector",
+      }),
     );
 
-    fireEvent.click(screen.getByTestId("apply-role"));
-
-    await waitFor(() => {
-      const cfg = mocks.latestConfig as Record<string, unknown>;
-      expect(cfg.role).toBe("");
-      expect(cfg.customRole).toBe("Senior DevOps Engineer");
-    });
+    const profile = JSON.parse(
+      localStorage.getItem("promptforge-enhancement-profile") ?? "{}",
+    );
+    expect(profile.assumptionEditCounts.assumptions_made).toBe(1);
   });
 
-  it("clears all parallel fields when applying full inspector update", async () => {
+  it("does not emit telemetry for unchanged saved edits", async () => {
     await renderIndex();
+    mocks.trackBuilderEvent.mockClear();
 
-    fireEvent.click(screen.getByTestId("apply-all"));
+    fireEvent.click(screen.getByTestId("save-noop-assumption"));
 
-    await waitFor(() => {
-      const cfg = mocks.latestConfig as Record<string, unknown>;
-      // Role replaced
-      expect(cfg.role).toBe("");
-      expect(cfg.customRole).toBe("ML Engineer");
-      // Format replaced
-      expect(cfg.format).toEqual([]);
-      expect(cfg.customFormat).toBe("Markdown report with tables");
-      // Constraints replaced
-      expect(cfg.constraints).toEqual([]);
-      expect(cfg.customConstraint).toBe("Use only peer-reviewed sources");
-    });
+    expect(mocks.trackBuilderEvent).not.toHaveBeenCalled();
+    expect(localStorage.getItem("promptforge-enhancement-profile")).toBeNull();
   });
 
-  it("does not affect context field (additive only, no parallel array)", async () => {
+  it("appends edited assumptions to the session context", async () => {
     await renderIndex();
 
-    const initialContext = (mocks.latestConfig as Record<string, unknown>).context;
-
-    // Format-only apply should not touch context
-    fireEvent.click(screen.getByTestId("apply-format"));
+    fireEvent.click(screen.getByTestId("append-edited-assumption-to-session"));
 
     await waitFor(() => {
-      expect((mocks.latestConfig as Record<string, unknown>).context).toBe(
-        initialContext,
+      expect(screen.getByTestId("session-context")).toHaveTextContent(
+        /Assumptions made\s*1\. Budget is approved by finance leadership/,
       );
-    });
-  });
-
-  it("appends edited open questions to the prompt instead of mutating builder fields", async () => {
-    await renderIndex();
-
-    fireEvent.click(screen.getByTestId("apply-open-questions-to-prompt"));
-
-    await waitFor(() => {
-      const cfg = mocks.latestConfig as Record<string, unknown>;
-      expect(cfg.originalPrompt).toBe(
-        "Write a CI/CD pipeline guide\n\nClarification questions to answer before finalizing:\n1. Which legal reviewer owns final sign-off?",
-      );
-      expect(cfg.role).toBe("Software Developer");
-      expect(cfg.customRole).toBe("");
     });
   });
 });

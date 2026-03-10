@@ -185,7 +185,6 @@ describe("Index deferred rendering profiler coverage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
-    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE1", "true");
   });
 
   it("defers heavy advanced sections from initial mount and measures the difference", async () => {

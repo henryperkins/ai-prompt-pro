@@ -34,7 +34,6 @@ import {
   toggleVote,
   unfollowCommunityUser,
 } from "@/lib/community";
-import { communityFeatureFlags } from "@/lib/feature-flags";
 import { toCommunityErrorState, type CommunityErrorState } from "@/lib/community-errors";
 import { PROMPT_CATEGORY_OPTIONS } from "@/lib/prompt-categories";
 import { copyTextToClipboard } from "@/lib/clipboard";
@@ -118,7 +117,7 @@ const Community = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const isMobile = useIsMobile();
-  const mobileEnhancementsEnabled = isMobile && communityFeatureFlags.communityMobileEnhancements;
+  const mobileEnhancementsEnabled = isMobile;
   const showCategorySuggestions = !isFollowingMode && isSearchFocused && (!isMobile || !mobileEnhancementsEnabled);
   const { trackFirstMeaningfulAction, trackInteraction } = useCommunityMobileTelemetry({
     enabled: mobileEnhancementsEnabled,

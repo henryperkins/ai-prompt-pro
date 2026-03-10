@@ -3,56 +3,52 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Card } from "@/components/base/card";
 import { Button } from "@/components/base/buttons/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/base/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/base/dropdown-menu";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { trackBuilderEvent } from "@/lib/telemetry";
-import { buildLineDiff, type DiffLine } from "@/lib/text-diff";
+import { buildLineDiff, buildTextEditMetrics } from "@/lib/text-diff";
 import {
-  UI_STATUS_ROW_CLASSES,
+  buildClarificationBlock,
+  formatClarificationQuestions,
+  shouldShowClarificationCard,
+} from "@/lib/enhance-ambiguity";
+import {
   UI_STATUS_SURFACE_CLASSES,
   UI_STATUS_TEXT_CLASSES,
 } from "@/lib/ui-status";
 import { cx } from "@/lib/utils/cx";
 import { normalizeHttpUrl } from "@/lib/url-utils";
-import { Switch } from "@/components/base/switch";
 import { WebSearchActivityIndicator } from "@/components/WebSearchActivityIndicator";
 import type { WebSearchActivity } from "@/lib/enhance-web-search-stream";
-import type { EnhanceMetadata } from "@/lib/enhance-metadata";
+import type {
+  EditableEnhancementListEdit,
+  EditableEnhancementListField,
+  EnhanceMetadata,
+} from "@/lib/enhance-metadata";
 import type { AmbiguityMode, EnhancementDepth, RewriteStrictness } from "@/lib/user-preferences";
 import {
   OutputPanelSaveDialog,
   type SavePromptInput,
   type SaveAndSharePromptInput,
 } from "@/components/OutputPanelSaveDialog";
-import { OutputPanelDevTools } from "@/components/OutputPanelDevTools";
+import type {
+  EnhancePhase,
+  EnhancementVariant,
+  OutputPreviewSource,
+} from "@/components/output-panel-types";
+import { OutputPanelHeader } from "@/components/OutputPanelHeader";
+import { OutputPanelCompareDialog } from "@/components/OutputPanelCompareDialog";
+import { OutputPanelEnhancementSummary } from "@/components/OutputPanelEnhancementSummary";
+import { OutputPanelEnhanceControls } from "@/components/OutputPanelEnhanceControls";
 import { EnhancementInspector, type ApplyToBuilderUpdate } from "@/components/EnhancementInspector";
+import { EnhancementClarificationCard } from "@/components/EnhancementClarificationCard";
 import {
-  Check,
-  Copy,
   DotsThreeOutline as MoreHorizontal,
   FloppyDisk as Save,
-  Globe,
-  Sparkle as Sparkles,
-  SpinnerGap as Loader2,
 } from "@phosphor-icons/react";
 
-export type EnhancePhase = "idle" | "starting" | "streaming" | "settling" | "done";
-export type OutputPreviewSource = "empty" | "prompt_text" | "builder_fields" | "enhanced";
-export type EnhancementVariant = "original" | "shorter" | "more_detailed";
+export type { EnhancePhase, OutputPreviewSource, EnhancementVariant };
 export type { SavePromptInput, SaveAndSharePromptInput };
 const REASONING_SUMMARY_FADE_MS = 900;
 
@@ -81,7 +77,7 @@ interface OutputPanelProps {
   enhanceMetadata?: EnhanceMetadata | null;
   activeVariant?: EnhancementVariant;
   onVariantChange?: (variant: EnhancementVariant) => void;
-  onPromptUsed?: () => void;
+  onPromptAccepted?: (source: "copy") => void;
   enhancementDepth?: EnhancementDepth;
   rewriteStrictness?: RewriteStrictness;
   onEnhancementDepthChange?: (depth: EnhancementDepth) => void;
@@ -89,11 +85,35 @@ interface OutputPanelProps {
   ambiguityMode?: AmbiguityMode;
   onAmbiguityModeChange?: (mode: AmbiguityMode) => void;
   onApplyToBuilder?: (updates: ApplyToBuilderUpdate) => void;
+  onAppendClarificationBlockToPrompt?: (block: string) => void;
+  onAppendToSessionContext?: (content: string) => void;
+  onEditableListSaved?: (edit: EditableEnhancementListEdit) => void;
+  onApplyEditableListToPrompt?: (
+    field: EditableEnhancementListField,
+    items: string[],
+  ) => void;
   /** When false, the structured inspector and apply-to-builder actions are hidden. */
   showStructuredInspector?: boolean;
 }
 
 export type { ApplyToBuilderUpdate };
+
+function getEditableListActionCopy(field: EditableEnhancementListField): {
+  title: string;
+  description: string;
+} {
+  if (field === "open_questions" || field === "plan_open_questions") {
+    return {
+      title: "Questions added to prompt",
+      description: "The builder prompt now includes the edited clarification questions.",
+    };
+  }
+
+  return {
+    title: "Assumptions added to prompt",
+    description: "The builder prompt now includes the edited assumptions and corrections.",
+  };
+}
 
 function parseWebSourceLink(value: string): { title: string; href: string } | null {
   const mdLink = value.match(/^\[(.+?)]\((.+?)\)$/);
@@ -133,7 +153,7 @@ export function OutputPanel({
   enhanceMetadata,
   activeVariant,
   onVariantChange,
-  onPromptUsed,
+  onPromptAccepted,
   enhancementDepth = "guided",
   rewriteStrictness = "balanced",
   onEnhancementDepthChange,
@@ -141,6 +161,10 @@ export function OutputPanel({
   ambiguityMode = "infer_conservatively",
   onAmbiguityModeChange,
   onApplyToBuilder,
+  onAppendClarificationBlockToPrompt,
+  onAppendToSessionContext,
+  onEditableListSaved,
+  onApplyEditableListToPrompt,
   showStructuredInspector = true,
 }: OutputPanelProps) {
   const [copied, setCopied] = useState(false);
@@ -239,6 +263,20 @@ export function OutputPanel({
   const hasPreviewContent = displayPrompt.trim().length > 0;
   const showUtilityActions = hasEnhancedOnce || hasPreviewContent;
   const canUseSaveMenu = canSavePrompt || canSharePrompt || hasPreviewContent;
+  const editMetrics = useMemo(
+    () => buildTextEditMetrics(builtPrompt, displayPrompt),
+    [builtPrompt, displayPrompt],
+  );
+  const showClarificationActions = shouldShowClarificationCard(
+    enhanceMetadata,
+    ambiguityMode,
+  );
+  const hasStructuredInspectorContent = Boolean(
+    enhanceMetadata?.partsBreakdown ||
+      enhanceMetadata?.enhancementPlan ||
+      (enhanceMetadata?.assumptionsMade?.length ?? 0) > 0 ||
+      (enhanceMetadata?.openQuestions?.length ?? 0) > 0,
+  );
 
   const diff = useMemo(() => {
     if (!compareDialogOpen || !hasCompare) return null;
@@ -273,9 +311,28 @@ export function OutputPanel({
       }
       await copyTextToClipboard(displayPrompt);
       setCopied(true);
-      onPromptUsed?.();
+      if (hasEnhancedOnce) {
+        onPromptAccepted?.("copy");
+      }
       toast({ title: "Copied to clipboard!", description: "Paste it into your favorite AI tool." });
       setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast({
+        title: "Copy failed",
+        description: "Clipboard access is blocked. Copy manually from the preview.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCopyText = async (label: string, content: string) => {
+    if (!content.trim()) return;
+    try {
+      await copyTextToClipboard(content);
+      toast({
+        title: `${label} copied`,
+        description: "The copied text is ready to paste elsewhere.",
+      });
     } catch {
       toast({
         title: "Copy failed",
@@ -297,102 +354,66 @@ export function OutputPanel({
     setSaveDialogOpen(true);
   };
 
+  const handleTooMuchChanged = () => {
+    trackBuilderEvent("builder_enhance_too_much_changed", {
+      variant: resolvedActiveVariant,
+      promptChars: displayPrompt.length,
+      originalPromptChars: builtPrompt.length,
+      editDistance: editMetrics.editDistance,
+      editDistanceRatio: editMetrics.editDistanceRatio,
+      editDistanceBaseline: "builder_preview",
+    });
+    toast({
+      title: "Feedback captured",
+      description: "We marked this enhancement as too far from your original prompt.",
+    });
+  };
+
+  const handleAppendClarificationToPrompt = () => {
+    const block = buildClarificationBlock(enhanceMetadata?.openQuestions);
+    if (!block || !onAppendClarificationBlockToPrompt) return;
+    onAppendClarificationBlockToPrompt?.(block);
+    toast({
+      title: "Questions added to prompt",
+      description: "The builder prompt now includes the clarification questions.",
+    });
+  };
+
+  const handleAppendClarificationToSessionContext = () => {
+    const block = buildClarificationBlock(enhanceMetadata?.openQuestions);
+    if (!block || !onAppendToSessionContext) return;
+    onAppendToSessionContext?.(block);
+    toast({
+      title: "Added to session context",
+      description: "The clarification block was appended to the Codex carry-forward context.",
+    });
+  };
+
   return (
     <div className="ui-density space-y-4 h-full flex flex-col" data-density="comfortable">
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {enhanceAssistiveStatus}
       </p>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
-          <h2 className="text-sm font-medium text-foreground">
-            {enhancedPrompt ? "✨ Enhanced Prompt" : "📝 Preview"}
-          </h2>
-          <span className="interactive-chip inline-flex items-center rounded-full border border-border/80 bg-muted/50 px-2 py-0.5 text-xs font-medium text-muted-foreground">
-            Source: {previewSourceLabel}
-          </span>
-          {statusLabel && (
-            <span className="interactive-chip inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-              {statusLabel}
-            </span>
-          )}
-          {hasCompare && (
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              className="ui-toolbar-button px-2"
-              onClick={() => setCompareDialogOpen(true)}
-            >
-              Show changes
-            </Button>
-          )}
-        </div>
-        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={handleCopy}
-            disabled={!displayPrompt}
-            className="ui-toolbar-button utility-action-button min-w-[84px]"
-          >
-            {copied ? <Check /> : <Copy />}
-            {copied ? "Copied!" : hasEnhancedOnce ? "Copy" : "Copy preview"}
-          </Button>
-
-          {showUtilityActions && (
-            <>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="secondary" size="sm" disabled={!canUseSaveMenu} className="ui-toolbar-button gap-1.5">
-                    <Save className="w-3 h-3" />
-                    Save
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {phase2Enabled ? (
-                    <DropdownMenuItem
-                      disabled={!canSavePrompt}
-                      onSelect={() => openSaveDialog(false)}
-                    >
-                      Save Prompt
-                    </DropdownMenuItem>
-                  ) : (
-                    <>
-                      <DropdownMenuItem
-                        disabled={!canSavePrompt}
-                        onSelect={() => openSaveDialog(false)}
-                      >
-                        Save Prompt
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        disabled={!canSharePrompt}
-                        onSelect={() => openSaveDialog(true)}
-                      >
-                        Save & Share Prompt
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  <DropdownMenuItem disabled={!displayPrompt} onSelect={() => onSaveVersion()}>
-                    Save Version
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="tertiary" size="sm" className="ui-toolbar-button gap-1.5">
-                    <MoreHorizontal className="w-3 h-3" />
-                    More
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <OutputPanelDevTools displayPrompt={displayPrompt} isMobile={isMobile} />
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </>
-          )}
-        </div>
-      </div>
+      <OutputPanelHeader
+        hasEnhancedPrompt={Boolean(enhancedPrompt)}
+        previewSourceLabel={previewSourceLabel}
+        statusLabel={statusLabel}
+        hasCompare={hasCompare}
+        hasEnhancedOnce={hasEnhancedOnce}
+        showUtilityActions={showUtilityActions}
+        canUseSaveMenu={canUseSaveMenu}
+        canSavePrompt={canSavePrompt}
+        canSharePrompt={canSharePrompt}
+        phase2Enabled={phase2Enabled}
+        copied={copied}
+        isMobile={isMobile}
+        displayPrompt={displayPrompt}
+        onCopy={() => void handleCopy()}
+        onOpenCompare={() => setCompareDialogOpen(true)}
+        onTooMuchChanged={handleTooMuchChanged}
+        onOpenSaveDialog={openSaveDialog}
+        onSaveVersion={onSaveVersion}
+      />
       {!showUtilityActions && (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <p className="text-sm text-muted-foreground">
@@ -425,31 +446,12 @@ export function OutputPanel({
         </div>
       )}
 
-      <Dialog open={compareDialogOpen} onOpenChange={setCompareDialogOpen}>
-        <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Before vs After</DialogTitle>
-            <DialogDescription>
-              {diff
-                ? `${diff.added} added, ${diff.removed} removed`
-                : "Generate an enhanced prompt to compare changes."}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="rounded-md border border-border bg-card overflow-auto flex-1 min-h-[280px]">
-            <div className="font-mono text-xs leading-relaxed">
-              <div className="px-3 py-1.5 border-b border-border text-muted-foreground">
-                --- before
-              </div>
-              <div className="px-3 py-1.5 border-b border-border text-muted-foreground">
-                +++ after
-              </div>
-              {diff?.lines.map((line, index) => (
-                <DiffRow key={`${line.type}-${index}`} line={line} />
-              ))}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <OutputPanelCompareDialog
+        open={compareDialogOpen}
+        onOpenChange={setCompareDialogOpen}
+        diff={diff}
+        hasCompare={hasCompare}
+      />
 
       <OutputPanelSaveDialog
         open={saveDialogOpen}
@@ -489,6 +491,20 @@ export function OutputPanel({
         />
       )}
 
+      {showClarificationActions && enhanceMetadata?.openQuestions && (
+        <EnhancementClarificationCard
+          questions={enhanceMetadata.openQuestions}
+          onAddToPrompt={handleAppendClarificationToPrompt}
+          onAddToSessionContext={handleAppendClarificationToSessionContext}
+          onCopyQuestions={() =>
+            void handleCopyText(
+              "Clarification questions",
+              formatClarificationQuestions(enhanceMetadata.openQuestions),
+            )
+          }
+        />
+      )}
+
       <Card
         className={cx(
           "enhance-output-frame flex-1 p-4 bg-card overflow-auto",
@@ -512,17 +528,36 @@ export function OutputPanel({
       </Card>
 
       {enhanceMetadata && !isEnhancing && (
-        <EnhancementSummary
+        <OutputPanelEnhancementSummary
           metadata={enhanceMetadata}
           activeVariant={resolvedActiveVariant}
           onVariantChange={handleVariantChange}
+          collapseOpenQuestions={showClarificationActions}
         />
       )}
 
-      {showStructuredInspector && enhanceMetadata && !isEnhancing && (enhanceMetadata.partsBreakdown || enhanceMetadata.enhancementPlan) && (
+      {showStructuredInspector && enhanceMetadata && !isEnhancing && hasStructuredInspectorContent && (
         <EnhancementInspector
           metadata={enhanceMetadata}
           onApplyToBuilder={onApplyToBuilder}
+          onApplyToSessionContext={(label, content) => {
+            if (!onAppendToSessionContext) return;
+            onAppendToSessionContext?.(content);
+            toast({
+              title: `${label} added`,
+              description: "That plan detail was appended to the session context.",
+            });
+          }}
+          onCopyText={(label, content) => {
+            void handleCopyText(label, content);
+          }}
+          onEditableListSaved={onEditableListSaved}
+          onApplyEditableListToPrompt={(field, items) => {
+            if (!onApplyEditableListToPrompt) return;
+            onApplyEditableListToPrompt(field, items);
+            const copy = getEditableListActionCopy(field);
+            toast(copy);
+          }}
         />
       )}
 
@@ -554,319 +589,22 @@ export function OutputPanel({
       )}
 
       {!hideEnhanceButton && (
-        <div className="flex flex-col gap-2">
-          {onWebSearchToggle ? (
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <Switch
-                checked={webSearchEnabled}
-                onCheckedChange={onWebSearchToggle}
-                disabled={isEnhancing}
-                aria-label="Enable web search during enhancement"
-              />
-              <Globe className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">Web lookup</span>
-            </label>
-          ) : (
-            <p className="text-xs text-muted-foreground" aria-live="polite">
-              Web lookup: {webSearchEnabled ? "On" : "Off"}
-            </p>
-          )}
-          {(onEnhancementDepthChange || onRewriteStrictnessChange || onAmbiguityModeChange) && (
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-              {onEnhancementDepthChange && (
-                <EnhanceOptionGroup
-                  label="Depth"
-                  value={enhancementDepth}
-                  options={ENHANCEMENT_DEPTH_OPTIONS}
-                  onChange={onEnhancementDepthChange}
-                  disabled={isEnhancing}
-                />
-              )}
-              {onRewriteStrictnessChange && (
-                <EnhanceOptionGroup
-                  label="Strictness"
-                  value={rewriteStrictness}
-                  options={REWRITE_STRICTNESS_OPTIONS}
-                  onChange={onRewriteStrictnessChange}
-                  disabled={isEnhancing}
-                />
-              )}
-              {onAmbiguityModeChange && (
-                <EnhanceOptionGroup
-                  label="Ambiguity"
-                  value={ambiguityMode}
-                  options={AMBIGUITY_MODE_OPTIONS}
-                  onChange={onAmbiguityModeChange}
-                  disabled={isEnhancing}
-                />
-              )}
-            </div>
-          )}
-          <Button
-            variant="primary"
-            size="lg"
-            onClick={onEnhance}
-            disabled={isEnhancing || !builtPrompt}
-            className="signature-enhance-button w-full gap-2"
-            data-phase={enhancePhase}
-          >
-            {isEnhancing ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                {enhanceLabel}
-              </>
-            ) : (
-              <>
-                {enhancePhase === "done" ? <Check className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
-                {enhanceLabel}
-              </>
-            )}
-          </Button>
-        </div>
+        <OutputPanelEnhanceControls
+          webSearchEnabled={webSearchEnabled}
+          onWebSearchToggle={onWebSearchToggle}
+          isEnhancing={isEnhancing}
+          enhancementDepth={enhancementDepth}
+          rewriteStrictness={rewriteStrictness}
+          ambiguityMode={ambiguityMode}
+          onEnhancementDepthChange={onEnhancementDepthChange}
+          onRewriteStrictnessChange={onRewriteStrictnessChange}
+          onAmbiguityModeChange={onAmbiguityModeChange}
+          onEnhance={onEnhance}
+          builtPrompt={builtPrompt}
+          enhancePhase={enhancePhase}
+          enhanceLabel={enhanceLabel}
+        />
       )}
-    </div>
-  );
-}
-
-const ENHANCEMENT_DEPTH_OPTIONS: { value: EnhancementDepth; label: string }[] = [
-  { value: "quick", label: "Light polish" },
-  { value: "guided", label: "Structured rewrite" },
-  { value: "advanced", label: "Expert prompt" },
-];
-
-const AMBIGUITY_MODE_OPTIONS: { value: AmbiguityMode; label: string }[] = [
-  { value: "ask_me", label: "Ask me" },
-  { value: "placeholders", label: "Use placeholders" },
-  { value: "infer_conservatively", label: "Infer conservatively" },
-];
-
-const REWRITE_STRICTNESS_OPTIONS: { value: RewriteStrictness; label: string }[] = [
-  { value: "preserve", label: "Preserve wording" },
-  { value: "balanced", label: "Balanced" },
-  { value: "aggressive", label: "Optimize aggressively" },
-];
-
-function EnhanceOptionGroup<T extends string>({
-  label,
-  value,
-  options,
-  onChange,
-  disabled,
-}: {
-  label: string;
-  value: T;
-  options: { value: T; label: string }[];
-  onChange: (value: T) => void;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="flex items-center gap-1.5" role="group" aria-label={label}>
-      <span className="text-xs font-medium text-muted-foreground">{label}:</span>
-      <div className="inline-flex rounded-md border border-border/60 bg-muted/30 p-0.5 gap-0.5">
-        {options.map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            disabled={disabled}
-            aria-pressed={opt.value === value}
-            onClick={() => onChange(opt.value)}
-            className={cx(
-              "rounded px-2 py-0.5 text-xs font-medium transition-colors",
-              "disabled:opacity-50 disabled:cursor-not-allowed",
-              opt.value === value
-                ? "bg-primary/15 text-primary border border-primary/25"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-transparent",
-            )}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function EnhancementSummary({
-  metadata,
-  activeVariant,
-  onVariantChange,
-}: {
-  metadata: EnhanceMetadata;
-  activeVariant: EnhancementVariant;
-  onVariantChange: (variant: EnhancementVariant) => void;
-}) {
-  const ctx = metadata.detectedContext;
-  const hasDetected = ctx && (ctx.intent.length > 0 || ctx.domain.length > 0);
-  const hasChanges = metadata.enhancementsMade && metadata.enhancementsMade.length > 0;
-  const hasMissing = metadata.missingParts && metadata.missingParts.length > 0;
-  const hasSuggestions = metadata.suggestions && metadata.suggestions.length > 0;
-  const hasVariants =
-    metadata.alternativeVersions &&
-    (metadata.alternativeVersions.shorter || metadata.alternativeVersions.more_detailed);
-  const hasAssumptions = metadata.assumptionsMade && metadata.assumptionsMade.length > 0;
-  const hasQuestions = metadata.openQuestions && metadata.openQuestions.length > 0;
-
-  if (!hasDetected && !hasChanges && !hasMissing && !hasSuggestions && !hasVariants && !hasAssumptions && !hasQuestions) {
-    return null;
-  }
-
-  return (
-    <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5 space-y-2 text-sm">
-      {hasDetected && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-xs font-medium text-muted-foreground">Detected:</span>
-          {ctx.primaryIntent && (
-            <span
-              className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
-            >
-              {ctx.primaryIntent}
-            </span>
-          )}
-          {(ctx.primaryIntent
-            ? ctx.intent.filter((i) => i !== ctx.primaryIntent)
-            : ctx.intent
-          ).map((intent) => (
-            <span
-              key={intent}
-              className="inline-flex items-center rounded-full border border-border/60 bg-muted/50 px-2 py-0.5 text-xs font-medium text-muted-foreground"
-            >
-              {intent}
-            </span>
-          ))}
-          {ctx.domain.map((domain) => (
-            <span
-              key={domain}
-              className="inline-flex items-center rounded-full border border-border/60 bg-muted/50 px-2 py-0.5 text-xs font-medium text-muted-foreground"
-            >
-              {domain}
-            </span>
-          ))}
-          {ctx.complexity > 0 && (
-            <span className="text-xs text-muted-foreground">
-              complexity {ctx.complexity}/5
-            </span>
-          )}
-        </div>
-      )}
-
-      {hasChanges && (
-        <div>
-          <p className="text-xs font-medium text-muted-foreground mb-1">What changed:</p>
-          <ul className="space-y-0.5">
-            {metadata.enhancementsMade!.map((change, i) => (
-              <li key={i} className="text-xs text-foreground/80 pl-3 relative before:content-['•'] before:absolute before:left-0 before:text-muted-foreground">
-                {change}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {hasMissing && (
-        <div>
-          <p className="text-xs font-medium text-muted-foreground mb-1">Watch-outs:</p>
-          <ul className="space-y-0.5">
-            {metadata.missingParts!.map((part, i) => (
-              <li key={i} className="text-xs text-warning-primary pl-3 relative before:content-['⚠'] before:absolute before:left-0">
-                Missing: {part}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {hasSuggestions && (
-        <div>
-          <p className="text-xs font-medium text-muted-foreground mb-1">Try next:</p>
-          <ul className="space-y-0.5">
-            {metadata.suggestions!.map((suggestion, i) => (
-              <li key={i} className="text-xs text-foreground/80 pl-3 relative before:content-['→'] before:absolute before:left-0 before:text-muted-foreground">
-                {suggestion}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {hasAssumptions && (
-        <div>
-          <p className="text-xs font-medium text-muted-foreground mb-1">Assumptions made:</p>
-          <ul className="space-y-0.5">
-            {metadata.assumptionsMade!.map((assumption, i) => (
-              <li key={i} className="text-xs text-foreground/80 pl-3 relative before:content-['·'] before:absolute before:left-0 before:text-muted-foreground">
-                {assumption}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {hasQuestions && (
-        <div>
-          <p className="text-xs font-medium text-muted-foreground mb-1">Open questions:</p>
-          <ul className="space-y-0.5">
-            {metadata.openQuestions!.map((question, i) => (
-              <li key={i} className="text-xs text-foreground/80 pl-3 relative before:content-['?'] before:absolute before:left-0 before:text-primary">
-                {question}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {hasVariants && (
-        <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-border/40">
-          <span className="text-xs font-medium text-muted-foreground">Versions:</span>
-          <Button
-            type="button"
-            variant={activeVariant === "original" ? "primary" : "secondary"}
-            size="sm"
-            className="h-6 px-2 text-xs"
-            onClick={() => onVariantChange("original")}
-          >
-            Original
-          </Button>
-          {metadata.alternativeVersions!.shorter && (
-            <Button
-              type="button"
-              variant={activeVariant === "shorter" ? "primary" : "secondary"}
-              size="sm"
-              className="h-6 px-2 text-xs"
-              onClick={() => onVariantChange("shorter")}
-            >
-              Use shorter
-            </Button>
-          )}
-          {metadata.alternativeVersions!.more_detailed && (
-            <Button
-              type="button"
-              variant={activeVariant === "more_detailed" ? "primary" : "secondary"}
-              size="sm"
-              className="h-6 px-2 text-xs"
-              onClick={() => onVariantChange("more_detailed")}
-            >
-              Use more detailed
-            </Button>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function DiffRow({ line }: { line: DiffLine }) {
-  const marker = line.type === "add" ? "+" : line.type === "remove" ? "-" : " ";
-  const rowClass =
-    line.type === "add"
-      ? UI_STATUS_ROW_CLASSES.success
-      : line.type === "remove"
-        ? UI_STATUS_ROW_CLASSES.danger
-        : "text-foreground";
-
-  return (
-    <div className={`px-3 whitespace-pre-wrap wrap-break-word ${rowClass}`}>
-      <span className="inline-block w-4 select-none">{marker}</span>
-      {line.value}
     </div>
   );
 }

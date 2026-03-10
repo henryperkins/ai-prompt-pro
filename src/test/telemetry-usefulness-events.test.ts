@@ -48,39 +48,127 @@ describe("Telemetry usefulness events", () => {
     expect(log[0].payload.variantPromptChars).toBe(250);
   });
 
-  it("records builder_enhance_accepted with prompt chars", () => {
+  it("records builder_enhance_accepted with usefulness payload", () => {
     trackBuilderEvent("builder_enhance_accepted", {
+      source: "copy",
       promptChars: 450,
+      variant: "shorter",
+      inputPromptChars: 120,
+      inputWordCount: 18,
+      isVaguePrompt: true,
+      ambiguityLevel: "high",
+      editDistance: 92,
+      editDistanceRatio: 0.42,
+      editDistanceBaseline: "enhance_input",
     });
 
     const log = getTelemetryLog();
     expect(log).toHaveLength(1);
     expect(log[0].event).toBe("builder_enhance_accepted");
+    expect(log[0].payload.source).toBe("copy");
     expect(log[0].payload.promptChars).toBe(450);
+    expect(log[0].payload.variant).toBe("shorter");
+    expect(log[0].payload.inputPromptChars).toBe(120);
+    expect(log[0].payload.inputWordCount).toBe(18);
+    expect(log[0].payload.isVaguePrompt).toBe(true);
+    expect(log[0].payload.ambiguityLevel).toBe("high");
+    expect(log[0].payload.editDistance).toBe(92);
+    expect(log[0].payload.editDistanceRatio).toBe(0.42);
+    expect(log[0].payload.editDistanceBaseline).toBe("enhance_input");
   });
 
-  it("records builder_enhance_rerun with previous prompt chars", () => {
+  it("records builder_enhance_rerun with edit-distance payload", () => {
     trackBuilderEvent("builder_enhance_rerun", {
       previousPromptChars: 300,
+      variant: "original",
+      inputPromptChars: 160,
+      inputWordCount: 26,
+      isVaguePrompt: false,
+      ambiguityLevel: "medium",
+      editDistance: 44,
+      editDistanceRatio: 0.19,
+      editDistanceBaseline: "enhance_input",
     });
 
     const log = getTelemetryLog();
     expect(log).toHaveLength(1);
     expect(log[0].event).toBe("builder_enhance_rerun");
     expect(log[0].payload.previousPromptChars).toBe(300);
+    expect(log[0].payload.editDistanceRatio).toBe(0.19);
+    expect(log[0].payload.editDistanceBaseline).toBe("enhance_input");
+  });
+
+  it("records builder_enhance_completed with the input snapshot metrics", () => {
+    trackBuilderEvent("builder_enhance_completed", {
+      success: true,
+      durationMs: 1800,
+      outputChars: 520,
+      inputPromptChars: 140,
+      inputWordCount: 24,
+      isVaguePrompt: false,
+      ambiguityLevel: "medium",
+      editDistance: 61,
+      editDistanceRatio: 0.28,
+      editDistanceBaseline: "enhance_input",
+    });
+
+    const log = getTelemetryLog();
+    expect(log).toHaveLength(1);
+    expect(log[0].event).toBe("builder_enhance_completed");
+    expect(log[0].payload.success).toBe(true);
+    expect(log[0].payload.inputPromptChars).toBe(140);
+    expect(log[0].payload.inputWordCount).toBe(24);
+    expect(log[0].payload.editDistanceRatio).toBe(0.28);
+    expect(log[0].payload.editDistanceBaseline).toBe("enhance_input");
+  });
+
+  it("records builder_enhance_too_much_changed with compare-baseline metadata", () => {
+    trackBuilderEvent("builder_enhance_too_much_changed", {
+      variant: "original",
+      promptChars: 480,
+      originalPromptChars: 200,
+      editDistance: 103,
+      editDistanceRatio: 0.51,
+      editDistanceBaseline: "builder_preview",
+    });
+
+    const log = getTelemetryLog();
+    expect(log).toHaveLength(1);
+    expect(log[0].event).toBe("builder_enhance_too_much_changed");
+    expect(log[0].payload.editDistance).toBe(103);
+    expect(log[0].payload.editDistanceBaseline).toBe("builder_preview");
   });
 
   it("records builder_enhance_intent_overridden with intent change", () => {
     trackBuilderEvent("builder_enhance_intent_overridden", {
-      fromIntent: "brainstorm",
-      toIntent: "analysis",
+      fromIntent: "rewrite",
+      toIntent: "auto",
     });
 
     const log = getTelemetryLog();
     expect(log).toHaveLength(1);
     expect(log[0].event).toBe("builder_enhance_intent_overridden");
-    expect(log[0].payload.fromIntent).toBe("brainstorm");
-    expect(log[0].payload.toIntent).toBe("analysis");
+    expect(log[0].payload.fromIntent).toBe("rewrite");
+    expect(log[0].payload.toIntent).toBe("auto");
+  });
+
+  it("records builder_enhance_assumption_edited with edit details", () => {
+    trackBuilderEvent("builder_enhance_assumption_edited", {
+      field: "open_questions",
+      index: 1,
+      beforeChars: 18,
+      afterChars: 34,
+      source: "structured_inspector",
+    });
+
+    const log = getTelemetryLog();
+    expect(log).toHaveLength(1);
+    expect(log[0].event).toBe("builder_enhance_assumption_edited");
+    expect(log[0].payload.field).toBe("open_questions");
+    expect(log[0].payload.index).toBe(1);
+    expect(log[0].payload.beforeChars).toBe(18);
+    expect(log[0].payload.afterChars).toBe(34);
+    expect(log[0].payload.source).toBe("structured_inspector");
   });
 
   it("records all new event types without type errors", () => {
@@ -92,6 +180,7 @@ describe("Telemetry usefulness events", () => {
       "builder_enhance_too_much_changed",
       "builder_enhance_assumption_edited",
       "builder_enhance_intent_overridden",
+      "builder_enhance_structured_applied",
     ] as const;
 
     for (const event of newEvents) {

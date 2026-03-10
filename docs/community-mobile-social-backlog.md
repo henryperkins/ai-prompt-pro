@@ -93,7 +93,7 @@ Archived baseline plan: `docs/reviews/community-mobile-social-backlog-2026-02.md
 
 ## Definition of Done
 
-- Feature works with `VITE_COMMUNITY_MOBILE_ENHANCEMENTS=true` with no regressions when false.
+- Feature works as the default mobile behavior with no regressions across supported mobile viewports.
 - Unit tests and mobile Playwright checks cover primary and fallback paths.
 - Telemetry events are emitted for key funnel steps and validated in tests.
 - `docs/community-mobile-qa-checklist.md` is updated for any new interaction flows.

@@ -1,6 +1,6 @@
 # Launch Measurement Baseline
 
-Last updated: 2026-02-26
+Last updated: 2026-03-09
 
 > Status: Active while launch-channel measurement is tracked; archive to `docs/reviews/` when replaced by a broader growth analytics spec.
 
@@ -48,12 +48,25 @@ Added 2026-03-09. Tracked via client-side telemetry events persisted to a
 localStorage ring buffer (`src/lib/telemetry.ts`). Queryable from the browser
 console via `getTelemetryLog()`.
 
-| Metric | Event(s) | Formula |
-|---|---|---|
-| First-pass accept rate | `builder_enhance_accepted` / `builder_enhance_completed` (success) | Users who copy/save/share before re-running |
-| Rapid rerun rate | `builder_enhance_rerun` / `builder_enhance_completed` (success) | Users who immediately re-enhance |
-| Variant application rate | `builder_enhance_variant_applied` / `builder_enhance_metadata_received` | Users who switch to shorter/detailed |
-| Acceptance rate for vague prompts | `builder_enhance_accepted` where input < 20 words / total vague | Requires prompt length in payload |
+Acceptance is emitted on successful copy, save, or save-and-share. Rerun is
+independent and no longer implies acceptance.
+
+`inputPromptChars` and `inputWordCount` refer to the exact text sent into the
+enhancement run: `originalPrompt` when present, otherwise the built preview.
+
+| Metric | Event(s) | Formula | Required payload fields |
+|---|---|---|---|
+| First-pass accept rate | `builder_enhance_accepted`, `builder_enhance_completed` | `count(accepted) / count(completed where success = true)` | `builder_enhance_completed.success` |
+| Rapid rerun rate | `builder_enhance_rerun`, `builder_enhance_completed` | `count(rerun) / count(completed where success = true)` | `builder_enhance_completed.success` |
+| Variant application rate | `builder_enhance_variant_applied`, `builder_enhance_metadata_received` | `count(variant_applied) / count(metadata_received where hasAlternatives = true)` | `builder_enhance_metadata_received.hasAlternatives` |
+| Acceptance rate for vague prompts | `builder_enhance_accepted`, `builder_enhance_completed` | `count(accepted where isVaguePrompt = true) / count(completed where success = true and isVaguePrompt = true)` | `builder_enhance_accepted.isVaguePrompt`, `builder_enhance_completed.success`, `builder_enhance_completed.isVaguePrompt` |
+| Median pre-vs-post edit distance | `builder_enhance_completed` | `median(editDistanceRatio)` over `completed where success = true` | `builder_enhance_completed.editDistance`, `builder_enhance_completed.editDistanceRatio`, `builder_enhance_completed.editDistanceBaseline = "enhance_input"` |
+| Too-much-changed trigger rate | `builder_enhance_too_much_changed`, `builder_enhance_completed` | `count(too_much_changed) / count(completed where success = true)` | `builder_enhance_too_much_changed.editDistanceRatio`, `builder_enhance_too_much_changed.editDistanceBaseline = "builder_preview"` |
+
+Implementation notes:
+- `builder_enhance_completed` measures the original enhanced output against the run input snapshot.
+- `builder_enhance_accepted` and `builder_enhance_rerun` reuse the same input snapshot fields, but compare against the currently visible accepted/rerun variant.
+- `builder_enhance_too_much_changed` compares the current builder preview to the displayed enhanced prompt.
 
 ## Weekly Reporting Template
 - Owner: Growth
@@ -62,6 +75,6 @@ console via `getTelemetryLog()`.
   - Traffic by channel and campaign
   - Activation funnel conversion
   - Retention trend
-  - Enhancement usefulness (accept rate, rerun rate, variant usage)
+  - Enhancement usefulness (accept rate, rerun rate, edit-distance distribution, too-much-changed rate, variant usage)
   - Experiment readout (hero + CTA)
   - Risks and next actions

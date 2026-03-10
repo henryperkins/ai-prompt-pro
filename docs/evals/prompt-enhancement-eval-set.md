@@ -2,51 +2,110 @@
 
 ## Overview
 
-A 23-case eval set for deterministic regression testing of the enhancement pipeline.
-Cases are stored in `src/test/fixtures/prompt-enhancement-evals.json` and tested
-by `src/test/prompt-enhancement-evals.test.ts`.
+A 60-case deterministic regression set for the enhancement pipeline. Cases live
+in `src/test/fixtures/prompt-enhancement-evals.json` and are exercised by
+`src/test/prompt-enhancement-evals.test.ts`.
 
-## Categories
+The suite covers three layers:
+
+1. `classifyPrimaryIntent()` routing
+2. `detectEnhancementContext()` ambiguity and missing-slot heuristics
+3. `postProcessEnhancementResponse()` normalization for placeholder-heavy,
+   clarification-heavy, and structured-plan payloads
+
+## Category Coverage
 
 | Category | Count | What it tests |
-|---|---|---|
-| Vague prompts | 5 | Ambiguity detection, no false specificity |
-| Rewrite tasks | 3 | Transform intent routing |
-| Analysis tasks | 3 | Analytical intent routing |
-| Code tasks | 3 | Code intent routing |
-| Brainstorming | 3 | Creative intent routing |
-| Extraction | 2 | Extraction intent routing |
-| Fact-sensitive | 2 | Factual verification slot detection |
-| Planning | 1 | Planning intent routing |
-| Research | 1 | Research intent routing |
+|---|---:|---|
+| Vague prompts | 8 | High-ambiguity routing and missing-slot coverage |
+| Rewrite tasks | 7 | Transform intent routing without objective drift |
+| Analysis tasks | 7 | Analytical routing and structured reasoning fields |
+| Code tasks | 7 | Code routing, implementation constraints, required inputs |
+| Brainstorming | 7 | Creative routing, optional null-intent edge cases |
+| Extraction | 6 | Extraction routing and source-bound outputs |
+| Research | 6 | Research routing plus verification-oriented structure |
+| Planning | 6 | Planning routing, milestones, and constraint framing |
+| Fact-sensitive | 6 | Verification-sensitive ambiguity and open-question flows |
 
-## Deterministic checks (no model required)
+## Fixture Schema
 
-1. **Correct route selected** — `classifyPrimaryIntent` returns expected `primaryIntent`
-2. **Ambiguity level** — `detectEnhancementContext` returns expected `ambiguityLevel`
-3. **Missing slots** — fact-sensitive cases flag `factual_verification`
-4. **Structural fields present** — all contexts have `intent`, `domain`, `complexity`, `primaryIntent`, `ambiguityLevel`, `missingSlots`
+Each case stores:
 
-## Weekly review cadence
+- `input`
+- `expectedPrimaryIntent`
+- `expectedAmbiguityLevel`
+- `expectedMissingSlots`
+- `requiresPlaceholders`
+- `requiresOpenQuestions`
+- `expectedStructuredFields`
+  `expectedStructuredFields` refers to the minimum `enhancement_plan` fields a
+  normalized response must retain for that case.
+- `forbiddenAssumptions`
 
-- Inspect regressions after each release
-- Inspect top failed vague prompts (accept rate < 30%)
-- Inspect top override cases where detected intent was wrong
-- Inspect changes in acceptance rate week-over-week
-- Add new cases for any real-world routing failures discovered
+## What Fails The Build
 
-## How to run
+Blockers:
+
+- Primary-intent mismatches
+- Ambiguity-level mismatches
+- Missing-slot mismatches
+- Placeholder-mode normalization failures for cases marked
+  `requiresPlaceholders`
+- Clarification-mode normalization failures for cases marked
+  `requiresOpenQuestions`
+- Missing `enhancement_plan` fields listed in `expectedStructuredFields`
+- Forbidden assumptions leaking into normalized metadata
+
+Advisory review items:
+
+- Category balance drifting below the 50-case floor
+- Real-product prompts that expose a new route or ambiguity pattern not yet in
+  the fixture
+- Spikes in live telemetry for `builder_enhance_too_much_changed`
+
+## Adding New Cases
+
+When adding a case:
+
+1. Add the raw prompt to the fixture candidate list.
+2. Populate `expectedPrimaryIntent`, `expectedAmbiguityLevel`, and
+   `expectedMissingSlots` from the current deterministic pipeline output.
+   Do not guess these fields by hand.
+3. Add `requiresPlaceholders` and `requiresOpenQuestions` only when the case
+   should participate in the canned post-processing assertions.
+4. Set `expectedStructuredFields` to the minimum `enhancement_plan` fields that
+   must survive normalization for that case.
+5. Add at least one `forbiddenAssumptions` phrase that would indicate
+   over-invention for that prompt type.
+6. If the category mix changes, update the counts in this doc.
+
+Keep the set at 50+ cases. The current target is 60 so trimming a few prompts
+later does not drop coverage below the original floor.
+
+## Weekly Review Cadence
+
+- Inspect deterministic regressions after each release or routing change.
+- Review failures by bucket: routing, ambiguity, placeholder/clarification
+  normalization, structured-plan retention.
+- Review the highest-volume vague prompts with low acceptance.
+- Review prompts with `builder_enhance_too_much_changed` spikes alongside their
+  edit-distance ratios.
+- Add new cases for any real product prompt that exposes a routing or ambiguity
+  miss.
+
+## How To Run
 
 ```bash
 npx vitest run src/test/prompt-enhancement-evals.test.ts
 ```
 
-## Live-product metrics
+## Live-Product Metrics
 
 See `docs/launch-measurement-baseline.md` for:
+
 - First-pass accept rate
 - Rapid rerun rate
-- Pre-vs-post edit distance
+- Median pre-vs-post edit distance
 - Vague-prompt accept rate
-- "Too much changed" trigger rate
+- Too-much-changed trigger rate
 - Alternative-version usage rate

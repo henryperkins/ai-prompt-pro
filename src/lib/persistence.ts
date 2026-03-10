@@ -7,7 +7,6 @@ import {
   hydrateConfigV1ToWorkingState,
   serializeWorkingStateToV1,
 } from "@/lib/prompt-config-adapters";
-import { builderRedesignFlags } from "@/lib/feature-flags";
 import { normalizePromptCategory } from "@/lib/prompt-categories";
 import type { PromptConfig } from "@/lib/prompt-builder";
 import { defaultConfig } from "@/lib/prompt-builder";
@@ -226,7 +225,7 @@ export async function loadDraft(userId: string | null): Promise<PromptConfig | n
 export async function saveDraft(userId: string | null, config: PromptConfig): Promise<void> {
   const safeConfig = sanitizePostgresJson(config as unknown as Json) as unknown as PromptConfig;
   const normalizedConfig = serializeWorkingStateToV1(safeConfig, {
-    includeV2Compat: builderRedesignFlags.builderRedesignPhase4,
+    includeV2Compat: true,
     preserveSourceRawContent: true,
   });
   if (!userId) {
@@ -450,7 +449,7 @@ export async function savePrompt(userId: string | null, input: PromptSaveInput):
     includeV2Compat: false,
   });
   const persistedConfig = serializeWorkingStateToV1(normalizedConfig, {
-    includeV2Compat: builderRedesignFlags.builderRedesignPhase4,
+    includeV2Compat: true,
   });
   const normalizedDescription = normalizeDescription(input.description);
   const normalizedCategory = normalizePromptCategory(input.category) ?? "general";

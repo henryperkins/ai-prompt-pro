@@ -32,6 +32,7 @@ import {
   inferBuilderFieldsLocally,
   listInferenceFieldsFromUpdates,
   markOwnershipFields,
+  type BuilderInferenceRequestContext,
   type BuilderFieldOwnershipMap,
   type BuilderSuggestionChip,
 } from "@/lib/builder-inference";
@@ -70,18 +71,16 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { loadPost, loadProfilesByIds } from "@/lib/community";
 import { consumeRestoredVersionPrompt } from "@/lib/history-restore";
 import {
-  builderRedesignFlags,
-  enhancementFeatureFlags,
-  launchExperimentFlags,
-} from "@/lib/feature-flags";
-import {
   recordEnhancementAction,
   loadEnhancementProfile,
   getMostUsedPreference,
+  resetEnhancementProfile,
 } from "@/lib/prompt-enhancement-profile";
 import { trackBuilderEvent } from "@/lib/telemetry";
 import {
   parseEnhanceMetadata,
+  type EditableEnhancementListEdit,
+  type EditableEnhancementListField,
   type EnhanceMetadata,
 } from "@/lib/enhance-metadata";
 import {
@@ -96,6 +95,12 @@ import {
   type EnhancementDepth,
   type RewriteStrictness,
 } from "@/lib/user-preferences";
+import {
+  appendTextBlock,
+  buildAssumptionsCorrectionBlock,
+  buildClarificationBlock,
+} from "@/lib/enhance-ambiguity";
+import { buildTextEditMetrics } from "@/lib/text-diff";
 import { brandCopy } from "@/lib/brand-copy";
 import {
   getHeroCopyVariant,
@@ -626,12 +631,141 @@ const buildInferenceCurrentFields = (config: typeof defaultConfig) => {
   return currentFields;
 };
 
+type EnhanceInputSnapshot = {
+  runId: string;
+  inputPromptText: string;
+  inputPromptChars: number;
+  inputWordCount: number;
+  ambiguityLevel: string | null;
+  isVaguePrompt: boolean;
+  selectedVariant: EnhancementVariant;
+};
+
+type EnhanceMeasurementInput = Pick<
+  EnhanceInputSnapshot,
+  | "inputPromptText"
+  | "inputPromptChars"
+  | "inputWordCount"
+  | "ambiguityLevel"
+  | "isVaguePrompt"
+>;
+
+function countPromptWords(input: string): number {
+  return input.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function isVaguePrompt(
+  inputWordCount: number,
+  ambiguityLevel: string | null | undefined,
+): boolean {
+  return inputWordCount < 20 || ambiguityLevel === "high";
+}
+
+function buildEnhanceRunId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function createEnhanceInputSnapshot(
+  runId: string,
+  inputPromptText: string,
+  selectedVariant: EnhancementVariant,
+  ambiguityLevel: string | null = null,
+): EnhanceInputSnapshot {
+  const trimmedInput = inputPromptText.trim();
+  const inputWordCount = countPromptWords(trimmedInput);
+
+  return {
+    runId,
+    inputPromptText: trimmedInput,
+    inputPromptChars: trimmedInput.length,
+    inputWordCount,
+    ambiguityLevel,
+    isVaguePrompt: isVaguePrompt(inputWordCount, ambiguityLevel),
+    selectedVariant,
+  };
+}
+
+function buildEnhanceMeasurementPayload(
+  input: EnhanceMeasurementInput,
+  outputText: string,
+) {
+  const editMetrics = buildTextEditMetrics(
+    input.inputPromptText,
+    outputText.trim(),
+  );
+
+  return {
+    inputPromptChars: input.inputPromptChars,
+    inputWordCount: input.inputWordCount,
+    isVaguePrompt: input.isVaguePrompt,
+    ambiguityLevel: input.ambiguityLevel,
+    editDistance: editMetrics.editDistance,
+    editDistanceRatio: editMetrics.editDistanceRatio,
+    editDistanceBaseline: "enhance_input" as const,
+  };
+}
+
+function extractSelectedOutputFormats(config: typeof defaultConfig): string[] {
+  return [...config.format, config.customFormat.trim()].filter(
+    (value) => value.length > 0,
+  );
+}
+
+function looksLikePastedSourceMaterial(value: string): boolean {
+  const trimmed = value.trim();
+  if (trimmed.length < 160) return false;
+
+  return (
+    trimmed.includes("```") ||
+    trimmed.split("\n").length >= 4 ||
+    /source material|transcript|excerpt|document|article|notes|brief/i.test(
+      trimmed,
+    )
+  );
+}
+
+function buildInferenceRequestContext({
+  config,
+  enhanceSession,
+  hasPresetOrRemix,
+}: {
+  config: typeof defaultConfig;
+  enhanceSession: CodexSession;
+  hasPresetOrRemix: boolean;
+}): BuilderInferenceRequestContext {
+  const attachedSourceCount = config.contextConfig.sources.length;
+  const hasSessionContext = Boolean(
+    enhanceSession.contextSummary.trim() ||
+      enhanceSession.latestEnhancedPrompt.trim(),
+  );
+  const selectedOutputFormats = extractSelectedOutputFormats(config);
+  const hasPastedSourceMaterial =
+    looksLikePastedSourceMaterial(config.originalPrompt) ||
+    looksLikePastedSourceMaterial(config.contextConfig.projectNotes);
+
+  const requestContext: BuilderInferenceRequestContext = {
+    hasAttachedSources: attachedSourceCount > 0,
+    attachedSourceCount,
+    hasSessionContext,
+  };
+
+  if (hasPresetOrRemix) {
+    requestContext.hasPresetOrRemix = true;
+  }
+  if (selectedOutputFormats.length > 0) {
+    requestContext.selectedOutputFormats = selectedOutputFormats;
+  }
+  if (hasPastedSourceMaterial) {
+    requestContext.hasPastedSourceMaterial = true;
+  }
+
+  return requestContext;
+}
+
 const Index = () => {
-  const isBuilderRedesignPhase1 = builderRedesignFlags.builderRedesignPhase1;
-  const isBuilderRedesignPhase2 =
-    isBuilderRedesignPhase1 && builderRedesignFlags.builderRedesignPhase2;
-  const isBuilderRedesignPhase3 =
-    isBuilderRedesignPhase1 && builderRedesignFlags.builderRedesignPhase3;
+  const isBuilderRedesignPhase1 = true;
+  const isBuilderRedesignPhase2 = true;
+  const isBuilderRedesignPhase3 = true;
   const [searchParams, setSearchParams] = useSearchParams();
   const remixId = searchParams.get("remix");
   const presetId = searchParams.get("preset");
@@ -673,7 +807,9 @@ const Index = () => {
   const enhancePending = useRef(false);
   const enhanceAbortController = useRef<AbortController | null>(null);
   const enhanceStreamToken = useRef(0);
-  const enhanceOutputUsed = useRef(false);
+  const activeEnhanceRunIdRef = useRef<string | null>(null);
+  const acceptedRunIdsRef = useRef<Set<string>>(new Set());
+  const lastEnhanceInputSnapshotRef = useRef<EnhanceInputSnapshot | null>(null);
   const [suggestionChips, setSuggestionChips] = useState<
     BuilderSuggestionChip[]
   >([]);
@@ -698,8 +834,18 @@ const Index = () => {
     useState<BuilderFieldOwnershipMap>(() =>
       createFieldOwnershipFromConfig(defaultConfig),
     );
+  const [enhancementProfileSnapshot, setEnhancementProfileSnapshot] =
+    useState(() => loadEnhancementProfile());
   const { toast } = useToast();
   const isMobile = useIsMobile();
+
+  const syncEnhancementProfile = useCallback(
+    (action: Parameters<typeof recordEnhancementAction>[0]) => {
+      recordEnhancementAction(action);
+      setEnhancementProfileSnapshot(loadEnhancementProfile());
+    },
+    [],
+  );
 
   const persistedSetWebSearchEnabled = useCallback(
     (value: boolean | ((prev: boolean) => boolean)) => {
@@ -759,12 +905,8 @@ const Index = () => {
   } = usePromptBuilder();
 
   const launchAssignments = useMemo(() => getLaunchExperimentAssignments(), []);
-  const heroCopyVariant = launchExperimentFlags.launchHeroCopyExperiment
-    ? launchAssignments.heroCopy
-    : "control";
-  const primaryCtaVariant = launchExperimentFlags.launchPrimaryCtaExperiment
-    ? launchAssignments.primaryCta
-    : "control";
+  const heroCopyVariant = launchAssignments.heroCopy;
+  const primaryCtaVariant = launchAssignments.primaryCta;
   const heroCopy = useMemo(
     () => getHeroCopyVariant(heroCopyVariant),
     [heroCopyVariant],
@@ -797,6 +939,8 @@ const Index = () => {
     enhanceStreamToken.current += 1;
     enhanceAbortController.current?.abort();
     enhanceAbortController.current = null;
+    activeEnhanceRunIdRef.current = null;
+    lastEnhanceInputSnapshotRef.current = null;
     setSessionDrawerOpen(false);
     setEnhanceSession(createCodexSession());
     setReasoningSummary("");
@@ -818,9 +962,8 @@ const Index = () => {
       redesignPhase3: isBuilderRedesignPhase3,
       hasRemixParam: Boolean(remixId),
       hasPresetParam: Boolean(presetId),
-      heroCopyExperimentEnabled: launchExperimentFlags.launchHeroCopyExperiment,
-      primaryCtaExperimentEnabled:
-        launchExperimentFlags.launchPrimaryCtaExperiment,
+      heroCopyExperimentEnabled: true,
+      primaryCtaExperimentEnabled: true,
       heroCopyVariant,
       primaryCtaVariant,
     });
@@ -1033,6 +1176,90 @@ const Index = () => {
 
   const selectedEnhancedPrompt = selectedVariantPrompt || enhancedPrompt;
 
+  const updateActiveRunSnapshot = useCallback(
+    (updates: Partial<Omit<EnhanceInputSnapshot, "runId">>) => {
+      const runId = activeEnhanceRunIdRef.current;
+      const current = lastEnhanceInputSnapshotRef.current;
+      if (!runId || !current || current.runId !== runId) return;
+
+      const next: EnhanceInputSnapshot = {
+        ...current,
+        ...updates,
+      };
+      next.isVaguePrompt = isVaguePrompt(
+        next.inputWordCount,
+        next.ambiguityLevel,
+      );
+      lastEnhanceInputSnapshotRef.current = next;
+    },
+    [],
+  );
+
+  const trackEnhanceAccepted = useCallback(
+    (source: "copy" | "save" | "save_share") => {
+      const runId = activeEnhanceRunIdRef.current;
+      const snapshot = lastEnhanceInputSnapshotRef.current;
+      const acceptedRunIds = acceptedRunIdsRef.current;
+      const visiblePrompt = selectedEnhancedPrompt.trim();
+
+      if (!runId || !snapshot || snapshot.runId !== runId || !visiblePrompt) {
+        return;
+      }
+      if (acceptedRunIds.has(runId)) return;
+
+      const nextSnapshot = {
+        ...snapshot,
+        selectedVariant: activeEnhancementVariant,
+      };
+      const measurementPayload = buildEnhanceMeasurementPayload(
+        nextSnapshot,
+        visiblePrompt,
+      );
+
+      lastEnhanceInputSnapshotRef.current = nextSnapshot;
+      acceptedRunIds.add(runId);
+      trackBuilderEvent("builder_enhance_accepted", {
+        source,
+        promptChars: visiblePrompt.length,
+        variant: activeEnhancementVariant,
+        ...measurementPayload,
+      });
+
+      syncEnhancementProfile({ type: "accepted" });
+      const acceptedFormat =
+        enhanceMetadata?.partsBreakdown?.output_format?.trim() ?? "";
+      if (acceptedFormat) {
+        syncEnhancementProfile({
+          type: "format_accepted",
+          format: acceptedFormat,
+        });
+      }
+    },
+    [
+      activeEnhancementVariant,
+      enhanceMetadata?.partsBreakdown?.output_format,
+      selectedEnhancedPrompt,
+      syncEnhancementProfile,
+    ],
+  );
+
+  const handleAppendToSessionContext = useCallback(
+    (content: string) => {
+      if (!content.trim()) return;
+      setEnhanceSession((previous) =>
+        createCodexSession({
+          ...previous,
+          contextSummary: appendTextBlock(previous.contextSummary, content),
+          updatedAt: Date.now(),
+        }),
+      );
+      if (isSignedIn) {
+        setSessionDrawerOpen(true);
+      }
+    },
+    [isSignedIn],
+  );
+
   const handleUseCurrentPromptForSession = useCallback(() => {
     const promptSnapshot = (selectedEnhancedPrompt || builtPrompt).trim();
     if (!promptSnapshot) return;
@@ -1098,18 +1325,49 @@ const Index = () => {
       }
 
       enhanceStartedAt.current = Date.now();
+      const previousSnapshot = lastEnhanceInputSnapshotRef.current;
       if (enhancedPrompt.trim()) {
-        const selectedPromptLength = selectedEnhancedPrompt.length;
-        if (enhanceOutputUsed.current) {
-          trackBuilderEvent("builder_enhance_accepted", {
-            promptChars: selectedPromptLength,
-          });
-        }
+        const selectedPromptText = selectedEnhancedPrompt.trim();
+        const fallbackInputPrompt =
+          previousSnapshot?.inputPromptText || promptForEnhance.trim();
+        const fallbackInputWordCount = countPromptWords(fallbackInputPrompt);
+        const fallbackAmbiguityLevel =
+          previousSnapshot?.ambiguityLevel ??
+          enhanceMetadata?.ambiguityLevel ??
+          null;
+        const rerunMeasurementInput: EnhanceMeasurementInput = {
+          inputPromptText: fallbackInputPrompt,
+          inputPromptChars:
+            previousSnapshot?.inputPromptChars ?? fallbackInputPrompt.length,
+          inputWordCount:
+            previousSnapshot?.inputWordCount ?? fallbackInputWordCount,
+          isVaguePrompt:
+            previousSnapshot?.isVaguePrompt ??
+            isVaguePrompt(fallbackInputWordCount, fallbackAmbiguityLevel),
+          ambiguityLevel: fallbackAmbiguityLevel,
+        };
+        const rerunMeasurementPayload = buildEnhanceMeasurementPayload(
+          rerunMeasurementInput,
+          selectedPromptText,
+        );
+
         trackBuilderEvent("builder_enhance_rerun", {
-          previousPromptChars: selectedPromptLength,
+          previousPromptChars: selectedPromptText.length,
+          variant:
+            previousSnapshot?.selectedVariant ?? activeEnhancementVariant,
+          ...rerunMeasurementPayload,
         });
+        syncEnhancementProfile({ type: "rerun" });
       }
-      enhanceOutputUsed.current = false;
+      const nextRunId = buildEnhanceRunId();
+      const inputPromptText =
+        configForEnhance.originalPrompt.trim() || promptForEnhance.trim();
+      activeEnhanceRunIdRef.current = nextRunId;
+      lastEnhanceInputSnapshotRef.current = createEnhanceInputSnapshot(
+        nextRunId,
+        inputPromptText,
+        "original",
+      );
       trackBuilderEvent("builder_enhance_clicked", {
         promptChars: promptForEnhance.length,
         redesignPhase1: isBuilderRedesignPhase1,
@@ -1197,7 +1455,7 @@ const Index = () => {
         builderMode: enhancementDepth,
         rewriteStrictness,
         intentOverride,
-        ambiguityMode: enhancementFeatureFlags.enhancementAmbiguityPolicy ? ambiguityMode : undefined,
+        ambiguityMode,
         builderFields: {
           role: (
             configForEnhance.customRole ||
@@ -1270,6 +1528,9 @@ const Index = () => {
             const parsed = parseEnhanceMetadata(innerPayload);
             if (parsed) {
               setEnhanceMetadata(parsed);
+              updateActiveRunSnapshot({
+                ambiguityLevel: parsed.ambiguityLevel ?? null,
+              });
               trackBuilderEvent("builder_enhance_metadata_received", {
                 hasAlternatives: Boolean(
                   parsed.alternativeVersions?.shorter ||
@@ -1375,15 +1636,19 @@ const Index = () => {
             success: true,
             durationMs,
             outputChars: accumulated.length,
+            ...(lastEnhanceInputSnapshotRef.current
+              ? buildEnhanceMeasurementPayload(
+                  lastEnhanceInputSnapshotRef.current,
+                  finalPromptText,
+                )
+              : {}),
           });
-          if (enhancementFeatureFlags.enhancementPersonalization) {
-            recordEnhancementAction({
-              type: "enhancement_completed",
-              depth: enhancementDepth,
-              strictness: rewriteStrictness,
-              ambiguityMode,
-            });
-          }
+          syncEnhancementProfile({
+            type: "enhancement_completed",
+            depth: enhancementDepth,
+            strictness: rewriteStrictness,
+            ambiguityMode,
+          });
           setIsEnhancing(false);
           setEnhancePhase("settling");
           const doneTimer = window.setTimeout(() => {
@@ -1431,9 +1696,11 @@ const Index = () => {
       });
     })();
   }, [
+    activeEnhancementVariant,
     ambiguityMode,
     clearEnhanceTimers,
     config,
+    enhanceMetadata?.ambiguityLevel,
     enhanceSession,
     enhancedPrompt,
     enhancementDepth,
@@ -1446,7 +1713,9 @@ const Index = () => {
     setEnhancedPrompt,
     setIsEnhancing,
     setReasoningSummary,
+    syncEnhancementProfile,
     toast,
+    updateActiveRunSnapshot,
     webSearchEnabled,
   ]);
 
@@ -1465,11 +1734,12 @@ const Index = () => {
   const handleVariantChange = useCallback(
     (variant: EnhancementVariant) => {
       setActiveEnhancementVariant(variant);
-      if (variant !== "original" && enhancementFeatureFlags.enhancementPersonalization) {
-        recordEnhancementAction({ type: "variant_applied", variant });
+      updateActiveRunSnapshot({ selectedVariant: variant });
+      if (variant !== "original") {
+        syncEnhancementProfile({ type: "variant_applied", variant });
       }
     },
-    [],
+    [syncEnhancementProfile, updateActiveRunSnapshot],
   );
 
   useEffect(() => {
@@ -1478,27 +1748,31 @@ const Index = () => {
 
   // Personalization: apply preferred defaults from profile when user hasn't explicitly chosen
   useEffect(() => {
-    if (!enhancementFeatureFlags.enhancementPersonalization) return;
-    const profile = loadEnhancementProfile();
-    if (profile.totalEnhancements < 3) return; // Need enough data before personalizing
+    if (enhancementProfileSnapshot.totalEnhancements < 3) return;
 
     const prefs = getUserPreferences();
 
-    const preferredDepth = getMostUsedPreference(profile.depthCounts);
+    const preferredDepth = getMostUsedPreference(
+      enhancementProfileSnapshot.depthCounts,
+    );
     if (preferredDepth && prefs.enhancementDepth === "guided") {
       setEnhancementDepth(preferredDepth as EnhancementDepth);
     }
 
-    const preferredStrictness = getMostUsedPreference(profile.strictnessCounts);
+    const preferredStrictness = getMostUsedPreference(
+      enhancementProfileSnapshot.strictnessCounts,
+    );
     if (preferredStrictness && prefs.rewriteStrictness === "balanced") {
       setRewriteStrictness(preferredStrictness as RewriteStrictness);
     }
 
-    const preferredAmbiguity = getMostUsedPreference(profile.ambiguityModeCounts);
+    const preferredAmbiguity = getMostUsedPreference(
+      enhancementProfileSnapshot.ambiguityModeCounts,
+    );
     if (preferredAmbiguity && prefs.ambiguityMode === "infer_conservatively") {
       setAmbiguityMode(preferredAmbiguity as AmbiguityMode);
     }
-  }, []);
+  }, [enhancementProfileSnapshot]);
 
   useEffect(() => {
     return () => {
@@ -1517,7 +1791,6 @@ const Index = () => {
       category?: string;
       remixNote?: string;
     }): Promise<boolean> => {
-      enhanceOutputUsed.current = true;
       try {
         const result = await savePrompt({
           title: input.name,
@@ -1542,6 +1815,7 @@ const Index = () => {
           title: `Prompt ${verb}: ${result.record.metadata.name}`,
           description: `Revision r${result.record.metadata.revision}.${warningText}`,
         });
+        trackEnhanceAccepted("save");
         if (remixContext) {
           handleClearRemix();
         }
@@ -1556,7 +1830,14 @@ const Index = () => {
         return false;
       }
     },
-    [savePrompt, toast, remixContext, handleClearRemix, selectedEnhancedPrompt],
+    [
+      savePrompt,
+      toast,
+      remixContext,
+      handleClearRemix,
+      selectedEnhancedPrompt,
+      trackEnhanceAccepted,
+    ],
   );
 
   const handleSaveAndSharePrompt = useCallback(
@@ -1569,7 +1850,6 @@ const Index = () => {
       targetModel?: string;
       remixNote?: string;
     }): Promise<boolean> => {
-      enhanceOutputUsed.current = true;
       if (!isSignedIn) {
         toast({
           title: "Sign in required",
@@ -1600,6 +1880,7 @@ const Index = () => {
             </ToastAction>
           ) : undefined,
         });
+        trackEnhanceAccepted("save_share");
         if (remixContext) {
           handleClearRemix();
         }
@@ -1621,15 +1902,9 @@ const Index = () => {
       remixContext,
       handleClearRemix,
       selectedEnhancedPrompt,
+      trackEnhanceAccepted,
     ],
   );
-
-  const handlePromptUsed = useCallback(() => {
-    if (!enhanceOutputUsed.current && enhancementFeatureFlags.enhancementPersonalization) {
-      recordEnhancementAction({ type: "accepted" });
-    }
-    enhanceOutputUsed.current = true;
-  }, []);
 
   const detectedIntent: IntentRoute | null = useMemo(() => {
     const ctx = enhanceMetadata?.detectedContext;
@@ -1653,15 +1928,22 @@ const Index = () => {
   }, [enhanceMetadata]);
 
   const handleIntentOverrideChange = useCallback((intent: IntentRoute | null) => {
-    const previousOverride = intentOverride;
+    const previousEffectiveIntent = intentOverride ?? detectedIntent ?? "auto";
+    const nextEffectiveIntent = intent ?? "auto";
+
     setIntentOverride(intent);
-    if (intent && intent !== detectedIntent) {
+
+    if (previousEffectiveIntent !== nextEffectiveIntent) {
       trackBuilderEvent("builder_enhance_intent_overridden", {
-        fromIntent: previousOverride || detectedIntent || "auto",
-        toIntent: intent,
+        fromIntent: previousEffectiveIntent,
+        toIntent: nextEffectiveIntent,
       });
     }
-  }, [intentOverride, detectedIntent]);
+
+    if (intent && previousEffectiveIntent !== nextEffectiveIntent) {
+      syncEnhancementProfile({ type: "intent_overridden", intent });
+    }
+  }, [intentOverride, detectedIntent, syncEnhancementProfile]);
 
   const handleEnhancementDepthChange = useCallback((depth: EnhancementDepth) => {
     setEnhancementDepth(depth);
@@ -1677,33 +1959,6 @@ const Index = () => {
     setAmbiguityMode(mode);
     setUserPreference("ambiguityMode", mode);
   }, []);
-
-  const handleApplyToBuilder = useCallback((updates: ApplyToBuilderUpdate) => {
-    const configUpdates: Partial<typeof config> = {};
-    if (updates.role) {
-      configUpdates.customRole = updates.role;
-      configUpdates.role = "";
-    }
-    if (updates.context) configUpdates.context = updates.context;
-    if (updates.format) {
-      // Reconcile a Length: token inside the inspector format with lengthPreference.
-      const { customFormat, lengthPreference } = reconcileFormatLength(updates.format);
-      configUpdates.customFormat = customFormat;
-      configUpdates.format = [];
-      if (lengthPreference) {
-        configUpdates.lengthPreference = lengthPreference;
-      }
-    }
-    if (updates.constraints) {
-      configUpdates.customConstraint = updates.constraints;
-      configUpdates.constraints = [];
-    }
-    updateConfig(configUpdates);
-    const fields = listInferenceFieldsFromUpdates(configUpdates);
-    if (fields.length > 0) {
-      setFieldOwnership((previous) => markOwnershipFields(previous, fields, "ai"));
-    }
-  }, [updateConfig]);
 
   // Keyboard shortcut: Ctrl+Enter to enhance
   useEffect(() => {
@@ -2013,11 +2268,17 @@ const Index = () => {
     const timer = window.setTimeout(() => {
       void (async () => {
         setIsInferringSuggestions(true);
+        const requestContext = buildInferenceRequestContext({
+          config,
+          enhanceSession,
+          hasPresetOrRemix: Boolean(remixContext || presetId),
+        });
         try {
           const remote = await inferBuilderFields({
             prompt,
             currentFields: buildInferenceCurrentFields(config),
             lockMetadata: fieldOwnership,
+            requestContext,
           });
 
           if (token !== suggestionLoadToken.current) return;
@@ -2044,14 +2305,16 @@ const Index = () => {
             setSuggestionChips(normalized.suggestionChips);
           } else {
             setSuggestionChips(
-              inferBuilderFieldsLocally(prompt, config).suggestionChips,
+              inferBuilderFieldsLocally(prompt, config, requestContext)
+                .suggestionChips,
             );
           }
           setHasInferenceError(false);
         } catch {
           if (token !== suggestionLoadToken.current) return;
           setSuggestionChips(
-            inferBuilderFieldsLocally(prompt, config).suggestionChips,
+            inferBuilderFieldsLocally(prompt, config, requestContext)
+              .suggestionChips,
           );
           setHasInferenceError(true);
         } finally {
@@ -2066,7 +2329,15 @@ const Index = () => {
       window.clearTimeout(timer);
       suggestionLoadToken.current += 1;
     };
-  }, [isBuilderRedesignPhase3, config, fieldOwnership, updateConfig]);
+  }, [
+    isBuilderRedesignPhase3,
+    config,
+    enhanceSession,
+    fieldOwnership,
+    presetId,
+    remixContext,
+    updateConfig,
+  ]);
 
   const openAndFocusSection = useCallback(
     (section: BuilderSection) => {
@@ -2100,6 +2371,146 @@ const Index = () => {
       });
     },
     [isBuilderRedesignPhase1, persistedSetShowAdvancedControls],
+  );
+
+  const handleApplyToBuilder = useCallback(
+    (updates: ApplyToBuilderUpdate) => {
+      const configUpdates: Partial<typeof config> = {};
+
+      if (updates.role) {
+        configUpdates.customRole = updates.role;
+        configUpdates.role = "";
+      }
+      if (updates.context) {
+        configUpdates.context = updates.context;
+      }
+      if (updates.task) {
+        configUpdates.originalPrompt = appendTextBlock(
+          config.originalPrompt || config.task,
+          updates.task,
+        );
+        configUpdates.task = "";
+      }
+      if (updates.format) {
+        const { customFormat, lengthPreference } = reconcileFormatLength(
+          updates.format,
+        );
+        configUpdates.customFormat = customFormat;
+        configUpdates.format = [];
+        if (lengthPreference) {
+          configUpdates.lengthPreference = lengthPreference;
+        }
+      }
+      if (updates.examples) {
+        configUpdates.examples = updates.examples;
+      }
+      if (updates.constraints) {
+        configUpdates.customConstraint = updates.constraints;
+        configUpdates.constraints = [];
+      }
+
+      updateConfig(configUpdates);
+      const fields = listInferenceFieldsFromUpdates(configUpdates);
+      if (fields.length > 0) {
+        setFieldOwnership((previous) =>
+          markOwnershipFields(previous, fields, "user"),
+        );
+      }
+
+      if (updates.action === "apply_all") {
+        syncEnhancementProfile({
+          type: "structured_apply_all",
+          key: updates.sourceField ?? "all",
+        });
+      }
+
+      const sections = updates.openSections ?? ["builder"];
+      const primarySection = sections[0];
+      if (primarySection) {
+        openAndFocusSection(primarySection);
+      }
+      if (sections.includes("context") && primarySection !== "context") {
+        window.requestAnimationFrame(() => {
+          openAndFocusSection("context");
+        });
+      }
+    },
+    [
+      config.originalPrompt,
+      config.task,
+      openAndFocusSection,
+      syncEnhancementProfile,
+      updateConfig,
+    ],
+  );
+
+  const handleAppendClarificationBlockToPrompt = useCallback(
+    (block: string) => {
+      if (!block.trim()) return;
+      updateConfig({
+        originalPrompt: appendTextBlock(config.originalPrompt, block),
+      });
+      openAndFocusSection("builder");
+    },
+    [config.originalPrompt, openAndFocusSection, updateConfig],
+  );
+
+  const handleEditableListSaved = useCallback(
+    (edit: EditableEnhancementListEdit) => {
+      const before = edit.before.trim();
+      const after = edit.after.trim();
+      if (!after || before === after) return;
+
+      trackBuilderEvent("builder_enhance_assumption_edited", {
+        field: edit.field,
+        index: edit.index,
+        beforeChars: before.length,
+        afterChars: after.length,
+        source: edit.source,
+      });
+      syncEnhancementProfile({
+        type: "assumption_edited",
+        key: edit.field,
+      });
+    },
+    [syncEnhancementProfile],
+  );
+
+  const handleApplyEditableListToPrompt = useCallback(
+    (field: EditableEnhancementListField, items: string[]) => {
+      const block =
+        field === "open_questions" || field === "plan_open_questions"
+          ? buildClarificationBlock(items)
+          : buildAssumptionsCorrectionBlock(items);
+
+      if (!block.trim()) return;
+
+      updateConfig({
+        originalPrompt: appendTextBlock(config.originalPrompt, block),
+      });
+      openAndFocusSection("builder");
+    },
+    [config.originalPrompt, openAndFocusSection, updateConfig],
+  );
+
+  const handleResetEnhancementPreferences = useCallback(() => {
+    resetEnhancementProfile();
+    setEnhancementProfileSnapshot(loadEnhancementProfile());
+    setEnhancementDepth("guided");
+    setRewriteStrictness("balanced");
+    setAmbiguityMode("infer_conservatively");
+    setUserPreference("enhancementDepth", "guided");
+    setUserPreference("rewriteStrictness", "balanced");
+    setUserPreference("ambiguityMode", "infer_conservatively");
+    toast({
+      title: "Enhancement preferences reset",
+      description:
+        "Learned enhancement behavior and enhancement-specific defaults were restored to baseline.",
+    });
+  }, [toast]);
+
+  const preferredAcceptedFormat = getMostUsedPreference(
+    enhancementProfileSnapshot.formatCounts,
   );
 
   return (
@@ -2209,9 +2620,9 @@ const Index = () => {
                 onApplySuggestion={handleApplySuggestionChip}
                 onResetInferred={handleResetInferredDetails}
                 canResetInferred={hasAiOwnedFields}
-                detectedIntent={enhancementFeatureFlags.enhancementIntentConfirmation ? detectedIntent : null}
-                intentOverride={enhancementFeatureFlags.enhancementIntentConfirmation ? intentOverride : null}
-                onIntentOverrideChange={enhancementFeatureFlags.enhancementIntentConfirmation ? handleIntentOverrideChange : () => {}}
+                detectedIntent={detectedIntent}
+                intentOverride={intentOverride}
+                onIntentOverrideChange={handleIntentOverrideChange}
               />
 
               {showEnhanceFirstCard && (
@@ -2489,6 +2900,32 @@ const Index = () => {
               </Accordion>
             </>
           )}
+
+          <Card className="border-border/70 bg-card/80 p-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-foreground">
+                  Enhancement preferences
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Reset learned defaults for enhancement depth, strictness, ambiguity handling, and accepted-format history.
+                </p>
+                {preferredAcceptedFormat && (
+                  <p className="text-xs text-muted-foreground">
+                    Most accepted structure: {preferredAcceptedFormat}
+                  </p>
+                )}
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={handleResetEnhancementPreferences}
+              >
+                Reset enhancement preferences
+              </Button>
+            </div>
+          </Card>
         </div>
 
         {/* Right: Output — inline on desktop, drawer on mobile */}
@@ -2539,7 +2976,6 @@ const Index = () => {
               canSharePrompt={canSharePrompt}
               previewSource={previewSource}
               hasEnhancedOnce={hasEnhancedOnce}
-              phase2Enabled={isBuilderRedesignPhase2}
               webSearchEnabled={webSearchEnabled}
               onWebSearchToggle={handleWebSearchToggle}
               webSearchSources={webSearchSources}
@@ -2548,15 +2984,18 @@ const Index = () => {
               enhanceMetadata={enhanceMetadata}
               activeVariant={activeEnhancementVariant}
               onVariantChange={handleVariantChange}
-              onPromptUsed={handlePromptUsed}
+              onPromptAccepted={trackEnhanceAccepted}
               enhancementDepth={enhancementDepth}
               rewriteStrictness={rewriteStrictness}
               onEnhancementDepthChange={handleEnhancementDepthChange}
               onRewriteStrictnessChange={handleRewriteStrictnessChange}
-              ambiguityMode={enhancementFeatureFlags.enhancementAmbiguityPolicy ? ambiguityMode : undefined}
-              onAmbiguityModeChange={enhancementFeatureFlags.enhancementAmbiguityPolicy ? handleAmbiguityModeChange : undefined}
-              onApplyToBuilder={enhancementFeatureFlags.enhancementStructuredInspector ? handleApplyToBuilder : undefined}
-              showStructuredInspector={enhancementFeatureFlags.enhancementStructuredInspector}
+              ambiguityMode={ambiguityMode}
+              onAmbiguityModeChange={handleAmbiguityModeChange}
+              onApplyToBuilder={handleApplyToBuilder}
+              onAppendClarificationBlockToPrompt={handleAppendClarificationBlockToPrompt}
+              onAppendToSessionContext={handleAppendToSessionContext}
+              onEditableListSaved={handleEditableListSaved}
+              onApplyEditableListToPrompt={handleApplyEditableListToPrompt}
               remixContext={
                 remixContext
                   ? {
@@ -2788,13 +3227,16 @@ const Index = () => {
                 canSharePrompt={canSharePrompt}
                 previewSource={previewSource}
                 hasEnhancedOnce={hasEnhancedOnce}
-                phase2Enabled={isBuilderRedesignPhase2}
                 enhanceIdleLabel={primaryCtaLabel}
                 enhanceMetadata={enhanceMetadata}
                 activeVariant={activeEnhancementVariant}
                 onVariantChange={handleVariantChange}
-                onPromptUsed={handlePromptUsed}
+                onPromptAccepted={trackEnhanceAccepted}
                 onApplyToBuilder={handleApplyToBuilder}
+                onAppendClarificationBlockToPrompt={handleAppendClarificationBlockToPrompt}
+                onAppendToSessionContext={handleAppendToSessionContext}
+                onEditableListSaved={handleEditableListSaved}
+                onApplyEditableListToPrompt={handleApplyEditableListToPrompt}
                 // Enhancement depth/strictness/ambiguity controls omitted — hideEnhanceButton hides the section they render in
                 hideEnhanceButton
                 remixContext={

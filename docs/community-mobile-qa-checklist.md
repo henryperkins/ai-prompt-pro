@@ -2,7 +2,7 @@
 
 Last updated: 2026-02-26
 
-Feature flag: `VITE_COMMUNITY_MOBILE_ENHANCEMENTS=true`
+Community mobile enhancements are always enabled.
 
 ## iOS Safari and Android Chrome
 
@@ -20,10 +20,9 @@ Feature flag: `VITE_COMMUNITY_MOBILE_ENHANCEMENTS=true`
 
 ## Rollout Safety
 
-1. Set `VITE_COMMUNITY_MOBILE_ENHANCEMENTS=false`.
-2. Verify mobile filter drawer trigger is hidden.
-3. Verify mobile notifications bell trigger is hidden.
-4. Verify desktop `/community` and `/community/:id` behavior is unchanged.
+1. Verify mobile filter drawer trigger is available.
+2. Verify mobile notifications bell trigger is available for signed-in users.
+3. Verify desktop `/community` and `/community/:id` behavior is unchanged.
 
 ## Implemented CMOB Regression Checks
 

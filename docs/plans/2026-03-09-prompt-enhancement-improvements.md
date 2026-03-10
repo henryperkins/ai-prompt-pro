@@ -30,7 +30,7 @@ Execute this work in five phases:
 4. Move from a monolithic rewrite toward a structured enhancement plan.
 5. Add personalization and evaluation loops after the core UX is stable.
 
-Do not try to ship every item at once. Each task below is independently testable and should be released behind a feature flag where noted.
+Do not try to ship every item at once. Each task below is independently testable and should be released behind a staged rollout where noted.
 
 ---
 
@@ -877,9 +877,9 @@ Add a short weekly evaluation ritual to the doc:
 - inspect top override cases where detected intent was wrong;
 - inspect changes in acceptance rate after releases.
 
-**Step 5: Roll out behind feature flags**
+**Step 5: Roll out behind staged releases**
 
-Use feature flags for:
+Use staged release controls for:
 
 - structured inspector,
 - ambiguity policy,
@@ -936,7 +936,7 @@ These notes capture what the codebase assessment confirmed so that implementers 
 | Backend produces `parts_breakdown`, `enhancements_made`, `suggestions`, `alternative_versions`, `quality_score`, `detected_context`, `missing_parts`, `improvement_delta` | `agent_service/enhancement-pipeline.mjs`, `agent_service/codex_service.mjs` | Fully working — emitted in every `enhance.metadata` SSE event |
 | `builder_mode` parameter end-to-end | `ai-client.ts` accepts it; `enhancement-pipeline.mjs` normalizes it | Exists but `Index.tsx` never passes it — wiring only |
 | Field ownership model (AI vs user vs empty) | `src/lib/builder-inference.ts` | Fully working |
-| Feature flag system | `src/lib/feature-flags.ts` | 8 flags, build-time via `import.meta.env`, trivial to extend |
+| Rollout configuration | Builder and enhancement defaults | Always-on behavior with no frontend toggle layer |
 | User preferences with localStorage | `src/lib/user-preferences.ts` | 5 fields, clean pattern, trivial to extend |
 | Suggestion chips in BuilderHeroInput | `src/components/BuilderHeroInput.tsx` | 168 lines, good template for intent chips (Task 4) |
 
@@ -974,4 +974,3 @@ The current heuristic vocabulary covers ~30 keywords across 4 roles and 5 tones.
 - Building a new analytics backend before instrumentation improvements ship (Task 0's localStorage listener is a stopgap, not a replacement)
 - Full server-side personalization profiles
 - Deep model fine-tuning or proprietary ranking systems
-

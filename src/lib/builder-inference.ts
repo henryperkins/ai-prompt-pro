@@ -41,6 +41,15 @@ export interface BuilderSuggestionChip {
       };
 }
 
+export interface BuilderInferenceRequestContext {
+  hasAttachedSources?: boolean;
+  attachedSourceCount?: number;
+  hasPresetOrRemix?: boolean;
+  hasSessionContext?: boolean;
+  selectedOutputFormats?: string[];
+  hasPastedSourceMaterial?: boolean;
+}
+
 export interface BuilderInferenceResult {
   inferredUpdates: Partial<PromptConfig>;
   inferredFields: BuilderInferenceField[];
@@ -256,62 +265,96 @@ function buildSetFieldChip(
   };
 }
 
-function buildRouteOrientedChips(prompt: string): BuilderSuggestionChip[] {
+function buildRouteOrientedChips(
+  prompt: string,
+  requestContext?: BuilderInferenceRequestContext,
+): BuilderSuggestionChip[] {
   const taskMode = chooseTaskMode(prompt);
   if (!taskMode) return [];
 
+  const hasSourceContext = Boolean(
+    requestContext?.hasAttachedSources ||
+      requestContext?.hasPastedSourceMaterial ||
+      requestContext?.hasSessionContext,
+  );
+  const hasSelectedOutputFormats = Boolean(
+    requestContext?.selectedOutputFormats &&
+      requestContext.selectedOutputFormats.length > 0,
+  );
+
   if (taskMode.mode === "transform") {
-    return [
-      {
+    const chips: BuilderSuggestionChip[] = [];
+    if (!hasSourceContext) {
+      chips.push({
         id: "append-source-material",
         label: "Add source material",
         description: "Specify what content to transform.",
-        action: { type: "append_prompt", text: "\nSource material: [paste or describe the content to transform]" },
-      },
+        action: {
+          type: "append_prompt",
+          text: "\nSource material: [paste or describe the content to transform]",
+        },
+      });
+    }
+    chips.push(
       {
         id: "append-audience",
         label: "Add target audience",
         description: "Who will read the result?",
         action: { type: "append_prompt", text: "\nTarget audience: [who this is for]" },
       },
-    ];
+    );
+    return chips;
   }
 
   // analysis or generate
-  return [
-    {
+  const chips: BuilderSuggestionChip[] = [];
+  if (!hasSelectedOutputFormats) {
+    chips.push({
       id: "append-output-format",
       label: "Specify output format",
       description: "Define what the deliverable looks like.",
-      action: { type: "append_prompt", text: "\nOutput format: [table, report, bullet points, etc.]" },
-    },
+      action: {
+        type: "append_prompt",
+        text: "\nOutput format: [table, report, bullet points, etc.]",
+      },
+    });
+  }
+  chips.push(
     {
       id: "append-evidence",
       label: "Add evidence requirements",
       description: "What should back the claims?",
       action: { type: "append_prompt", text: "\nEvidence: [cite sources, use data, include examples]" },
     },
-  ];
+  );
+  return chips;
 }
 
 function applySuggestionRelevance(
   prompt: string,
   config: PromptConfig,
   chips: BuilderSuggestionChip[],
+  requestContext?: BuilderInferenceRequestContext,
 ): BuilderSuggestionChip[] {
   const normalizedPrompt = prompt.trim().toLowerCase();
   if (!normalizedPrompt) return [];
 
   if (chips.length > 0) {
-    const routeChips = buildRouteOrientedChips(normalizedPrompt);
-    return [...chips, ...routeChips].slice(0, 6);
+    const routeChips = buildRouteOrientedChips(normalizedPrompt, requestContext);
+    const deduped = new Map<string, BuilderSuggestionChip>();
+    for (const chip of [...chips, ...routeChips]) {
+      if (!deduped.has(chip.id)) {
+        deduped.set(chip.id, chip);
+      }
+    }
+    return Array.from(deduped.values()).slice(0, 6);
   }
 
   const hasAnyDetails =
     hasRole(config) || hasFormat(config) || hasConstraints(config);
 
   if (!hasAnyDetails && normalizedPrompt.length > 20) {
-    const routeChips = buildRouteOrientedChips(normalizedPrompt);
+    const routeChips = buildRouteOrientedChips(normalizedPrompt, requestContext);
     if (routeChips.length > 0) return routeChips.slice(0, 4);
 
     return [
@@ -333,6 +376,7 @@ function applySuggestionRelevance(
 export function inferBuilderFieldsLocally(
   prompt: string,
   config: PromptConfig,
+  requestContext?: BuilderInferenceRequestContext,
 ): BuilderInferenceResult {
   const normalizedPrompt = prompt.trim().toLowerCase();
   if (!normalizedPrompt) {
@@ -409,7 +453,12 @@ export function inferBuilderFieldsLocally(
   return {
     inferredUpdates,
     inferredFields,
-    suggestionChips: applySuggestionRelevance(normalizedPrompt, config, chips),
+    suggestionChips: applySuggestionRelevance(
+      normalizedPrompt,
+      config,
+      chips,
+      requestContext,
+    ),
     confidence,
   };
 }

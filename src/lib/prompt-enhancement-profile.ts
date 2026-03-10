@@ -5,6 +5,10 @@ export interface EnhancementProfile {
   strictnessCounts: Record<string, number>;
   ambiguityModeCounts: Record<string, number>;
   variantCounts: Record<string, number>;
+  intentOverrideCounts: Record<string, number>;
+  assumptionEditCounts: Record<string, number>;
+  formatCounts: Record<string, number>;
+  structuredApplyCounts: Record<string, number>;
   acceptCount: number;
   rerunCount: number;
   totalEnhancements: number;
@@ -16,6 +20,10 @@ function createEmptyProfile(): EnhancementProfile {
     strictnessCounts: {},
     ambiguityModeCounts: {},
     variantCounts: {},
+    intentOverrideCounts: {},
+    assumptionEditCounts: {},
+    formatCounts: {},
+    structuredApplyCounts: {},
     acceptCount: 0,
     rerunCount: 0,
     totalEnhancements: 0,
@@ -33,6 +41,10 @@ export function loadEnhancementProfile(): EnhancementProfile {
       strictnessCounts: safeRecord(parsed.strictnessCounts),
       ambiguityModeCounts: safeRecord(parsed.ambiguityModeCounts),
       variantCounts: safeRecord(parsed.variantCounts),
+      intentOverrideCounts: safeRecord(parsed.intentOverrideCounts),
+      assumptionEditCounts: safeRecord(parsed.assumptionEditCounts),
+      formatCounts: safeRecord(parsed.formatCounts),
+      structuredApplyCounts: safeRecord(parsed.structuredApplyCounts),
       acceptCount: safeCounter(parsed.acceptCount),
       rerunCount: safeCounter(parsed.rerunCount),
       totalEnhancements: safeCounter(parsed.totalEnhancements),
@@ -47,25 +59,41 @@ export function recordEnhancementAction(
     | { type: "enhancement_completed"; depth: string; strictness: string; ambiguityMode: string }
     | { type: "variant_applied"; variant: string }
     | { type: "accepted" }
-    | { type: "rerun" },
+    | { type: "rerun" }
+    | { type: "intent_overridden"; intent: string }
+    | { type: "assumption_edited"; key: string }
+    | { type: "format_accepted"; format: string }
+    | { type: "structured_apply_all"; key?: string },
 ): void {
   const profile = loadEnhancementProfile();
 
   switch (action.type) {
     case "enhancement_completed":
       profile.totalEnhancements += 1;
-      profile.depthCounts[action.depth] = (profile.depthCounts[action.depth] ?? 0) + 1;
-      profile.strictnessCounts[action.strictness] = (profile.strictnessCounts[action.strictness] ?? 0) + 1;
-      profile.ambiguityModeCounts[action.ambiguityMode] = (profile.ambiguityModeCounts[action.ambiguityMode] ?? 0) + 1;
+      incrementRecord(profile.depthCounts, action.depth);
+      incrementRecord(profile.strictnessCounts, action.strictness);
+      incrementRecord(profile.ambiguityModeCounts, action.ambiguityMode);
       break;
     case "variant_applied":
-      profile.variantCounts[action.variant] = (profile.variantCounts[action.variant] ?? 0) + 1;
+      incrementRecord(profile.variantCounts, action.variant);
       break;
     case "accepted":
       profile.acceptCount += 1;
       break;
     case "rerun":
       profile.rerunCount += 1;
+      break;
+    case "intent_overridden":
+      incrementRecord(profile.intentOverrideCounts, action.intent);
+      break;
+    case "assumption_edited":
+      incrementRecord(profile.assumptionEditCounts, action.key);
+      break;
+    case "format_accepted":
+      incrementRecord(profile.formatCounts, action.format);
+      break;
+    case "structured_apply_all":
+      incrementRecord(profile.structuredApplyCounts, action.key ?? "all");
       break;
   }
 
@@ -98,6 +126,12 @@ function saveProfile(profile: EnhancementProfile): void {
   } catch {
     // ignore
   }
+}
+
+function incrementRecord(record: Record<string, number>, key: string): void {
+  const normalizedKey = key.trim();
+  if (!normalizedKey) return;
+  record[normalizedKey] = (record[normalizedKey] ?? 0) + 1;
 }
 
 function safeCounter(value: unknown): number {

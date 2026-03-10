@@ -15,22 +15,6 @@ vi.mock("@/integrations/neon/client", () => ({
   },
 }));
 
-vi.mock("@/lib/feature-flags", () => ({
-  builderRedesignFlags: {
-    builderRedesignPhase1: true,
-    builderRedesignPhase2: true,
-    builderRedesignPhase3: true,
-    builderRedesignPhase4: true,
-  },
-  communityFeatureFlags: {
-    communityMobileEnhancements: false,
-  },
-  launchExperimentFlags: {
-    launchHeroCopyExperiment: false,
-    launchPrimaryCtaExperiment: false,
-  },
-}));
-
 function buildConfig(overrides?: Partial<PromptConfig>): PromptConfig {
   return {
     ...defaultConfig,

@@ -93,6 +93,14 @@ npm run agent:codex
   "lock_metadata": {                      // optional
     "role": "user",
     "tone": "empty"
+  },
+  "request_context": {                    // optional
+    "hasAttachedSources": true,
+    "attachedSourceCount": 2,
+    "hasPresetOrRemix": true,
+    "hasSessionContext": true,
+    "selectedOutputFormats": ["Markdown", "Table"],
+    "hasPastedSourceMaterial": false
   }
 }
 ```

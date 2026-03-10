@@ -45,6 +45,20 @@ export interface EnhanceDetectedContext {
 
 export type EnhanceParseStatus = "json" | "fallback";
 
+export type EditableEnhancementListField =
+  | "assumptions_made"
+  | "open_questions"
+  | "plan_assumptions"
+  | "plan_open_questions";
+
+export interface EditableEnhancementListEdit {
+  field: EditableEnhancementListField;
+  index: number;
+  before: string;
+  after: string;
+  source: "structured_inspector";
+}
+
 export interface EnhanceMetadata {
   enhancedPrompt: string;
   partsBreakdown?: EnhancePartsBreakdown;

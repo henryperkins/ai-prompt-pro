@@ -11,6 +11,12 @@ export interface LineDiffResult {
   removed: number;
 }
 
+export interface TextEditMetrics {
+  editDistance: number;
+  editDistanceRatio: number;
+  maxLength: number;
+}
+
 function splitLines(input: string): string[] {
   if (!input) return [];
   return input.replace(/\r\n/g, "\n").split("\n");
@@ -74,4 +80,51 @@ export function buildLineDiff(before: string, after: string): LineDiffResult {
   }
 
   return { lines, added, removed };
+}
+
+function normalizeText(input: string): string {
+  return input.replace(/\r\n/g, "\n");
+}
+
+export function calculateEditDistance(before: string, after: string): number {
+  const left = normalizeText(before);
+  const right = normalizeText(after);
+
+  if (left === right) return 0;
+  if (!left) return right.length;
+  if (!right) return left.length;
+
+  const shorter = left.length <= right.length ? left : right;
+  const longer = left.length <= right.length ? right : left;
+  let previousRow = Array.from({ length: shorter.length + 1 }, (_, index) => index);
+
+  for (let row = 1; row <= longer.length; row += 1) {
+    const currentRow = [row];
+    for (let column = 1; column <= shorter.length; column += 1) {
+      const substitutionCost =
+        longer[row - 1] === shorter[column - 1] ? 0 : 1;
+      currentRow[column] = Math.min(
+        currentRow[column - 1] + 1,
+        previousRow[column] + 1,
+        previousRow[column - 1] + substitutionCost,
+      );
+    }
+    previousRow = currentRow;
+  }
+
+  return previousRow[shorter.length] ?? 0;
+}
+
+export function buildTextEditMetrics(
+  before: string,
+  after: string,
+): TextEditMetrics {
+  const editDistance = calculateEditDistance(before, after);
+  const maxLength = Math.max(normalizeText(before).length, normalizeText(after).length, 1);
+
+  return {
+    editDistance,
+    editDistanceRatio: Number((editDistance / maxLength).toFixed(4)),
+    maxLength,
+  };
 }

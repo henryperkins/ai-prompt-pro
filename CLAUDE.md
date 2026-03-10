@@ -88,11 +88,9 @@ npx vitest run src/test/persistence.test.ts
 
 ## Feature Flags
 
-- `VITE_COMMUNITY_MOBILE_ENHANCEMENTS` - gates mobile-specific Community behaviors (filter drawer, comment thread drawers)
-- `VITE_BUILDER_REDESIGN_PHASE{1..4}` - builder redesign phases (all default `true`)
-- `VITE_LAUNCH_EXPERIMENT_HERO_COPY` - A/B hero copy experiment
-- `VITE_LAUNCH_EXPERIMENT_PRIMARY_CTA` - A/B primary CTA experiment
-- Feature flag implementation in `src/lib/feature-flags.ts`
+Community mobile behaviors are always enabled on mobile viewports.
+- Launch assignments for hero copy and primary CTA always run.
+- Builder redesign and enhancement controls ship as the default UI path.
 
 ## Agent Preferences
 

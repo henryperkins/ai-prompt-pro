@@ -2,17 +2,15 @@
 
 Last updated: 2026-02-26
 
-> Status: Active while `VITE_LAUNCH_EXPERIMENT_HERO_COPY` or `VITE_LAUNCH_EXPERIMENT_PRIMARY_CTA` are enabled.
+> Status: Active by default.
 
 ## Scope
 Two launch-window experiments are configured:
 - Hero copy A/B
 - Primary CTA text A/B
 
-## Runtime Configuration
-Feature flags in `.env`:
-- `VITE_LAUNCH_EXPERIMENT_HERO_COPY`
-- `VITE_LAUNCH_EXPERIMENT_PRIMARY_CTA`
+## Runtime Behavior
+Launch assignments always run for the hero copy and primary CTA experiments.
 
 Assignments are session-sticky and can be overridden with URL params:
 - `exp_hero=a|b|control|speed`

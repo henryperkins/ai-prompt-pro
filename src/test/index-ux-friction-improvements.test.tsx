@@ -181,10 +181,6 @@ describe("Index UX friction improvements", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
-    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE1", "true");
-    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE2", "true");
-    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE3", "true");
-    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE4", "true");
     mocks.usePromptBuilder.mockReturnValue(buildPromptBuilderState());
   });
 

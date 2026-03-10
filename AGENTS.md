@@ -44,12 +44,10 @@ Add regression tests for behavior changes in prompt composition, persistence, au
 For Community mobile UX changes, also add/adjust Playwright checks in `playwright/community.mobile.spec.ts` and keep 320/375/390/428 baselines.
 
 ## Feature Flags & Telemetry
-Community mobile rollout is gated by `VITE_COMMUNITY_MOBILE_ENHANCEMENTS` (default `true`).  
-When this flag is enabled, mobile-specific Community behaviors are active (filter drawer, comment thread drawers, one-tap mobile notifications).  
+Community mobile behaviors are always enabled on mobile viewports (filter drawer, comment thread drawers, one-tap mobile notifications).  
 Community mobile telemetry events are emitted via `src/lib/community-telemetry.ts` and `src/hooks/useCommunityMobileTelemetry.ts`.  
-Builder redesign phases: `VITE_BUILDER_REDESIGN_PHASE{1..4}` (all default `true`).  
-Launch experiments: `VITE_LAUNCH_EXPERIMENT_HERO_COPY`, `VITE_LAUNCH_EXPERIMENT_PRIMARY_CTA`.  
-Feature flag implementation in `src/lib/feature-flags.ts`.
+Builder redesign and enhancement controls ship as the default UI path.  
+Launch assignments for hero copy and primary CTA always run.
 
 ## Commit & Pull Request Guidelines
 Recent history mixes terse messages and scoped prefixes (for example, `ci: ...`). Prefer clear imperative commits with optional scope: `ui: improve community post card spacing`. Avoid vague messages like `up` or `Changes`.  

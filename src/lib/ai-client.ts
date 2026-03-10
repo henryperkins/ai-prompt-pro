@@ -21,6 +21,7 @@ import {
   shouldEmitCodexOutputText,
   type CodexStreamEventMeta,
 } from "@/lib/codex-stream";
+import type { BuilderInferenceRequestContext } from "@/lib/builder-inference";
 
 function normalizeEnvValue(value?: string): string | undefined {
   if (typeof value !== "string") return undefined;
@@ -1572,6 +1573,7 @@ export interface InferBuilderFieldsInput {
     constraints?: string[];
   };
   lockMetadata?: Record<string, "ai" | "user" | "empty">;
+  requestContext?: BuilderInferenceRequestContext;
 }
 
 export interface InferBuilderFieldsOutput {
@@ -1621,6 +1623,39 @@ export async function inferBuilderFields(
   }
   if (input.lockMetadata && typeof input.lockMetadata === "object") {
     payload.lock_metadata = input.lockMetadata;
+  }
+  if (input.requestContext && typeof input.requestContext === "object") {
+    const requestContext = {
+      hasAttachedSources:
+        typeof input.requestContext.hasAttachedSources === "boolean"
+          ? input.requestContext.hasAttachedSources
+          : undefined,
+      attachedSourceCount:
+        typeof input.requestContext.attachedSourceCount === "number"
+          ? input.requestContext.attachedSourceCount
+          : undefined,
+      hasPresetOrRemix:
+        typeof input.requestContext.hasPresetOrRemix === "boolean"
+          ? input.requestContext.hasPresetOrRemix
+          : undefined,
+      hasSessionContext:
+        typeof input.requestContext.hasSessionContext === "boolean"
+          ? input.requestContext.hasSessionContext
+          : undefined,
+      selectedOutputFormats:
+        Array.isArray(input.requestContext.selectedOutputFormats) &&
+        input.requestContext.selectedOutputFormats.length > 0
+          ? input.requestContext.selectedOutputFormats
+          : undefined,
+      hasPastedSourceMaterial:
+        typeof input.requestContext.hasPastedSourceMaterial === "boolean"
+          ? input.requestContext.hasPastedSourceMaterial
+          : undefined,
+    };
+
+    if (Object.values(requestContext).some((value) => value !== undefined)) {
+      payload.request_context = requestContext;
+    }
   }
 
   const resp = await postFunctionWithAuthRecovery("infer-builder-fields", payload);

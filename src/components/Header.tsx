@@ -32,7 +32,6 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { useToast } from "@/hooks/use-toast";
 import { AuthDialog } from "@/components/AuthDialog";
 import { NotificationPanel } from "@/components/NotificationPanel";
-import { communityFeatureFlags } from "@/lib/feature-flags";
 import { APP_ROUTE_NAV_ITEMS, isRouteActive } from "@/lib/navigation";
 import { getGravatarUrl } from "@/lib/gravatar";
 import { brandCopy } from "@/lib/brand-copy";
@@ -80,7 +79,7 @@ export function Header({ theme, onToggleTheme }: HeaderProps) {
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [deleteAccountConfirmText, setDeleteAccountConfirmText] = useState("");
   const [deletingAccount, setDeletingAccount] = useState(false);
-  const mobileNotificationsEnabled = communityFeatureFlags.communityMobileEnhancements;
+  const mobileNotificationsEnabled = true;
   const canDeleteAccount = deleteAccountConfirmText.trim().toUpperCase() === "DELETE";
   const isMidnight = theme === "midnight";
   const themeToggleLabel = isMidnight ? "Switch to standard theme" : "Switch to midnight theme";

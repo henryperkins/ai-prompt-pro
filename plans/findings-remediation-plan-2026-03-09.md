@@ -10,7 +10,7 @@ This plan supersedes the earlier draft remediation list and only covers issues s
 2. Save/share dialog still closes before async save success is known.
 3. `parseDetectedContext()` still drops payloads that only contain `primary_intent`.
 4. Variant-aware enhancement telemetry still records the original prompt length instead of the selected variant length.
-5. Enhancement feature flags are only partially wired:
+5. Enhancement rollout controls were only partially wired:
    - `enhancementIntentConfirmation` is wired.
    - `enhancementPersonalization` is wired.
    - `enhancementStructuredInspector` is not fully wired.
@@ -30,7 +30,7 @@ This plan supersedes the earlier draft remediation list and only covers issues s
 
 3. `primary_intent` metadata guard.
 4. Variant telemetry sizing.
-5. Partial feature-flag wiring.
+5. Partial rollout-control wiring.
 6. Apply-to-builder format/length sync.
 
 ### P2 - cleanup and hardening
@@ -41,7 +41,7 @@ This plan supersedes the earlier draft remediation list and only covers issues s
 ## Recommended Delivery Order
 
 1. Ship the user-facing correctness fixes first: save/share dialog, ambiguity heuristics, metadata guard, and variant telemetry sizing.
-2. Then close the rollout-contract gaps: feature-flag wiring and apply-to-builder format/length synchronization.
+2. Then close the rollout-contract gaps: rollout-control cleanup and apply-to-builder format/length synchronization.
 3. Finish with infrastructure hygiene: telemetry storage hardening and generated artifact cleanup.
 
 ## Issue 1: Make save/share dialog transactional
@@ -211,16 +211,14 @@ Make rerun/acceptance telemetry reflect the prompt the user actually chose, not 
 
 Acceptance and rerun telemetry match the active prompt variant the user worked from.
 
-## Issue 5: Finish wiring the remaining enhancement feature flags
+## Issue 5: Remove the unused frontend enhancement toggle layer
 
 Files:
 
-- `src/lib/feature-flags.ts`
 - `src/pages/Index.tsx`
 - `src/components/OutputPanel.tsx`
 - `src/test/output-panel-enhance-controls.test.tsx`
 - `src/test/output-panel-enhance-metadata.test.tsx`
-- optionally new `src/test/index-enhance-feature-flags.test.tsx`
 
 ### Goal
 
@@ -261,7 +259,7 @@ Do not remove `enhancementIntentConfirmation` or `enhancementPersonalization`; t
 
 1. `npx vitest run src/test/output-panel-enhance-controls.test.tsx`
 2. `npx vitest run src/test/output-panel-enhance-metadata.test.tsx`
-3. `npx vitest run src/test/index-enhance-feature-flags.test.tsx` (if created)
+3. Add a targeted Index regression slice only if new rollout-control coverage is introduced.
 
 ### Exit criteria
 
@@ -418,7 +416,7 @@ Run these after the implementation sequence completes:
 
 1. PR-1: save/share dialog transactionality + `primary_intent` metadata guard + variant telemetry sizing.
 2. PR-2: ambiguity heuristics + apply-to-builder format/length sync.
-3. PR-3: feature-flag wiring and regression coverage.
+3. PR-3: rollout-control cleanup and regression coverage.
 4. PR-4: telemetry storage hardening.
 5. PR-5: generated artifact cleanup and ignore rules.
 

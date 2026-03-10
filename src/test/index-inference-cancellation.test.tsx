@@ -174,13 +174,10 @@ describe("Index suggestion inference cancellation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
-    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE1", "true");
-    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE3", "true");
   });
 
   afterEach(() => {
     vi.useRealTimers();
-    vi.unstubAllEnvs();
   });
 
   it("ignores stale remote suggestions after prompt is cleared", async () => {

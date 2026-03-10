@@ -18,7 +18,6 @@ import { CommunityComments } from "@/components/community/CommunityComments";
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/base/drawer";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getCommunityPostRarityClass } from "@/lib/community-rarity";
-import { communityFeatureFlags } from "@/lib/feature-flags";
 import { UI_STATUS_ROW_CLASSES, UI_STATUS_SURFACE_CLASSES } from "@/lib/ui-status";
 import { cx } from "@/lib/utils/cx";
 import {
@@ -162,7 +161,7 @@ export function CommunityPostDetail({
 }: CommunityPostDetailProps) {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const useMobileCommentsDrawer = isMobile && communityFeatureFlags.communityMobileEnhancements;
+  const useMobileCommentsDrawer = isMobile;
   const [commentsOpen, setCommentsOpen] = useState(false);
   const autoOpenedPostIdRef = useRef<string | null>(null);
   const createdAgo = formatDistanceToNow(new Date(post.createdAt), { addSuffix: true });

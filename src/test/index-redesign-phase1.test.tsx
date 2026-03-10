@@ -147,7 +147,6 @@ describe("Index redesign phase 1 gating", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
-    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE1", "true");
     mocks.usePromptBuilder.mockReturnValue(buildPromptBuilderState());
   });
 

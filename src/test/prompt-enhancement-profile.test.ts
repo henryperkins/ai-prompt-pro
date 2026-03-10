@@ -58,6 +58,45 @@ describe("prompt enhancement profile", () => {
     expect(profile.rerunCount).toBe(1);
   });
 
+  it("records richer override/apply actions", () => {
+    recordEnhancementAction({ type: "intent_overridden", intent: "analysis" });
+    recordEnhancementAction({ type: "intent_overridden", intent: "analysis" });
+    recordEnhancementAction({ type: "assumption_edited", key: "constraints" });
+    recordEnhancementAction({
+      type: "format_accepted",
+      format: "Markdown report with tables",
+    });
+    recordEnhancementAction({ type: "structured_apply_all" });
+
+    const profile = loadEnhancementProfile();
+    expect(profile.intentOverrideCounts.analysis).toBe(2);
+    expect(profile.assumptionEditCounts.constraints).toBe(1);
+    expect(profile.formatCounts["Markdown report with tables"]).toBe(1);
+    expect(profile.structuredApplyCounts.all).toBe(1);
+  });
+
+  it("loads older stored profiles without new keys", () => {
+    localStorage.setItem(
+      "promptforge-enhancement-profile",
+      JSON.stringify({
+        depthCounts: { guided: 2 },
+        strictnessCounts: { balanced: 2 },
+        ambiguityModeCounts: { infer_conservatively: 2 },
+        variantCounts: { shorter: 1 },
+        acceptCount: 1,
+        rerunCount: 1,
+        totalEnhancements: 2,
+      }),
+    );
+
+    const profile = loadEnhancementProfile();
+    expect(profile.depthCounts.guided).toBe(2);
+    expect(profile.intentOverrideCounts).toEqual({});
+    expect(profile.assumptionEditCounts).toEqual({});
+    expect(profile.formatCounts).toEqual({});
+    expect(profile.structuredApplyCounts).toEqual({});
+  });
+
   it("resets profile cleanly", () => {
     recordEnhancementAction({
       type: "enhancement_completed",
@@ -67,6 +106,7 @@ describe("prompt enhancement profile", () => {
     });
     recordEnhancementAction({ type: "variant_applied", variant: "shorter" });
     recordEnhancementAction({ type: "accepted" });
+    recordEnhancementAction({ type: "intent_overridden", intent: "rewrite" });
     resetEnhancementProfile();
 
     const profile = loadEnhancementProfile();
@@ -77,6 +117,10 @@ describe("prompt enhancement profile", () => {
     expect(Object.keys(profile.variantCounts)).toHaveLength(0);
     expect(Object.keys(profile.strictnessCounts)).toHaveLength(0);
     expect(Object.keys(profile.ambiguityModeCounts)).toHaveLength(0);
+    expect(Object.keys(profile.intentOverrideCounts)).toHaveLength(0);
+    expect(Object.keys(profile.assumptionEditCounts)).toHaveLength(0);
+    expect(Object.keys(profile.formatCounts)).toHaveLength(0);
+    expect(Object.keys(profile.structuredApplyCounts)).toHaveLength(0);
   });
 
   it("does not mutate when no explicit action", () => {

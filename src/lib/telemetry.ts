@@ -26,7 +26,8 @@ export type BuilderTelemetryEvent =
   | "builder_enhance_rerun"
   | "builder_enhance_too_much_changed"
   | "builder_enhance_assumption_edited"
-  | "builder_enhance_intent_overridden";
+  | "builder_enhance_intent_overridden"
+  | "builder_enhance_structured_applied";
 
 export type BuilderTelemetryValue = string | number | boolean | null;
 

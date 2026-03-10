@@ -14,7 +14,7 @@ Build, enhance, and share AI prompts with a structured prompt builder, a private
 - Private prompt library with save/load, share/unshare, and bulk edit
 - Community feed with search/filter/sort, upvotes, verified votes, comments, and remix attribution
 - Prompt history/version restore and reusable presets
-- Optional Community mobile UX enhancements behind `VITE_COMMUNITY_MOBILE_ENHANCEMENTS`
+- Community mobile UX enhancements enabled by default
 
 ## Local development
 
@@ -78,7 +78,6 @@ Key frontend vars:
 - `VITE_ENHANCE_REQUEST_TIMEOUT_MS` (optional; defaults to 180s)
 - `VITE_ENHANCE_TRANSPORT` (`auto` | `sse` | `ws`)
 - `VITE_ENHANCE_WS_CONNECT_TIMEOUT_MS` (optional; defaults to 3500ms)
-- `VITE_COMMUNITY_MOBILE_ENHANCEMENTS` (feature flag)
 
 ## Deploy to Azure Static Web Apps (production)
 

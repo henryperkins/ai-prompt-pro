@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   saveVersion: vi.fn(),
   savePrompt: vi.fn(),
   saveAndSharePrompt: vi.fn(),
+  trackBuilderEvent: vi.fn(),
 }));
 
 type EnhanceStreamEvent = {
@@ -34,6 +35,10 @@ vi.mock("@/hooks/use-mobile", () => ({
 vi.mock("@/lib/ai-client", () => ({
   inferBuilderFields: (...args: unknown[]) => mocks.inferBuilderFields(...args),
   streamEnhance: (...args: unknown[]) => mocks.streamEnhance(...args),
+}));
+
+vi.mock("@/lib/telemetry", () => ({
+  trackBuilderEvent: (...args: unknown[]) => mocks.trackBuilderEvent(...args),
 }));
 
 vi.mock("@/components/PageShell", () => ({
@@ -60,6 +65,12 @@ vi.mock("@/components/BuilderHeroInput", () => ({
       <div data-testid="intent-override">{intentOverride ?? "null"}</div>
       <button type="button" onClick={() => onIntentOverrideChange("rewrite")}>
         Set override rewrite
+      </button>
+      <button type="button" onClick={() => onIntentOverrideChange("analysis")}>
+        Set override analysis
+      </button>
+      <button type="button" onClick={() => onIntentOverrideChange(null)}>
+        Use auto-detect
       </button>
       <button type="button" onClick={onClear}>
         Clear prompt
@@ -220,10 +231,6 @@ describe("High-1: Clear sticky intentOverride and enhancement override state", (
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
-    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE1", "true");
-    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE2", "false");
-    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE3", "false");
-    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE4", "false");
     mocks.streamEnhance.mockImplementation(
       ({
         onEvent,
@@ -252,10 +259,6 @@ describe("High-1: Clear sticky intentOverride and enhancement override state", (
         onDone?.();
       },
     );
-  });
-
-  afterEach(() => {
-    vi.unstubAllEnvs();
   });
 
   it("clears intentOverride after handleClearPrompt", async () => {
@@ -325,5 +328,110 @@ describe("High-1: Clear sticky intentOverride and enhancement override state", (
     await waitFor(() => {
       expect(screen.getByTestId("intent-override")).toHaveTextContent("null");
     });
+  });
+
+  it("tracks effective intent transitions including explicit override back to auto", async () => {
+    await renderIndex();
+    mocks.trackBuilderEvent.mockClear();
+
+    fireEvent.click(screen.getByRole("button", { name: "Set override rewrite" }));
+    expect(mocks.trackBuilderEvent).toHaveBeenCalledWith(
+      "builder_enhance_intent_overridden",
+      expect.objectContaining({
+        fromIntent: "auto",
+        toIntent: "rewrite",
+      }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Set override analysis" }));
+    expect(mocks.trackBuilderEvent).toHaveBeenCalledWith(
+      "builder_enhance_intent_overridden",
+      expect.objectContaining({
+        fromIntent: "rewrite",
+        toIntent: "analysis",
+      }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Use auto-detect" }));
+    expect(mocks.trackBuilderEvent).toHaveBeenCalledWith(
+      "builder_enhance_intent_overridden",
+      expect.objectContaining({
+        fromIntent: "analysis",
+        toIntent: "auto",
+      }),
+    );
+  });
+
+  it("ignores no-op intent transitions", async () => {
+    await renderIndex();
+    mocks.trackBuilderEvent.mockClear();
+
+    fireEvent.click(screen.getByRole("button", { name: "Use auto-detect" }));
+    expect(mocks.trackBuilderEvent).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Set override rewrite" }));
+    expect(mocks.trackBuilderEvent).toHaveBeenCalledTimes(1);
+
+    mocks.trackBuilderEvent.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "Set override rewrite" }));
+    expect(mocks.trackBuilderEvent).not.toHaveBeenCalled();
+  });
+
+  it("resets enhancement preferences and learned profile from the UI", async () => {
+    localStorage.setItem(
+      "promptforge-user-prefs",
+      JSON.stringify({
+        theme: "midnight",
+        webSearchEnabled: true,
+        showAdvancedControls: true,
+        recentlyUsedPresetIds: [],
+        favoritePresetIds: [],
+        enhancementDepth: "advanced",
+        rewriteStrictness: "aggressive",
+        ambiguityMode: "ask_me",
+      }),
+    );
+    localStorage.setItem(
+      "promptforge-enhancement-profile",
+      JSON.stringify({
+        depthCounts: { advanced: 2 },
+        strictnessCounts: { aggressive: 2 },
+        ambiguityModeCounts: { ask_me: 2 },
+        variantCounts: { shorter: 1 },
+        intentOverrideCounts: { rewrite: 1 },
+        assumptionEditCounts: { constraints: 1 },
+        formatCounts: { Markdown: 1 },
+        structuredApplyCounts: { all: 1 },
+        acceptCount: 1,
+        rerunCount: 1,
+        totalEnhancements: 3,
+      }),
+    );
+
+    await renderIndex();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Reset enhancement preferences" }),
+    );
+
+    await waitFor(() => {
+      expect(mocks.toast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Enhancement preferences reset",
+        }),
+      );
+    });
+
+    expect(localStorage.getItem("promptforge-enhancement-profile")).toBeNull();
+    expect(
+      JSON.parse(localStorage.getItem("promptforge-user-prefs") ?? "{}"),
+    ).toEqual(
+      expect.objectContaining({
+        theme: "midnight",
+        enhancementDepth: "guided",
+        rewriteStrictness: "balanced",
+        ambiguityMode: "infer_conservatively",
+      }),
+    );
   });
 });

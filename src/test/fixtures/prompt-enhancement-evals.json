@@ -1,25 +1,1480 @@
 [
-  { "id": "vague-01", "category": "vague", "input": "Help", "expectedPrimaryIntent": null, "expectedAmbiguityLevel": "high", "forbiddenAssumptions": ["specific audience", "specific deliverable"] },
-  { "id": "vague-02", "category": "vague", "input": "Make this better", "expectedPrimaryIntent": null, "expectedAmbiguityLevel": "high", "forbiddenAssumptions": [] },
-  { "id": "vague-03", "category": "vague", "input": "Write a proposal", "expectedPrimaryIntent": "brainstorm", "expectedAmbiguityLevel": "high", "forbiddenAssumptions": [] },
-  { "id": "vague-04", "category": "vague", "input": "Help me with onboarding", "expectedPrimaryIntent": null, "expectedAmbiguityLevel": "high", "forbiddenAssumptions": [] },
-  { "id": "vague-05", "category": "vague", "input": "Do the thing", "expectedPrimaryIntent": null, "expectedAmbiguityLevel": "high", "forbiddenAssumptions": [] },
-  { "id": "rewrite-01", "category": "rewrite", "input": "Rewrite this email to be more concise", "expectedPrimaryIntent": "rewrite", "expectedAmbiguityLevel": "medium", "forbiddenAssumptions": [] },
-  { "id": "rewrite-02", "category": "rewrite", "input": "Edit and revise this proposal for the board", "expectedPrimaryIntent": "rewrite", "expectedAmbiguityLevel": "medium", "forbiddenAssumptions": [] },
-  { "id": "rewrite-03", "category": "rewrite", "input": "Simplify this technical documentation for beginners", "expectedPrimaryIntent": "rewrite", "expectedAmbiguityLevel": "medium", "forbiddenAssumptions": [] },
-  { "id": "analysis-01", "category": "analysis", "input": "Analyze these retention numbers by cohort", "expectedPrimaryIntent": "analysis", "expectedAmbiguityLevel": "high", "forbiddenAssumptions": [] },
-  { "id": "analysis-02", "category": "analysis", "input": "Compare our Q3 revenue against Q2 and identify growth drivers", "expectedPrimaryIntent": "analysis", "expectedAmbiguityLevel": "high", "forbiddenAssumptions": [] },
-  { "id": "analysis-03", "category": "analysis", "input": "Evaluate the pros and cons of migrating to microservices", "expectedPrimaryIntent": "analysis", "expectedAmbiguityLevel": "high", "forbiddenAssumptions": [] },
-  { "id": "code-01", "category": "code", "input": "Write a Python function to sort a list of dictionaries by multiple keys", "expectedPrimaryIntent": "code", "expectedAmbiguityLevel": "medium", "forbiddenAssumptions": [] },
-  { "id": "code-02", "category": "code", "input": "Debug this React component that fails to re-render on state change", "expectedPrimaryIntent": "code", "expectedAmbiguityLevel": "high", "forbiddenAssumptions": [] },
-  { "id": "code-03", "category": "code", "input": "Refactor this API endpoint to use proper error handling and validation", "expectedPrimaryIntent": "code", "expectedAmbiguityLevel": "high", "forbiddenAssumptions": [] },
-  { "id": "brainstorm-01", "category": "brainstorm", "input": "Brainstorm 10 creative marketing campaign ideas for a SaaS launch", "expectedPrimaryIntent": "brainstorm", "expectedAmbiguityLevel": "high", "forbiddenAssumptions": [] },
-  { "id": "brainstorm-02", "category": "brainstorm", "input": "Generate unique product name ideas for an AI writing assistant", "expectedPrimaryIntent": "brainstorm", "expectedAmbiguityLevel": "high", "forbiddenAssumptions": [] },
-  { "id": "brainstorm-03", "category": "brainstorm", "input": "Come up with 5 approaches to reduce customer churn", "expectedPrimaryIntent": null, "expectedAmbiguityLevel": "medium", "forbiddenAssumptions": [] },
-  { "id": "extraction-01", "category": "extraction", "input": "Extract the key findings and action items from this meeting transcript", "expectedPrimaryIntent": "extraction", "expectedAmbiguityLevel": "high", "forbiddenAssumptions": [] },
-  { "id": "extraction-02", "category": "extraction", "input": "Summarize the main arguments from this research paper", "expectedPrimaryIntent": "extraction", "expectedAmbiguityLevel": "high", "forbiddenAssumptions": [] },
-  { "id": "fact-sensitive-01", "category": "fact-sensitive", "input": "What are the latest AI safety regulations passed this year?", "expectedPrimaryIntent": null, "expectedAmbiguityLevel": "high", "expectedMissingSlots": ["factual_verification"], "forbiddenAssumptions": ["specific regulation names", "specific dates"] },
-  { "id": "fact-sensitive-02", "category": "fact-sensitive", "input": "Give me current statistics on global renewable energy adoption", "expectedPrimaryIntent": null, "expectedAmbiguityLevel": "high", "expectedMissingSlots": ["factual_verification"], "forbiddenAssumptions": ["specific numbers", "specific years"] },
-  { "id": "planning-01", "category": "planning", "input": "Create a project plan with milestones and timeline for launching a mobile app", "expectedPrimaryIntent": "planning", "expectedAmbiguityLevel": "medium", "forbiddenAssumptions": [] },
-  { "id": "research-01", "category": "research", "input": "Research the latest trends in AI safety and summarize key findings", "expectedPrimaryIntent": "research", "expectedAmbiguityLevel": "high", "forbiddenAssumptions": [] }
+  {
+    "id": "vague-01",
+    "category": "vague",
+    "input": "Help",
+    "expectedPrimaryIntent": null,
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "open_questions"
+    ],
+    "forbiddenAssumptions": [
+      "specific audience",
+      "specific deliverable",
+      "specific success metric"
+    ]
+  },
+  {
+    "id": "vague-02",
+    "category": "vague",
+    "input": "Make this better",
+    "expectedPrimaryIntent": null,
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "open_questions"
+    ],
+    "forbiddenAssumptions": [
+      "specific audience",
+      "specific deliverable",
+      "specific success metric"
+    ]
+  },
+  {
+    "id": "vague-03",
+    "category": "vague",
+    "input": "Write a proposal",
+    "expectedPrimaryIntent": "brainstorm",
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "open_questions"
+    ],
+    "forbiddenAssumptions": [
+      "specific audience",
+      "specific deliverable",
+      "specific success metric"
+    ]
+  },
+  {
+    "id": "vague-04",
+    "category": "vague",
+    "input": "Help me with onboarding",
+    "expectedPrimaryIntent": null,
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "open_questions"
+    ],
+    "forbiddenAssumptions": [
+      "specific audience",
+      "specific deliverable",
+      "specific success metric"
+    ]
+  },
+  {
+    "id": "vague-05",
+    "category": "vague",
+    "input": "Do the thing",
+    "expectedPrimaryIntent": null,
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "open_questions"
+    ],
+    "forbiddenAssumptions": [
+      "specific audience",
+      "specific deliverable",
+      "specific success metric"
+    ]
+  },
+  {
+    "id": "vague-06",
+    "category": "vague",
+    "input": "Need a prompt",
+    "expectedPrimaryIntent": null,
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "open_questions"
+    ],
+    "forbiddenAssumptions": [
+      "specific audience",
+      "specific deliverable",
+      "specific success metric"
+    ]
+  },
+  {
+    "id": "vague-07",
+    "category": "vague",
+    "input": "Make this concise",
+    "expectedPrimaryIntent": null,
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "open_questions"
+    ],
+    "forbiddenAssumptions": [
+      "specific audience",
+      "specific deliverable",
+      "specific success metric"
+    ]
+  },
+  {
+    "id": "vague-08",
+    "category": "vague",
+    "input": "Need help here",
+    "expectedPrimaryIntent": null,
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "open_questions"
+    ],
+    "forbiddenAssumptions": [
+      "specific audience",
+      "specific deliverable",
+      "specific success metric"
+    ]
+  },
+  {
+    "id": "rewrite-01",
+    "category": "rewrite",
+    "input": "Rewrite this email to be more concise",
+    "expectedPrimaryIntent": "rewrite",
+    "expectedAmbiguityLevel": "medium",
+    "expectedMissingSlots": [
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": false,
+    "requiresOpenQuestions": false,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "audience",
+      "constraints"
+    ],
+    "forbiddenAssumptions": [
+      "new facts not in source",
+      "invented audience details"
+    ]
+  },
+  {
+    "id": "rewrite-02",
+    "category": "rewrite",
+    "input": "Edit and revise this proposal for the board",
+    "expectedPrimaryIntent": "rewrite",
+    "expectedAmbiguityLevel": "medium",
+    "expectedMissingSlots": [
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": false,
+    "requiresOpenQuestions": false,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "audience",
+      "constraints"
+    ],
+    "forbiddenAssumptions": [
+      "new facts not in source",
+      "invented audience details"
+    ]
+  },
+  {
+    "id": "rewrite-03",
+    "category": "rewrite",
+    "input": "Simplify this technical documentation for beginners",
+    "expectedPrimaryIntent": "rewrite",
+    "expectedAmbiguityLevel": "medium",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": false,
+    "requiresOpenQuestions": false,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "audience",
+      "constraints"
+    ],
+    "forbiddenAssumptions": [
+      "new facts not in source",
+      "invented audience details"
+    ]
+  },
+  {
+    "id": "rewrite-04",
+    "category": "rewrite",
+    "input": "Polish this launch announcement without changing the facts",
+    "expectedPrimaryIntent": "rewrite",
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "audience",
+      "constraints"
+    ],
+    "forbiddenAssumptions": [
+      "new facts not in source",
+      "invented audience details"
+    ]
+  },
+  {
+    "id": "rewrite-05",
+    "category": "rewrite",
+    "input": "Shorten this customer apology email into five bullet points",
+    "expectedPrimaryIntent": "rewrite",
+    "expectedAmbiguityLevel": "medium",
+    "expectedMissingSlots": [
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": false,
+    "requiresOpenQuestions": false,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "audience",
+      "constraints"
+    ],
+    "forbiddenAssumptions": [
+      "new facts not in source",
+      "invented audience details"
+    ]
+  },
+  {
+    "id": "rewrite-06",
+    "category": "rewrite",
+    "input": "Rephrase this onboarding message for enterprise admins",
+    "expectedPrimaryIntent": "rewrite",
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "audience",
+      "constraints"
+    ],
+    "forbiddenAssumptions": [
+      "new facts not in source",
+      "invented audience details"
+    ]
+  },
+  {
+    "id": "rewrite-07",
+    "category": "rewrite",
+    "input": "Improve this PRD summary for an executive readout",
+    "expectedPrimaryIntent": "rewrite",
+    "expectedAmbiguityLevel": "medium",
+    "expectedMissingSlots": [
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": false,
+    "requiresOpenQuestions": false,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "audience",
+      "constraints"
+    ],
+    "forbiddenAssumptions": [
+      "new facts not in source",
+      "invented audience details"
+    ]
+  },
+  {
+    "id": "analysis-01",
+    "category": "analysis",
+    "input": "Analyze these retention numbers by cohort",
+    "expectedPrimaryIntent": "analysis",
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "required_inputs",
+      "success_criteria"
+    ],
+    "forbiddenAssumptions": [
+      "invented benchmark values",
+      "unsupported source data"
+    ]
+  },
+  {
+    "id": "analysis-02",
+    "category": "analysis",
+    "input": "Compare our Q3 revenue against Q2 and identify growth drivers",
+    "expectedPrimaryIntent": "analysis",
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "required_inputs",
+      "success_criteria"
+    ],
+    "forbiddenAssumptions": [
+      "invented benchmark values",
+      "unsupported source data"
+    ]
+  },
+  {
+    "id": "analysis-03",
+    "category": "analysis",
+    "input": "Evaluate the pros and cons of migrating to microservices",
+    "expectedPrimaryIntent": "analysis",
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "required_inputs",
+      "success_criteria"
+    ],
+    "forbiddenAssumptions": [
+      "invented benchmark values",
+      "unsupported source data"
+    ]
+  },
+  {
+    "id": "analysis-04",
+    "category": "analysis",
+    "input": "Audit our support backlog and surface the top recurring issues",
+    "expectedPrimaryIntent": "analysis",
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "required_inputs",
+      "success_criteria"
+    ],
+    "forbiddenAssumptions": [
+      "invented benchmark values",
+      "unsupported source data"
+    ]
+  },
+  {
+    "id": "analysis-05",
+    "category": "analysis",
+    "input": "Benchmark three pricing models for a B2B SaaS product",
+    "expectedPrimaryIntent": "analysis",
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "required_inputs",
+      "success_criteria"
+    ],
+    "forbiddenAssumptions": [
+      "invented benchmark values",
+      "unsupported source data"
+    ]
+  },
+  {
+    "id": "analysis-06",
+    "category": "analysis",
+    "input": "Assess whether our onboarding funnel drop-off is seasonal or structural",
+    "expectedPrimaryIntent": "analysis",
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "required_inputs",
+      "success_criteria"
+    ],
+    "forbiddenAssumptions": [
+      "invented benchmark values",
+      "unsupported source data"
+    ]
+  },
+  {
+    "id": "analysis-07",
+    "category": "analysis",
+    "input": "Analyze this incident timeline and identify the likely root causes",
+    "expectedPrimaryIntent": "analysis",
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "required_inputs",
+      "success_criteria"
+    ],
+    "forbiddenAssumptions": [
+      "invented benchmark values",
+      "unsupported source data"
+    ]
+  },
+  {
+    "id": "code-01",
+    "category": "code",
+    "input": "Write a Python function to sort a list of dictionaries by multiple keys",
+    "expectedPrimaryIntent": "code",
+    "expectedAmbiguityLevel": "medium",
+    "expectedMissingSlots": [
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": false,
+    "requiresOpenQuestions": false,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "required_inputs",
+      "constraints"
+    ],
+    "forbiddenAssumptions": [
+      "unrequested framework",
+      "invented runtime constraints"
+    ]
+  },
+  {
+    "id": "code-02",
+    "category": "code",
+    "input": "Debug this React component that fails to re-render on state change",
+    "expectedPrimaryIntent": "code",
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "required_inputs",
+      "constraints"
+    ],
+    "forbiddenAssumptions": [
+      "unrequested framework",
+      "invented runtime constraints"
+    ]
+  },
+  {
+    "id": "code-03",
+    "category": "code",
+    "input": "Refactor this API endpoint to use proper error handling and validation",
+    "expectedPrimaryIntent": "code",
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "required_inputs",
+      "constraints"
+    ],
+    "forbiddenAssumptions": [
+      "unrequested framework",
+      "invented runtime constraints"
+    ]
+  },
+  {
+    "id": "code-04",
+    "category": "code",
+    "input": "Build a TypeScript utility to diff two JSON schemas",
+    "expectedPrimaryIntent": "code",
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "required_inputs",
+      "constraints"
+    ],
+    "forbiddenAssumptions": [
+      "unrequested framework",
+      "invented runtime constraints"
+    ]
+  },
+  {
+    "id": "code-05",
+    "category": "code",
+    "input": "Implement rate limiting middleware for an Express API",
+    "expectedPrimaryIntent": "code",
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "required_inputs",
+      "constraints"
+    ],
+    "forbiddenAssumptions": [
+      "unrequested framework",
+      "invented runtime constraints"
+    ]
+  },
+  {
+    "id": "code-06",
+    "category": "code",
+    "input": "Debug this SQL query that double-counts active subscriptions",
+    "expectedPrimaryIntent": "code",
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "required_inputs",
+      "constraints"
+    ],
+    "forbiddenAssumptions": [
+      "unrequested framework",
+      "invented runtime constraints"
+    ]
+  },
+  {
+    "id": "code-07",
+    "category": "code",
+    "input": "Create a Go script that batches CSV rows into API requests",
+    "expectedPrimaryIntent": "code",
+    "expectedAmbiguityLevel": "medium",
+    "expectedMissingSlots": [
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": false,
+    "requiresOpenQuestions": false,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "required_inputs",
+      "constraints"
+    ],
+    "forbiddenAssumptions": [
+      "unrequested framework",
+      "invented runtime constraints"
+    ]
+  },
+  {
+    "id": "brainstorm-01",
+    "category": "brainstorm",
+    "input": "Brainstorm 10 creative marketing campaign ideas for a SaaS launch",
+    "expectedPrimaryIntent": "brainstorm",
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "audience"
+    ],
+    "forbiddenAssumptions": [
+      "single chosen idea as final answer",
+      "invented target segment"
+    ]
+  },
+  {
+    "id": "brainstorm-02",
+    "category": "brainstorm",
+    "input": "Generate unique product name ideas for an AI writing assistant",
+    "expectedPrimaryIntent": "brainstorm",
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "audience"
+    ],
+    "forbiddenAssumptions": [
+      "single chosen idea as final answer",
+      "invented target segment"
+    ]
+  },
+  {
+    "id": "brainstorm-03",
+    "category": "brainstorm",
+    "input": "Come up with 5 approaches to reduce customer churn",
+    "expectedPrimaryIntent": null,
+    "expectedAmbiguityLevel": "medium",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": false,
+    "requiresOpenQuestions": false,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "audience"
+    ],
+    "forbiddenAssumptions": [
+      "single chosen idea as final answer",
+      "invented target segment"
+    ]
+  },
+  {
+    "id": "brainstorm-04",
+    "category": "brainstorm",
+    "input": "Draft three event themes for a developer conference",
+    "expectedPrimaryIntent": "brainstorm",
+    "expectedAmbiguityLevel": "medium",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": false,
+    "requiresOpenQuestions": false,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "audience"
+    ],
+    "forbiddenAssumptions": [
+      "single chosen idea as final answer",
+      "invented target segment"
+    ]
+  },
+  {
+    "id": "brainstorm-05",
+    "category": "brainstorm",
+    "input": "Brainstorm community engagement ideas for a new forum launch",
+    "expectedPrimaryIntent": "brainstorm",
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "audience"
+    ],
+    "forbiddenAssumptions": [
+      "single chosen idea as final answer",
+      "invented target segment"
+    ]
+  },
+  {
+    "id": "brainstorm-06",
+    "category": "brainstorm",
+    "input": "Generate hook ideas for a product demo video",
+    "expectedPrimaryIntent": "brainstorm",
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "audience"
+    ],
+    "forbiddenAssumptions": [
+      "single chosen idea as final answer",
+      "invented target segment"
+    ]
+  },
+  {
+    "id": "brainstorm-07",
+    "category": "brainstorm",
+    "input": "Brainstorm loyalty-program concepts for an ecommerce brand",
+    "expectedPrimaryIntent": "brainstorm",
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "audience"
+    ],
+    "forbiddenAssumptions": [
+      "single chosen idea as final answer",
+      "invented target segment"
+    ]
+  },
+  {
+    "id": "extraction-01",
+    "category": "extraction",
+    "input": "Extract the key findings and action items from this meeting transcript",
+    "expectedPrimaryIntent": "extraction",
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "required_inputs"
+    ],
+    "forbiddenAssumptions": [
+      "facts not present in source",
+      "invented action items"
+    ]
+  },
+  {
+    "id": "extraction-02",
+    "category": "extraction",
+    "input": "Summarize the main arguments from this research paper",
+    "expectedPrimaryIntent": "extraction",
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "required_inputs"
+    ],
+    "forbiddenAssumptions": [
+      "facts not present in source",
+      "invented action items"
+    ]
+  },
+  {
+    "id": "extraction-03",
+    "category": "extraction",
+    "input": "Pull out every action owner and due date from these notes",
+    "expectedPrimaryIntent": "extraction",
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "required_inputs"
+    ],
+    "forbiddenAssumptions": [
+      "facts not present in source",
+      "invented action items"
+    ]
+  },
+  {
+    "id": "extraction-04",
+    "category": "extraction",
+    "input": "Identify the customer objections mentioned in these sales call snippets",
+    "expectedPrimaryIntent": "extraction",
+    "expectedAmbiguityLevel": "medium",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": false,
+    "requiresOpenQuestions": false,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "required_inputs"
+    ],
+    "forbiddenAssumptions": [
+      "facts not present in source",
+      "invented action items"
+    ]
+  },
+  {
+    "id": "extraction-05",
+    "category": "extraction",
+    "input": "List the compliance requirements stated in this policy document",
+    "expectedPrimaryIntent": "extraction",
+    "expectedAmbiguityLevel": "medium",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria"
+    ],
+    "requiresPlaceholders": false,
+    "requiresOpenQuestions": false,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "required_inputs"
+    ],
+    "forbiddenAssumptions": [
+      "facts not present in source",
+      "invented action items"
+    ]
+  },
+  {
+    "id": "extraction-06",
+    "category": "extraction",
+    "input": "Find the release blockers called out in this QA report",
+    "expectedPrimaryIntent": "extraction",
+    "expectedAmbiguityLevel": "medium",
+    "expectedMissingSlots": [
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": false,
+    "requiresOpenQuestions": false,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "required_inputs"
+    ],
+    "forbiddenAssumptions": [
+      "facts not present in source",
+      "invented action items"
+    ]
+  },
+  {
+    "id": "research-01",
+    "category": "research",
+    "input": "Research the latest trends in AI safety and summarize key findings",
+    "expectedPrimaryIntent": "research",
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material",
+      "factual_verification"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "required_inputs",
+      "verification_needs"
+    ],
+    "forbiddenAssumptions": [
+      "uncited factual claims",
+      "invented study results"
+    ]
+  },
+  {
+    "id": "research-02",
+    "category": "research",
+    "input": "Investigate how mid-market SaaS teams handle customer onboarding automation",
+    "expectedPrimaryIntent": "research",
+    "expectedAmbiguityLevel": "medium",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": false,
+    "requiresOpenQuestions": false,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "required_inputs",
+      "verification_needs"
+    ],
+    "forbiddenAssumptions": [
+      "uncited factual claims",
+      "invented study results"
+    ]
+  },
+  {
+    "id": "research-03",
+    "category": "research",
+    "input": "Research studies on remote team productivity and synthesize the conclusions",
+    "expectedPrimaryIntent": "research",
+    "expectedAmbiguityLevel": "medium",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": false,
+    "requiresOpenQuestions": false,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "required_inputs",
+      "verification_needs"
+    ],
+    "forbiddenAssumptions": [
+      "uncited factual claims",
+      "invented study results"
+    ]
+  },
+  {
+    "id": "research-04",
+    "category": "research",
+    "input": "Research best practices for pricing page experiments in PLG SaaS",
+    "expectedPrimaryIntent": "research",
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "required_inputs",
+      "verification_needs"
+    ],
+    "forbiddenAssumptions": [
+      "uncited factual claims",
+      "invented study results"
+    ]
+  },
+  {
+    "id": "research-05",
+    "category": "research",
+    "input": "Survey the literature on hallucination mitigation in retrieval systems",
+    "expectedPrimaryIntent": "research",
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "required_inputs",
+      "verification_needs"
+    ],
+    "forbiddenAssumptions": [
+      "uncited factual claims",
+      "invented study results"
+    ]
+  },
+  {
+    "id": "research-06",
+    "category": "research",
+    "input": "Investigate current approaches to passwordless authentication adoption",
+    "expectedPrimaryIntent": "research",
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material",
+      "factual_verification"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "required_inputs",
+      "verification_needs"
+    ],
+    "forbiddenAssumptions": [
+      "uncited factual claims",
+      "invented study results"
+    ]
+  },
+  {
+    "id": "planning-01",
+    "category": "planning",
+    "input": "Create a project plan with milestones and timeline for launching a mobile app",
+    "expectedPrimaryIntent": "planning",
+    "expectedAmbiguityLevel": "medium",
+    "expectedMissingSlots": [
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": false,
+    "requiresOpenQuestions": false,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "success_criteria",
+      "constraints"
+    ],
+    "forbiddenAssumptions": [
+      "fixed deadlines without input",
+      "invented resource commitments"
+    ]
+  },
+  {
+    "id": "planning-02",
+    "category": "planning",
+    "input": "Outline a 30-day rollout plan for a new analytics dashboard",
+    "expectedPrimaryIntent": "planning",
+    "expectedAmbiguityLevel": "medium",
+    "expectedMissingSlots": [
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": false,
+    "requiresOpenQuestions": false,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "success_criteria",
+      "constraints"
+    ],
+    "forbiddenAssumptions": [
+      "fixed deadlines without input",
+      "invented resource commitments"
+    ]
+  },
+  {
+    "id": "planning-03",
+    "category": "planning",
+    "input": "Build a hiring roadmap for our first developer relations team",
+    "expectedPrimaryIntent": "planning",
+    "expectedAmbiguityLevel": "medium",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": false,
+    "requiresOpenQuestions": false,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "success_criteria",
+      "constraints"
+    ],
+    "forbiddenAssumptions": [
+      "fixed deadlines without input",
+      "invented resource commitments"
+    ]
+  },
+  {
+    "id": "planning-04",
+    "category": "planning",
+    "input": "Create an implementation plan for migrating from Jira to Linear",
+    "expectedPrimaryIntent": "planning",
+    "expectedAmbiguityLevel": "medium",
+    "expectedMissingSlots": [
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": false,
+    "requiresOpenQuestions": false,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "success_criteria",
+      "constraints"
+    ],
+    "forbiddenAssumptions": [
+      "fixed deadlines without input",
+      "invented resource commitments"
+    ]
+  },
+  {
+    "id": "planning-05",
+    "category": "planning",
+    "input": "Plan a customer interview sprint for validating a new feature idea",
+    "expectedPrimaryIntent": "planning",
+    "expectedAmbiguityLevel": "medium",
+    "expectedMissingSlots": [
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": false,
+    "requiresOpenQuestions": false,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "success_criteria",
+      "constraints"
+    ],
+    "forbiddenAssumptions": [
+      "fixed deadlines without input",
+      "invented resource commitments"
+    ]
+  },
+  {
+    "id": "planning-06",
+    "category": "planning",
+    "input": "Draft an incident response plan for a payment outage",
+    "expectedPrimaryIntent": "planning",
+    "expectedAmbiguityLevel": "medium",
+    "expectedMissingSlots": [
+      "audience",
+      "success_criteria",
+      "source_material"
+    ],
+    "requiresPlaceholders": false,
+    "requiresOpenQuestions": false,
+    "expectedStructuredFields": [
+      "primary_intent",
+      "target_deliverable",
+      "success_criteria",
+      "constraints"
+    ],
+    "forbiddenAssumptions": [
+      "fixed deadlines without input",
+      "invented resource commitments"
+    ]
+  },
+  {
+    "id": "fact-sensitive-01",
+    "category": "fact-sensitive",
+    "input": "What are the latest AI safety regulations passed this year?",
+    "expectedPrimaryIntent": null,
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material",
+      "factual_verification"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "target_deliverable",
+      "required_inputs",
+      "verification_needs",
+      "open_questions"
+    ],
+    "forbiddenAssumptions": [
+      "specific numbers without verification",
+      "specific dates without verification"
+    ]
+  },
+  {
+    "id": "fact-sensitive-02",
+    "category": "fact-sensitive",
+    "input": "Give me current statistics on global renewable energy adoption",
+    "expectedPrimaryIntent": null,
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material",
+      "factual_verification"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "target_deliverable",
+      "required_inputs",
+      "verification_needs",
+      "open_questions"
+    ],
+    "forbiddenAssumptions": [
+      "specific numbers without verification",
+      "specific dates without verification"
+    ]
+  },
+  {
+    "id": "fact-sensitive-03",
+    "category": "fact-sensitive",
+    "input": "Summarize today's Microsoft earnings highlights",
+    "expectedPrimaryIntent": "extraction",
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material",
+      "factual_verification"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "target_deliverable",
+      "required_inputs",
+      "verification_needs",
+      "open_questions"
+    ],
+    "forbiddenAssumptions": [
+      "specific numbers without verification",
+      "specific dates without verification"
+    ]
+  },
+  {
+    "id": "fact-sensitive-04",
+    "category": "fact-sensitive",
+    "input": "What is OpenAI's latest public statement on AI policy?",
+    "expectedPrimaryIntent": null,
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "success_criteria",
+      "source_material",
+      "factual_verification"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "target_deliverable",
+      "required_inputs",
+      "verification_needs",
+      "open_questions"
+    ],
+    "forbiddenAssumptions": [
+      "specific numbers without verification",
+      "specific dates without verification"
+    ]
+  },
+  {
+    "id": "fact-sensitive-05",
+    "category": "fact-sensitive",
+    "input": "Compare the most recent CPU specs for the MacBook Pro lineup",
+    "expectedPrimaryIntent": "analysis",
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material",
+      "factual_verification"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "target_deliverable",
+      "required_inputs",
+      "verification_needs",
+      "open_questions"
+    ],
+    "forbiddenAssumptions": [
+      "specific numbers without verification",
+      "specific dates without verification"
+    ]
+  },
+  {
+    "id": "fact-sensitive-06",
+    "category": "fact-sensitive",
+    "input": "What are the latest ADA accessibility requirements for ecommerce checkout?",
+    "expectedPrimaryIntent": null,
+    "expectedAmbiguityLevel": "high",
+    "expectedMissingSlots": [
+      "target_deliverable",
+      "audience",
+      "success_criteria",
+      "source_material",
+      "factual_verification"
+    ],
+    "requiresPlaceholders": true,
+    "requiresOpenQuestions": true,
+    "expectedStructuredFields": [
+      "target_deliverable",
+      "required_inputs",
+      "verification_needs",
+      "open_questions"
+    ],
+    "forbiddenAssumptions": [
+      "specific numbers without verification",
+      "specific dates without verification"
+    ]
+  }
 ]

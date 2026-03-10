@@ -58,6 +58,8 @@ function renderPanel(
       canSavePrompt
       canSharePrompt
       enhancePhase="done"
+      onAppendClarificationBlockToPrompt={() => undefined}
+      onAppendToSessionContext={() => undefined}
       {...overrides}
     />,
   );
@@ -238,5 +240,56 @@ describe("OutputPanel enhancement metadata", () => {
     expect(screen.queryByText("What changed:")).not.toBeInTheDocument();
     expect(screen.queryByText("Try next:")).not.toBeInTheDocument();
     expect(screen.queryByText("Versions:")).not.toBeInTheDocument();
+  });
+
+  it("renders a clarification card and keeps the summary row collapsed for ambiguity-heavy questions", () => {
+    const clarificationMetadata: EnhanceMetadata = {
+      ...BASE_METADATA,
+      openQuestions: [
+        "Who is the target audience?",
+        "What outcome should this optimize for?",
+      ],
+      ambiguityLevel: "high",
+    };
+
+    renderPanel({ enhanceMetadata: clarificationMetadata });
+
+    expect(screen.getByText("Clarification needed")).toBeInTheDocument();
+    expect(
+      screen.getAllByText("Who is the target audience?").length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getByText("2 clarification question(s) are shown above the prompt."),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Edit" }).length).toBeGreaterThan(0);
+  });
+
+  it("appends clarification questions to the prompt when requested", async () => {
+    const onAppendClarificationBlockToPrompt = vi.fn();
+    const clarificationMetadata: EnhanceMetadata = {
+      ...BASE_METADATA,
+      openQuestions: ["Who is the target audience?"],
+      ambiguityLevel: "high",
+    };
+
+    renderPanel({
+      enhanceMetadata: clarificationMetadata,
+      onAppendClarificationBlockToPrompt,
+    });
+
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Add questions to prompt" }),
+      );
+    });
+
+    expect(onAppendClarificationBlockToPrompt).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "Clarification questions to answer before finalizing:",
+      ),
+    );
+    expect(onAppendClarificationBlockToPrompt).toHaveBeenCalledWith(
+      expect.stringContaining("1. Who is the target audience?"),
+    );
   });
 });

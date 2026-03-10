@@ -139,6 +139,41 @@ describe("builder inference utilities", () => {
       expect(chipIds).toContain("append-output-format");
       expect(chipIds).toContain("append-evidence");
     });
+
+    it("suppresses source-material chips when source context is already present", () => {
+      const config = { ...defaultConfig };
+      const result = inferBuilderFieldsLocally(
+        "rewrite this email to be more professional",
+        config,
+        {
+          hasAttachedSources: true,
+          attachedSourceCount: 1,
+          hasSessionContext: true,
+        },
+      );
+
+      const chipIds = result.suggestionChips.map((c) => c.id);
+      expect(chipIds).not.toContain("append-source-material");
+      expect(chipIds).toContain("append-audience");
+    });
+
+    it("suppresses output-format chips when formats are already selected", () => {
+      const config = { ...defaultConfig, format: ["Table"] };
+      const result = inferBuilderFieldsLocally(
+        "create an analysis of the quarterly revenue data with detailed breakdown",
+        config,
+        {
+          hasAttachedSources: false,
+          attachedSourceCount: 0,
+          hasSessionContext: false,
+          selectedOutputFormats: ["Table"],
+        },
+      );
+
+      const chipIds = result.suggestionChips.map((c) => c.id);
+      expect(chipIds).not.toContain("append-output-format");
+      expect(chipIds).toContain("append-evidence");
+    });
   });
 
   describe("per-match confidence from heuristics", () => {

@@ -181,13 +181,6 @@ describe("Index enhance transactionality", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
-    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE1", "true");
-    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE2", "true");
-    vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE3", "true");
-  });
-
-  afterEach(() => {
-    vi.unstubAllEnvs();
   });
 
   it("does not commit AI-owned builder fields when enhancement fails", async () => {
