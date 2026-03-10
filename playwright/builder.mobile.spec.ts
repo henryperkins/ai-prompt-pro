@@ -172,6 +172,42 @@ test("lets mobile users change enhancement settings before running enhance", asy
   ).toContainText("Expert prompt · Preserve wording · Ask me");
 });
 
+test("keeps adjust details progressive on mobile", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: VIEWPORT_HEIGHT });
+  await page.goto("/");
+
+  await expect(
+    page.getByRole("textbox", { name: /What should the model do\?/i }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Show advanced controls" }).click();
+
+  const adjustDetails = page.getByRole("button", { name: "Adjust details" });
+  const roleGroup = page.getByRole("button", { name: "Role and voice" });
+  const outputGroup = page.getByRole("button", { name: "Output shape" });
+
+  await adjustDetails.click();
+
+  await expect(roleGroup).toHaveAttribute("aria-expanded", "true");
+  await expect(outputGroup).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByLabel("Custom role")).toBeVisible();
+  await expect(page.getByLabel("Custom format")).toHaveCount(0);
+
+  await outputGroup.click();
+  await expect(outputGroup).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByLabel("Custom format")).toBeVisible();
+
+  await page.getByRole("button", { name: "Professional" }).click();
+  await adjustDetails.click();
+
+  await expect(page.getByText(/Professional tone/i)).toBeVisible();
+
+  const hasHorizontalOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > window.innerWidth,
+  );
+  expect(hasHorizontalOverflow).toBeFalsy();
+});
+
 test("keeps Builder developer tools menu fully within mobile viewport", async ({ page }) => {
   for (const width of DEVTOOLS_MOBILE_WIDTHS) {
     await page.setViewportSize({ width, height: VIEWPORT_HEIGHT });

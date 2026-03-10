@@ -33,10 +33,7 @@ import {
   type BuilderFieldOwnershipMap,
   type BuilderSuggestionChip,
 } from "@/lib/builder-inference";
-import {
-  getSectionHealth,
-  type SectionHealthState,
-} from "@/lib/section-health";
+import { getSectionHealth } from "@/lib/section-health";
 import {
   buildPrompt,
   defaultConfig,
@@ -117,58 +114,15 @@ import { Button } from "@/components/base/buttons/button";
 import { Badge } from "@/components/base/badges/badges";
 import { Card } from "@/components/base/card";
 import { ToastAction } from "@/components/base/toast";
-import { Switch } from "@/components/base/switch";
-import type { Icon as IconType } from "@phosphor-icons/react";
-import { UI_STATUS_SURFACE_CLASSES } from "@/lib/ui-status";
 import { PFQualityGauge } from "@/components/fantasy/PFQualityGauge";
 import {
   CaretRight,
-  CheckCircle as CheckCircle2,
-  CircleDashed,
   Crosshair as Target,
   Eye,
-  Gauge,
-  Globe,
   Sliders as SlidersHorizontal,
   Sparkle as Sparkles,
   X,
 } from "@phosphor-icons/react";
-
-const healthBadgeStyles: Record<
-  SectionHealthState,
-  { label: string; className: string; icon: IconType }
-> = {
-  empty: {
-    label: "Empty",
-    className: "border-border/80 bg-muted/50 text-muted-foreground",
-    icon: CircleDashed,
-  },
-  in_progress: {
-    label: "In progress",
-    className: UI_STATUS_SURFACE_CLASSES.info,
-    icon: Gauge,
-  },
-  complete: {
-    label: "Complete",
-    className: UI_STATUS_SURFACE_CLASSES.success,
-    icon: CheckCircle2,
-  },
-};
-
-function SectionHealthBadge({ state }: { state: SectionHealthState }) {
-  const meta = healthBadgeStyles[state];
-  const Icon = meta.icon;
-
-  return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${meta.className}`}
-      title={meta.label}
-    >
-      <Icon className="h-3 w-3" />
-      <span className="hidden sm:inline">{meta.label}</span>
-    </span>
-  );
-}
 
 type BuilderSection = "builder" | "context" | "tone" | "quality";
 
@@ -1951,7 +1905,6 @@ const Index = () => {
     return () => window.removeEventListener("keydown", handler);
   }, [handleEnhance]);
 
-  // Status indicators for accordion triggers
   const sourceCount = config.contextConfig.sources.length;
   const sectionHealth = getSectionHealth(config, score.total);
   const selectedRole = config.customRole || config.role;

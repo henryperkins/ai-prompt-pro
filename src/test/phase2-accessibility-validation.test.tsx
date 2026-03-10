@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { BuilderAdjustDetails } from "@/components/BuilderAdjustDetails";
 import { ContextQualityMeter } from "@/components/ContextQualityMeter";
@@ -48,7 +48,7 @@ describe("Phase 2 accessibility and validation", () => {
     expect(id).not.toContain(" ");
   });
 
-  it("provides accessible names for custom detail inputs", () => {
+  it("uses nested disclosure semantics for deep adjust-detail fields", () => {
     render(
       <BuilderAdjustDetails
         config={defaultConfig}
@@ -58,7 +58,21 @@ describe("Phase 2 accessibility and validation", () => {
       />,
     );
 
+    expect(screen.getByRole("button", { name: "Adjust details" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: "Adjust details" })).toHaveAttribute("aria-controls", "builder-zone-2-content");
+    expect(screen.getByRole("button", { name: "Role and voice" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: "Output shape" })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByRole("button", { name: "Constraints" })).toHaveAttribute("aria-expanded", "false");
+
     expect(screen.getByLabelText("Custom role")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Custom format")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Custom constraint")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Output shape" }));
+    fireEvent.click(screen.getByRole("button", { name: "Constraints" }));
+
+    expect(screen.getByRole("button", { name: "Output shape" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: "Constraints" })).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByLabelText("Custom format")).toBeInTheDocument();
     expect(screen.getByLabelText("Custom constraint")).toBeInTheDocument();
   });
@@ -77,10 +91,48 @@ describe("Phase 2 accessibility and validation", () => {
       />,
     );
 
+    fireEvent.click(screen.getByRole("button", { name: "Output shape" }));
+
     expect(screen.getByRole("button", { name: "Casual" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Professional" })).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByRole("button", { name: "Table" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "JSON" })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("keeps collapsed details summaries descriptive for hidden state", () => {
+    render(
+      <BuilderAdjustDetails
+        config={{
+          ...defaultConfig,
+          role: "Software Developer",
+          tone: "Casual",
+          format: ["Table"],
+          constraints: ["Avoid jargon"],
+          examples: "Input -> Output",
+        }}
+        isOpen={false}
+        onOpenChange={() => undefined}
+        onUpdate={() => undefined}
+        fieldOwnership={{
+          role: "ai",
+          tone: "user",
+          lengthPreference: "empty",
+          format: "user",
+          constraints: "user",
+        }}
+      />,
+    );
+
+    const trigger = screen.getByRole("button", { name: "Adjust details" });
+    const summary = screen.getByText(/Casual tone/);
+
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(trigger).toHaveAttribute("aria-controls", "builder-zone-2-content");
+    expect(summary).toHaveTextContent("Casual tone");
+    expect(summary).toHaveTextContent("1 format");
+    expect(summary).toHaveTextContent("1 constraint");
+    expect(summary).toHaveTextContent("has examples");
+    expect(summary).toHaveTextContent("(AI-suggested)");
   });
 
   it("announces enhance phase transitions via live region", () => {

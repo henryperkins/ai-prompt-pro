@@ -5,7 +5,7 @@ import { ToneControls } from "@/components/ToneControls";
 import { defaultConfig } from "@/lib/prompt-builder";
 
 describe("tone and complexity unset controls", () => {
-  it("lets users clear tone and complexity in BuilderAdjustDetails", () => {
+  it("keeps deep BuilderAdjustDetails controls behind subgroup disclosure", () => {
     const onUpdate = vi.fn();
 
     render(
@@ -21,9 +21,20 @@ describe("tone and complexity unset controls", () => {
       />,
     );
 
+    expect(
+      screen.getByRole("button", { name: "Role and voice" }),
+    ).toHaveAttribute("aria-expanded", "true");
+    expect(
+      screen.getByRole("button", { name: "Output shape" }),
+    ).toHaveAttribute("aria-expanded", "false");
+    expect(
+      screen.queryByRole("button", { name: "Let model decide complexity" }),
+    ).not.toBeInTheDocument();
+
     fireEvent.click(
       screen.getByRole("button", { name: "Let model decide tone" }),
     );
+    fireEvent.click(screen.getByRole("button", { name: "Output shape" }));
     fireEvent.click(
       screen.getByRole("button", { name: "Let model decide complexity" }),
     );
