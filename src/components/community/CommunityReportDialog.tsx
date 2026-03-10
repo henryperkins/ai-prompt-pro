@@ -12,7 +12,7 @@ import { Label } from "@/components/base/label";
 import {
   Select,
 } from "@/components/base/select/select";
-import { Textarea } from "@/components/base/textarea";
+import { TextArea } from "@/components/base/textarea";
 
 const REPORT_REASON_OPTIONS = [
   { value: "harassment", label: "Harassment or bullying" },
@@ -101,12 +101,12 @@ function CommunityReportDialogContent({
 
         <div className="space-y-1.5">
           <Label htmlFor="community-report-details">Details</Label>
-          <Textarea
+          <TextArea
             id="community-report-details"
             value={details}
-            onChange={(event) => setDetails(event.target.value)}
+            onChange={setDetails}
             placeholder="Add optional context to help moderation review this report."
-            className="min-h-[96px]"
+            textAreaClassName="min-h-[96px]"
             maxLength={2000}
           />
         </div>

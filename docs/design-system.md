@@ -1,6 +1,6 @@
 # PromptForge Design System
 
-Last updated: 2026-03-06
+Last updated: 2026-03-10
 
 ## 1) System Overview
 
@@ -27,12 +27,20 @@ Primary source files:
 - `src/components/base/primitives/*` (legacy wrappers for non-targeted primitives)
 - `docs/launch-messaging-pack.md`
 
+Public surface contract:
+
+- `src/components/base/*` is the stable public design-system facade for app and feature code.
+- Some public entrypoints are fully DS-owned implementations (`buttons/button`, `input/input`, `select/select`, `avatar`, `checkbox`, `textarea`).
+- Some public entrypoints remain intentional bridge wrappers over legacy primitives (`card`, `drawer`, `table`, `tabs`, `tooltip`, `scroll-area`, and similar facades).
+- Feature and product code should import the facade either way and never reach into `src/components/base/primitives/*` unless working on design-system internals.
+
 Legacy note:
 
 - `src/styles/globals.css` now imports `src/styles/theme.css`; it no longer loads `src/styles/legacy-utility-tokens.css` directly.
 - `src/styles/theme.css` loads `src/styles/untitled-compat.css`, while `src/styles/tokens.css` remains the semantic source of truth.
 - `src/styles/legacy-utility-tokens.css` is a deprecated shim that re-exports `src/styles/untitled-compat.css` for legacy imports.
 - `src/index.css` is now a compatibility shim; import `src/styles/globals.css` directly for runtime usage.
+- New semantic tokens, semantic utility names, and theme intent mappings must stay in `src/styles/tokens.css`; do not add new product semantics to `src/styles/untitled-compat.css`.
 
 Phase 3 status (completed February 22, 2026):
 
@@ -41,11 +49,13 @@ Phase 3 status (completed February 22, 2026):
 - The canonical class-merging helper is `cx` from `@/lib/utils/cx`; `cn` in `@/lib/utils` is a deprecated compatibility alias.
 - The canonical initials helper is `getInitials` from `@/lib/utils/get-initials`.
 - Imports or test mocks targeting `@/components/base/primitives/button|input|badge|select` are prohibited.
+- Imports or re-exports of deprecated `Textarea` from `@/components/base/textarea` are prohibited in feature code; use `TextArea` instead.
 - Theme model: PromptForge is dark-first. The default runtime theme is the standard brand palette, and the alternate mode is the deeper `midnight` variant.
 - CI enforces this in strict mode via:
   - `scripts/check-token-runtime-drift.mjs`
   - `scripts/check-no-primitive-ds-imports.mjs`
   - `scripts/check-no-legacy-ds-props.mjs`
+  - `scripts/check-no-deprecated-textarea-usage.mjs`
   - `scripts/check-no-literal-colors.mjs`
   - `scripts/check-no-deprecated-ds-bridges.mjs`
 
@@ -69,9 +79,10 @@ Use this, not that:
 | Concern | Use this | Not that |
 | --- | --- | --- |
 | DS component entrypoints | `@/components/base/*` public entrypoints | `@/components/base/primitives/*` in feature/app code |
+| Public DS contract | `@/components/base/*` facade (DS-owned or bridge-backed) | Importing implementation details directly from `primitives/*` |
 | Avatar | `@/components/base/avatar` | `@/components/base/avatar/avatar` |
 | Checkbox | `@/components/base/checkbox` | `@/components/base/checkbox/checkbox` |
-| Textarea | `TextArea` from `@/components/base/textarea` | `TextArea` from `@/components/base/textarea/textarea` |
+| Textarea | `TextArea` from `@/components/base/textarea` | Deprecated `Textarea` from `@/components/base/textarea`, or `TextArea` from `@/components/base/textarea/textarea` |
 | Class merge helper | `cx` from `@/lib/utils/cx` | `cn` from `@/lib/utils` |
 | Theme preference values | `"default"` / `"midnight"` | `"light"` / `"dark"` in new logic or UX copy |
 
@@ -85,6 +96,17 @@ Use this, not that:
   - CSS selectors: `.dark`, `.dark-mode`
   - Legacy stored values: `"light"`, `"dark"` (normalized at load)
 - New product copy and new feature logic must use standard/midnight wording.
+
+## 1.3) Runtime Compatibility Reduction Path
+
+`src/styles/untitled-compat.css` remains a runtime bridge, but it should only shrink over time.
+
+Rules for future work:
+
+- Keep semantic color intent, text intent, border intent, and background intent in `src/styles/tokens.css`.
+- Limit `src/styles/untitled-compat.css` to transitional ramps and legacy `utility-*` aliases needed for existing components.
+- Do not add new product-facing semantics to the compat layer.
+- When migrating a component off compat aliases, remove the alias usage first, then prune the unused compat token or ramp in a follow-up cleanup.
 
 ---
 

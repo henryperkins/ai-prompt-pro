@@ -15,7 +15,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/base/sheet";
-import { Textarea } from "@/components/base/textarea";
+import { TextArea } from "@/components/base/textarea";
 import type { CodexSession } from "@/lib/codex-session";
 
 const STATUS_META = {
@@ -23,7 +23,7 @@ const STATUS_META = {
   starting: { label: "Starting", tone: "brand" },
   streaming: { label: "Streaming", tone: "brand" },
   completed: { label: "Completed", tone: "brand" },
-  failed: { label: "Failed", tone: "destructive" },
+  failed: { label: "Failed", tone: "error" },
   aborted: { label: "Aborted", tone: "default" },
 } as const;
 
@@ -110,14 +110,15 @@ function SessionBody({
           <p className="text-sm text-muted-foreground">
             Add the supplemental facts, constraints, URLs, or environment context Codex should remember for the next turn.
           </p>
-          <Textarea
+          <TextArea
             id="codex-session-context-summary"
             data-testid="codex-session-context-summary"
+            aria-label="Outside context summary"
             value={session.contextSummary}
-            onChange={(event) => onUpdateSession({ contextSummary: event.target.value })}
+            onChange={(value) => onUpdateSession({ contextSummary: value })}
             placeholder="Summarize what Codex should carry forward from you or from external sources."
-            className="min-h-[140px] bg-background"
-            disabled={isEnhancing}
+            textAreaClassName="min-h-[140px] bg-background"
+            isDisabled={isEnhancing}
           />
         </div>
 
@@ -144,14 +145,15 @@ function SessionBody({
               Use current output
             </Button>
           </div>
-          <Textarea
+          <TextArea
             id="codex-session-latest-prompt"
             data-testid="codex-session-latest-prompt"
+            aria-label="Carry-forward prompt"
             value={session.latestEnhancedPrompt}
-            onChange={(event) => onUpdateSession({ latestEnhancedPrompt: event.target.value })}
+            onChange={(value) => onUpdateSession({ latestEnhancedPrompt: value })}
             placeholder="Paste or refine the prompt that should carry into the next Codex turn."
-            className="min-h-[220px] bg-background font-mono text-sm"
-            disabled={isEnhancing}
+            textAreaClassName="min-h-[220px] bg-background font-mono text-sm"
+            isDisabled={isEnhancing}
           />
         </div>
 
@@ -240,7 +242,7 @@ export function CodexSessionDrawer({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-[540px]">
+      <SheetContent side="right" className="w-full sm:max-w-135">
         <SheetHeader>
           <SheetTitle>Codex session</SheetTitle>
           <SheetDescription>

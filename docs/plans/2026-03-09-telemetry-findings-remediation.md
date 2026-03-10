@@ -4,7 +4,7 @@ Last updated: 2026-03-09
 
 **Date:** 2026-03-09
 **Status:** Draft
-**Source review:** Verification review of the telemetry work described in `docs/plans/2026-03-09-prompt-enhancement-improvements.md`.
+**Source review:** Verification review of the telemetry work described in `2026-03-09-prompt-enhancement-improvements.md`.
 
 ## Goal
 
@@ -352,7 +352,7 @@ Then verify in the app:
 
 **Files:**
 - Modify if needed: `docs/launch-measurement-baseline.md`
-- Modify if needed: `docs/prompt-build-and-enhancement.md`
+- Modify if needed: `../prompt-build-and-enhancement.md`
 - Test: `src/test/telemetry.test.ts`
 - Test: `src/test/telemetry-listener.test.ts`
 - Test: all targeted suites touched above

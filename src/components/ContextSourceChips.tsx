@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
-import { Textarea } from "@/components/base/textarea";
+import { TextArea } from "@/components/base/textarea";
 import { Badge } from "@/components/base/badges/badges";
 import {
   Dialog,
@@ -68,29 +68,29 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
         title.trim() ||
         (isUrl
           ? (() => {
-              try {
-                return new URL(resolvedUrl).hostname;
-              } catch {
-                return `Source ${sources.length + 1}`;
-              }
-            })()
+            try {
+              return new URL(resolvedUrl).hostname;
+            } catch {
+              return `Source ${sources.length + 1}`;
+            }
+          })()
           : `Snippet ${sources.length + 1}`),
       rawContent: content.trim(),
       summary: summarizeSource(content.trim()),
       addedAt: Date.now(),
       reference: isUrl
         ? {
-            kind: "url",
-            refId: `url:${resolvedUrl}`,
-            locator: resolvedUrl,
-            permissionScope: "public",
-          }
+          kind: "url",
+          refId: `url:${resolvedUrl}`,
+          locator: resolvedUrl,
+          permissionScope: "public",
+        }
         : undefined,
       validation: isUrl
         ? {
-            status: "unknown",
-            checkedAt: Date.now(),
-          }
+          status: "unknown",
+          checkedAt: Date.now(),
+        }
         : undefined,
     };
     onAdd(source);
@@ -213,11 +213,10 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
         onDragEnter={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`rounded-lg border-2 border-dashed transition-colors p-2 sm:p-3 text-center ${
-          isDragOver
+        className={`rounded-lg border-2 border-dashed transition-colors p-2 sm:p-3 text-center ${isDragOver
             ? "border-primary bg-primary/5"
             : "border-muted-foreground/20 hover:border-muted-foreground/40"
-        }`}
+          }`}
       >
         <div className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
           <Upload className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
@@ -293,15 +292,16 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
                   onChange={(value) => setTitle(value)}
                   className="bg-background"
                 />
-                <Textarea
+                <TextArea
                   placeholder={
                     mode === "url"
                       ? "Extracted content will appear here, or paste manually…"
                       : "Paste your text, notes, or data here…"
                   }
+                  aria-label={mode === "url" ? "Source content from URL" : "Source content"}
                   value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  className="min-h-24 bg-background sm:min-h-28"
+                  onChange={setContent}
+                  textAreaClassName="min-h-24 bg-background sm:min-h-28"
                 />
                 <p className="text-sm text-muted-foreground">
                   Long content will be auto-summarized into compact bullet points.
@@ -332,12 +332,12 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
       {sources.length > 0 && (
         <div className="flex flex-wrap gap-1.5 sm:gap-2">
           {sources.map((source) => (
-              <Badge
-                key={source.id}
-                variant="modern"
-                className="gap-1 sm:gap-1.5 pr-1 max-w-45 sm:max-w-50 group cursor-default"
-                title={`${source.title}\n${source.summary}`}
-              >
+            <Badge
+              key={source.id}
+              variant="modern"
+              className="gap-1 sm:gap-1.5 pr-1 max-w-45 sm:max-w-50 group cursor-default"
+              title={`${source.title}\n${source.summary}`}
+            >
               {chipIcon(source.type)}
               <span className="type-wrap-safe text-xs">{source.title}</span>
               <button

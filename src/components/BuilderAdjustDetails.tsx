@@ -6,7 +6,7 @@ import { Checkbox } from "@/components/base/checkbox";
 import { Input } from "@/components/base/input/input";
 import { Label } from "@/components/base/label";
 import { Select } from "@/components/base/select/select";
-import { Textarea } from "@/components/base/textarea";
+import { TextArea } from "@/components/base/textarea";
 import type { BuilderFieldOwnershipMap } from "@/lib/builder-inference";
 import {
   PromptConfig,
@@ -82,8 +82,8 @@ function AdjustDetailsGroup({
             </p>
             {aiSuggested && (
               <Badge
-                color="brand"
-                type="pill-color"
+                variant="pill"
+                tone="brand"
                 className="text-[10px] px-1.5 py-0"
               >
                 AI
@@ -146,8 +146,8 @@ export function BuilderAdjustDetails({
   const aiTag = (field: string) =>
     fieldOwnership?.[field as keyof BuilderFieldOwnershipMap] === "ai" ? (
       <Badge
-        color="brand"
-        type="pill-color"
+        variant="pill"
+        tone="brand"
         className="ml-1.5 text-[10px] px-1.5 py-0"
       >
         AI
@@ -255,7 +255,7 @@ export function BuilderAdjustDetails({
               ) {
                 parts.push(
                   config.lengthPreference.charAt(0).toUpperCase() +
-                    config.lengthPreference.slice(1),
+                  config.lengthPreference.slice(1),
                 );
               }
               if (formatCount > 0)
@@ -527,11 +527,12 @@ export function BuilderAdjustDetails({
                 <Label className="text-sm font-medium text-foreground">
                   Example output (optional)
                 </Label>
-                <Textarea
+                <TextArea
                   value={config.examples}
-                  onChange={(e) => onUpdate({ examples: e.target.value })}
+                  onChange={(value) => onUpdate({ examples: value })}
                   placeholder="Include sample inputs/outputs for better fidelity"
-                  className="min-h-[100px] bg-background font-mono"
+                  aria-label="Example output"
+                  textAreaClassName="min-h-[100px] bg-background font-mono"
                 />
               </div>
             </AdjustDetailsGroup>

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/card";
-import { Textarea } from "@/components/base/textarea";
+import { TextArea } from "@/components/base/textarea";
 import type { BuilderSuggestionChip } from "@/lib/builder-inference";
 import {
   INTENT_ROUTES,
@@ -64,13 +64,12 @@ export function BuilderHeroInput({
             </label>
             <span
               id={promptInputMetaId}
-              className={`text-sm ${
-                value.length > 31000
+              className={`text-sm ${value.length > 31000
                   ? "text-error-primary"
                   : value.length > 28000
                     ? "text-warning-primary"
                     : "text-muted-foreground"
-              }`}
+                }`}
             >
               {value.length.toLocaleString()} / 32,000
               {value.length > 31000 && (
@@ -107,57 +106,57 @@ export function BuilderHeroInput({
           </div>
         </div>
 
-        <Textarea
-          ref={textareaRef}
+        <TextArea
+          textAreaRef={textareaRef}
           id={promptInputId}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={onChange}
           placeholder="Describe what the model should do..."
-          className="min-h-28 max-h-[60vh] overflow-y-auto text-foreground placeholder:text-muted-foreground sm:min-h-32"
+          textAreaClassName="min-h-28 max-h-[60vh] overflow-y-auto text-foreground placeholder:text-muted-foreground sm:min-h-32"
           aria-describedby={promptInputMetaId}
         />
 
         {onIntentOverrideChange &&
           (detectedIntent || intentOverride) &&
           value.trim().length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-xs font-medium text-muted-foreground">Detected:</span>
-            {INTENT_ROUTES.map((route) => {
-              const isActive = intentOverride
-                ? route === intentOverride
-                : route === detectedIntent;
-              return (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-medium text-muted-foreground">Detected:</span>
+              {INTENT_ROUTES.map((route) => {
+                const isActive = intentOverride
+                  ? route === intentOverride
+                  : route === detectedIntent;
+                return (
+                  <button
+                    key={route}
+                    type="button"
+                    aria-pressed={isActive}
+                    onClick={() =>
+                      onIntentOverrideChange(
+                        route === detectedIntent && !intentOverride ? null : route,
+                      )
+                    }
+                    className={[
+                      "rounded-full px-2 py-0.5 text-xs font-medium transition-colors",
+                      isActive
+                        ? "bg-primary/15 text-primary border border-primary/25"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-transparent",
+                    ].join(" ")}
+                  >
+                    {INTENT_ROUTE_LABELS[route]}
+                  </button>
+                );
+              })}
+              {intentOverride && (
                 <button
-                  key={route}
                   type="button"
-                  aria-pressed={isActive}
-                  onClick={() =>
-                    onIntentOverrideChange(
-                      route === detectedIntent && !intentOverride ? null : route,
-                    )
-                  }
-                  className={[
-                    "rounded-full px-2 py-0.5 text-xs font-medium transition-colors",
-                    isActive
-                      ? "bg-primary/15 text-primary border border-primary/25"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-transparent",
-                  ].join(" ")}
+                  onClick={() => onIntentOverrideChange(null)}
+                  className="text-xs text-muted-foreground hover:text-foreground underline"
                 >
-                  {INTENT_ROUTE_LABELS[route]}
+                  Use auto-detect
                 </button>
-              );
-            })}
-            {intentOverride && (
-              <button
-                type="button"
-                onClick={() => onIntentOverrideChange(null)}
-                className="text-xs text-muted-foreground hover:text-foreground underline"
-              >
-                Use auto-detect
-              </button>
-            )}
-          </div>
-        )}
+              )}
+            </div>
+          )}
 
         {phase3Enabled && (isInferringSuggestions || suggestionChips.length > 0 || canResetInferred) && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-200 rounded-md border border-dashed border-primary/40 bg-primary/5 px-3 py-2">

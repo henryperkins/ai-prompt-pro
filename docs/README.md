@@ -14,7 +14,7 @@ Use this file as the starting point for repo documentation.
 - `docs/typography-regression-checklist.md` - typography validation checks.
 - `docs/community-mobile-qa-checklist.md` - manual mobile QA checks.
 - `docs/community-mobile-social-backlog.md` - active backlog for mobile social UX.
-- `docs/prompt-build-and-enhancement.md` - prompt build and enhancement architecture.
+- `prompt-build-and-enhancement.md` - prompt build and enhancement architecture.
 
 ## Active planning docs
 

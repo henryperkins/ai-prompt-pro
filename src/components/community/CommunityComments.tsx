@@ -19,7 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/base/dropdown-menu";
 import { Skeleton } from "@/components/base/skeleton";
-import { Textarea } from "@/components/base/textarea";
+import { TextArea } from "@/components/base/textarea";
 import { cx } from "@/lib/utils/cx";
 import {
   ChatCircle as MessageCircle,
@@ -373,10 +373,10 @@ export function CommunityComments({
             <p className="type-help text-muted-foreground">Quick replies are optional. Add your own context before posting.</p>
           </div>
 
-          <Textarea
-            ref={composerRef}
+          <TextArea
+            textAreaRef={composerRef}
             value={draft}
-            onChange={(event) => setDraft(event.target.value)}
+            onChange={setDraft}
             onKeyDown={(event) => {
               if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
                 event.preventDefault();
@@ -384,8 +384,9 @@ export function CommunityComments({
               }
             }}
             placeholder="Write a comment..."
-            disabled={submitting}
-            className="type-input type-wrap-safe min-h-19 rounded-lg border-border/70 bg-background/95 sm:min-h-22"
+            aria-label="Write a comment"
+            isDisabled={submitting}
+            textAreaClassName="type-input type-wrap-safe min-h-19 rounded-lg border-border/70 bg-background/95 sm:min-h-22"
             enterKeyHint="send"
             maxLength={2000}
           />

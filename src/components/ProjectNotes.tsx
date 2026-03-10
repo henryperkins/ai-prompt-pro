@@ -1,4 +1,4 @@
-import { Textarea } from "@/components/base/textarea";
+import { TextArea } from "@/components/base/textarea";
 import { Notepad as StickyNote } from "@phosphor-icons/react";
 
 interface ProjectNotesProps {
@@ -16,11 +16,12 @@ export function ProjectNotes({ value, onChange }: ProjectNotesProps) {
         </label>
         <span className="text-sm text-muted-foreground">(reusable across prompts)</span>
       </div>
-      <Textarea
+      <TextArea
         placeholder="Persistent notes, brand voice guidelines, key facts, or any context you reuse across prompts..."
+        aria-label="Project notes"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="min-h-[80px] bg-background"
+        onChange={onChange}
+        textAreaClassName="min-h-[80px] bg-background"
       />
     </div>
   );

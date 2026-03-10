@@ -278,9 +278,9 @@ export function OutputPanel({
   );
   const hasStructuredInspectorContent = Boolean(
     enhanceMetadata?.partsBreakdown ||
-      enhanceMetadata?.enhancementPlan ||
-      (enhanceMetadata?.assumptionsMade?.length ?? 0) > 0 ||
-      (enhanceMetadata?.openQuestions?.length ?? 0) > 0,
+    enhanceMetadata?.enhancementPlan ||
+    (enhanceMetadata?.assumptionsMade?.length ?? 0) > 0 ||
+    (enhanceMetadata?.openQuestions?.length ?? 0) > 0,
   );
 
   const diff = useMemo(() => {
@@ -430,7 +430,7 @@ export function OutputPanel({
               variant="secondary"
               size="sm"
               className="ui-toolbar-button gap-1.5"
-              isDisabled
+              disabled
               title="Enter a prompt to unlock saving"
             >
               <Save className="w-3 h-3" />
@@ -441,7 +441,7 @@ export function OutputPanel({
               variant="tertiary"
               size="sm"
               className="ui-toolbar-button gap-1.5"
-              isDisabled
+              disabled
               title="Enter a prompt to unlock options"
             >
               <MoreHorizontal className="w-3 h-3" />

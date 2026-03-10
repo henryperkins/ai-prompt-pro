@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/base/buttons/button";
-import { Textarea } from "@/components/base/textarea";
+import { TextArea } from "@/components/base/textarea";
 import type {
   EditableEnhancementListEdit,
   EditableEnhancementListField,
@@ -155,10 +155,10 @@ export function EnhancementEditableList({
             <li key={`${field}-${index}`} className="list-decimal space-y-1.5">
               {isEditing ? (
                 <>
-                  <Textarea
+                  <TextArea
                     value={editingValue}
-                    onChange={(event) => setEditingValue(event.target.value)}
-                    className="min-h-20 text-xs"
+                    onChange={setEditingValue}
+                    textAreaClassName="min-h-20 text-xs"
                     aria-label={`${label} ${index + 1}`}
                   />
                   <div className="flex flex-wrap items-center gap-1.5">

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
 import { Label } from "@/components/base/label";
-import { Textarea } from "@/components/base/textarea";
+import { TextArea } from "@/components/base/textarea";
 import {
   Dialog,
   DialogContent,
@@ -268,12 +268,13 @@ export function OutputPanelSaveDialog({
             <Label htmlFor="save-dialog-description" className="text-sm font-medium">
               Description
             </Label>
-            <Textarea
+            <TextArea
               id="save-dialog-description"
+              aria-label="Description"
               value={saveDescription}
-              onChange={(event) => setSaveDescription(event.target.value)}
+              onChange={setSaveDescription}
               placeholder="Description (optional)"
-              className="min-h-[80px] bg-background"
+              textAreaClassName="min-h-[80px] bg-background"
             />
           </div>
           <div className="space-y-1">
@@ -294,12 +295,13 @@ export function OutputPanelSaveDialog({
               <Label htmlFor="save-dialog-remix-note" className="text-sm font-medium">
                 Remix note
               </Label>
-              <Textarea
+              <TextArea
                 id="save-dialog-remix-note"
+                aria-label="Remix note"
                 value={saveRemixNote}
-                onChange={(event) => setSaveRemixNote(event.target.value)}
+                onChange={setSaveRemixNote}
                 placeholder="Remix note (optional)"
-                className="min-h-[80px] bg-background"
+                textAreaClassName="min-h-[80px] bg-background"
               />
             </div>
           )}
@@ -336,14 +338,15 @@ export function OutputPanelSaveDialog({
                 <Label htmlFor="save-dialog-use-case" className="text-sm font-medium">
                   Use case
                 </Label>
-                <Textarea
+                <TextArea
                   id="save-dialog-use-case"
+                  aria-label="Use case"
                   value={saveUseCase}
-                  onChange={(event) => setSaveUseCase(event.target.value)}
+                  onChange={setSaveUseCase}
                   onBlur={() => setSaveUseCaseTouched(true)}
                   placeholder="Describe how this prompt should be used"
-                  className="min-h-[90px] bg-background"
-                  aria-invalid={showSaveUseCaseError}
+                  textAreaClassName="min-h-[90px] bg-background"
+                  isInvalid={showSaveUseCaseError}
                   aria-describedby="save-dialog-use-case-help"
                 />
                 <p

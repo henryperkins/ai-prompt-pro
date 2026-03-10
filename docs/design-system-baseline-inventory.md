@@ -1,6 +1,6 @@
 # Design System Baseline Inventory
 
-Last updated: 2026-03-06
+Last updated: 2026-03-10
 
 This file captures the pre-normalization baseline requested in the design-system refactor checklist (section 1.3).
 
@@ -33,7 +33,6 @@ Product screens are `src/pages/*.tsx` route-level files.
 | `@/components/base/drawer` | 2 | `src/pages/Community.tsx`, `src/pages/Index.tsx` |
 | `@/components/base/skeleton` | 2 | `src/pages/CommunityPost.tsx`, `src/pages/Profile.tsx` |
 | `@/components/base/toast` | 2 | `src/pages/Index.tsx`, `src/pages/Library.tsx` |
-| `@/components/base/accordion` | 1 | `src/pages/Index.tsx` |
 | `@/components/base/avatar` | 1 | `src/pages/Library.tsx` |
 | `@/components/base/badges/badge-groups` | 1 | `src/pages/ComponentsShowcase.tsx` |
 | `@/components/base/button-group/button-group` | 1 | `src/pages/ComponentsShowcase.tsx` |
@@ -44,7 +43,6 @@ Product screens are `src/pages/*.tsx` route-level files.
 | `@/components/base/progress-indicators/progress-indicators` | 1 | `src/pages/ComponentsShowcase.tsx` |
 | `@/components/base/scroll-area` | 1 | `src/pages/Community.tsx` |
 | `@/components/base/select/select` | 1 | `src/pages/Library.tsx` |
-| `@/components/base/switch` | 1 | `src/pages/Index.tsx` |
 
 ## Style entrypoints imported globally
 
@@ -78,6 +76,7 @@ Scope: `src/**/*.ts(x)` excluding `src/styles/**` and `src/test/**`.
 | `pf-gold` | 3 | `src/components/community/ProfileHero.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx` |
 | `pf-parchment` | 3 | `src/components/community/ProfileHero.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx` |
 | `pf-arcane-rgb` | 2 | `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFQualityGauge.tsx` |
+| `pf-coal-rgb` | 2 | `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFQualityGauge.tsx` |
 | `pf-community-preview` | 2 | `src/components/community/CommunityPostCard.tsx`, `src/components/community/CommunityPostDetail.tsx` |
 | `pf-dialog-surface` | 2 | `src/components/AuthDialog.tsx`, `src/pages/Community.tsx` |
 | `pf-ember-rgb` | 2 | `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFQualityGauge.tsx` |
@@ -86,12 +85,13 @@ Scope: `src/**/*.ts(x)` excluding `src/styles/**` and `src/test/**`.
 | `pf-rarity-legendary` | 2 | `src/components/fantasy/PFTemplateCard.tsx`, `src/lib/community-rarity.ts` |
 | `pf-arcane` | 1 | `src/components/community/ProfileHero.tsx` |
 | `pf-coal` | 1 | `src/pages/Index.tsx` |
-| `pf-coal-rgb` | 1 | `src/components/community/ProfileHero.tsx` |
 | `pf-community-popover` | 1 | `src/pages/Community.tsx` |
 | `pf-community-toolbar` | 1 | `src/pages/Community.tsx` |
 | `pf-ember` | 1 | `src/components/community/ProfileHero.tsx` |
+| `pf-hero-dismissed` | 1 | `src/pages/Index.tsx` |
 | `pf-mobile-nav` | 1 | `src/components/BottomNav.tsx` |
 | `pf-nav-header` | 1 | `src/components/Header.tsx` |
+| `pf-parchment-rgb` | 1 | `src/components/fantasy/PFQualityGauge.tsx` |
 | `pf-rarity-common` | 1 | `src/components/fantasy/PFTemplateCard.tsx` |
 | `pf-rarity-epic` | 1 | `src/components/fantasy/PFTemplateCard.tsx` |
 | `pf-rarity-rare` | 1 | `src/components/fantasy/PFTemplateCard.tsx` |
@@ -107,12 +107,12 @@ Scope: `src/**/*.ts(x)` excluding `src/styles/**` and `src/test/**`.
 
 | Pair | Canonical | Duplicate or legacy | Status | Canonical import callsites | Duplicate import callsites |
 | --- | --- | --- | --- | --- | --- |
-| Label entrypoint | `@/components/base/label` | `@/components/base/input/label` | frozen | `src/components/BuilderAdjustDetails.tsx`, `src/components/BuilderSourcesAdvanced.tsx`, `src/components/BuilderTabs.tsx`, `src/components/ContextIntegrations.tsx`, `src/components/ContextPanel.tsx`, `src/components/Header.tsx`, `src/components/OutputPanel.tsx`, `src/components/base/input/input-group.tsx`, _+7 more_ | _none_ |
-| Textarea entrypoint | `@/components/base/textarea` | `@/components/base/textarea/textarea` | bridge-only | `src/components/BuilderAdjustDetails.tsx`, `src/components/BuilderHeroInput.tsx`, `src/components/BuilderTabs.tsx`, `src/components/ContextSourceChips.tsx`, `src/components/OutputPanel.tsx`, `src/components/ProjectNotes.tsx`, `src/components/PromptInput.tsx`, `src/components/base/textarea/textarea.stories.tsx`, _+4 more_ | `src/components/base/textarea.tsx` |
-| Card facade | `@/components/base/card` | `@/components/base/primitives/card` | bridge-only | `src/components/BuilderAdjustDetails.tsx`, `src/components/BuilderHeroInput.tsx`, `src/components/BuilderSourcesAdvanced.tsx`, `src/components/OutputPanel.tsx`, `src/components/QualityScore.tsx`, `src/components/VersionHistory.tsx`, `src/components/application/activity-feeds/activity-feeds.tsx`, `src/components/application/lists/feed-list.tsx`, _+17 more_ | `src/components/base/card.tsx` |
-| Drawer facade | `@/components/base/drawer` | `@/components/base/primitives/drawer` | bridge-only | `src/components/Header.tsx`, `src/components/base/drawer.stories.tsx`, `src/components/community/CommunityPostCard.tsx`, `src/components/community/CommunityPostDetail.tsx`, `src/pages/Community.tsx`, `src/pages/Index.tsx`, `src/test/drawer-api.test.tsx` | `src/components/base/drawer.tsx` |
+| Label entrypoint | `@/components/base/label` | `@/components/base/input/label` | frozen | `src/components/BuilderAdjustDetails.tsx`, `src/components/BuilderSourcesAdvanced.tsx`, `src/components/ContextIntegrations.tsx`, `src/components/Header.tsx`, `src/components/OutputPanelSaveDialog.tsx`, `src/components/base/input/input-group.tsx`, `src/components/base/input/input.tsx`, `src/components/base/input/label.tsx`, _+5 more_ | _none_ |
+| Textarea entrypoint | `@/components/base/textarea` | `@/components/base/textarea/textarea` | bridge-only | `src/components/BuilderAdjustDetails.tsx`, `src/components/BuilderHeroInput.tsx`, `src/components/CodexSessionDrawer.tsx`, `src/components/ContextSourceChips.tsx`, `src/components/EnhancementEditableList.tsx`, `src/components/OutputPanelSaveDialog.tsx`, `src/components/ProjectNotes.tsx`, `src/components/base/textarea/textarea.stories.tsx`, _+4 more_ | `src/components/base/textarea.tsx` |
+| Card facade | `@/components/base/card` | `@/components/base/primitives/card` | bridge-only | `src/components/BuilderAdjustDetails.tsx`, `src/components/BuilderHeroInput.tsx`, `src/components/BuilderSourcesAdvanced.tsx`, `src/components/CodexSessionDrawer.tsx`, `src/components/EnhancementClarificationCard.tsx`, `src/components/EnhancementInspector.tsx`, `src/components/OutputPanel.tsx`, `src/components/VersionHistory.tsx`, _+19 more_ | `src/components/base/card.tsx` |
+| Drawer facade | `@/components/base/drawer` | `@/components/base/primitives/drawer` | bridge-only | `src/components/CodexSessionDrawer.tsx`, `src/components/Header.tsx`, `src/components/MobileEnhancementSettingsSheet.tsx`, `src/components/base/drawer.stories.tsx`, `src/components/community/CommunityPostCard.tsx`, `src/components/community/CommunityPostDetail.tsx`, `src/pages/Community.tsx`, `src/pages/Index.tsx`, _+1 more_ | `src/components/base/drawer.tsx` |
 | Prompt-builder context hook | `@/hooks/useContextConfig` | `@/hooks/usePromptBuilderContext` | removed | `src/hooks/usePromptBuilder.ts`, `src/test/useContextConfig.test.ts` | _none_ |
-| Class merge helper | `@/lib/utils/cx` | `@/lib/utils` | frozen | `src/components/BottomNav.tsx`, `src/components/BuilderTabs.tsx`, `src/components/ContextInterview.tsx`, `src/components/NotificationPanel.tsx`, `src/components/OutputPanel.tsx`, `src/components/PageShell.tsx`, `src/components/application/activity-feeds/activity-feeds.tsx`, `src/components/application/code-snippet/code-snippet.tsx`, _+57 more_ | _none_ |
+| Class merge helper | `@/lib/utils/cx` | `@/lib/utils` | frozen | `src/components/BottomNav.tsx`, `src/components/BuilderAdjustDetails.tsx`, `src/components/ContextInterview.tsx`, `src/components/NotificationPanel.tsx`, `src/components/OutputPanel.tsx`, `src/components/OutputPanelEnhanceControls.tsx`, `src/components/OutputPanelSaveDialog.tsx`, `src/components/PageShell.tsx`, _+61 more_ | _none_ |
 
 ## Baseline screenshot/state capture
 

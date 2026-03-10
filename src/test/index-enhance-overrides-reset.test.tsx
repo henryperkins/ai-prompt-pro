@@ -45,9 +45,6 @@ vi.mock("@/components/PageShell", () => ({
   PageShell: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
-vi.mock("@/components/PromptInput", () => ({
-  PromptInput: () => null,
-}));
 
 vi.mock("@/components/BuilderHeroInput", () => ({
   BuilderHeroInput: ({
@@ -90,21 +87,9 @@ vi.mock("@/components/BuilderSourcesAdvanced", () => ({
   BuilderSourcesAdvanced: () => null,
 }));
 
-vi.mock("@/components/BuilderTabs", () => ({
-  BuilderTabs: () => null,
-}));
 
-vi.mock("@/components/ContextPanel", () => ({
-  ContextPanel: () => null,
-}));
 
-vi.mock("@/components/ToneControls", () => ({
-  ToneControls: () => null,
-}));
 
-vi.mock("@/components/QualityScore", () => ({
-  QualityScore: () => null,
-}));
 
 vi.mock("@/components/CodexSessionDrawer", () => ({
   CodexSessionDrawer: () => null,
@@ -127,12 +112,6 @@ vi.mock("@/components/OutputPanel", () => ({
   ),
 }));
 
-vi.mock("@/components/base/primitives/accordion", () => ({
-  Accordion: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  AccordionItem: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  AccordionTrigger: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  AccordionContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-}));
 
 vi.mock("@/components/base/drawer", () => ({
   Drawer: ({ children }: { children: ReactNode }) => <div>{children}</div>,

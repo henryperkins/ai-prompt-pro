@@ -1,8 +1,17 @@
 # Component Adoption Guide
 
-Last updated: 2026-03-06
+Last updated: 2026-03-10
 
 This guide defines which component paths are preferred for new work.
+
+## Public facade contract
+
+Treat `src/components/base/*` as the stable public design-system facade for product and feature code.
+
+- Import from `@/components/base/*` entrypoints, not `@/components/base/primitives/*`.
+- Some public entrypoints are fully DS-owned implementations (for example `buttons/button`, `input/input`, `select/select`, `avatar`, `checkbox`, `textarea`).
+- Some public entrypoints are still transitional facades over legacy primitives (for example `card`, `drawer`, `table`, `tabs`, `tooltip`, `scroll-area`).
+- Both kinds are valid public surface area. Feature code should treat the facade as canonical and avoid reaching through to implementation details.
 
 ## Canonical imports (required)
 
@@ -12,7 +21,7 @@ Use these paths for all new code and migrations:
 | --- | --- |
 | Button | `@/components/base/buttons/button` |
 | Input | `@/components/base/input/input` |
-| Textarea | `@/components/base/textarea` |
+| TextArea | `@/components/base/textarea` |
 | Label | `@/components/base/label` |
 | Badge | `@/components/base/badges/badges` |
 | Select | `@/components/base/select/select` |
@@ -24,13 +33,19 @@ Use these paths for all new code and migrations:
 Canonical `Button` API note:
 
 - `size="icon"` is a valid canonical size.
-- Legacy compatibility props remain prohibited: `variant`, `asChild`, and `size="default"`.
+- Legacy compatibility props remain prohibited: `color`, `asChild`, `isDisabled`, `isLoading`, and `size="default"`.
 
 Canonical `Badge` API notes:
 
 - Use `variant` (`"pill" | "subtle" | "modern"`), `tone`, and `size`.
 - Legacy compatibility props `type` and `color` remain supported during migration only.
 - Prefer `tone` over `color` for semantic state styling.
+
+Canonical `TextArea` API notes:
+
+- Import `TextArea` from `@/components/base/textarea` for all new work.
+- `Textarea` remains exported from the same module as a deprecated compatibility bridge only.
+- `check:no-deprecated-textarea-usage` blocks feature-code imports or re-exports of `Textarea`.
 
 Do not import these deprecated paths:
 
@@ -64,6 +79,7 @@ Do not import these deprecated paths:
 | Area | Status | Notes |
 | --- | --- | --- |
 | Targeted primitive cutover (button/input/badge/select) | Completed | Enforced by `check:no-primitive-ds-imports` in strict mode. |
+| Deprecated `Textarea` symbol from `@/components/base/textarea` | Blocked for feature code | Enforced by `check:no-deprecated-textarea-usage`; use `TextArea` instead. |
 | Non-targeted primitive wrappers under `@/components/base/primitives/*` | Transitional | Existing usage is allowed for compatibility; avoid adding new imports when a canonical base component exists. |
 | Canonical base components under `@/components/base/*` | Preferred | Default surface for new UI work. |
 | Duplicate entrypoints (`input/label`, `textarea/textarea`, `primitives/card`, `primitives/drawer`) | Frozen | New usage is blocked by `check:no-duplicate-ds-entrypoints`. |
@@ -74,6 +90,7 @@ Run before merge:
 
 ```bash
 npm run check:no-duplicate-ds-entrypoints
+npm run check:no-deprecated-textarea-usage
 STRICT_PRIMITIVE_IMPORTS=1 npm run check:no-primitive-ds-imports
 npm run check:design-system
 ```
