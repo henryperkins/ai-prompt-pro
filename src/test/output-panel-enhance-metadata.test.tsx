@@ -100,6 +100,7 @@ describe("OutputPanel enhancement metadata", () => {
     expect(screen.getByText("analytical")).toBeInTheDocument();
     expect(screen.getByText("business")).toBeInTheDocument();
     expect(screen.getByText("complexity 3/5")).toBeInTheDocument();
+    expect(screen.getByText("mode: Structured rewrite")).toBeInTheDocument();
   });
 
   it("renders primaryIntent as the primary chip when present (Medium-2)", () => {
@@ -237,6 +238,7 @@ describe("OutputPanel enhancement metadata", () => {
 
     expect(screen.getByText("Detected:")).toBeInTheDocument();
     expect(screen.getByText("creative")).toBeInTheDocument();
+    expect(screen.getByText("mode: Light polish")).toBeInTheDocument();
     expect(screen.queryByText("What changed:")).not.toBeInTheDocument();
     expect(screen.queryByText("Try next:")).not.toBeInTheDocument();
     expect(screen.queryByText("Versions:")).not.toBeInTheDocument();

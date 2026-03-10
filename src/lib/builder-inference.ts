@@ -7,9 +7,7 @@ import {
   chooseConstraints,
   chooseFormat,
   chooseLengthPreference,
-  chooseRole,
   chooseRoleWithConfidence,
-  chooseTone,
   chooseToneWithConfidence,
   chooseTaskMode,
   INFERENCE_FIELD_CONFIDENCE,
@@ -265,12 +263,21 @@ function buildSetFieldChip(
   };
 }
 
+const ANALYSIS_PROMPT_PATTERN =
+  /\b(analy[sz]e|analysis|assess|evaluate|compare|benchmark|audit|retention|churn|cohort|metrics?|kpi|findings)\b/;
+
+function looksLikeAnalysisPrompt(prompt: string): boolean {
+  return ANALYSIS_PROMPT_PATTERN.test(prompt);
+}
+
 function buildRouteOrientedChips(
   prompt: string,
+  config: PromptConfig,
   requestContext?: BuilderInferenceRequestContext,
 ): BuilderSuggestionChip[] {
   const taskMode = chooseTaskMode(prompt);
-  if (!taskMode) return [];
+  const isAnalysisPrompt = looksLikeAnalysisPrompt(prompt);
+  if (!taskMode && !isAnalysisPrompt) return [];
 
   const hasSourceContext = Boolean(
     requestContext?.hasAttachedSources ||
@@ -282,7 +289,7 @@ function buildRouteOrientedChips(
       requestContext.selectedOutputFormats.length > 0,
   );
 
-  if (taskMode.mode === "transform") {
+  if (taskMode?.mode === "transform") {
     const chips: BuilderSuggestionChip[] = [];
     if (!hasSourceContext) {
       chips.push({
@@ -303,6 +310,17 @@ function buildRouteOrientedChips(
         action: { type: "append_prompt", text: "\nTarget audience: [who this is for]" },
       },
     );
+    if (!hasText(config.tone)) {
+      chips.push({
+        id: "append-tone-guidance",
+        label: "Add tone guidance",
+        description: "What tone should the rewrite use?",
+        action: {
+          type: "append_prompt",
+          text: "\nTone: [professional, candid, technical, empathetic, etc.]",
+        },
+      });
+    }
     return chips;
   }
 
@@ -319,14 +337,26 @@ function buildRouteOrientedChips(
       },
     });
   }
-  chips.push(
-    {
-      id: "append-evidence",
-      label: "Add evidence requirements",
-      description: "What should back the claims?",
-      action: { type: "append_prompt", text: "\nEvidence: [cite sources, use data, include examples]" },
+  chips.push({
+    id: "append-evidence",
+    label: "Add evidence requirements",
+    description: "What should back the claims?",
+    action: {
+      type: "append_prompt",
+      text: "\nEvidence: [cite sources, use data, include examples]",
     },
-  );
+  });
+  if (isAnalysisPrompt) {
+    chips.push({
+      id: "append-comparison-framework",
+      label: "Add comparison framework",
+      description: "Define the baseline, segments, or time periods to compare.",
+      action: {
+        type: "append_prompt",
+        text: "\nComparison framework: [baseline, segments, cohorts, or time periods to compare]",
+      },
+    });
+  }
   return chips;
 }
 
@@ -340,7 +370,11 @@ function applySuggestionRelevance(
   if (!normalizedPrompt) return [];
 
   if (chips.length > 0) {
-    const routeChips = buildRouteOrientedChips(normalizedPrompt, requestContext);
+    const routeChips = buildRouteOrientedChips(
+      normalizedPrompt,
+      config,
+      requestContext,
+    );
     const deduped = new Map<string, BuilderSuggestionChip>();
     for (const chip of [...chips, ...routeChips]) {
       if (!deduped.has(chip.id)) {
@@ -354,7 +388,11 @@ function applySuggestionRelevance(
     hasRole(config) || hasFormat(config) || hasConstraints(config);
 
   if (!hasAnyDetails && normalizedPrompt.length > 20) {
-    const routeChips = buildRouteOrientedChips(normalizedPrompt, requestContext);
+    const routeChips = buildRouteOrientedChips(
+      normalizedPrompt,
+      config,
+      requestContext,
+    );
     if (routeChips.length > 0) return routeChips.slice(0, 4);
 
     return [

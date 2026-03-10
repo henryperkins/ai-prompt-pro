@@ -117,7 +117,9 @@ export function BuilderHeroInput({
           aria-describedby={promptInputMetaId}
         />
 
-        {onIntentOverrideChange && detectedIntent && value.trim().length > 0 && (
+        {onIntentOverrideChange &&
+          (detectedIntent || intentOverride) &&
+          value.trim().length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-xs font-medium text-muted-foreground">Detected:</span>
             {INTENT_ROUTES.map((route) => {

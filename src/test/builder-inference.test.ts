@@ -123,21 +123,22 @@ describe("builder inference utilities", () => {
   });
 
   describe("route-oriented suggestion chips", () => {
-    it("includes source and audience chips for rewrite prompts", () => {
+    it("includes source, audience, and tone chips for rewrite prompts", () => {
       const config = { ...defaultConfig };
       const result = inferBuilderFieldsLocally("rewrite this email to be more professional", config);
       const chipIds = result.suggestionChips.map((c) => c.id);
       expect(chipIds).toContain("append-source-material");
       expect(chipIds).toContain("append-audience");
+      expect(chipIds).toContain("append-tone-guidance");
     });
 
-    it("includes output format and evidence chips for generate-mode analysis prompts", () => {
+    it("includes output format, evidence, and comparison chips for analysis prompts", () => {
       const config = { ...defaultConfig };
-      // "create" triggers generate mode; "analyze" triggers analytical intent
-      const result = inferBuilderFieldsLocally("create an analysis of the quarterly revenue data with detailed breakdown", config);
+      const result = inferBuilderFieldsLocally("analyze these quarterly revenue trends by segment", config);
       const chipIds = result.suggestionChips.map((c) => c.id);
       expect(chipIds).toContain("append-output-format");
       expect(chipIds).toContain("append-evidence");
+      expect(chipIds).toContain("append-comparison-framework");
     });
 
     it("suppresses source-material chips when source context is already present", () => {
@@ -160,7 +161,7 @@ describe("builder inference utilities", () => {
     it("suppresses output-format chips when formats are already selected", () => {
       const config = { ...defaultConfig, format: ["Table"] };
       const result = inferBuilderFieldsLocally(
-        "create an analysis of the quarterly revenue data with detailed breakdown",
+        "analyze these quarterly revenue trends by segment",
         config,
         {
           hasAttachedSources: false,
@@ -173,6 +174,18 @@ describe("builder inference utilities", () => {
       const chipIds = result.suggestionChips.map((c) => c.id);
       expect(chipIds).not.toContain("append-output-format");
       expect(chipIds).toContain("append-evidence");
+      expect(chipIds).toContain("append-comparison-framework");
+    });
+
+    it("does not add comparison chips for non-analysis generate prompts", () => {
+      const config = { ...defaultConfig };
+      const result = inferBuilderFieldsLocally(
+        "write a launch announcement for new customers",
+        config,
+      );
+
+      const chipIds = result.suggestionChips.map((c) => c.id);
+      expect(chipIds).not.toContain("append-comparison-framework");
     });
   });
 

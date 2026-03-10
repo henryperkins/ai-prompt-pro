@@ -2,6 +2,18 @@ import { Button } from "@/components/base/buttons/button";
 import type { EnhanceMetadata } from "@/lib/enhance-metadata";
 import type { EnhancementVariant } from "@/components/output-panel-types";
 
+function formatModeLabel(mode: string | undefined): string | null {
+  if (!mode) return null;
+
+  const labels: Record<string, string> = {
+    quick: "Light polish",
+    guided: "Structured rewrite",
+    advanced: "Expert prompt",
+  };
+
+  return labels[mode] ?? mode;
+}
+
 interface OutputPanelEnhancementSummaryProps {
   metadata: EnhanceMetadata;
   activeVariant: EnhancementVariant;
@@ -16,6 +28,7 @@ export function OutputPanelEnhancementSummary({
   collapseOpenQuestions,
 }: OutputPanelEnhancementSummaryProps) {
   const ctx = metadata.detectedContext;
+  const modeLabel = formatModeLabel(ctx?.mode);
   const hasDetected = Boolean(ctx && (ctx.intent.length > 0 || ctx.domain.length > 0));
   const hasChanges = Boolean(
     metadata.enhancementsMade && metadata.enhancementsMade.length > 0,
@@ -78,6 +91,11 @@ export function OutputPanelEnhancementSummary({
           {ctx.complexity > 0 && (
             <span className="text-xs text-muted-foreground">
               complexity {ctx.complexity}/5
+            </span>
+          )}
+          {modeLabel && (
+            <span className="text-xs text-muted-foreground">
+              mode: {modeLabel}
             </span>
           )}
         </div>

@@ -84,6 +84,7 @@ import {
   type EnhanceMetadata,
 } from "@/lib/enhance-metadata";
 import {
+  detectDraftIntent,
   isIntentRoute,
   type IntentRoute,
 } from "@/lib/enhance-intent";
@@ -1907,25 +1908,37 @@ const Index = () => {
   );
 
   const detectedIntent: IntentRoute | null = useMemo(() => {
-    const ctx = enhanceMetadata?.detectedContext;
-    // Prefer the backend's authoritative primary_intent field if available
-    const primaryIntent = ctx?.primaryIntent;
-    if (typeof primaryIntent === "string" && isIntentRoute(primaryIntent)) return primaryIntent;
-    // Fall back to legacy intent[0] mapping
-    const raw = ctx?.intent?.[0];
-    const intentMap: Record<string, IntentRoute> = {
-      creative: "brainstorm",
-      analytical: "analysis",
-      instructional: "planning",
-      conversational: "brainstorm",
-      extraction: "extraction",
-      coding: "code",
-      reasoning: "analysis",
-    };
-    if (typeof raw === "string" && intentMap[raw]) return intentMap[raw];
-    if (typeof raw === "string" && isIntentRoute(raw)) return raw;
+    const draftDetection = detectDraftIntent(config.originalPrompt, {
+      role: config.customRole || config.role,
+      context: config.context,
+      outputFormats: extractSelectedOutputFormats(config),
+      hasAttachedSources: config.contextConfig.sources.length > 0,
+      hasSessionContext: Boolean(
+        enhanceSession.contextSummary.trim() ||
+          enhanceSession.latestEnhancedPrompt.trim(),
+      ),
+      hasPastedSourceMaterial:
+        looksLikePastedSourceMaterial(config.originalPrompt) ||
+        looksLikePastedSourceMaterial(config.contextConfig.projectNotes),
+    });
+
+    if (draftDetection.intent && isIntentRoute(draftDetection.intent)) {
+      return draftDetection.intent;
+    }
+
     return null;
-  }, [enhanceMetadata]);
+  }, [
+    config.context,
+    config.contextConfig.projectNotes,
+    config.contextConfig.sources.length,
+    config.customFormat,
+    config.customRole,
+    config.format,
+    config.originalPrompt,
+    config.role,
+    enhanceSession.contextSummary,
+    enhanceSession.latestEnhancedPrompt,
+  ]);
 
   const handleIntentOverrideChange = useCallback((intent: IntentRoute | null) => {
     const previousEffectiveIntent = intentOverride ?? detectedIntent ?? "auto";
