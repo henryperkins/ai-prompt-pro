@@ -51,10 +51,10 @@ describe("ai-client auth recovery", () => {
     vi.unstubAllEnvs();
   });
 
-  it("defaults enhance requests to 300 seconds when the timeout env is unset", async () => {
+  it("does not apply an implicit enhance timeout when the timeout env is unset", async () => {
     const { ENHANCE_REQUEST_TIMEOUT_MS } = await import("@/lib/ai-client");
 
-    expect(ENHANCE_REQUEST_TIMEOUT_MS).toBe(300_000);
+    expect(ENHANCE_REQUEST_TIMEOUT_MS).toBeUndefined();
   });
 
   it("retries enhance once after forced session refresh on invalid-session 401", async () => {

@@ -75,7 +75,7 @@ Key frontend vars:
 - `VITE_NEON_AUTH_URL`
 - `VITE_NEON_PUBLISHABLE_KEY` (optional fallback key for signed-out calls)
 - `VITE_AGENT_SERVICE_URL` (required for Enhance/Extract/Infer features)
-- `VITE_ENHANCE_REQUEST_TIMEOUT_MS` (optional; defaults to 180s)
+- `VITE_ENHANCE_REQUEST_TIMEOUT_MS` (optional; unset by default, set a positive ms value to enable a client-side enhance timeout)
 - `VITE_ENHANCE_TRANSPORT` (`auto` | `sse` | `ws`)
 - `VITE_ENHANCE_WS_CONNECT_TIMEOUT_MS` (optional; defaults to 3500ms)
 
