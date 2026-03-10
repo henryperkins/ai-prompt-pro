@@ -148,17 +148,12 @@ describe("Index mobile layout spacing", () => {
     expect(spacer).toBeTruthy();
   });
 
-  it("adds a mobile settings trigger and updates the visible summary from the settings sheet", async () => {
+  it("adds a mobile settings trigger and opens the settings sheet", async () => {
     await renderIndex();
 
     expect(
       screen.getByTestId("builder-mobile-settings-trigger"),
     ).toBeInTheDocument();
-    expect(
-      screen.getByTestId("builder-mobile-enhancement-summary"),
-    ).toHaveTextContent(
-      "Structured rewrite · Balanced · Infer conservatively",
-    );
 
     fireEvent.click(screen.getByTestId("builder-mobile-settings-trigger"));
 
@@ -170,17 +165,10 @@ describe("Index mobile layout spacing", () => {
     fireEvent.click(screen.getByRole("button", { name: "Preserve wording" }));
     fireEvent.click(screen.getByRole("button", { name: "Ask me" }));
 
-    expect(
-      screen.getByTestId("builder-mobile-enhancement-summary"),
-    ).toHaveTextContent("Expert prompt · Preserve wording · Ask me");
-
     fireEvent.click(screen.getByRole("button", { name: "Done" }));
 
     expect(
       screen.queryByText("Enhancement settings"),
     ).not.toBeInTheDocument();
-    expect(
-      screen.getByTestId("builder-mobile-enhancement-summary"),
-    ).toHaveTextContent("Expert prompt · Preserve wording · Ask me");
   });
 });

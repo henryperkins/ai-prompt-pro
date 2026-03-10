@@ -1,16 +1,11 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { PageShell } from "@/components/PageShell";
-import { PromptInput } from "@/components/PromptInput";
 import { BuilderHeroInput } from "@/components/BuilderHeroInput";
 import { BuilderAdjustDetails } from "@/components/BuilderAdjustDetails";
 import { BuilderSourcesAdvanced } from "@/components/BuilderSourcesAdvanced";
-import { BuilderTabs } from "@/components/BuilderTabs";
 import { CodexSessionDrawer } from "@/components/CodexSessionDrawer";
-import { ContextPanel } from "@/components/ContextPanel";
 import { MobileEnhancementSettingsSheet } from "@/components/MobileEnhancementSettingsSheet";
-import { ToneControls } from "@/components/ToneControls";
-import { QualityScore } from "@/components/QualityScore";
 import {
   OutputPanel,
   type EnhancePhase,
@@ -112,12 +107,6 @@ import {
   getPrimaryCtaVariantLabel,
 } from "@/lib/launch-experiments";
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/base/accordion";
-import {
   Drawer,
   DrawerContent,
   DrawerDescription,
@@ -134,15 +123,12 @@ import { UI_STATUS_SURFACE_CLASSES } from "@/lib/ui-status";
 import { PFQualityGauge } from "@/components/fantasy/PFQualityGauge";
 import {
   CaretRight,
-  ChartBar as BarChart3,
-  Chat as MessageSquare,
   CheckCircle as CheckCircle2,
   CircleDashed,
   Crosshair as Target,
   Eye,
   Gauge,
   Globe,
-  Layout as LayoutIcon,
   Sliders as SlidersHorizontal,
   Sparkle as Sparkles,
   X,
@@ -766,9 +752,6 @@ function buildInferenceRequestContext({
 }
 
 const Index = () => {
-  const isBuilderRedesignPhase1 = true;
-  const isBuilderRedesignPhase2 = true;
-  const isBuilderRedesignPhase3 = true;
   const [searchParams, setSearchParams] = useSearchParams();
   const remixId = searchParams.get("remix");
   const presetId = searchParams.get("preset");
@@ -784,9 +767,6 @@ const Index = () => {
       return false;
     }
   });
-  const [openSections, setOpenSections] = useState<BuilderSection[]>([
-    "builder",
-  ]);
   const [isAdjustDetailsOpen, setIsAdjustDetailsOpen] = useState(false);
   const [isSourcesAdvancedOpen, setIsSourcesAdvancedOpen] = useState(false);
   const [showAdvancedControls, setShowAdvancedControls] = useState(
@@ -962,9 +942,6 @@ const Index = () => {
     trackBuilderEvent("builder_loaded", {
       isMobile,
       isSignedIn,
-      redesignPhase1: isBuilderRedesignPhase1,
-      redesignPhase2: isBuilderRedesignPhase2,
-      redesignPhase3: isBuilderRedesignPhase3,
       hasRemixParam: Boolean(remixId),
       hasPresetParam: Boolean(presetId),
       heroCopyExperimentEnabled: true,
@@ -975,9 +952,6 @@ const Index = () => {
   }, [
     isMobile,
     isSignedIn,
-    isBuilderRedesignPhase1,
-    isBuilderRedesignPhase2,
-    isBuilderRedesignPhase3,
     remixId,
     presetId,
     heroCopyVariant,
@@ -1119,21 +1093,19 @@ const Index = () => {
 
   const handleAdjustDetailsUpdate = useCallback(
     (updates: Partial<typeof config>) => {
-      if (isBuilderRedesignPhase3) {
-        const fields = listInferenceFieldsFromUpdates(updates);
-        if (fields.length > 0) {
-          setFieldOwnership((previous) =>
-            markOwnershipFields(previous, fields, "user"),
-          );
-          trackBuilderEvent("builder_field_manual_override", {
-            fields: fields.join(","),
-          });
-        }
+      const fields = listInferenceFieldsFromUpdates(updates);
+      if (fields.length > 0) {
+        setFieldOwnership((previous) =>
+          markOwnershipFields(previous, fields, "user"),
+        );
+        trackBuilderEvent("builder_field_manual_override", {
+          fields: fields.join(","),
+        });
       }
 
       updateConfig(updates);
     },
-    [isBuilderRedesignPhase3, updateConfig],
+    [updateConfig],
   );
 
   const handleOpenSessionDrawer = useCallback(() => {
@@ -1375,7 +1347,6 @@ const Index = () => {
       );
       trackBuilderEvent("builder_enhance_clicked", {
         promptChars: promptForEnhance.length,
-        redesignPhase1: isBuilderRedesignPhase1,
         hasExistingEnhancedPrompt: Boolean(enhancedPrompt.trim()),
       });
       clearEnhanceTimers();
@@ -1714,7 +1685,6 @@ const Index = () => {
     enhancementDepth,
     selectedEnhancedPrompt,
     intentOverride,
-    isBuilderRedesignPhase1,
     isEnhancing,
     isMobile,
     rewriteStrictness,
@@ -2005,10 +1975,6 @@ const Index = () => {
   const hasOriginalPromptInput = config.originalPrompt.trim().length > 0;
   const hasBuilderDrivenInput = hasBuilderFieldInput(config);
   const hasEnhancedOnce = enhancedPrompt.trim().length > 0;
-  const allSectionsComplete =
-    sectionHealth.builder === "complete" &&
-    sectionHealth.context === "complete" &&
-    sectionHealth.tone === "complete";
   const hasDetailSelections = Boolean(
     selectedRole ||
     config.format.length ||
@@ -2031,8 +1997,7 @@ const Index = () => {
     showAdvancedControls ||
     isAdjustDetailsOpen ||
     isSourcesAdvancedOpen;
-  const showEnhanceFirstCard =
-    !hasStartedBuilderFlow && (isBuilderRedesignPhase1 || !allSectionsComplete);
+  const showEnhanceFirstCard = !hasStartedBuilderFlow;
   const shouldShowAdvancedControls =
     showAdvancedControls ||
     hasEnhancedOnce ||
@@ -2149,9 +2114,8 @@ const Index = () => {
     hasTrackedFirstInput.current = true;
     trackBuilderEvent("builder_first_input", {
       promptChars: trimmedPrompt.length,
-      redesignPhase1: isBuilderRedesignPhase1,
     });
-  }, [config.originalPrompt, isBuilderRedesignPhase1]);
+  }, [config.originalPrompt]);
 
   const handleClearPrompt = useCallback(() => {
     if (hasUnenhancedPreview) {
@@ -2174,15 +2138,6 @@ const Index = () => {
   }, [resetConfig, resetEnhanceSessionState]);
 
   useEffect(() => {
-    if (isBuilderRedesignPhase3) return;
-    setSuggestionChips([]);
-    setIsInferringSuggestions(false);
-    setHasInferenceError(false);
-    setFieldOwnership(createFieldOwnershipFromConfig(config));
-  }, [isBuilderRedesignPhase3, config]);
-
-  useEffect(() => {
-    if (!isBuilderRedesignPhase3) return;
     setFieldOwnership((previous) => {
       const baseline = createFieldOwnershipFromConfig(config);
       let changed = false;
@@ -2201,11 +2156,9 @@ const Index = () => {
       );
       return changed ? next : previous;
     });
-  }, [isBuilderRedesignPhase3, config]);
+  }, [config]);
 
   useEffect(() => {
-    if (!isBuilderRedesignPhase1) return;
-
     if (
       hasEnhancedOnce ||
       hasDetailSelections ||
@@ -2220,7 +2173,6 @@ const Index = () => {
       setIsSourcesAdvancedOpen(true);
     }
   }, [
-    isBuilderRedesignPhase1,
     hasEnhancedOnce,
     hasDetailSelections,
     hasSourceOrAdvancedSelections,
@@ -2233,7 +2185,6 @@ const Index = () => {
   }, [isSignedIn, sessionDrawerOpen]);
 
   useEffect(() => {
-    if (!isBuilderRedesignPhase1) return;
     if (!isAdjustDetailsOpen || hasTrackedZone2Opened.current) return;
 
     hasTrackedZone2Opened.current = true;
@@ -2244,7 +2195,6 @@ const Index = () => {
       hasExamples: Boolean(config.examples.trim()),
     });
   }, [
-    isBuilderRedesignPhase1,
     isAdjustDetailsOpen,
     selectedRole,
     config.format.length,
@@ -2253,7 +2203,6 @@ const Index = () => {
   ]);
 
   useEffect(() => {
-    if (!isBuilderRedesignPhase1) return;
     if (!isSourcesAdvancedOpen || hasTrackedZone3Opened.current) return;
 
     hasTrackedZone3Opened.current = true;
@@ -2264,7 +2213,6 @@ const Index = () => {
       ragEnabled: config.contextConfig.rag.enabled,
     });
   }, [
-    isBuilderRedesignPhase1,
     isSourcesAdvancedOpen,
     config.contextConfig.sources.length,
     config.contextConfig.projectNotes,
@@ -2273,10 +2221,6 @@ const Index = () => {
   ]);
 
   useEffect(() => {
-    if (!isBuilderRedesignPhase3) {
-      suggestionLoadToken.current += 1;
-      return;
-    }
     const prompt = config.originalPrompt.trim();
     if (prompt.length < 24) {
       suggestionLoadToken.current += 1;
@@ -2352,7 +2296,6 @@ const Index = () => {
       suggestionLoadToken.current += 1;
     };
   }, [
-    isBuilderRedesignPhase3,
     config,
     enhanceSession,
     fieldOwnership,
@@ -2363,36 +2306,24 @@ const Index = () => {
 
   const openAndFocusSection = useCallback(
     (section: BuilderSection) => {
-      if (isBuilderRedesignPhase1) {
-        const targetId =
-          section === "context" ? "builder-zone-3" : "builder-zone-2";
-        persistedSetShowAdvancedControls(true);
-        if (section === "context") {
-          setIsSourcesAdvancedOpen(true);
-        } else {
-          setIsAdjustDetailsOpen(true);
-        }
-        window.requestAnimationFrame(() => {
-          window.requestAnimationFrame(() => {
-            document.getElementById(targetId)?.scrollIntoView({
-              behavior: "smooth",
-              block: "center",
-            });
-          });
-        });
-        return;
+      const targetId =
+        section === "context" ? "builder-zone-3" : "builder-zone-2";
+      persistedSetShowAdvancedControls(true);
+      if (section === "context") {
+        setIsSourcesAdvancedOpen(true);
+      } else {
+        setIsAdjustDetailsOpen(true);
       }
-      setOpenSections((prev) =>
-        prev.includes(section) ? prev : [...prev, section],
-      );
       window.requestAnimationFrame(() => {
-        document.getElementById(`accordion-${section}`)?.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
+        window.requestAnimationFrame(() => {
+          document.getElementById(targetId)?.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
         });
       });
     },
-    [isBuilderRedesignPhase1, persistedSetShowAdvancedControls],
+    [persistedSetShowAdvancedControls],
   );
 
   const handleApplyToBuilder = useCallback(
@@ -2628,14 +2559,12 @@ const Index = () => {
       <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]">
         {/* Left: Input & Builder */}
         <div className="space-y-3 sm:space-y-4">
-          {isBuilderRedesignPhase1 ? (
-            <>
               <BuilderHeroInput
                 value={config.originalPrompt}
                 onChange={(value) => updateConfig({ originalPrompt: value })}
                 onClear={handleClearPrompt}
                 onResetAll={handleResetAll}
-                phase3Enabled={isBuilderRedesignPhase3}
+                phase3Enabled
                 suggestionChips={suggestionChips}
                 isInferringSuggestions={isInferringSuggestions}
                 hasInferenceError={hasInferenceError}
@@ -2742,186 +2671,6 @@ const Index = () => {
                   />
                 </>
               )}
-            </>
-          ) : (
-            <>
-              <PromptInput
-                value={config.originalPrompt}
-                onChange={(v) => updateConfig({ originalPrompt: v })}
-                onClear={handleClearPrompt}
-                onResetAll={handleResetAll}
-              />
-
-              {showEnhanceFirstCard && (
-                <Card className="border-border/70 bg-card/80 p-3">
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-foreground">
-                      Start in 3 steps
-                    </p>
-                    <ol className="grid gap-1 text-sm text-muted-foreground sm:grid-cols-3">
-                      <li>1. Add your rough prompt</li>
-                      <li>
-                        2. {isMobile ? "Tap" : "Click"} {primaryCtaLabel}
-                      </li>
-                      <li>3. Refine details</li>
-                    </ol>
-                    <p className="text-sm text-muted-foreground">
-                      Keep the first pass simple, then strengthen quality,
-                      context, and remix readiness.
-                    </p>
-                  </div>
-                </Card>
-              )}
-
-              {showRefineSuggestions && (
-                <Card className="border-primary/25 bg-primary/5 p-3">
-                  <p className="text-xs font-medium text-primary">
-                    Improve this result
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {refineSuggestions.map((suggestion) => (
-                      <Button
-                        key={suggestion.id}
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        className="h-11 text-sm sm:h-9 sm:text-sm"
-                        onClick={() => openAndFocusSection(suggestion.id)}
-                      >
-                        {suggestion.title}
-                      </Button>
-                    ))}
-                  </div>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {refineSuggestions[0]?.description}
-                  </p>
-                </Card>
-              )}
-
-              <Accordion
-                type="multiple"
-                value={openSections}
-                onValueChange={(value) =>
-                  setOpenSections(value as BuilderSection[])
-                }
-                className="space-y-1"
-              >
-                <AccordionItem
-                  id="accordion-builder"
-                  value="builder"
-                  className="border rounded-lg px-3"
-                >
-                  <AccordionTrigger className="py-3 text-sm hover:no-underline gap-2">
-                    <span className="flex items-center gap-2">
-                      <Target className="w-3.5 h-3.5 text-muted-foreground" />
-                      Builder
-                    </span>
-                    <span className="ml-auto mr-2 flex items-center gap-1.5">
-                      {selectedRole && (
-                        <Badge variant="modern" className="max-w-45 text-xs">
-                          <span className="type-wrap-safe">{selectedRole}</span>
-                        </Badge>
-                      )}
-                      <SectionHealthBadge state={sectionHealth.builder} />
-                    </span>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <BuilderTabs config={config} onUpdate={updateConfig} />
-                  </AccordionContent>
-                </AccordionItem>
-
-                <AccordionItem
-                  id="accordion-context"
-                  value="context"
-                  className="border rounded-lg px-3"
-                >
-                  <AccordionTrigger className="py-3 text-sm hover:no-underline gap-2">
-                    <span className="flex items-center gap-2">
-                      <LayoutIcon className="w-3.5 h-3.5 text-muted-foreground" />
-                      Context & Sources
-                    </span>
-                    <span className="ml-auto mr-2 flex items-center gap-1.5">
-                      {sourceCount > 0 && (
-                        <Badge variant="modern" className="text-xs">
-                          {sourceCount} src
-                        </Badge>
-                      )}
-                      <SectionHealthBadge state={sectionHealth.context} />
-                    </span>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <ContextPanel
-                      contextConfig={config.contextConfig}
-                      onUpdateSources={updateContextSources}
-                      onUpdateDatabaseConnections={updateDatabaseConnections}
-                      onUpdateRag={updateRagParameters}
-                      onUpdateStructured={updateContextStructured}
-                      onUpdateInterview={updateContextInterview}
-                      onUpdateProjectNotes={updateProjectNotes}
-                      onToggleDelimiters={toggleDelimiters}
-                      webSearchEnabled={webSearchEnabled}
-                      onToggleWebSearch={handleWebSearchToggle}
-                      isEnhancing={isEnhancing}
-                    />
-                  </AccordionContent>
-                </AccordionItem>
-
-                <AccordionItem
-                  id="accordion-tone"
-                  value="tone"
-                  className="border rounded-lg px-3"
-                >
-                  <AccordionTrigger className="py-3 text-sm hover:no-underline gap-2">
-                    <span className="flex items-center gap-2">
-                      <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
-                      Tone & Style
-                    </span>
-                    <span className="ml-auto mr-2 flex items-center gap-1.5">
-                      {config.tone && (
-                        <Badge variant="modern" className="text-xs">
-                          {config.tone}
-                        </Badge>
-                      )}
-                      <SectionHealthBadge state={sectionHealth.tone} />
-                    </span>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <ToneControls
-                      tone={config.tone}
-                      complexity={config.complexity}
-                      onUpdate={updateConfig}
-                    />
-                  </AccordionContent>
-                </AccordionItem>
-
-                <AccordionItem
-                  id="accordion-quality"
-                  value="quality"
-                  className="border rounded-lg px-3"
-                >
-                  <AccordionTrigger className="py-3 text-sm hover:no-underline gap-2">
-                    <span className="flex items-center gap-2">
-                      <BarChart3 className="w-3.5 h-3.5 text-muted-foreground" />
-                      Quality Score
-                    </span>
-                    <span className="ml-auto mr-2 flex items-center gap-1.5">
-                      <Badge
-                        variant="pill"
-                        tone={score.total >= 75 ? "brand" : "default"}
-                        className="text-xs"
-                      >
-                        {score.total}/100
-                      </Badge>
-                      <SectionHealthBadge state={sectionHealth.quality} />
-                    </span>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <QualityScore score={score} />
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </>
-          )}
 
           <Card className="border-border/70 bg-card/80 p-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -2953,7 +2702,6 @@ const Index = () => {
         {/* Right: Output — inline on desktop, drawer on mobile */}
         {!isMobile && (
           <div className="space-y-3 lg:sticky lg:top-20 lg:self-start">
-            {isBuilderRedesignPhase1 && (
               <Card className="pf-panel mb-3 border-border/70 bg-card/80 p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -2982,8 +2730,30 @@ const Index = () => {
                     showLabel={false}
                   />
                 </div>
+                <div className="mt-3 space-y-1.5">
+                  {([
+                    { label: "Clarity", value: score.clarity, tip: "How specific and detailed your task description is" },
+                    { label: "Context", value: score.context, tip: "Background info, role, sources, and structured data" },
+                    { label: "Specificity", value: score.specificity, tip: "Output format, length, examples, and constraints" },
+                    { label: "Structure", value: score.structure, tip: "Role, tone, complexity, and formatting choices" },
+                  ] as const).map((axis) => (
+                    <div key={axis.label} className="space-y-0.5">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground" title={axis.tip}>
+                          {axis.label}
+                        </span>
+                        <span className="font-medium text-foreground">{axis.value}/25</span>
+                      </div>
+                      <div className="h-1 rounded-full bg-muted/50 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-primary transition-all duration-300"
+                          style={{ width: `${Math.round((axis.value / 25) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </Card>
-            )}
             <OutputPanel
               builtPrompt={builtPrompt}
               enhancedPrompt={enhancedPrompt}
@@ -3170,7 +2940,7 @@ const Index = () => {
             />
           </div>
 
-          {/* Row 2: Preview trigger + Web toggle + Settings (secondary) */}
+          {/* Row 2: Preview trigger + Settings */}
           <div className="mt-2 flex items-center gap-2">
             <button
               type="button"
@@ -3187,19 +2957,6 @@ const Index = () => {
                 {mobilePreviewText}
               </p>
             </button>
-            <label
-              className="flex min-h-9 items-center gap-2 rounded-lg border border-border/70 bg-background/70 px-3 text-xs text-muted-foreground cursor-pointer select-none"
-              data-testid="builder-mobile-web-toggle"
-            >
-              <Switch
-                checked={webSearchEnabled}
-                onCheckedChange={handleWebSearchToggle}
-                disabled={isEnhancing}
-                aria-label="Enable web search during enhancement"
-              />
-              <Globe className="h-3.5 w-3.5" />
-              <span>Web</span>
-            </label>
             <Button
               type="button"
               variant="secondary"
@@ -3212,14 +2969,6 @@ const Index = () => {
               Settings
             </Button>
           </div>
-
-          <p
-            className="mt-1.5 truncate text-[0.7rem] leading-4 text-muted-foreground"
-            data-testid="builder-mobile-enhancement-summary"
-            title={mobileEnhancementSummary}
-          >
-            {mobileEnhancementSummary}
-          </p>
         </div>
       )}
 

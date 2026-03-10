@@ -44,6 +44,7 @@ import { OutputPanelEnhanceControls } from "@/components/OutputPanelEnhanceContr
 import { EnhancementInspector, type ApplyToBuilderUpdate } from "@/components/EnhancementInspector";
 import { EnhancementClarificationCard } from "@/components/EnhancementClarificationCard";
 import {
+  Crosshair as Target,
   DotsThreeOutline as MoreHorizontal,
   FloppyDisk as Save,
 } from "@phosphor-icons/react";
@@ -521,12 +522,18 @@ export function OutputPanel({
             {displayPrompt}
           </pre>
         ) : (
-          <div className="flex items-center justify-center h-full min-h-[120px] sm:min-h-[200px]">
-            <p className="text-sm text-muted-foreground text-center">
-              Your output appears here.
-              <br />
-              Enter a prompt or choose a template.
-            </p>
+          <div className="flex flex-col items-center justify-center gap-3 h-full min-h-[120px] sm:min-h-[200px] px-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-muted/30">
+              <Target className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div className="text-center space-y-1">
+              <p className="text-sm font-medium text-foreground">
+                Your prompt preview appears here
+              </p>
+              <p className="text-xs text-muted-foreground max-w-xs">
+                Start by describing what the model should do, then enhance to get a polished, structured prompt.
+              </p>
+            </div>
           </div>
         )}
       </Card>
