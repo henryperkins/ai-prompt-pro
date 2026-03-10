@@ -1,19 +1,35 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { OutputPanel } from "@/components/OutputPanel";
 
 const mocks = vi.hoisted(() => ({
   toast: vi.fn(),
   trackBuilderEvent: vi.fn(),
+  getTelemetryLog: vi.fn(() => []),
+  copyTextToClipboard: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/hooks/use-toast", () => ({
   useToast: () => ({ toast: mocks.toast }),
 }));
 
+vi.mock("@/lib/clipboard", () => ({
+  copyTextToClipboard: (...args: unknown[]) =>
+    mocks.copyTextToClipboard(...args),
+}));
+
 vi.mock("@/lib/telemetry", () => ({
   trackBuilderEvent: (...args: unknown[]) => mocks.trackBuilderEvent(...args),
+  getTelemetryLog: () => mocks.getTelemetryLog(),
 }));
+
+function setWindowWidth(width: number) {
+  Object.defineProperty(window, "innerWidth", {
+    configurable: true,
+    value: width,
+    writable: true,
+  });
+}
 
 function renderPanel(overrides?: Partial<Parameters<typeof OutputPanel>[0]>) {
   const onSavePrompt = vi.fn().mockResolvedValue(true);
@@ -56,6 +72,10 @@ async function openMenu(buttonName: "Save" | "More") {
     fireEvent.keyDown(trigger, { key: "Enter" });
   });
 }
+
+afterEach(() => {
+  setWindowWidth(1024);
+});
 
 describe("OutputPanel phase 2 save flow", () => {
   it("uses a single save dialog for private save", async () => {
@@ -167,7 +187,7 @@ describe("OutputPanel phase 2 save flow", () => {
     expect(screen.getByRole("button", { name: "More" })).toBeInTheDocument();
   });
 
-  it("tracks pre-enhance copy intent", () => {
+  it("tracks pre-enhance copy intent", async () => {
     mocks.trackBuilderEvent.mockReset();
     renderPanel({
       enhancedPrompt: "",
@@ -175,7 +195,7 @@ describe("OutputPanel phase 2 save flow", () => {
       previewSource: "builder_fields",
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Copy preview" }));
+    await clickElement(screen.getByRole("button", { name: "Copy preview" }));
 
     expect(mocks.trackBuilderEvent).toHaveBeenCalledWith("builder_copy_pre_enhance", {
       previewSource: "builder_fields",
@@ -213,6 +233,109 @@ describe("OutputPanel phase 2 save flow", () => {
 
     expect(screen.queryByText("Compare changes")).not.toBeInTheDocument();
     expect(await screen.findByRole("menuitem", { name: "Developer tools" })).toBeInTheDocument();
+  });
+
+  it("shows telemetry exports in mobile developer tools and keeps them discoverable when empty", async () => {
+    setWindowWidth(390);
+    mocks.getTelemetryLog.mockReturnValue([]);
+
+    renderPanel({
+      enhancedPrompt: "Improved launch plan",
+      hasEnhancedOnce: true,
+    });
+
+    await openMenu("More");
+
+    const copyLog = await screen.findByRole("menuitem", {
+      name: "Copy telemetry log (JSON)",
+    });
+    const downloadLog = screen.getByRole("menuitem", {
+      name: "Download telemetry log",
+    });
+    const copySummary = screen.getByRole("menuitem", {
+      name: "Copy latest enhance session summary",
+    });
+
+    expect(copyLog).toBeInTheDocument();
+    expect(downloadLog).toBeInTheDocument();
+    expect(copySummary).toBeInTheDocument();
+    expect(copyLog).toHaveAttribute("data-disabled");
+    expect(downloadLog).toHaveAttribute("data-disabled");
+    expect(copySummary).toHaveAttribute("data-disabled");
+  });
+
+  it("copies telemetry exports when enhancement telemetry exists", async () => {
+    setWindowWidth(390);
+    mocks.trackBuilderEvent.mockReset();
+    mocks.copyTextToClipboard.mockClear();
+
+    const telemetryLog = [
+      {
+        event: "builder_loaded",
+        payload: { page: "home" },
+        timestamp: 1000,
+      },
+      {
+        event: "builder_enhance_clicked",
+        payload: { promptChars: 128 },
+        timestamp: 2000,
+      },
+      {
+        event: "builder_enhance_completed",
+        payload: { success: true, durationMs: 1400 },
+        timestamp: 3200,
+      },
+    ];
+    mocks.getTelemetryLog.mockReturnValue(telemetryLog);
+
+    renderPanel({
+      enhancedPrompt: "Improved launch plan",
+      hasEnhancedOnce: true,
+    });
+
+    await openMenu("More");
+
+    const copyLog = await screen.findByRole("menuitem", {
+      name: "Copy telemetry log (JSON)",
+    });
+    expect(copyLog).not.toHaveAttribute("data-disabled");
+    await clickElement(copyLog);
+
+    expect(mocks.copyTextToClipboard).toHaveBeenCalledWith(
+      JSON.stringify(telemetryLog, null, 2),
+    );
+    expect(mocks.trackBuilderEvent).toHaveBeenCalledWith(
+      "builder_dev_export_used",
+      { action: "copy_telemetry_log" },
+    );
+
+    mocks.copyTextToClipboard.mockClear();
+
+    await openMenu("More");
+    await clickElement(
+      await screen.findByRole("menuitem", {
+        name: "Copy latest enhance session summary",
+      }),
+    );
+
+    const copiedSummary = JSON.parse(
+      String(mocks.copyTextToClipboard.mock.calls[0]?.[0] ?? "{}"),
+    );
+    expect(copiedSummary).toMatchObject({
+      startedAt: 2000,
+      latestEventAt: 3200,
+      eventCount: 2,
+      events: [
+        "builder_enhance_clicked",
+        "builder_enhance_completed",
+      ],
+      clicked: { promptChars: 128 },
+      completed: { success: true, durationMs: 1400 },
+    });
+    expect(mocks.trackBuilderEvent).toHaveBeenCalledWith(
+      "builder_dev_export_used",
+      { action: "copy_enhance_summary" },
+    );
   });
 
   it("emits too-much-changed feedback from the compare controls", async () => {

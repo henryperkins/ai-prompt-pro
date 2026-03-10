@@ -12,6 +12,9 @@ const DEVELOPER_TOOL_MENU_ITEMS = [
   "Download SKILL.md",
   "Download AGENTS.md",
   "Download AGENTS.override.md",
+  "Copy telemetry log (JSON)",
+  "Download telemetry log",
+  "Copy latest enhance session summary",
 ] as const;
 
 interface BuilderMobileMetric {
@@ -32,17 +35,18 @@ test("captures Builder mobile sticky-bar ergonomics at 360-430px widths", async 
     await page.goto("/");
 
     await expect(
-      page.getByRole("heading", { name: /Turn rough ideas into quality prompts with context/i }),
+      page.getByRole("textbox", { name: /What should the model do\?/i }),
     ).toBeVisible();
     await expect(page.getByTestId("builder-mobile-sticky-bar")).toBeVisible();
     await expect(page.getByTestId("builder-mobile-preview-trigger")).toBeVisible();
     await expect(page.getByTestId("builder-mobile-web-toggle")).toBeVisible();
+    await expect(page.getByTestId("builder-mobile-settings-trigger")).toBeVisible();
     await expect(page.getByTestId("builder-mobile-enhance-button")).toBeVisible();
 
     const metrics = await page.evaluate(() => {
       const controls = Array.from(
         document.querySelectorAll<HTMLElement>(
-          "[data-testid='builder-mobile-preview-trigger'], [data-testid='builder-mobile-web-toggle'], [data-testid='builder-mobile-enhance-button']",
+          "[data-testid='builder-mobile-preview-trigger'], [data-testid='builder-mobile-web-toggle'], [data-testid='builder-mobile-settings-trigger'], [data-testid='builder-mobile-enhance-button']",
         ),
       );
       const controlsUnder44px = controls
@@ -123,12 +127,57 @@ test("captures Builder mobile sticky-bar ergonomics at 360-430px widths", async 
   }
 });
 
+test("lets mobile users change enhancement settings before running enhance", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: VIEWPORT_HEIGHT });
+  await page.goto("/");
+
+  await expect(
+    page.getByRole("textbox", { name: /What should the model do\?/i }),
+  ).toBeVisible();
+  await expect(page.getByTestId("builder-mobile-settings-trigger")).toBeVisible();
+  await expect(page.getByTestId("builder-mobile-enhancement-summary")).toContainText(
+    "Structured rewrite · Balanced · Infer conservatively",
+  );
+
+  await page.getByTestId("builder-mobile-settings-trigger").click();
+
+  const settingsSheet = page.getByTestId("builder-mobile-settings-sheet");
+  await expect(settingsSheet).toBeVisible();
+
+  await settingsSheet.getByRole("button", { name: "Expert prompt" }).click();
+  await settingsSheet.getByRole("button", { name: "Preserve wording" }).click();
+  await settingsSheet.getByRole("button", { name: "Ask me" }).click();
+
+  await expect(page.getByTestId("builder-mobile-settings-sheet-summary")).toContainText(
+    "Expert prompt · Preserve wording · Ask me",
+  );
+
+  await settingsSheet.getByRole("button", { name: "Done" }).click();
+
+  await expect(page.getByTestId("builder-mobile-enhancement-summary")).toContainText(
+    "Expert prompt · Preserve wording · Ask me",
+  );
+
+  await page
+    .getByRole("textbox", { name: /What should the model do\?|Your Prompt/i })
+    .fill("Rewrite this rough prompt into an expert instruction set");
+  await page.getByTestId("builder-mobile-enhance-button").click();
+
+  const previewDialog = page.getByRole("dialog", {
+    name: /Built Prompt|Enhanced Prompt|Preview/i,
+  });
+  await expect(previewDialog).toBeVisible();
+  await expect(
+    page.getByTestId("output-panel-enhancement-settings-summary"),
+  ).toContainText("Expert prompt · Preserve wording · Ask me");
+});
+
 test("keeps Builder developer tools menu fully within mobile viewport", async ({ page }) => {
   for (const width of DEVTOOLS_MOBILE_WIDTHS) {
     await page.setViewportSize({ width, height: VIEWPORT_HEIGHT });
     await page.goto("/");
     await expect(
-      page.getByRole("heading", { name: /Turn rough ideas into quality prompts with context/i }),
+      page.getByRole("textbox", { name: /What should the model do\?/i }),
     ).toBeVisible();
 
     await page

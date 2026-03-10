@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { defaultConfig } from "@/lib/prompt-builder";
@@ -57,7 +57,13 @@ vi.mock("@/components/base/primitives/accordion", () => ({
 }));
 
 vi.mock("@/components/base/drawer", () => ({
-  Drawer: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  Drawer: ({
+    children,
+    open,
+  }: {
+    children: ReactNode;
+    open?: boolean;
+  }) => (open ? <div>{children}</div> : null),
   DrawerContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   DrawerHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   DrawerTitle: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -140,5 +146,41 @@ describe("Index mobile layout spacing", () => {
       (node) => node.className.includes("h-32") && node.className.includes("sm:h-28"),
     );
     expect(spacer).toBeTruthy();
+  });
+
+  it("adds a mobile settings trigger and updates the visible summary from the settings sheet", async () => {
+    await renderIndex();
+
+    expect(
+      screen.getByTestId("builder-mobile-settings-trigger"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("builder-mobile-enhancement-summary"),
+    ).toHaveTextContent(
+      "Structured rewrite · Balanced · Infer conservatively",
+    );
+
+    fireEvent.click(screen.getByTestId("builder-mobile-settings-trigger"));
+
+    expect(
+      screen.getByText("Enhancement settings"),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Expert prompt" }));
+    fireEvent.click(screen.getByRole("button", { name: "Preserve wording" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ask me" }));
+
+    expect(
+      screen.getByTestId("builder-mobile-enhancement-summary"),
+    ).toHaveTextContent("Expert prompt · Preserve wording · Ask me");
+
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+
+    expect(
+      screen.queryByText("Enhancement settings"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId("builder-mobile-enhancement-summary"),
+    ).toHaveTextContent("Expert prompt · Preserve wording · Ask me");
   });
 });

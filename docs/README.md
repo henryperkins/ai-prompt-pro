@@ -1,6 +1,6 @@
 # Documentation Index
 
-Last updated: 2026-03-09
+Last updated: 2026-03-10
 
 Use this file as the starting point for repo documentation.
 
@@ -21,6 +21,7 @@ Use this file as the starting point for repo documentation.
 - `docs/plans/2026-03-09-prompt-enhancement-improvements.md` - broader prompt enhancement roadmap and implementation ordering.
 - `docs/plans/2026-03-09-telemetry-findings-remediation.md` - step-by-step remediation plan for the verified enhancement telemetry gaps.
 - `docs/plans/2026-03-10-prompt-enhancement-verification-remediation.md` - step-by-step remediation plan for the remaining prompt-enhancement verification gaps.
+- `docs/plans/2026-03-10-prompt-enhancement-ui-surface-remediation.md` - follow-up plan for UI-surface classification, telemetry exports, and mobile enhancement-control parity.
 
 ## Campaign and launch docs
 

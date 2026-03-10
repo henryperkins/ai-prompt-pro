@@ -3,6 +3,7 @@
 **Date:** 2026-03-09
 **Status:** Draft
 **Revised:** 2026-03-09 — incorporated feasibility assessment findings
+**Updated:** 2026-03-10 — clarified UI-surface classification and acceptance criteria
 
 ## Goal
 
@@ -31,6 +32,41 @@ Execute this work in five phases:
 5. Add personalization and evaluation loops after the core UX is stable.
 
 Do not try to ship every item at once. Each task below is independently testable and should be released behind a staged rollout where noted.
+
+## Surface Classification
+
+Use the following scope split when deciding whether prompt-enhancement work is
+"surfaced in the UI":
+
+- **End-user UI**
+  Items users should be able to see or change directly in PromptForge. This
+  includes the metadata summary, variants, intent override, ambiguity card,
+  structured inspector, apply-to-builder actions, reset enhancement
+  preferences, too-much-changed feedback, and the depth/strictness/ambiguity
+  controls.
+- **Developer / operator surface**
+  Items intentionally exposed through developer tools, export menus, QA flows,
+  or measurement docs rather than the default builder UI. This includes
+  telemetry log inspection/export, measurement formulas, and diagnostics access.
+- **Non-UI infrastructure**
+  Items validated through runtime behavior, tests, or docs without a dedicated
+  product surface. This includes the eval harness, inference heuristics,
+  backend schema changes, and enhancement-plan normalization.
+
+### UI Surface Acceptance
+
+For this roadmap, UI-surface completeness means:
+
+- all end-user enhancement controls and inspection surfaces are available on
+  desktop and mobile where relevant;
+- operator-facing telemetry is discoverable without opening the browser
+  console;
+- non-UI infrastructure is considered complete when covered by docs/tests and
+  validated behavior rather than by product UI.
+
+The 2026-03-10 UI-surface remediation follow-up closes the mobile parity and
+developer-tools discoverability work needed to satisfy this split for the
+intended enhancement features.
 
 ---
 

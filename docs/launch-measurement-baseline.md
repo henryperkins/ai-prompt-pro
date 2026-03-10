@@ -1,6 +1,6 @@
 # Launch Measurement Baseline
 
-Last updated: 2026-03-09
+Last updated: 2026-03-10
 
 > Status: Active while launch-channel measurement is tracked; archive to `docs/reviews/` when replaced by a broader growth analytics spec.
 
@@ -47,6 +47,9 @@ Retention:
 Added 2026-03-09. Tracked via client-side telemetry events persisted to a
 localStorage ring buffer (`src/lib/telemetry.ts`). Queryable from the browser
 console via `getTelemetryLog()`.
+This telemetry is an operator/developer inspection surface, not an end-user
+feature, and is available from the in-product `More` -> `Developer tools`
+surface.
 
 Acceptance is emitted on successful copy, save, or save-and-share. Rerun is
 independent and no longer implies acceptance.

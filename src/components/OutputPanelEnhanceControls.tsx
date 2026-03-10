@@ -6,6 +6,11 @@ import type {
   EnhancementDepth,
   RewriteStrictness,
 } from "@/lib/user-preferences";
+import {
+  AMBIGUITY_MODE_OPTIONS,
+  ENHANCEMENT_DEPTH_OPTIONS,
+  REWRITE_STRICTNESS_OPTIONS,
+} from "@/lib/enhancement-settings";
 import { cx } from "@/lib/utils/cx";
 import {
   Check,
@@ -14,44 +19,41 @@ import {
   SpinnerGap as Loader2,
 } from "@phosphor-icons/react";
 
-const ENHANCEMENT_DEPTH_OPTIONS: { value: EnhancementDepth; label: string }[] = [
-  { value: "quick", label: "Light polish" },
-  { value: "guided", label: "Structured rewrite" },
-  { value: "advanced", label: "Expert prompt" },
-];
-
-const AMBIGUITY_MODE_OPTIONS: { value: AmbiguityMode; label: string }[] = [
-  { value: "ask_me", label: "Ask me" },
-  { value: "placeholders", label: "Use placeholders" },
-  { value: "infer_conservatively", label: "Infer conservatively" },
-];
-
-const REWRITE_STRICTNESS_OPTIONS: {
-  value: RewriteStrictness;
-  label: string;
-}[] = [
-  { value: "preserve", label: "Preserve wording" },
-  { value: "balanced", label: "Balanced" },
-  { value: "aggressive", label: "Optimize aggressively" },
-];
-
 function EnhanceOptionGroup<T extends string>({
   label,
   value,
   options,
   onChange,
   disabled,
+  layout = "inline",
 }: {
   label: string;
   value: T;
   options: { value: T; label: string }[];
   onChange: (value: T) => void;
   disabled?: boolean;
+  layout?: "inline" | "stacked";
 }) {
   return (
-    <div className="flex items-center gap-1.5" role="group" aria-label={label}>
-      <span className="text-xs font-medium text-muted-foreground">{label}:</span>
-      <div className="inline-flex rounded-md border border-border/60 bg-muted/30 p-0.5 gap-0.5">
+    <div
+      className={cx(
+        layout === "stacked" ? "space-y-2" : "flex items-center gap-1.5",
+      )}
+      role="group"
+      aria-label={label}
+    >
+      <span className="text-xs font-medium text-muted-foreground">
+        {label}
+        {layout === "inline" ? ":" : ""}
+      </span>
+      <div
+        className={cx(
+          "rounded-md border border-border/60 bg-muted/30 p-0.5",
+          layout === "stacked"
+            ? "flex flex-wrap items-center gap-0.5"
+            : "inline-flex gap-0.5",
+        )}
+      >
         {options.map((option) => (
           <button
             key={option.value}
@@ -75,7 +77,7 @@ function EnhanceOptionGroup<T extends string>({
   );
 }
 
-interface OutputPanelEnhanceControlsProps {
+interface SharedEnhancementControlsProps {
   webSearchEnabled: boolean;
   onWebSearchToggle?: (enabled: boolean) => void;
   isEnhancing: boolean;
@@ -85,6 +87,146 @@ interface OutputPanelEnhanceControlsProps {
   onEnhancementDepthChange?: (depth: EnhancementDepth) => void;
   onRewriteStrictnessChange?: (strictness: RewriteStrictness) => void;
   onAmbiguityModeChange?: (mode: AmbiguityMode) => void;
+}
+
+export function EnhancementControlGroups({
+  webSearchEnabled,
+  onWebSearchToggle,
+  isEnhancing,
+  enhancementDepth,
+  rewriteStrictness,
+  ambiguityMode,
+  onEnhancementDepthChange,
+  onRewriteStrictnessChange,
+  onAmbiguityModeChange,
+  layout = "inline",
+}: SharedEnhancementControlsProps & {
+  layout?: "inline" | "stacked";
+}) {
+  const showOptionGroups = Boolean(
+    onEnhancementDepthChange ||
+      onRewriteStrictnessChange ||
+      onAmbiguityModeChange,
+  );
+
+  return (
+    <div className={cx("flex flex-col gap-2", layout === "stacked" && "gap-3")}>
+      {onWebSearchToggle ? (
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <Switch
+            checked={webSearchEnabled}
+            onCheckedChange={onWebSearchToggle}
+            disabled={isEnhancing}
+            aria-label="Enable web search during enhancement"
+          />
+          <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">Web lookup</span>
+        </label>
+      ) : (
+        <p className="text-xs text-muted-foreground" aria-live="polite">
+          Web lookup: {webSearchEnabled ? "On" : "Off"}
+        </p>
+      )}
+
+      {showOptionGroups && (
+        <div
+          className={cx(
+            layout === "stacked"
+              ? "space-y-3"
+              : "flex flex-wrap items-center gap-x-4 gap-y-1.5",
+          )}
+        >
+          {onEnhancementDepthChange && (
+            <EnhanceOptionGroup
+              label="Depth"
+              value={enhancementDepth}
+              options={ENHANCEMENT_DEPTH_OPTIONS}
+              onChange={onEnhancementDepthChange}
+              disabled={isEnhancing}
+              layout={layout}
+            />
+          )}
+          {onRewriteStrictnessChange && (
+            <EnhanceOptionGroup
+              label="Strictness"
+              value={rewriteStrictness}
+              options={REWRITE_STRICTNESS_OPTIONS}
+              onChange={onRewriteStrictnessChange}
+              disabled={isEnhancing}
+              layout={layout}
+            />
+          )}
+          {onAmbiguityModeChange && (
+            <EnhanceOptionGroup
+              label="Ambiguity"
+              value={ambiguityMode}
+              options={AMBIGUITY_MODE_OPTIONS}
+              onChange={onAmbiguityModeChange}
+              disabled={isEnhancing}
+              layout={layout}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function EnhancePrimaryButton({
+  isEnhancing,
+  onEnhance,
+  builtPrompt,
+  enhancePhase,
+  enhanceLabel,
+  size = "lg",
+  fullWidth = true,
+  className,
+  dataTestId,
+}: {
+  isEnhancing: boolean;
+  onEnhance: () => void;
+  builtPrompt: string;
+  enhancePhase: EnhancePhase;
+  enhanceLabel: string;
+  size?: "md" | "lg";
+  fullWidth?: boolean;
+  className?: string;
+  dataTestId?: string;
+}) {
+  return (
+    <Button
+      variant="primary"
+      size={size}
+      onClick={onEnhance}
+      disabled={isEnhancing || !builtPrompt}
+      className={cx(
+        "signature-enhance-button gap-2",
+        fullWidth && "w-full",
+        className,
+      )}
+      data-phase={enhancePhase}
+      data-testid={dataTestId}
+    >
+      {isEnhancing ? (
+        <>
+          <Loader2 className="w-4 h-4 animate-spin" />
+          {enhanceLabel}
+        </>
+      ) : (
+        <>
+          {enhancePhase === "done" ? (
+            <Check className="w-4 h-4" />
+          ) : (
+            <Sparkles className="w-4 h-4" />
+          )}
+          {enhanceLabel}
+        </>
+      )}
+    </Button>
+  );
+}
+
+interface OutputPanelEnhanceControlsProps extends SharedEnhancementControlsProps {
   onEnhance: () => void;
   builtPrompt: string;
   enhancePhase: EnhancePhase;
@@ -108,81 +250,24 @@ export function OutputPanelEnhanceControls({
 }: OutputPanelEnhanceControlsProps) {
   return (
     <div className="flex flex-col gap-2">
-      {onWebSearchToggle ? (
-        <label className="flex items-center gap-2 cursor-pointer select-none">
-          <Switch
-            checked={webSearchEnabled}
-            onCheckedChange={onWebSearchToggle}
-            disabled={isEnhancing}
-            aria-label="Enable web search during enhancement"
-          />
-          <Globe className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">Web lookup</span>
-        </label>
-      ) : (
-        <p className="text-xs text-muted-foreground" aria-live="polite">
-          Web lookup: {webSearchEnabled ? "On" : "Off"}
-        </p>
-      )}
-
-      {(onEnhancementDepthChange ||
-        onRewriteStrictnessChange ||
-        onAmbiguityModeChange) && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-          {onEnhancementDepthChange && (
-            <EnhanceOptionGroup
-              label="Depth"
-              value={enhancementDepth}
-              options={ENHANCEMENT_DEPTH_OPTIONS}
-              onChange={onEnhancementDepthChange}
-              disabled={isEnhancing}
-            />
-          )}
-          {onRewriteStrictnessChange && (
-            <EnhanceOptionGroup
-              label="Strictness"
-              value={rewriteStrictness}
-              options={REWRITE_STRICTNESS_OPTIONS}
-              onChange={onRewriteStrictnessChange}
-              disabled={isEnhancing}
-            />
-          )}
-          {onAmbiguityModeChange && (
-            <EnhanceOptionGroup
-              label="Ambiguity"
-              value={ambiguityMode}
-              options={AMBIGUITY_MODE_OPTIONS}
-              onChange={onAmbiguityModeChange}
-              disabled={isEnhancing}
-            />
-          )}
-        </div>
-      )}
-
-      <Button
-        variant="primary"
-        size="lg"
-        onClick={onEnhance}
-        disabled={isEnhancing || !builtPrompt}
-        className="signature-enhance-button w-full gap-2"
-        data-phase={enhancePhase}
-      >
-        {isEnhancing ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin" />
-            {enhanceLabel}
-          </>
-        ) : (
-          <>
-            {enhancePhase === "done" ? (
-              <Check className="w-4 h-4" />
-            ) : (
-              <Sparkles className="w-4 h-4" />
-            )}
-            {enhanceLabel}
-          </>
-        )}
-      </Button>
+      <EnhancementControlGroups
+        webSearchEnabled={webSearchEnabled}
+        onWebSearchToggle={onWebSearchToggle}
+        isEnhancing={isEnhancing}
+        enhancementDepth={enhancementDepth}
+        rewriteStrictness={rewriteStrictness}
+        ambiguityMode={ambiguityMode}
+        onEnhancementDepthChange={onEnhancementDepthChange}
+        onRewriteStrictnessChange={onRewriteStrictnessChange}
+        onAmbiguityModeChange={onAmbiguityModeChange}
+      />
+      <EnhancePrimaryButton
+        isEnhancing={isEnhancing}
+        onEnhance={onEnhance}
+        builtPrompt={builtPrompt}
+        enhancePhase={enhancePhase}
+        enhanceLabel={enhanceLabel}
+      />
     </div>
   );
 }

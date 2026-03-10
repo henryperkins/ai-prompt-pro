@@ -29,6 +29,17 @@ Implement in this order:
 
 This order keeps the structural prerequisite in place before adding more UI.
 
+## Post-remediation note
+
+This follow-up resolved the implementation gaps identified in the original
+verification pass, but UI-surface completeness still depended on the separate
+scope split and mobile-parity work tracked in
+`docs/plans/2026-03-10-prompt-enhancement-ui-surface-remediation.md`.
+
+That additional work closes the remaining ambiguity around which capabilities
+must appear in product UI, which belong in developer/operator tooling, and
+which are intentionally validated as non-UI infrastructure.
+
 ---
 
 ## Workstream 1: Finish OutputPanel Decomposition

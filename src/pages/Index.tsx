@@ -8,6 +8,7 @@ import { BuilderSourcesAdvanced } from "@/components/BuilderSourcesAdvanced";
 import { BuilderTabs } from "@/components/BuilderTabs";
 import { CodexSessionDrawer } from "@/components/CodexSessionDrawer";
 import { ContextPanel } from "@/components/ContextPanel";
+import { MobileEnhancementSettingsSheet } from "@/components/MobileEnhancementSettingsSheet";
 import { ToneControls } from "@/components/ToneControls";
 import { QualityScore } from "@/components/QualityScore";
 import {
@@ -17,6 +18,7 @@ import {
   type OutputPreviewSource,
   type ApplyToBuilderUpdate,
 } from "@/components/OutputPanel";
+import { EnhancePrimaryButton } from "@/components/OutputPanelEnhanceControls";
 import { usePromptBuilder } from "@/hooks/usePromptBuilder";
 import {
   inferBuilderFields,
@@ -101,6 +103,7 @@ import {
   buildAssumptionsCorrectionBlock,
   buildClarificationBlock,
 } from "@/lib/enhance-ambiguity";
+import { getEnhancementSettingsSummary } from "@/lib/enhancement-settings";
 import { buildTextEditMetrics } from "@/lib/text-diff";
 import { brandCopy } from "@/lib/brand-copy";
 import {
@@ -133,7 +136,6 @@ import {
   CaretRight,
   ChartBar as BarChart3,
   Chat as MessageSquare,
-  Check,
   CheckCircle as CheckCircle2,
   CircleDashed,
   Crosshair as Target,
@@ -141,8 +143,8 @@ import {
   Gauge,
   Globe,
   Layout as LayoutIcon,
+  Sliders as SlidersHorizontal,
   Sparkle as Sparkles,
-  SpinnerGap as Loader2,
   X,
 } from "@phosphor-icons/react";
 
@@ -772,6 +774,8 @@ const Index = () => {
   const presetId = searchParams.get("preset");
   const remixLoadToken = useRef(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [mobileEnhancementSettingsOpen, setMobileEnhancementSettingsOpen] =
+    useState(false);
   const [sessionDrawerOpen, setSessionDrawerOpen] = useState(false);
   const [heroCollapsed, setHeroCollapsed] = useState(() => {
     try {
@@ -1384,7 +1388,10 @@ const Index = () => {
       setWebSearchSources([]);
       setWebSearchActivity(IDLE_WEB_SEARCH_ACTIVITY);
 
-      if (isMobile) setDrawerOpen(true);
+      if (isMobile) {
+        setMobileEnhancementSettingsOpen(false);
+        setDrawerOpen(true);
+      }
 
       enhanceStreamToken.current += 1;
       enhanceAbortController.current?.abort();
@@ -1927,18 +1934,7 @@ const Index = () => {
     }
 
     return null;
-  }, [
-    config.context,
-    config.contextConfig.projectNotes,
-    config.contextConfig.sources.length,
-    config.customFormat,
-    config.customRole,
-    config.format,
-    config.originalPrompt,
-    config.role,
-    enhanceSession.contextSummary,
-    enhanceSession.latestEnhancedPrompt,
-  ]);
+  }, [config, enhanceSession.contextSummary, enhanceSession.latestEnhancedPrompt]);
 
   const handleIntentOverrideChange = useCallback((intent: IntentRoute | null) => {
     const previousEffectiveIntent = intentOverride ?? detectedIntent ?? "auto";
@@ -2091,6 +2087,19 @@ const Index = () => {
     : displayPrompt.trim()
       ? "Built prompt"
       : "Live preview";
+  const mobileEnhancementSummary = useMemo(
+    () =>
+      getEnhancementSettingsSummary({
+        enhancementDepth,
+        rewriteStrictness,
+        ambiguityMode,
+      }),
+    [ambiguityMode, enhancementDepth, rewriteStrictness],
+  );
+  const handleEditMobileEnhancementSettings = useCallback(() => {
+    setDrawerOpen(false);
+    setMobileEnhancementSettingsOpen(true);
+  }, []);
   const refineSuggestions = useMemo(() => {
     const suggestions: Array<{
       id: BuilderSection;
@@ -3148,34 +3157,20 @@ const Index = () => {
               />
               <span className="relative">{score.total}/100</span>
             </Badge>
-            <Button
-              variant="primary"
+            <EnhancePrimaryButton
+              isEnhancing={isEnhancing}
+              onEnhance={handleEnhance}
+              builtPrompt={builtPrompt}
+              enhancePhase={enhancePhase}
+              enhanceLabel={mobileEnhanceLabel}
               size="md"
-              onClick={handleEnhance}
-              disabled={isEnhancing || !builtPrompt}
-              className="signature-enhance-button h-10 min-w-0 flex-1 gap-2"
-              data-phase={enhancePhase}
-              data-testid="builder-mobile-enhance-button"
-            >
-              {isEnhancing ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  {mobileEnhanceLabel}
-                </>
-              ) : (
-                <>
-                  {enhancePhase === "done" ? (
-                    <Check className="w-4 h-4" />
-                  ) : (
-                    <Sparkles className="w-4 h-4" />
-                  )}
-                  {mobileEnhanceLabel}
-                </>
-              )}
-            </Button>
+              fullWidth={false}
+              className="h-10 min-w-0 flex-1"
+              dataTestId="builder-mobile-enhance-button"
+            />
           </div>
 
-          {/* Row 2: Preview trigger + Web toggle (secondary) */}
+          {/* Row 2: Preview trigger + Web toggle + Settings (secondary) */}
           <div className="mt-2 flex items-center gap-2">
             <button
               type="button"
@@ -3205,8 +3200,43 @@ const Index = () => {
               <Globe className="h-3.5 w-3.5" />
               <span>Web</span>
             </label>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="h-9 shrink-0 gap-1.5 px-3 text-xs"
+              onClick={() => setMobileEnhancementSettingsOpen(true)}
+              data-testid="builder-mobile-settings-trigger"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              Settings
+            </Button>
           </div>
+
+          <p
+            className="mt-1.5 truncate text-[0.7rem] leading-4 text-muted-foreground"
+            data-testid="builder-mobile-enhancement-summary"
+            title={mobileEnhancementSummary}
+          >
+            {mobileEnhancementSummary}
+          </p>
         </div>
+      )}
+
+      {isMobile && (
+        <MobileEnhancementSettingsSheet
+          open={mobileEnhancementSettingsOpen}
+          onOpenChange={setMobileEnhancementSettingsOpen}
+          webSearchEnabled={webSearchEnabled}
+          onWebSearchToggle={handleWebSearchToggle}
+          isEnhancing={isEnhancing}
+          enhancementDepth={enhancementDepth}
+          rewriteStrictness={rewriteStrictness}
+          ambiguityMode={ambiguityMode}
+          onEnhancementDepthChange={handleEnhancementDepthChange}
+          onRewriteStrictnessChange={handleRewriteStrictnessChange}
+          onAmbiguityModeChange={handleAmbiguityModeChange}
+        />
       )}
 
       {/* Mobile: output drawer */}
@@ -3250,6 +3280,8 @@ const Index = () => {
                 onAppendToSessionContext={handleAppendToSessionContext}
                 onEditableListSaved={handleEditableListSaved}
                 onApplyEditableListToPrompt={handleApplyEditableListToPrompt}
+                enhancementSettingsSummary={mobileEnhancementSummary}
+                onEditEnhancementSettings={handleEditMobileEnhancementSettings}
                 // Enhancement depth/strictness/ambiguity controls omitted — hideEnhanceButton hides the section they render in
                 hideEnhanceButton
                 remixContext={

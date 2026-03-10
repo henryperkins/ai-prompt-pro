@@ -84,6 +84,8 @@ interface OutputPanelProps {
   onRewriteStrictnessChange?: (strictness: RewriteStrictness) => void;
   ambiguityMode?: AmbiguityMode;
   onAmbiguityModeChange?: (mode: AmbiguityMode) => void;
+  enhancementSettingsSummary?: string;
+  onEditEnhancementSettings?: () => void;
   onApplyToBuilder?: (updates: ApplyToBuilderUpdate) => void;
   onAppendClarificationBlockToPrompt?: (block: string) => void;
   onAppendToSessionContext?: (content: string) => void;
@@ -160,6 +162,8 @@ export function OutputPanel({
   onRewriteStrictnessChange,
   ambiguityMode = "infer_conservatively",
   onAmbiguityModeChange,
+  enhancementSettingsSummary,
+  onEditEnhancementSettings,
   onApplyToBuilder,
   onAppendClarificationBlockToPrompt,
   onAppendToSessionContext,
@@ -587,6 +591,41 @@ export function OutputPanel({
           </ul>
         </div>
       )}
+
+      {hideEnhanceButton &&
+        (enhancementSettingsSummary || onEditEnhancementSettings) && (
+          <div
+            className="rounded-xl border border-border/70 bg-muted/30 px-3 py-2"
+            data-testid="output-panel-enhancement-settings-summary"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1">
+                <p className="ui-section-label text-muted-foreground">
+                  Enhancement settings
+                </p>
+                {enhancementSettingsSummary && (
+                  <p
+                    className="text-sm text-foreground"
+                    title={enhancementSettingsSummary}
+                  >
+                    {enhancementSettingsSummary}
+                  </p>
+                )}
+              </div>
+              {onEditEnhancementSettings && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={onEditEnhancementSettings}
+                  data-testid="output-panel-edit-enhancement-settings"
+                >
+                  Edit settings
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
 
       {!hideEnhanceButton && (
         <OutputPanelEnhanceControls
