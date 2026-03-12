@@ -37,6 +37,34 @@
   /* Firefox */
 }
 
+@utility scrollbar-themed {
+  -webkit-overflow-scrolling: touch;
+
+  /* Webkit (Chrome, Safari, Edge) */
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: hsl(var(--muted) / 0.3);
+    border-radius: 9999px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.35);
+    border-radius: 9999px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.55);
+  }
+
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.35) hsl(var(--muted) / 0.3);
+}
+
 @utility transition-inherit-all {
   transition-property: inherit;
   transition-duration: inherit;

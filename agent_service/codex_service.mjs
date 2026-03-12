@@ -53,11 +53,18 @@ import {
 import { resolveActiveCodexThreadId } from "./codex-thread-state.mjs";
 
 // ---------------------------------------------------------------------------
-// Resolve provider from ~/.codex/config.toml (preferred) or CODEX_CONFIG_JSON.
+// Resolve provider from ~/.codex/config.toml (optionally via CODEX_PROFILE)
+// or CODEX_CONFIG_JSON.
 // ---------------------------------------------------------------------------
+const CODEX_PROFILE = normalizeEnvValue("CODEX_PROFILE");
 const CODEX_CONFIG_OVERRIDES = parseJsonObjectEnv("CODEX_CONFIG_JSON") || {};
-const CODEX_CONFIG_FROM_TOML = await loadCodexConfig();
-const CODEX_CONFIG_FROM_ENV = resolveProviderConfig(CODEX_CONFIG_OVERRIDES);
+const CODEX_CONFIG_SEARCH_LABEL = CODEX_PROFILE
+  ? `~/.codex/config.toml profile "${CODEX_PROFILE}" or CODEX_CONFIG_JSON`
+  : "~/.codex/config.toml or CODEX_CONFIG_JSON";
+const CODEX_CONFIG_FROM_TOML = await loadCodexConfig(CODEX_PROFILE);
+const CODEX_CONFIG_FROM_ENV = resolveProviderConfig(CODEX_CONFIG_OVERRIDES, {
+  profile: CODEX_PROFILE,
+});
 const CODEX_CONFIG = CODEX_CONFIG_FROM_TOML || CODEX_CONFIG_FROM_ENV;
 const CODEX_CONFIG_SOURCE = CODEX_CONFIG_FROM_TOML
   ? "config_toml"
@@ -75,6 +82,7 @@ if (CODEX_CONFIG) {
     event: "provider_config_resolved",
     service: "ai-prompt-pro-codex-service",
     config_source: CODEX_CONFIG_SOURCE,
+    requested_profile: CODEX_PROFILE || null,
     provider: CODEX_CONFIG.provider,
     provider_name: CODEX_CONFIG.name,
     base_url: CODEX_CONFIG.baseUrl,
@@ -88,7 +96,8 @@ if (CODEX_CONFIG) {
     level: "warn",
     event: "provider_config_not_found",
     service: "ai-prompt-pro-codex-service",
-    message: "No model provider config found in ~/.codex/config.toml or CODEX_CONFIG_JSON. Falling back to OPENAI_API_KEY.",
+    message: `No model provider config found in ${CODEX_CONFIG_SEARCH_LABEL}. Falling back to OPENAI_API_KEY.`,
+    requested_profile: CODEX_PROFILE || null,
     codex_config_json_set: Object.keys(CODEX_CONFIG_OVERRIDES).length > 0,
     openai_api_key_set: !!process.env.OPENAI_API_KEY,
   }));
@@ -96,7 +105,7 @@ if (CODEX_CONFIG) {
 
 if (REQUIRE_PROVIDER_CONFIG && !CODEX_CONFIG) {
   throw new Error(
-    "REQUIRE_PROVIDER_CONFIG is true, but no provider config was found in ~/.codex/config.toml or CODEX_CONFIG_JSON.",
+    `REQUIRE_PROVIDER_CONFIG is true, but no provider config was found in ${CODEX_CONFIG_SEARCH_LABEL}.`,
   );
 }
 

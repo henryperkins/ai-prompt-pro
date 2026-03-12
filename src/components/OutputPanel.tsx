@@ -480,7 +480,7 @@ export function OutputPanel({
           <p className={cx("ui-section-label", UI_STATUS_TEXT_CLASSES.warning)}>
             Reasoning summary
           </p>
-          <div className="prose prose-sm mt-2 max-w-none whitespace-normal text-foreground/90 dark:prose-invert prose-headings:my-1 prose-p:my-1 prose-pre:my-1 prose-code:break-words prose-ul:my-1 prose-ol:my-1">
+          <div className="scrollbar-themed mt-2 max-h-36 sm:max-h-56 overflow-y-auto overscroll-contain prose prose-sm max-w-none whitespace-normal text-foreground/90 dark:prose-invert prose-headings:my-1 prose-p:my-1 prose-pre:my-1 prose-code:break-words prose-ul:my-1 prose-ol:my-1">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {displayedReasoningSummary}
             </ReactMarkdown>

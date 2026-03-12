@@ -65,6 +65,55 @@ describe("resolveProviderConfig", () => {
       model: "gpt-4o",
     });
   });
+
+  it("resolves provider from a named profile", () => {
+    const result = resolveProviderConfig({
+      model_provider: "openai",
+      model: "gpt-5.4",
+      model_providers: {
+        openai: {
+          name: "OpenAI",
+          base_url: "https://api.openai.com/v1",
+          env_key: "OPENAI_API_KEY",
+          wire_api: "responses",
+        },
+        "azure-5": {
+          name: "Azure OpenAI Five",
+          base_url: "https://myaccount.openai.azure.com/openai/v1",
+          env_key: "AZURE_OPENAI_API_KEY_FIVE",
+          wire_api: "responses",
+        },
+      },
+      profiles: {
+        "azure-5": {
+          model_provider: "azure-5",
+          model: "gpt-5.4",
+        },
+      },
+    }, { profile: "azure-5" });
+
+    expect(result).toEqual({
+      provider: "azure-5",
+      name: "Azure OpenAI Five",
+      baseUrl: "https://myaccount.openai.azure.com/openai/v1",
+      envKey: "AZURE_OPENAI_API_KEY_FIVE",
+      wireApi: "responses",
+      model: "gpt-5.4",
+    });
+  });
+
+  it("returns null when the requested profile is missing", () => {
+    expect(resolveProviderConfig({
+      model_provider: "azure",
+      model_providers: {
+        azure: {
+          name: "Azure OpenAI",
+          base_url: "https://myaccount.openai.azure.com/openai/v1",
+          env_key: "AZURE_OPENAI_API_KEY",
+        },
+      },
+    }, { profile: "missing-profile" })).toBeNull();
+  });
 });
 
 describe("resolveApiKey", () => {

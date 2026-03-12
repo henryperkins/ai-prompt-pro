@@ -18,10 +18,11 @@ const CONFIG_PATH = join(homedir(), ".codex", "config.toml");
 /**
  * Load and parse ~/.codex/config.toml, resolving the active model provider.
  *
+ * @param {string | undefined} [profile] - Optional config profile name.
  * @returns {ResolvedProviderConfig | null} Resolved provider config, or null if
  *   config.toml is missing or doesn't specify a model_provider.
  */
-export async function loadCodexConfig() {
+export async function loadCodexConfig(profile) {
   let raw;
   try {
     raw = await readFile(CONFIG_PATH, "utf8");
@@ -36,7 +37,7 @@ export async function loadCodexConfig() {
     return null;
   }
 
-  return resolveProviderConfig(config);
+  return resolveProviderConfig(config, { profile });
 }
 
 /**
@@ -45,19 +46,23 @@ export async function loadCodexConfig() {
  * Supports objects from ~/.codex/config.toml and CODEX_CONFIG_JSON.
  *
  * @param {Record<string, unknown> | null | undefined} config
+ * @param {{ profile?: string | undefined }} [options]
  * @returns {ResolvedProviderConfig | null}
  */
-export function resolveProviderConfig(config) {
+export function resolveProviderConfig(config, options = {}) {
   if (!config || typeof config !== "object" || Array.isArray(config)) return null;
 
-  const providerKey = typeof config.model_provider === "string"
-    ? config.model_provider.trim()
+  const activeConfig = resolveActiveConfig(config, options.profile);
+  if (!activeConfig) return null;
+
+  const providerKey = typeof activeConfig.model_provider === "string"
+    ? activeConfig.model_provider.trim()
     : "";
   if (!providerKey) return null;
 
-  const model = typeof config.model === "string" ? config.model.trim() : "";
+  const model = typeof activeConfig.model === "string" ? activeConfig.model.trim() : "";
 
-  const providers = config.model_providers;
+  const providers = activeConfig.model_providers;
   if (!providers || typeof providers !== "object") return null;
 
   const providerSection = providers[providerKey];
@@ -79,6 +84,24 @@ export function resolveProviderConfig(config) {
   if (!baseUrl || !envKey) return null;
 
   return { provider: providerKey, name, baseUrl, envKey, wireApi, model };
+}
+
+function resolveActiveConfig(config, profile) {
+  const normalizedProfile = typeof profile === "string" ? profile.trim() : "";
+  if (!normalizedProfile) return config;
+
+  const profiles = config.profiles;
+  if (!profiles || typeof profiles !== "object" || Array.isArray(profiles)) return null;
+
+  const profileConfig = profiles[normalizedProfile];
+  if (!profileConfig || typeof profileConfig !== "object" || Array.isArray(profileConfig)) {
+    return null;
+  }
+
+  return {
+    ...config,
+    ...profileConfig,
+  };
 }
 
 /**

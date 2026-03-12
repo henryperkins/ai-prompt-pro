@@ -119,7 +119,7 @@ npm run agent:codex
 
 The service resolves AI provider settings in this order:
 
-1. `~/.codex/config.toml`
+1. `~/.codex/config.toml` (uses `CODEX_PROFILE` when set, otherwise the top-level default)
 2. `CODEX_CONFIG_JSON`
 3. OpenAI fallback (`OPENAI_API_KEY` / `CODEX_API_KEY`, optional)
 
@@ -162,6 +162,7 @@ Set `REQUIRE_PROVIDER_CONFIG=true` to disable step 3 and fail fast instead of fa
 |----------|---------|-------------|
 | `OPENAI_BASE_URL` / `CODEX_BASE_URL` | _(none)_ | OpenAI-compatible API base URL |
 | `CODEX_PATH_OVERRIDE` | _(none)_ | Absolute path to Codex CLI binary |
+| `CODEX_PROFILE` | _(none)_ | Optional named profile from `~/.codex/config.toml` to use for this service only; ensure the profile's `env_key` variable is also set in the service environment |
 | `CODEX_CONFIG_JSON` | _(none)_ | JSON object of CLI `--config` overrides, including `model_provider` and `model_providers` when `~/.codex/config.toml` is unavailable |
 | `CODEX_ENV_JSON` | _(none)_ | JSON object of env vars for the CLI process |
 | `CODEX_MAX_OUTPUT_TOKENS` | _(none)_ | Max output tokens (passed via CLI config) |
