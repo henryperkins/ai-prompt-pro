@@ -21,6 +21,7 @@ import {
   type AIClientError,
   type EnhanceThreadOptions,
 } from "@/lib/ai-client";
+import { buildEnhanceContextSources } from "@/lib/enhance-context-sources";
 import { createCodexSession, type CodexSession } from "@/lib/codex-session";
 import {
   applyInferenceUpdates,
@@ -1364,6 +1365,9 @@ const Index = () => {
           ? `Complexity: ${configForEnhance.complexity}`
           : "",
       ].filter((value) => value.length > 0);
+      const enhanceContextSources = buildEnhanceContextSources(
+        configForEnhance.contextConfig.sources,
+      );
       const applyEnhancedOutput = (
         nextOutput: string,
         clearSourcesWhenMissing = false,
@@ -1405,6 +1409,7 @@ const Index = () => {
           examples: configForEnhance.examples.trim(),
           guardrails: guardrailItems.join("; "),
         },
+        contextSources: enhanceContextSources,
         signal: streamAbortController.signal,
         onDelta: (text) => {
           if (streamToken !== enhanceStreamToken.current) return;
@@ -2191,6 +2196,7 @@ const Index = () => {
     }
 
     const token = ++suggestionLoadToken.current;
+    const abortController = new AbortController();
     const timer = window.setTimeout(() => {
       void (async () => {
         setIsInferringSuggestions(true);
@@ -2199,12 +2205,14 @@ const Index = () => {
           enhanceSession,
           hasPresetOrRemix: Boolean(remixContext || presetId),
         });
+        const timeout = window.setTimeout(() => abortController.abort(), 12_000);
         try {
           const remote = await inferBuilderFields({
             prompt,
             currentFields: buildInferenceCurrentFields(config),
             lockMetadata: fieldOwnership,
             requestContext,
+            signal: abortController.signal,
           });
 
           if (token !== suggestionLoadToken.current) return;
@@ -2244,6 +2252,7 @@ const Index = () => {
           );
           setHasInferenceError(true);
         } finally {
+          window.clearTimeout(timeout);
           if (token === suggestionLoadToken.current) {
             setIsInferringSuggestions(false);
           }
@@ -2253,6 +2262,7 @@ const Index = () => {
 
     return () => {
       window.clearTimeout(timer);
+      abortController.abort();
       suggestionLoadToken.current += 1;
     };
   }, [

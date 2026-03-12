@@ -15,6 +15,14 @@ import {
   postProcessEnhancementResponse,
 } from "./enhancement-pipeline.mjs";
 import {
+  buildExpandedContextSourceBlock,
+  buildSourceExpansionDecisionPrompt,
+  normalizeEnhanceContextSources,
+  parseSourceExpansionDecision,
+  selectContextSourcesForExpansion,
+  SOURCE_EXPANSION_DECISION_SCHEMA,
+} from "./context-source-expansion.mjs";
+import {
   sanitizeEnhanceThreadOptions,
   mergeEnhanceThreadOptions,
 } from "./thread-options.mjs";
@@ -422,8 +430,12 @@ function captureUsageMetrics(requestContext, usage) {
     ?? usage.completion_tokens
     ?? usage.completionTokens,
   );
-  if (inputTokens !== undefined) requestContext.usageInputTokens = inputTokens;
-  if (outputTokens !== undefined) requestContext.usageOutputTokens = outputTokens;
+  if (inputTokens !== undefined) {
+    requestContext.usageInputTokens = (requestContext.usageInputTokens || 0) + inputTokens;
+  }
+  if (outputTokens !== undefined) {
+    requestContext.usageOutputTokens = (requestContext.usageOutputTokens || 0) + outputTokens;
+  }
 }
 
 function normalizeEnvValue(name) {
@@ -1830,6 +1842,153 @@ async function runStreamedWithRetry(thread, input, turnOptions, telemetry = {}) 
   }
 }
 
+async function runBufferedWithRetry(thread, input, turnOptions, telemetry = {}) {
+  const requestContext = telemetry.requestContext;
+  let attempt = 0;
+
+  while (true) {
+    try {
+      return await thread.run(input, turnOptions);
+    } catch (error) {
+      if (!isRateLimitError(error) || attempt >= CODEX_429_MAX_RETRIES) {
+        throw error;
+      }
+
+      const backoff = CODEX_429_BACKOFF_BASE_SECONDS * (2 ** attempt);
+      const jitter = 0.5 + Math.random() * 0.5;
+      const delay = Math.min(backoff * jitter, CODEX_429_BACKOFF_MAX_SECONDS) * 1000;
+      if (requestContext) {
+        requestContext.retryCount = attempt + 1;
+      }
+      logEvent("warn", "retry_attempt", cleanLogFields({
+        request_id: requestContext?.requestId,
+        endpoint: requestContext?.endpoint,
+        method: requestContext?.method,
+        transport: requestContext?.transport,
+        retry_count: attempt + 1,
+        max_retries: CODEX_429_MAX_RETRIES,
+        error_code: "rate_limited",
+        backoff_ms: Math.round(delay),
+        source: "codex_buffered_run",
+      }));
+      await sleep(delay);
+      attempt++;
+    }
+  }
+}
+
+async function resolveEnhancementInputWithSourceExpansion({
+  codex,
+  prompt,
+  enhancementContext,
+  baseEnhancementInput,
+  contextSources,
+  threadOptions,
+  signal,
+  requestContext,
+}) {
+  if (!Array.isArray(contextSources) || contextSources.length === 0) {
+    return {
+      enhancementInput: baseEnhancementInput,
+      sourceExpansion: null,
+    };
+  }
+
+  const expandableSources = contextSources.filter(
+    (source) => source.expandable && hasText(source.summary) && hasText(source.rawContent),
+  );
+  if (expandableSources.length === 0) {
+    return {
+      enhancementInput: baseEnhancementInput,
+      sourceExpansion: {
+        availableCount: contextSources.length,
+        expandableCount: 0,
+        rationale: "",
+        requestedRefs: [],
+        expandedRefs: [],
+      },
+    };
+  }
+
+  const preflightPrompt = buildSourceExpansionDecisionPrompt({
+    prompt,
+    enhancementContext,
+    contextSources,
+  });
+  const preflightThreadOptions = {
+    ...(threadOptions || {}),
+    modelReasoningEffort: "minimal",
+    webSearchEnabled: false,
+  };
+  delete preflightThreadOptions.webSearchMode;
+  const preflightThread = codex.startThread(preflightThreadOptions);
+
+  try {
+    const turn = await runBufferedWithRetry(
+      preflightThread,
+      preflightPrompt,
+      {
+        signal,
+        outputSchema: SOURCE_EXPANSION_DECISION_SCHEMA,
+      },
+      { requestContext },
+    );
+    captureUsageMetrics(requestContext, turn.usage);
+
+    const decision = parseSourceExpansionDecision(turn.finalResponse);
+    const requestedRefs = decision.sourceRequests.map((request) => request.ref);
+    const selectedSources = decision.needsSourceContext
+      ? selectContextSourcesForExpansion(expandableSources, decision.sourceRequests)
+      : [];
+    const expandedBlock = buildExpandedContextSourceBlock(selectedSources);
+    const enhancementInput = expandedBlock
+      ? `${baseEnhancementInput}\n\n${expandedBlock}`
+      : baseEnhancementInput;
+
+    logEvent("info", "enhance_source_context_decision", cleanLogFields({
+      request_id: requestContext?.requestId,
+      endpoint: requestContext?.endpoint,
+      available_context_sources: contextSources.length,
+      expandable_context_sources: expandableSources.length,
+      needs_source_context: decision.needsSourceContext,
+      requested_refs: requestedRefs.length > 0 ? requestedRefs.join(",") : undefined,
+      expanded_refs: selectedSources.length > 0
+        ? selectedSources.map((source) => source.reference?.refId || source.decisionRef).join(",")
+        : undefined,
+      rationale: decision.rationale || undefined,
+    }));
+
+    return {
+      enhancementInput,
+      sourceExpansion: {
+        availableCount: contextSources.length,
+        expandableCount: expandableSources.length,
+        rationale: decision.rationale,
+        requestedRefs,
+        expandedRefs: selectedSources.map((source) => source.reference?.refId || source.decisionRef),
+      },
+    };
+  } catch (error) {
+    logEvent("warn", "enhance_source_context_preflight_failed", cleanLogFields({
+      request_id: requestContext?.requestId,
+      endpoint: requestContext?.endpoint,
+      error_message: toErrorMessage(error),
+      available_context_sources: contextSources.length,
+      expandable_context_sources: expandableSources.length,
+    }));
+    return {
+      enhancementInput: baseEnhancementInput,
+      sourceExpansion: {
+        availableCount: contextSources.length,
+        expandableCount: expandableSources.length,
+        rationale: "",
+        requestedRefs: [],
+        expandedRefs: [],
+      },
+    };
+  }
+}
+
 function buildEnhanceStreamRequest(body) {
   const requestBody = body && typeof body === "object" && !Array.isArray(body)
     ? body
@@ -1900,6 +2059,16 @@ function buildEnhanceStreamRequest(body) {
   const intentOverride = parseEnhancementRequestIntentOverride(requestBody);
   const ambiguityMode = parseEnhancementRequestAmbiguityMode(requestBody);
   const builderFields = parseEnhancementRequestBuilderFields(requestBody);
+  const normalizedContextSources = normalizeEnhanceContextSources(
+    requestBody.context_sources ?? requestBody.contextSources,
+  );
+  if (!normalizedContextSources.ok) {
+    return {
+      ok: false,
+      status: 400,
+      detail: normalizedContextSources.error,
+    };
+  }
   const enhancementContext = detectEnhancementContext(prompt, {
     builderMode,
     rewriteStrictness,
@@ -1909,7 +2078,7 @@ function buildEnhanceStreamRequest(body) {
     session: requestSession,
     webSearchEnabled: threadOptions.webSearchEnabled === true,
   });
-  const enhancementInput = buildEnhancementMetaPrompt(prompt, enhancementContext);
+  const baseEnhancementInput = buildEnhancementMetaPrompt(prompt, enhancementContext);
 
   return {
     ok: true,
@@ -1919,8 +2088,9 @@ function buildEnhanceStreamRequest(body) {
       requestSession,
       threadOptions,
       threadOptionWarnings: sanitizedThreadOptions.warnings,
+      contextSources: normalizedContextSources.value,
       enhancementContext,
-      enhancementInput,
+      baseEnhancementInput,
       turnId: `turn_${randomUUID().replaceAll("-", "")}`,
     },
   };
@@ -1933,8 +2103,9 @@ async function runEnhanceTurnStream(requestData, options) {
     requestSession,
     threadOptions,
     threadOptionWarnings,
+    contextSources,
     enhancementContext,
-    enhancementInput,
+    baseEnhancementInput,
     turnId,
   } = requestData;
   const {
@@ -1949,6 +2120,7 @@ async function runEnhanceTurnStream(requestData, options) {
   let emittedAgentOutput = false;
   let activeThreadId = requestedThreadId || null;
   let thread = null;
+  let sourceExpansion = null;
 
   if (Array.isArray(threadOptionWarnings) && threadOptionWarnings.length > 0) {
     logEvent("warn", "thread_options_sanitized", cleanLogFields({
@@ -1960,6 +2132,18 @@ async function runEnhanceTurnStream(requestData, options) {
 
   try {
     const codex = getCodexClient();
+    const enhancementPreparation = await resolveEnhancementInputWithSourceExpansion({
+      codex,
+      prompt,
+      enhancementContext,
+      baseEnhancementInput,
+      contextSources,
+      threadOptions,
+      signal,
+      requestContext,
+    });
+    const enhancementInput = enhancementPreparation.enhancementInput;
+    sourceExpansion = enhancementPreparation.sourceExpansion;
     thread = requestedThreadId
       ? codex.resumeThread(requestedThreadId, threadOptions)
       : codex.startThread(threadOptions);
@@ -2172,6 +2356,9 @@ async function runEnhanceTurnStream(requestData, options) {
         userInput: prompt,
         context: enhancementContext,
       });
+      if (sourceExpansion) {
+        postProcessed.source_context = sourceExpansion;
+      }
 
       // Log parse outcome for every enhancement to aid failure triage.
       const diag = postProcessed.parse_diagnostics;

@@ -1150,6 +1150,75 @@ describe("ai-client auth recovery", () => {
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
+  it("sends structured context_sources when provided", async () => {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "valid-token",
+          expires_at: nowSeconds + 3600,
+        },
+      },
+      error: null,
+    });
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(streamingResponse("context-aware"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { streamEnhance } = await import("@/lib/ai-client");
+
+    await streamEnhance({
+      prompt: "Improve this",
+      contextSources: [
+        {
+          id: "readme",
+          type: "file",
+          title: "README.md",
+          summary: "Repository setup summary",
+          rawContent: "Full README contents",
+          rawContentTruncated: false,
+          originalCharCount: 1234,
+          expandable: true,
+          reference: {
+            kind: "file",
+            refId: "file:README.md",
+            locator: "README.md",
+            permissionScope: "workspace",
+          },
+        },
+      ],
+      onDelta: vi.fn(),
+      onDone: vi.fn(),
+      onError: vi.fn(),
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const request = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const body = JSON.parse((request.body as string) || "{}") as {
+      context_sources?: Array<Record<string, unknown>>;
+    };
+
+    expect(body.context_sources).toEqual([
+      {
+        id: "readme",
+        type: "file",
+        title: "README.md",
+        summary: "Repository setup summary",
+        raw_content: "Full README contents",
+        raw_content_truncated: false,
+        original_char_count: 1234,
+        expandable: true,
+        reference: {
+          kind: "file",
+          ref_id: "file:README.md",
+          locator: "README.md",
+          permission_scope: "workspace",
+        },
+      },
+    ]);
+  });
+
   it("sends carry-forward Codex session context when provided", async () => {
     const nowSeconds = Math.floor(Date.now() / 1000);
 

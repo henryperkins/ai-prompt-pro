@@ -42,6 +42,23 @@ npm run agent:codex
     "examples": "",
     "guardrails": ""
   },
+  "context_sources": [                      // optional: attached source summaries + expandable raw context
+    {
+      "id": "readme",
+      "type": "file",
+      "title": "README.md",
+      "summary": "Repository overview bullets",
+      "raw_content": "Longer source excerpt kept off the primary prompt unless requested",
+      "raw_content_truncated": false,
+      "original_char_count": 1234,
+      "expandable": true,
+      "reference": {
+        "kind": "file",
+        "ref_id": "file:README.md",
+        "locator": "README.md"
+      }
+    }
+  ],
   "thread_options": {                       // optional
     "modelReasoningEffort": "medium"        // minimal|low|medium|high|xhigh
   }
@@ -210,6 +227,7 @@ Set `REQUIRE_PROVIDER_CONFIG=true` to disable step 3 and fail fast instead of fa
 ## Features
 
 - **Prompt structure analysis**: Pre-flight inspection checks for Role/Task/Context/Format/Constraints sections and includes findings in the prompt input so the enhancer can address gaps.
+- **On-demand source expansion**: Attached source summaries remain in the primary enhancement prompt, while a hidden preflight turn can request deeper source excerpts only when the model determines the summaries are insufficient.
 - **429 retry with backoff**: Automatic retry on rate-limit errors with exponential backoff and jitter. Only retries if no chunks have been emitted yet.
 - **Thread resumption**: Pass `thread_id` to continue a previous conversation.
 - **SSE streaming**: Compatible with the frontend's `streamEnhance()` parser (supports both `/` and `.` event separators).

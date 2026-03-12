@@ -22,6 +22,7 @@ import {
   type CodexStreamEventMeta,
 } from "@/lib/codex-stream";
 import type { BuilderInferenceRequestContext } from "@/lib/builder-inference";
+import type { EnhanceContextSource } from "@/lib/enhance-context-sources";
 
 function normalizeEnvValue(value?: string): string | undefined {
   if (typeof value !== "string") return undefined;
@@ -1204,6 +1205,7 @@ export async function streamEnhance({
   intentOverride,
   ambiguityMode,
   builderFields,
+  contextSources,
   onDelta,
   onDone,
   onError,
@@ -1221,6 +1223,7 @@ export async function streamEnhance({
   intentOverride?: string | null;
   ambiguityMode?: "ask_me" | "placeholders" | "infer_conservatively";
   builderFields?: EnhanceBuilderFields;
+  contextSources?: EnhanceContextSource[];
   onDelta: (text: string) => void;
   onDone: () => void;
   onError: (error: AIClientError) => void;
@@ -1315,6 +1318,26 @@ export async function streamEnhance({
         examples: typeof builderFields.examples === "string" ? builderFields.examples : "",
         guardrails: typeof builderFields.guardrails === "string" ? builderFields.guardrails : "",
       };
+    }
+    if (Array.isArray(contextSources) && contextSources.length > 0) {
+      payload.context_sources = contextSources.map((source) => ({
+        id: source.id,
+        type: source.type,
+        title: source.title,
+        summary: source.summary,
+        raw_content: source.rawContent,
+        raw_content_truncated: source.rawContentTruncated,
+        original_char_count: source.originalCharCount,
+        expandable: source.expandable,
+        reference: source.reference
+          ? {
+            kind: source.reference.kind,
+            ref_id: source.reference.refId,
+            locator: source.reference.locator,
+            permission_scope: source.reference.permissionScope,
+          }
+          : undefined,
+      }));
     }
 
     return payload;
@@ -1791,6 +1814,7 @@ export interface InferBuilderFieldsInput {
   };
   lockMetadata?: Record<string, "ai" | "user" | "empty">;
   requestContext?: BuilderInferenceRequestContext;
+  signal?: AbortSignal;
 }
 
 export interface InferBuilderFieldsOutput {
@@ -1875,7 +1899,9 @@ export async function inferBuilderFields(
     }
   }
 
-  const resp = await postFunctionWithAuthRecovery("infer-builder-fields", payload);
+  const resp = await postFunctionWithAuthRecovery("infer-builder-fields", payload, {
+    signal: input.signal,
+  });
   const data = await resp.json().catch(() => ({}));
 
   return data && typeof data === "object"
