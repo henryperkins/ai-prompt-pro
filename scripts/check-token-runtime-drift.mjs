@@ -1,26 +1,14 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
+import {
+  collectTokenRuntimeClasses,
+  findMissingTokenRuntimeClasses,
+  shouldScanTokenRuntimeFile,
+} from "./check-token-runtime-drift-lib.mjs";
 
 const projectRoot = process.cwd();
 const srcRoot = path.join(projectRoot, "src");
 const distAssetsRoot = path.join(projectRoot, "dist", "assets");
-const sourceExtensions = new Set([".ts", ".tsx"]);
-const classPattern = /\b(?:bg|text|ring|border|outline|shadow)-[a-z0-9_/-]+\b/g;
-const legacyMarkers = [
-  "brand",
-  "utility",
-  "tertiary",
-  "quaternary",
-  "disabled",
-  "error_",
-  "fg-",
-  "primary_hover",
-  "secondary_hover",
-  "placeholder",
-  "focus-ring",
-  "skeumorphic",
-  "tooltip-supporting-text",
-];
 
 async function* walk(dir) {
   const entries = await readdir(dir, { withFileTypes: true });
@@ -30,27 +18,20 @@ async function* walk(dir) {
       yield* walk(absolutePath);
       continue;
     }
-    if (sourceExtensions.has(path.extname(entry.name))) {
-      yield absolutePath;
-    }
+    yield absolutePath;
   }
 }
 
-const sourceByFile = new Map();
+const tokenRuntimeClasses = new Set();
 for await (const filePath of walk(srcRoot)) {
-  sourceByFile.set(filePath, await readFile(filePath, "utf8"));
-}
-
-const candidateClasses = new Set();
-for (const source of sourceByFile.values()) {
-  for (const match of source.matchAll(classPattern)) {
-    const cls = match[0];
-    if (legacyMarkers.some((marker) => cls.includes(marker))) {
-      candidateClasses.add(cls);
-    }
+  const relativePath = path.relative(projectRoot, filePath).split(path.sep).join("/");
+  if (!shouldScanTokenRuntimeFile(relativePath)) {
+    continue;
   }
-  if (source.includes("text-md")) {
-    candidateClasses.add("text-md");
+
+  const source = await readFile(filePath, "utf8");
+  for (const className of collectTokenRuntimeClasses(source, relativePath)) {
+    tokenRuntimeClasses.add(className);
   }
 }
 
@@ -73,14 +54,14 @@ if (cssChunks.length === 0) {
 }
 
 const builtCss = cssChunks.join("\n");
-const missing = [...candidateClasses].filter((cls) => !builtCss.includes(cls)).sort();
+const missing = findMissingTokenRuntimeClasses([...tokenRuntimeClasses], builtCss);
 
 if (missing.length > 0) {
-  console.error("Token/runtime drift detected: classes referenced in source but missing from built CSS.");
+  console.error("Token/runtime drift detected: token-backed design-system classes referenced in source but missing from built CSS.");
   for (const cls of missing) {
     console.error(`- ${cls}`);
   }
   process.exit(1);
 }
 
-console.log(`Token/runtime drift check passed (${candidateClasses.size} classes validated).`);
+console.log(`Token/runtime drift check passed (${tokenRuntimeClasses.size} classes validated).`);

@@ -6,6 +6,7 @@ interface ProgressBarProps {
   max?: number;
   size: "xxs" | "xs" | "sm" | "md" | "lg";
   label?: string;
+  ariaLabel?: string;
   valueFormatter?: (value: number, valueInPercentage: number) => string | number;
 }
 
@@ -53,7 +54,7 @@ function getPercentage(value: number, min: number, max: number) {
   return Math.min(100, Math.max(0, Math.round(raw)));
 }
 
-export const ProgressBarCircle = ({ value, min = 0, max = 100, size, label, valueFormatter }: ProgressBarProps) => {
+export const ProgressBarCircle = ({ value, min = 0, max = 100, size, label, ariaLabel, valueFormatter }: ProgressBarProps) => {
   const percentage = getPercentage(value, min, max);
   const sizeConfig = sizes[size];
   const { strokeWidth, radius, valueClass, labelClass } = sizeConfig;
@@ -66,7 +67,14 @@ export const ProgressBarCircle = ({ value, min = 0, max = 100, size, label, valu
 
   return (
     <div className="flex flex-col items-center gap-1">
-      <div role="progressbar" aria-valuenow={value} aria-valuemin={min} aria-valuemax={max} className="relative flex w-max items-center justify-center">
+      <div
+        role="progressbar"
+        aria-label={ariaLabel ?? label}
+        aria-valuenow={value}
+        aria-valuemin={min}
+        aria-valuemax={max}
+        className="relative flex w-max items-center justify-center"
+      >
         <svg className="-rotate-90" width={diameter} height={diameter} viewBox={`0 0 ${diameter} ${diameter}`}>
           <circle
             className="stroke-muted"
@@ -108,7 +116,7 @@ export const ProgressBarCircle = ({ value, min = 0, max = 100, size, label, valu
   );
 };
 
-export const ProgressBarHalfCircle = ({ value, min = 0, max = 100, size, label, valueFormatter }: ProgressBarProps) => {
+export const ProgressBarHalfCircle = ({ value, min = 0, max = 100, size, label, ariaLabel, valueFormatter }: ProgressBarProps) => {
   const percentage = getPercentage(value, min, max);
   const sizeConfig = sizes[size];
   const { strokeWidth, radius, valueClass, labelClass, halfCircleTextPosition } = sizeConfig;
@@ -120,7 +128,14 @@ export const ProgressBarHalfCircle = ({ value, min = 0, max = 100, size, label, 
 
   return (
     <div className="flex flex-col items-center gap-1">
-      <div role="progressbar" aria-valuenow={value} aria-valuemin={min} aria-valuemax={max} className="relative flex w-max items-center justify-center">
+      <div
+        role="progressbar"
+        aria-label={ariaLabel ?? label}
+        aria-valuenow={value}
+        aria-valuemin={min}
+        aria-valuemax={max}
+        className="relative flex w-max items-center justify-center"
+      >
         <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
           <circle
             className="stroke-muted"

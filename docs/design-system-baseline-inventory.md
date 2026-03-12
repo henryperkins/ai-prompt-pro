@@ -64,10 +64,10 @@ Scope: `src/**/*.ts(x)` excluding `src/styles/**` and `src/test/**`.
 
 | pf class | File count | Files |
 | --- | --- | --- |
-| `pf-card` | 12 | `src/components/community/CommunityFeed.tsx`, `src/components/community/CommunityPostCard.tsx`, `src/components/community/CommunityPostDetail.tsx`, `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFTemplateCard.tsx`, `src/pages/CommunityPost.tsx`, `src/pages/History.tsx`, `src/pages/NotFound.tsx`, _+4 more_ |
+| `pf-card` | 14 | `src/components/PageShell.stories.tsx`, `src/components/community/CommunityFeed.tsx`, `src/components/community/CommunityPostCard.tsx`, `src/components/community/CommunityPostDetail.tsx`, `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFTemplateCard.tsx`, `src/pages/CommunityPost.tsx`, `src/pages/ComponentsShowcase.tsx`, _+6 more_ |
 | `pf-gilded-frame` | 12 | `src/components/PageShell.tsx`, `src/components/community/ProfileHero.tsx`, `src/pages/Community.tsx`, `src/pages/History.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/LibraryBulkEdit.tsx`, `src/pages/Presets.tsx`, _+4 more_ |
-| `pf-hero-surface` | 11 | `src/components/PageShell.tsx`, `src/components/community/ProfileHero.tsx`, `src/pages/Community.tsx`, `src/pages/History.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/LibraryBulkEdit.tsx`, `src/pages/Presets.tsx`, _+3 more_ |
-| `pf-community-page` | 5 | `src/pages/Community.tsx`, `src/pages/CommunityPost.tsx`, `src/pages/Contact.tsx`, `src/pages/NotFound.tsx`, `src/pages/Profile.tsx` |
+| `pf-hero-surface` | 12 | `src/components/PageShell.stories.tsx`, `src/components/PageShell.tsx`, `src/components/community/ProfileHero.tsx`, `src/pages/Community.tsx`, `src/pages/History.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/LibraryBulkEdit.tsx`, _+4 more_ |
+| `pf-community-page` | 6 | `src/components/PageShell.stories.tsx`, `src/pages/Community.tsx`, `src/pages/CommunityPost.tsx`, `src/pages/Contact.tsx`, `src/pages/NotFound.tsx`, `src/pages/Profile.tsx` |
 | `pf-gold` | 4 | `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFTemplateCard.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx` |
 | `pf-panel` | 4 | `src/pages/Community.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx` |
 | `pf-parchment` | 4 | `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFTemplateCard.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx` |
@@ -115,7 +115,7 @@ Scope: `src/**/*.ts(x)` excluding `src/styles/**` and `src/test/**`.
 ## Baseline screenshot/state capture
 
 No screenshot artifacts are committed in this baseline file.
-Use `src/pages/ComponentsShowcase.tsx` and Storybook stories as visual checkpoints before API-normalization passes.
+Use `src/pages/ComponentsShowcase.tsx` (including the branded-surface checkpoint for `PageShell`/`PageHero` and `ProfileHero`) and Storybook stories as visual checkpoints before API-normalization passes.
 
 ## Repro command
 

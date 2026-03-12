@@ -24,4 +24,10 @@ describe("ButtonUtility", () => {
 
     expect(onClick).toHaveBeenCalledTimes(1);
   });
+
+  it("uses tooltip text as the fallback accessible name for icon-only buttons", () => {
+    render(<ButtonUtility icon={TestIcon} tooltip="Decrease progress" />);
+
+    expect(screen.getByRole("button", { name: "Decrease progress" })).toBeInTheDocument();
+  });
 });

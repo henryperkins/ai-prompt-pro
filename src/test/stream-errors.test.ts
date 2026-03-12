@@ -31,6 +31,21 @@ describe("classifyStreamFailure", () => {
     });
   });
 
+  it("preserves unsafe_url failures as machine-readable client codes", () => {
+    expect(classifyStreamFailure({
+      message: "URLs pointing to private or internal hosts are not allowed.",
+      code: "unsafe_url",
+      status: 400,
+    }, {
+      defaultCode: "service_error",
+      defaultStatus: 503,
+    })).toEqual({
+      message: "URLs pointing to private or internal hosts are not allowed.",
+      code: "unsafe_url",
+      status: 400,
+    });
+  });
+
   it("falls back to service_error when upstream metadata is missing", () => {
     expect(classifyStreamFailure({ message: "Codex worker failed." }, {
       defaultCode: "service_error",

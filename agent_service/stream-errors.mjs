@@ -23,6 +23,7 @@ function normalizeErrorCode(rawCode) {
   }
   if (normalized.includes("auth") || normalized.includes("session")) return "auth_session_invalid";
   if (normalized.includes("payload") || normalized.includes("too_large")) return "payload_too_large";
+  if (normalized.includes("unsafe_url") || normalized.includes("url_not_allowed")) return "unsafe_url";
   if (normalized.includes("bad") || normalized.includes("invalid")) return "bad_response";
   if (normalized.includes("method")) return "method_not_allowed";
   if (normalized.includes("not_found")) return "not_found";
@@ -51,6 +52,8 @@ export function statusFromErrorCode(errorCode) {
       return 408;
     case "payload_too_large":
       return 413;
+    case "unsafe_url":
+      return 400;
     case "rate_limited":
       return 429;
     case "bad_response":

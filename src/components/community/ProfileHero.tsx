@@ -1,3 +1,4 @@
+import type { ElementType } from "react";
 import { format } from "date-fns";
 import type { FollowStats, ProfileActivityStats, CommunityProfile } from "@/lib/community";
 import { getInitials } from "@/lib/utils/get-initials";
@@ -14,6 +15,7 @@ interface ProfileHeroProps {
   activityStats: ProfileActivityStats;
   bestRarity: PromptForgeRarity;
   memberSinceAt?: number | null;
+  titleAs?: ElementType;
   isOwnProfile: boolean;
   isFollowing: boolean;
   followPending: boolean;
@@ -66,6 +68,7 @@ export function ProfileHero({
   activityStats,
   bestRarity,
   memberSinceAt = null,
+  titleAs: TitleTag = "h1",
   isOwnProfile,
   isFollowing,
   followPending,
@@ -95,12 +98,12 @@ export function ProfileHero({
           {/* Identity */}
           <div className="flex min-w-0 flex-1 flex-col items-center gap-2 sm:items-start">
             <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-              <h1
+              <TitleTag
                 className="pf-text-display text-xl font-bold text-pf-parchment/95 sm:text-2xl"
                 style={{ textShadow: "0 2px 12px rgba(var(--pf-coal-rgb) / 0.5)" }}
               >
                 {profile.displayName}
-              </h1>
+              </TitleTag>
               {isOwnProfile && (
                 <Badge variant="modern" className="type-chip border border-border/60 bg-background/30 text-foreground/80">
                   You

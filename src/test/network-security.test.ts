@@ -63,6 +63,21 @@ describe("assertPublicHttpTarget", () => {
     });
   });
 
+  it("rejects localhost aliases and userinfo confusion targets", async () => {
+    await expect(assertPublicHttpTarget("http://2130706433")).rejects.toMatchObject({
+      code: "url_not_allowed",
+    });
+    await expect(assertPublicHttpTarget("http://0x7f000001")).rejects.toMatchObject({
+      code: "url_not_allowed",
+    });
+    await expect(assertPublicHttpTarget("https://example.com@127.0.0.1")).rejects.toMatchObject({
+      code: "url_not_allowed",
+    });
+    await expect(assertPublicHttpTarget("http://[::ffff:127.0.0.1]")).rejects.toMatchObject({
+      code: "url_not_allowed",
+    });
+  });
+
   it("rejects hostnames that resolve to private IPs", async () => {
     const lookupFn = async () => [{ address: "10.0.0.5" }];
     await expect(

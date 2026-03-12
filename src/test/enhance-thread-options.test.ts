@@ -6,6 +6,7 @@ describe("sanitizeEnhanceThreadOptions", () => {
     expect(sanitizeEnhanceThreadOptions(undefined)).toEqual({
       ok: true,
       value: undefined,
+      warnings: [],
     });
   });
 
@@ -20,6 +21,7 @@ describe("sanitizeEnhanceThreadOptions", () => {
     expect(sanitizeEnhanceThreadOptions({ sandboxMode: "danger-full-access" })).toEqual({
       ok: true,
       value: undefined,
+      warnings: [{ field: "sandboxMode", reason: "unsupported_field" }],
     });
   });
 
@@ -27,6 +29,7 @@ describe("sanitizeEnhanceThreadOptions", () => {
     expect(sanitizeEnhanceThreadOptions({ modelReasoningEffort: "none" })).toEqual({
       ok: true,
       value: undefined,
+      warnings: [{ field: "modelReasoningEffort", reason: "invalid_value" }],
     });
   });
 
@@ -34,14 +37,17 @@ describe("sanitizeEnhanceThreadOptions", () => {
     expect(sanitizeEnhanceThreadOptions({ modelReasoningEffort: "minimal" })).toEqual({
       ok: true,
       value: { modelReasoningEffort: "minimal" },
+      warnings: [],
     });
     expect(sanitizeEnhanceThreadOptions({ modelReasoningEffort: " HIGH " })).toEqual({
       ok: true,
       value: { modelReasoningEffort: "high" },
+      warnings: [],
     });
     expect(sanitizeEnhanceThreadOptions({ modelReasoningEffort: "high" })).toEqual({
       ok: true,
       value: { modelReasoningEffort: "high" },
+      warnings: [],
     });
   });
 
@@ -49,16 +55,19 @@ describe("sanitizeEnhanceThreadOptions", () => {
     expect(sanitizeEnhanceThreadOptions({ webSearchEnabled: true })).toEqual({
       ok: true,
       value: { webSearchEnabled: true },
+      warnings: [],
     });
 
     expect(sanitizeEnhanceThreadOptions({ webSearchEnabled: false })).toEqual({
       ok: true,
       value: { webSearchEnabled: false },
+      warnings: [],
     });
 
     expect(sanitizeEnhanceThreadOptions({ webSearchEnabled: "true" })).toEqual({
       ok: true,
       value: undefined,
+      warnings: [{ field: "webSearchEnabled", reason: "invalid_type" }],
     });
   });
 
@@ -72,6 +81,7 @@ describe("sanitizeEnhanceThreadOptions", () => {
     ).toEqual({
       ok: true,
       value: { modelReasoningEffort: "medium", webSearchEnabled: true },
+      warnings: [{ field: "sandboxMode", reason: "unsupported_field" }],
     });
   });
 });

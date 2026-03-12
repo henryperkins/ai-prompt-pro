@@ -10,6 +10,7 @@ describe("sanitizeEnhanceThreadOptions", () => {
     expect(sanitizeEnhanceThreadOptions(undefined)).toEqual({
       ok: true,
       value: undefined,
+      warnings: [],
     });
   });
 
@@ -50,6 +51,9 @@ describe("sanitizeEnhanceThreadOptions", () => {
     const result = sanitizeEnhanceThreadOptions({ modelReasoningEffort: "ultra" });
     expect(result.ok).toBe(true);
     expect(result.value).toBeUndefined();
+    expect(result.warnings).toEqual([
+      { field: "modelReasoningEffort", reason: "invalid_value" },
+    ]);
   });
 
   it("accepts boolean webSearchEnabled", () => {
@@ -62,12 +66,25 @@ describe("sanitizeEnhanceThreadOptions", () => {
     const result = sanitizeEnhanceThreadOptions({ webSearchEnabled: "yes" });
     expect(result.ok).toBe(true);
     expect(result.value).toBeUndefined();
+    expect(result.warnings).toEqual([
+      { field: "webSearchEnabled", reason: "invalid_type" },
+    ]);
   });
 
   it("returns undefined value for empty object", () => {
     const result = sanitizeEnhanceThreadOptions({});
     expect(result.ok).toBe(true);
     expect(result.value).toBeUndefined();
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("returns warnings for unsupported keys", () => {
+    const result = sanitizeEnhanceThreadOptions({ sandboxMode: "danger-full-access" });
+    expect(result.ok).toBe(true);
+    expect(result.value).toBeUndefined();
+    expect(result.warnings).toEqual([
+      { field: "sandboxMode", reason: "unsupported_field" },
+    ]);
   });
 });
 

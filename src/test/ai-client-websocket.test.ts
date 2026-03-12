@@ -276,7 +276,6 @@ describe("ai-client websocket enhance transport", () => {
       type: "enhance.start",
       auth: {
         bearer_token: "header.payload.signature",
-        apikey: "sb_publishable_test",
       },
       payload: {
         prompt: "Improve this",

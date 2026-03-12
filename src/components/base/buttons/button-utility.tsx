@@ -51,6 +51,10 @@ export const ButtonUtility = ({
   ...props
 }: ButtonUtilityProps) => {
   const content = renderIconSlot(Icon, { className: iconStyles[size] });
+  const fallbackLabel =
+    !props["aria-label"] && !props["aria-labelledby"] && !props.title && tooltip
+      ? { "aria-label": tooltip }
+      : undefined;
 
   const sharedClassName = cx(
     "inline-flex items-center justify-center rounded-md transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
@@ -64,6 +68,7 @@ export const ButtonUtility = ({
     "href" in props && props.href ? (
       <a
         {...props}
+        {...fallbackLabel}
         aria-disabled={isDisabled}
         tabIndex={isDisabled ? -1 : props.tabIndex}
         onClick={(event) => {
@@ -81,6 +86,7 @@ export const ButtonUtility = ({
     ) : (
       <button
         {...props}
+        {...fallbackLabel}
         type={props.type ?? "button"}
         disabled={isDisabled}
         className={sharedClassName}

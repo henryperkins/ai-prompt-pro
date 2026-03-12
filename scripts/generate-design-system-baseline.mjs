@@ -346,7 +346,7 @@ async function main() {
     "## Baseline screenshot/state capture",
     "",
     "No screenshot artifacts are committed in this baseline file.",
-    "Use `src/pages/ComponentsShowcase.tsx` and Storybook stories as visual checkpoints before API-normalization passes.",
+    "Use `src/pages/ComponentsShowcase.tsx` (including the branded-surface checkpoint for `PageShell`/`PageHero` and `ProfileHero`) and Storybook stories as visual checkpoints before API-normalization passes.",
     "",
     "## Repro command",
     "",

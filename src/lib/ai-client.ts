@@ -91,6 +91,7 @@ export type AIClientErrorCode =
   | "request_aborted"
   | "request_timeout"
   | "rate_limited"
+  | "unsafe_url"
   | "service_error"
   | "bad_response";
 
@@ -537,12 +538,12 @@ function buildEnhanceWebSocketStartMessage(
   payload: Record<string, unknown>,
   accessToken: string,
 ): Record<string, unknown> {
+  const isPublicCredential = isPublicFunctionCredential(accessToken);
   return {
     type: "enhance.start",
-    auth: {
-      bearer_token: accessToken,
-      ...(PUBLIC_FUNCTION_API_KEY ? { apikey: PUBLIC_FUNCTION_API_KEY } : {}),
-    },
+    auth: isPublicCredential
+      ? { apikey: accessToken }
+      : { bearer_token: accessToken },
     payload,
   };
 }
@@ -643,14 +644,17 @@ async function functionHeaders({
 
 function functionHeadersWithAccessToken(accessToken: string): Record<string, string> {
   assertFunctionRuntimeEnv();
-  const headers: Record<string, string> = {
+  if (isPublicFunctionCredential(accessToken)) {
+    return {
+      "Content-Type": "application/json",
+      apikey: accessToken,
+    };
+  }
+
+  return {
     "Content-Type": "application/json",
     Authorization: `Bearer ${accessToken}`,
   };
-  if (PUBLIC_FUNCTION_API_KEY) {
-    headers.apikey = PUBLIC_FUNCTION_API_KEY;
-  }
-  return headers;
 }
 
 function functionHeadersWithPublishableKey(): Record<string, string> {
@@ -658,6 +662,10 @@ function functionHeadersWithPublishableKey(): Record<string, string> {
     throw new Error("Sign in required.");
   }
   return functionHeadersWithAccessToken(PUBLIC_FUNCTION_API_KEY);
+}
+
+function isPublicFunctionCredential(accessToken: string): boolean {
+  return Boolean(PUBLIC_FUNCTION_API_KEY && accessToken === PUBLIC_FUNCTION_API_KEY);
 }
 
 function normalizeServerErrorCode(code: unknown): AIClientErrorCode | undefined {
@@ -676,6 +684,7 @@ function normalizeServerErrorCode(code: unknown): AIClientErrorCode | undefined 
   }
   if (normalized.includes("auth") || normalized.includes("session")) return "auth_session_invalid";
   if (normalized.includes("network")) return "network_unavailable";
+  if (normalized.includes("unsafe_url") || normalized.includes("url_not_allowed")) return "unsafe_url";
   if (normalized.includes("service")) return "service_error";
   if (normalized.includes("bad") || normalized.includes("invalid")) return "bad_response";
   return undefined;

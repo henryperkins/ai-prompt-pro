@@ -112,6 +112,8 @@ describe("ai-client auth recovery", () => {
 
     expect(firstHeaders.Authorization).toBe("Bearer stale-token");
     expect(secondHeaders.Authorization).toBe("Bearer fresh-token");
+    expect(firstHeaders.apikey).toBeUndefined();
+    expect(secondHeaders.apikey).toBeUndefined();
     expect(mocks.refreshSession).toHaveBeenCalledTimes(1);
     expect(onError).not.toHaveBeenCalled();
     expect(onDelta).toHaveBeenCalledWith("recovered");
@@ -172,7 +174,9 @@ describe("ai-client auth recovery", () => {
     const secondHeaders = (fetchMock.mock.calls[1]?.[1] as RequestInit).headers as Record<string, string>;
 
     expect(firstHeaders.Authorization).toBe("Bearer session-token");
-    expect(secondHeaders.Authorization).toBe("Bearer sb_publishable_test");
+    expect(firstHeaders.apikey).toBeUndefined();
+    expect(secondHeaders.Authorization).toBeUndefined();
+    expect(secondHeaders.apikey).toBe("sb_publishable_test");
     expect(mocks.signOut).not.toHaveBeenCalled();
     expect(onError).not.toHaveBeenCalled();
     expect(onDelta).toHaveBeenCalledWith("public-key-recovery");
@@ -222,6 +226,7 @@ describe("ai-client auth recovery", () => {
 
     const headers = (fetchMock.mock.calls[0]?.[1] as RequestInit).headers as Record<string, string>;
     expect(headers.Authorization).toBe("Bearer refreshed-token");
+    expect(headers.apikey).toBeUndefined();
     expect(onError).not.toHaveBeenCalled();
     expect(onDone).toHaveBeenCalledTimes(1);
   });
@@ -254,7 +259,8 @@ describe("ai-client auth recovery", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const headers = (fetchMock.mock.calls[0]?.[1] as RequestInit).headers as Record<string, string>;
-    expect(headers.Authorization).toBe("Bearer sb_publishable_test");
+    expect(headers.Authorization).toBeUndefined();
+    expect(headers.apikey).toBe("sb_publishable_test");
     expect(mocks.signOut).not.toHaveBeenCalled();
     expect(onError).not.toHaveBeenCalled();
     expect(onDelta).toHaveBeenCalledWith("network-fallback");
@@ -286,7 +292,8 @@ describe("ai-client auth recovery", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const headers = (fetchMock.mock.calls[0]?.[1] as RequestInit).headers as Record<string, string>;
-    expect(headers.Authorization).toBe("Bearer sb_publishable_test");
+    expect(headers.Authorization).toBeUndefined();
+    expect(headers.apikey).toBe("sb_publishable_test");
     expect(mocks.signOut).not.toHaveBeenCalled();
     expect(onError).not.toHaveBeenCalled();
     expect(onDelta).toHaveBeenCalledWith("network-fallback-throw");
@@ -783,7 +790,9 @@ describe("ai-client auth recovery", () => {
     const secondHeaders = (fetchMock.mock.calls[1]?.[1] as RequestInit).headers as Record<string, string>;
 
     expect(firstHeaders.Authorization).toBe("Bearer stale-token");
-    expect(secondHeaders.Authorization).toBe("Bearer sb_publishable_test");
+    expect(firstHeaders.apikey).toBeUndefined();
+    expect(secondHeaders.Authorization).toBeUndefined();
+    expect(secondHeaders.apikey).toBe("sb_publishable_test");
     expect(mocks.signOut).not.toHaveBeenCalled();
     expect(onError).not.toHaveBeenCalled();
     expect(onDelta).toHaveBeenCalledWith("fallback");
@@ -852,7 +861,10 @@ describe("ai-client auth recovery", () => {
 
     expect(firstHeaders.Authorization).toBe("Bearer stale-token");
     expect(secondHeaders.Authorization).toBe("Bearer still-invalid-token");
-    expect(thirdHeaders.Authorization).toBe("Bearer sb_publishable_test");
+    expect(firstHeaders.apikey).toBeUndefined();
+    expect(secondHeaders.apikey).toBeUndefined();
+    expect(thirdHeaders.Authorization).toBeUndefined();
+    expect(thirdHeaders.apikey).toBe("sb_publishable_test");
     expect(mocks.signOut).not.toHaveBeenCalled();
     expect(onError).not.toHaveBeenCalled();
     expect(onDelta).toHaveBeenCalledWith("third-try-success");
@@ -909,7 +921,9 @@ describe("ai-client auth recovery", () => {
     const secondHeaders = (fetchMock.mock.calls[1]?.[1] as RequestInit).headers as Record<string, string>;
 
     expect(firstHeaders.Authorization).toBe("Bearer stale-token");
-    expect(secondHeaders.Authorization).toBe("Bearer sb_publishable_test");
+    expect(firstHeaders.apikey).toBeUndefined();
+    expect(secondHeaders.Authorization).toBeUndefined();
+    expect(secondHeaders.apikey).toBe("sb_publishable_test");
     expect(onError).not.toHaveBeenCalled();
     expect(onDelta).toHaveBeenCalledWith("refresh-throw-fallback");
     expect(onDone).toHaveBeenCalledTimes(1);

@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import type { ComponentType, ElementType } from "react";
 import { Card } from "@/components/base/card";
 import { Button } from "@/components/base/buttons/button";
 import { DEFAULT_UI_DENSITY, type UIDensity } from "@/lib/ui-density";
@@ -18,6 +18,7 @@ interface StateCardProps {
   variant?: StateCardVariant;
   title: string;
   description: string;
+  titleAs?: ElementType;
   primaryAction?: StateCardAction;
   secondaryAction?: StateCardAction;
   density?: UIDensity;
@@ -73,6 +74,7 @@ export function StateCard({
   variant = "empty",
   title,
   description,
+  titleAs: TitleTag = "p",
   primaryAction,
   secondaryAction,
   density = DEFAULT_UI_DENSITY,
@@ -93,7 +95,7 @@ export function StateCard({
           <Icon className="h-4 w-4" />
         </span>
         <div className="space-y-1">
-          <p className="ui-state-card-title text-foreground">{title}</p>
+          <TitleTag className="ui-state-card-title text-foreground">{title}</TitleTag>
           <p className="ui-state-card-body text-muted-foreground">{description}</p>
         </div>
       </div>

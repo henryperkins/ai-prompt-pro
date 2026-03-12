@@ -1,6 +1,6 @@
 # Documentation Index
 
-Last updated: 2026-03-10
+Last updated: 2026-03-12
 
 Use this file as the starting point for repo documentation.
 
@@ -9,6 +9,7 @@ Use this file as the starting point for repo documentation.
 - `docs/design-system.md` - canonical design-system and UI governance reference.
 - `docs/component-adoption.md` - canonical component import and adoption status guide.
 - `docs/design-system-baseline-inventory.md` - generated baseline inventory for DS refactor planning.
+- `docs/design-system-state-matrix.md` - live state coverage artifact for primitives and branded wrappers.
 - `docs/design-system-state-matrix-template.md` - reusable state coverage template for core primitives.
 - `docs/neon-cutover-runbook.md` - Neon production operations, validation, and rollback runbook.
 - `docs/typography-regression-checklist.md` - typography validation checks.

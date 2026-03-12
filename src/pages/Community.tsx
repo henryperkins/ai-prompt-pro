@@ -696,8 +696,6 @@ const Community = () => {
                     inputClassName="type-input h-12 border-0 bg-transparent pl-9 shadow-none"
                     wrapperClassName="bg-transparent shadow-none ring-0"
                     isDisabled={isFollowingMode}
-                    aria-expanded={showCategorySuggestions}
-                    aria-controls={showCategorySuggestions ? categoryPanelId : undefined}
                   />
                 </div>
                 {mobileEnhancementsEnabled && !isFollowingMode && (

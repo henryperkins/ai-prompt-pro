@@ -11,6 +11,22 @@ function unwrapIpv6Brackets(value) {
   return value;
 }
 
+function mappedIpv6HexToIpv4(value) {
+  const match = value.match(/^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i);
+  if (!match) return null;
+
+  const upper = Number.parseInt(match[1], 16);
+  const lower = Number.parseInt(match[2], 16);
+  if (!Number.isFinite(upper) || !Number.isFinite(lower)) return null;
+
+  return [
+    (upper >> 8) & 0xff,
+    upper & 0xff,
+    (lower >> 8) & 0xff,
+    lower & 0xff,
+  ].join(".");
+}
+
 export function normalizeIpAddress(value) {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -18,7 +34,11 @@ export function normalizeIpAddress(value) {
 
   const unwrapped = unwrapIpv6Brackets(trimmed);
   if (unwrapped.startsWith("::ffff:")) {
-    return unwrapped.slice("::ffff:".length);
+    const mapped = unwrapped.slice("::ffff:".length);
+    if (mapped.includes(".")) {
+      return mapped;
+    }
+    return mappedIpv6HexToIpv4(mapped) || unwrapped;
   }
   return unwrapped;
 }

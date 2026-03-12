@@ -2,9 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import process from "node:process";
 import { Codex } from "@openai/codex-sdk";
-import { createRemoteJWKSet, jwtVerify } from "jose";
 import { WebSocketServer } from "ws";
-import { isConfiguredPublicApiKey as matchesConfiguredPublicApiKey } from "./public-api-key.mjs";
 import {
   buildEnhancementMetaPrompt,
   detectEnhancementContext,
@@ -16,7 +14,10 @@ import {
   pickPrimaryAgentMessageText,
   postProcessEnhancementResponse,
 } from "./enhancement-pipeline.mjs";
-import { extractThreadOptions, mergeEnhanceThreadOptions } from "./thread-options.mjs";
+import {
+  sanitizeEnhanceThreadOptions,
+  mergeEnhanceThreadOptions,
+} from "./thread-options.mjs";
 import {
   loadCodexConfig,
   resolveApiKey,
@@ -40,6 +41,11 @@ import {
   isRateLimitMessage,
   resolveRequestCompletionStatus,
 } from "./stream-errors.mjs";
+import {
+  createAuthService,
+  resolveAuthConfig,
+} from "./auth.mjs";
+import { createRateLimiter } from "./rate-limit.mjs";
 import {
   hasOnlyRetrySafeCodexPreludeEvents,
   isRetrySafeCodexPreludeEvent,
@@ -132,9 +138,25 @@ const ENHANCE_WS_INITIAL_MESSAGE_TIMEOUT_MS = parsePositiveIntegerEnv(
   "ENHANCE_WS_INITIAL_MESSAGE_TIMEOUT_MS",
   5000,
 );
+const ENHANCE_WS_HEARTBEAT_MS = parsePositiveIntegerEnv(
+  "ENHANCE_WS_HEARTBEAT_MS",
+  30_000,
+);
+const ENHANCE_WS_IDLE_TIMEOUT_MS = parsePositiveIntegerEnv(
+  "ENHANCE_WS_IDLE_TIMEOUT_MS",
+  120_000,
+);
+const ENHANCE_WS_MAX_LIFETIME_MS = parsePositiveIntegerEnv(
+  "ENHANCE_WS_MAX_LIFETIME_MS",
+  15 * 60_000,
+);
 const ENHANCE_WS_MAX_PAYLOAD_BYTES = parsePositiveIntegerEnv(
   "ENHANCE_WS_MAX_PAYLOAD_BYTES",
   128 * 1024,
+);
+const ENHANCE_WS_MAX_BUFFERED_BYTES = parsePositiveIntegerEnv(
+  "ENHANCE_WS_MAX_BUFFERED_BYTES",
+  512 * 1024,
 );
 const MAX_HTTP_BODY_BYTES = parsePositiveIntegerEnv(
   "MAX_HTTP_BODY_BYTES",
@@ -266,6 +288,11 @@ function hashUserIdentifier(userId) {
   return createHash("sha256").update(normalized).digest("hex").slice(0, 16);
 }
 
+function hashTextForLogs(value) {
+  if (typeof value !== "string" || !value) return undefined;
+  return createHash("sha256").update(value).digest("hex").slice(0, 16);
+}
+
 function inferErrorCodeFromStatus(statusCode) {
   if (!Number.isFinite(statusCode)) return undefined;
   if (statusCode === 401) return "auth_session_invalid";
@@ -293,6 +320,7 @@ function createRequestContext(requestId, endpoint, method, transport) {
     retryCount: 0,
     circuitState: "closed",
     userIdHash: undefined,
+    authMode: undefined,
     usageInputTokens: undefined,
     usageOutputTokens: undefined,
     errorCode: undefined,
@@ -337,6 +365,7 @@ function completeRequestContext(requestContext, statusCode) {
     error_code: resolvedErrorCode,
     error_message: requestContext.errorMessage,
     user_id_hash: requestContext.userIdHash,
+    auth_mode: requestContext.authMode,
     usage_input_tokens: requestContext.usageInputTokens,
     usage_output_tokens: requestContext.usageOutputTokens,
   });
@@ -477,17 +506,6 @@ function resolveConfiguredCodexModel() {
   return undefined;
 }
 
-function normalizeNeonAuthUrl(rawValue) {
-  const raw = typeof rawValue === "string" ? rawValue.trim() : "";
-  if (!raw) return undefined;
-
-  const trimmed = raw.replace(/\/+$/, "");
-  if (trimmed.endsWith("/auth/v1")) {
-    return trimmed.slice(0, -"/v1".length);
-  }
-  return trimmed;
-}
-
 function stripInternalPaths(message) {
   return message
     .replace(/(?:\/(?:home|tmp|var|usr|opt|etc|root))\S*/gi, "[path]")
@@ -592,6 +610,7 @@ const CORS_CONFIG = (() => {
 })();
 
 const STRICT_PUBLIC_API_KEY = normalizeBool(process.env.STRICT_PUBLIC_API_KEY, true);
+const RATE_LIMIT_BACKEND = normalizeEnvValue("RATE_LIMIT_BACKEND") || "memory";
 const TRUST_PROXY = normalizeBool(process.env.TRUST_PROXY, false);
 const TRUSTED_PROXY_IPS = new Set(
   (parseStringArrayEnv("TRUSTED_PROXY_IPS") || [])
@@ -608,27 +627,7 @@ if (!STRICT_PUBLIC_API_KEY) {
   });
 }
 
-const AUTH_CONFIG = (() => {
-  const neonAuthUrl = normalizeNeonAuthUrl(normalizeEnvValue("NEON_AUTH_URL"));
-  const neonJwksUrl = normalizeEnvValue("NEON_JWKS_URL")
-    || (neonAuthUrl ? `${neonAuthUrl}/.well-known/jwks.json` : undefined);
-
-  const configuredKeyValues = [
-    normalizeEnvValue("FUNCTION_PUBLIC_API_KEY"),
-    normalizeEnvValue("NEON_PUBLISHABLE_KEY"),
-    normalizeEnvValue("VITE_NEON_PUBLISHABLE_KEY"),
-  ].filter((value) => typeof value === "string" && value.length > 0);
-  const configuredKeys = new Set(configuredKeyValues);
-  const authValidationApiKey = configuredKeyValues[0];
-
-  return {
-    neonAuthUrl,
-    neonJwksUrl,
-    neonAuthUserUrl: neonAuthUrl ? `${neonAuthUrl}/v1/user` : undefined,
-    authValidationApiKey,
-    configuredKeys,
-  };
-})();
+const SERVICE_AUTH_CONFIG = resolveAuthConfig(process.env);
 
 const TEXTUAL_CONTENT_TYPES = new Set([
   "application/xhtml+xml",
@@ -657,9 +656,35 @@ const ENHANCE_WS_BEARER_PROTOCOL_PREFIX = "auth.bearer.";
 const ENHANCE_WS_APIKEY_PROTOCOL_PREFIX = "auth.apikey.";
 const ENHANCE_WS_SERVICE_PROTOCOL_PREFIX = "auth.service.";
 
-const rateLimitStores = new Map();
+const ROUTE_AUTH_POLICIES = {
+  "/enhance": { allowPublicKey: true, allowServiceToken: true, allowUserJwt: true },
+  "/extract-url": { allowPublicKey: true, allowServiceToken: true, allowUserJwt: true },
+  "/infer-builder-fields": { allowPublicKey: true, allowServiceToken: true, allowUserJwt: true },
+  [ENHANCE_WS_PATH]: { allowPublicKey: true, allowServiceToken: true, allowUserJwt: true },
+};
+
+const authService = createAuthService({
+  env: process.env,
+  authConfig: SERVICE_AUTH_CONFIG,
+  strictPublicApiKey: STRICT_PUBLIC_API_KEY,
+  serviceToken: SERVICE_CONFIG.token,
+  getClientIp,
+  logEvent,
+});
+
+const rateLimiter = createRateLimiter({ backend: RATE_LIMIT_BACKEND });
 const activeEnhanceWebSocketConnectionsByIp = new Map();
 const extractUrlCache = new Map();
+const activeAbortControllers = new Set();
+
+function trackAbortController(controller) {
+  activeAbortControllers.add(controller);
+  return controller;
+}
+
+function untrackAbortController(controller) {
+  activeAbortControllers.delete(controller);
+}
 
 function getExtractUrlCacheEntry(url) {
   const entry = extractUrlCache.get(url);
@@ -685,11 +710,6 @@ function setExtractUrlCacheEntry(url, title, content) {
   }
   extractUrlCache.set(url, { title, content, cachedAt: Date.now() });
 }
-
-let neonJwksResolver = null;
-let hasLoggedAuthConfigWarning = false;
-let hasLoggedJwtFallbackWarning = false;
-let hasLoggedJwtFallbackProductionWarning = false;
 
 function headerValue(req, headerName) {
   const rawValue = req.headers[headerName.toLowerCase()];
@@ -832,7 +852,7 @@ function baseCorsHeaders(origin) {
   return {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type, x-agent-token, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+      "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
@@ -879,363 +899,6 @@ function getClientIp(req, requestContext) {
   return resolvedIp.ip;
 }
 
-function parseBearerToken(req) {
-  const authHeader = headerValue(req, "authorization") || "";
-  const match = authHeader.match(/^Bearer\s+(.+)$/i);
-  return match?.[1]?.trim();
-}
-
-function isConfiguredPublicApiKey(value) {
-  return matchesConfiguredPublicApiKey(value, {
-    configuredKeys: AUTH_CONFIG.configuredKeys,
-    strict: STRICT_PUBLIC_API_KEY,
-  });
-}
-
-function looksLikeJwt(value) {
-  return typeof value === "string" && value.split(".").length === 3;
-}
-
-function isTruthyEnv(name) {
-  return normalizeBool(process.env[name], false);
-}
-
-function isProductionEnvironment() {
-  if (normalizeEnvValue("DENO_DEPLOYMENT_ID")) return true;
-
-  const envValue = (
-    normalizeEnvValue("APP_ENV")
-    || normalizeEnvValue("ENVIRONMENT")
-    || normalizeEnvValue("NODE_ENV")
-    || ""
-  )
-    .trim()
-    .toLowerCase();
-
-  return envValue === "prod" || envValue === "production";
-}
-
-function allowUnverifiedJwtFallback() {
-  if (!isTruthyEnv("ALLOW_UNVERIFIED_JWT_FALLBACK")) {
-    return false;
-  }
-
-  if (!isProductionEnvironment()) {
-    return true;
-  }
-
-  if (isTruthyEnv("ALLOW_UNVERIFIED_JWT_FALLBACK_IN_PRODUCTION")) {
-    return true;
-  }
-
-  if (!hasLoggedJwtFallbackProductionWarning) {
-    hasLoggedJwtFallbackProductionWarning = true;
-    logEvent("error", "auth_config_warning", {
-      error_code: "auth_config_invalid",
-      message:
-        "ALLOW_UNVERIFIED_JWT_FALLBACK is ignored in production by default. "
-        + "Set ALLOW_UNVERIFIED_JWT_FALLBACK_IN_PRODUCTION=true only for emergency recovery scenarios.",
-    });
-  }
-
-  return false;
-}
-
-function decodeJwtPayload(token) {
-  const parts = token.split(".");
-  if (parts.length !== 3) return null;
-
-  try {
-    const decoded = Buffer.from(parts[1], "base64url").toString("utf8");
-    const parsed = JSON.parse(decoded);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-function numericClaim(value) {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value !== "string") return null;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function objectBooleanFlag(source, key) {
-  if (!source || typeof source !== "object" || Array.isArray(source)) return false;
-  return source[key] === true;
-}
-
-function decodeUserFromJwt(token) {
-  const claims = decodeJwtPayload(token.trim());
-  if (!claims) return null;
-
-  const subject = typeof claims.sub === "string" ? claims.sub.trim() : "";
-  if (!subject) return null;
-
-  const exp = numericClaim(claims.exp);
-  if (exp !== null && Date.now() >= exp * 1000) return null;
-
-  const isAnonymous = (
-    claims.role === "anon"
-    || claims.is_anonymous === true
-    || objectBooleanFlag(claims.app_metadata, "is_anonymous")
-    || objectBooleanFlag(claims.user_metadata, "is_anonymous")
-  );
-
-  return {
-    id: subject,
-    isAnonymous,
-  };
-}
-
-function tryDecodeUserFromJwtFallback(bearerToken, reason) {
-  if (!allowUnverifiedJwtFallback()) return null;
-  const decodedUser = decodeUserFromJwt(bearerToken);
-  if (!decodedUser) return null;
-
-  if (!hasLoggedJwtFallbackWarning) {
-    hasLoggedJwtFallbackWarning = true;
-    logEvent("warn", "auth_fallback_enabled", {
-      error_code: "auth_fallback_unverified_jwt",
-      reason,
-      message:
-        `ALLOW_UNVERIFIED_JWT_FALLBACK is enabled; accepting decoded JWT claims without signature verification (${reason}).`,
-    });
-  }
-
-  return decodedUser;
-}
-
-function getNeonJwksResolver() {
-  if (!AUTH_CONFIG.neonJwksUrl) return null;
-  if (!neonJwksResolver) {
-    neonJwksResolver = createRemoteJWKSet(new URL(AUTH_CONFIG.neonJwksUrl));
-  }
-  return neonJwksResolver;
-}
-
-async function verifyNeonJwt(token) {
-  const jwks = getNeonJwksResolver();
-  if (!jwks) {
-    return { ok: false, reason: "config" };
-  }
-
-  try {
-    const verifyOptions = {};
-    if (AUTH_CONFIG.neonAuthUrl) {
-      verifyOptions.issuer = AUTH_CONFIG.neonAuthUrl;
-    }
-    const { payload } = await jwtVerify(token, jwks, verifyOptions);
-    const userId = typeof payload.sub === "string" ? payload.sub.trim() : "";
-    if (!userId) {
-      return { ok: false, reason: "invalid" };
-    }
-
-    return { ok: true, userId };
-  } catch (error) {
-    const message = toErrorMessage(error).toLowerCase();
-    if (message.includes("failed to fetch") || message.includes("network")) {
-      return { ok: false, reason: "unavailable" };
-    }
-    return { ok: false, reason: "invalid" };
-  }
-}
-
-async function verifyNeonSessionWithAuthApi(token) {
-  if (!AUTH_CONFIG.neonAuthUserUrl || !AUTH_CONFIG.authValidationApiKey) {
-    return { ok: false, reason: "config" };
-  }
-
-  try {
-    const response = await fetch(AUTH_CONFIG.neonAuthUserUrl, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        apikey: AUTH_CONFIG.authValidationApiKey,
-      },
-    });
-
-    if (response.status === 401 || response.status === 403) {
-      return { ok: false, reason: "invalid" };
-    }
-    if (!response.ok) {
-      return { ok: false, reason: "unavailable" };
-    }
-
-    const data = await response.json().catch(() => null);
-    const userId = typeof data?.id === "string" ? data.id.trim() : "";
-    if (!userId) {
-      return { ok: false, reason: "invalid" };
-    }
-    return { ok: true, userId };
-  } catch {
-    return { ok: false, reason: "unavailable" };
-  }
-}
-
-function buildAuthenticatedUserResult(userId) {
-  return {
-    ok: true,
-    userId,
-    isPublicKey: false,
-    rateKey: userId,
-  };
-}
-
-function buildPublicApiKeyAuthResult(apiKey, clientIp) {
-  if (!isConfiguredPublicApiKey(apiKey)) return null;
-  return {
-    ok: true,
-    userId: null,
-    isPublicKey: true,
-    rateKey: `public:${clientIp}`,
-  };
-}
-
-function authConfigUnavailableResult(apiKey, clientIp, bearerToken) {
-  const publicApiResult = buildPublicApiKeyAuthResult(apiKey, clientIp);
-  if (publicApiResult) return publicApiResult;
-
-  const fallbackUser = tryDecodeUserFromJwtFallback(bearerToken, "missing_config");
-  if (fallbackUser) {
-    return buildAuthenticatedUserResult(fallbackUser.id);
-  }
-
-  if (!hasLoggedAuthConfigWarning) {
-    hasLoggedAuthConfigWarning = true;
-    logEvent("error", "auth_config_warning", {
-      error_code: "auth_config_missing",
-      message:
-        "NEON_AUTH_URL or NEON_JWKS_URL is required to validate bearer tokens. "
-        + "Set one of those env vars, provide FUNCTION_PUBLIC_API_KEY for anonymous fallback, "
-        + "or enable ALLOW_UNVERIFIED_JWT_FALLBACK for local development only.",
-    });
-  }
-
-  return {
-    ok: false,
-    status: 503,
-    error: "Authentication service is unavailable because Neon auth is not configured.",
-  };
-}
-
-function authTemporarilyUnavailableResult(apiKey, clientIp, bearerToken) {
-  const publicApiResult = buildPublicApiKeyAuthResult(apiKey, clientIp);
-  if (publicApiResult) return publicApiResult;
-
-  const fallbackUser = tryDecodeUserFromJwtFallback(bearerToken, "auth_unavailable");
-  if (fallbackUser) {
-    return buildAuthenticatedUserResult(fallbackUser.id);
-  }
-
-  return {
-    ok: false,
-    status: 503,
-    error: "Authentication service is temporarily unavailable. Please try again.",
-  };
-}
-
-async function requireAuthenticatedUser(req, requestContext) {
-  const bearerToken = parseBearerToken(req);
-  const apiKey = (headerValue(req, "apikey") || "").trim();
-  const clientIp = getClientIp(req, requestContext);
-
-  if (!bearerToken) {
-    const publicApiResult = buildPublicApiKeyAuthResult(apiKey, clientIp);
-    if (publicApiResult) return publicApiResult;
-    return {
-      ok: false,
-      status: 401,
-      error: "Missing bearer token.",
-    };
-  }
-
-  if (
-    isConfiguredPublicApiKey(bearerToken) ||
-    (apiKey && apiKey === bearerToken && isConfiguredPublicApiKey(apiKey))
-  ) {
-    return {
-      ok: true,
-      userId: null,
-      isPublicKey: true,
-      rateKey: `public:${clientIp}`,
-    };
-  }
-
-  if (!looksLikeJwt(bearerToken)) {
-    const authApiVerification = await verifyNeonSessionWithAuthApi(bearerToken);
-    if (authApiVerification.ok) {
-      return buildAuthenticatedUserResult(authApiVerification.userId);
-    }
-    if (authApiVerification.reason === "config") {
-      return authConfigUnavailableResult(apiKey, clientIp, bearerToken);
-    }
-    if (authApiVerification.reason === "unavailable") {
-      return authTemporarilyUnavailableResult(apiKey, clientIp, bearerToken);
-    }
-
-    return {
-      ok: false,
-      status: 401,
-      error: "Invalid or expired auth session.",
-    };
-  }
-
-  const verified = await verifyNeonJwt(bearerToken);
-  if (verified.ok) {
-    return buildAuthenticatedUserResult(verified.userId);
-  }
-
-  const authApiVerification = await verifyNeonSessionWithAuthApi(bearerToken);
-  if (authApiVerification.ok) {
-    return buildAuthenticatedUserResult(authApiVerification.userId);
-  }
-
-  if (verified.reason === "invalid" || authApiVerification.reason === "invalid") {
-    return {
-      ok: false,
-      status: 401,
-      error: "Invalid or expired auth session.",
-    };
-  }
-
-  if (verified.reason === "unavailable" || authApiVerification.reason === "unavailable") {
-    return authTemporarilyUnavailableResult(apiKey, clientIp, bearerToken);
-  }
-
-  if (verified.reason === "config" || authApiVerification.reason === "config") {
-    return authConfigUnavailableResult(apiKey, clientIp, bearerToken);
-  }
-
-  return {
-    ok: false,
-    status: 401,
-    error: "Invalid or expired auth session.",
-  };
-}
-
-async function authenticateRequestContext(req, requestContext) {
-  const providedServiceToken = (headerValue(req, "x-agent-token") || "").trim();
-  if (providedServiceToken) {
-    if (!SERVICE_CONFIG.token || providedServiceToken !== SERVICE_CONFIG.token) {
-      return {
-        ok: false,
-        status: 401,
-        error: "Invalid or missing service token.",
-      };
-    }
-    return {
-      ok: true,
-      userId: "service",
-      isPublicKey: false,
-      rateKey: `service:${getClientIp(req, requestContext)}`,
-    };
-  }
-
-  return requireAuthenticatedUser(req, requestContext);
-}
-
 function acquireEnhanceWebSocketConnectionSlot(clientIp) {
   const key = clientIp || "unknown";
   const current = activeEnhanceWebSocketConnectionsByIp.get(key) || 0;
@@ -1254,51 +917,6 @@ function releaseEnhanceWebSocketConnectionSlot(clientIp) {
     return;
   }
   activeEnhanceWebSocketConnectionsByIp.set(key, current - 1);
-}
-
-function getStore(scope) {
-  const existing = rateLimitStores.get(scope);
-  if (existing) return existing;
-  const created = new Map();
-  rateLimitStores.set(scope, created);
-  return created;
-}
-
-function pruneStore(store, now) {
-  for (const [key, state] of store.entries()) {
-    if (state.resetAt <= now) {
-      store.delete(key);
-    }
-  }
-}
-
-function applyRateLimit(options) {
-  const { scope, key, limit, windowMs } = options;
-  const store = getStore(scope);
-  const now = Date.now();
-
-  if (store.size > 5000) {
-    pruneStore(store, now);
-  }
-
-  const current = store.get(key);
-  if (!current || current.resetAt <= now) {
-    const resetAt = now + windowMs;
-    store.set(key, { count: 1, resetAt });
-    return { ok: true, remaining: Math.max(0, limit - 1), resetAt };
-  }
-
-  if (current.count >= limit) {
-    return {
-      ok: false,
-      retryAfterSeconds: Math.max(1, Math.ceil((current.resetAt - now) / 1000)),
-      resetAt: current.resetAt,
-    };
-  }
-
-  current.count += 1;
-  store.set(key, current);
-  return { ok: true, remaining: Math.max(0, limit - current.count), resetAt: current.resetAt };
 }
 
 const DEFAULT_THREAD_OPTIONS = (() => {
@@ -1974,7 +1592,7 @@ function isTimeoutError(error) {
 }
 
 async function fetchWithTimeout(url, options, timeoutMs) {
-  const controller = new AbortController();
+  const controller = trackAbortController(new AbortController());
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(url, {
@@ -1983,6 +1601,7 @@ async function fetchWithTimeout(url, options, timeoutMs) {
     });
   } finally {
     clearTimeout(timeoutId);
+    untrackAbortController(controller);
   }
 }
 
@@ -2253,8 +1872,20 @@ function buildEnhanceStreamRequest(body) {
     };
   }
 
-  const requestThreadOptions = extractThreadOptions(requestBody.thread_options || requestBody.threadOptions);
-  const threadOptions = mergeEnhanceThreadOptions(DEFAULT_THREAD_OPTIONS, requestThreadOptions);
+  const rawThreadOptions = requestBody.thread_options ?? requestBody.threadOptions;
+  const sanitizedThreadOptions = sanitizeEnhanceThreadOptions(rawThreadOptions);
+  if (!sanitizedThreadOptions.ok) {
+    return {
+      ok: false,
+      status: 400,
+      detail: sanitizedThreadOptions.error,
+    };
+  }
+
+  const threadOptions = mergeEnhanceThreadOptions(
+    DEFAULT_THREAD_OPTIONS,
+    sanitizedThreadOptions.value,
+  );
   const builderMode = parseEnhancementRequestMode(requestBody);
   const rewriteStrictness = parseEnhancementRequestRewriteStrictness(requestBody);
   const intentOverride = parseEnhancementRequestIntentOverride(requestBody);
@@ -2278,6 +1909,7 @@ function buildEnhanceStreamRequest(body) {
       requestedThreadId,
       requestSession,
       threadOptions,
+      threadOptionWarnings: sanitizedThreadOptions.warnings,
       enhancementContext,
       enhancementInput,
       turnId: `turn_${randomUUID().replaceAll("-", "")}`,
@@ -2291,6 +1923,7 @@ async function runEnhanceTurnStream(requestData, options) {
     requestedThreadId,
     requestSession,
     threadOptions,
+    threadOptionWarnings,
     enhancementContext,
     enhancementInput,
     turnId,
@@ -2307,6 +1940,14 @@ async function runEnhanceTurnStream(requestData, options) {
   let emittedAgentOutput = false;
   let activeThreadId = requestedThreadId || null;
   let thread = null;
+
+  if (Array.isArray(threadOptionWarnings) && threadOptionWarnings.length > 0) {
+    logEvent("warn", "thread_options_sanitized", cleanLogFields({
+      request_id: requestContext?.requestId,
+      endpoint: requestContext?.endpoint,
+      warnings: JSON.stringify(threadOptionWarnings),
+    }));
+  }
 
   try {
     const codex = getCodexClient();
@@ -2569,7 +2210,7 @@ async function runEnhanceTurnStream(requestData, options) {
           turn_id: turnId,
           parse_status: postProcessed.parse_status,
           raw_output_chars: rawOutputLength,
-          raw_output_preview: rawEnhancerOutput.slice(0, 500) || "(empty)",
+          raw_output_sha256: hashTextForLogs(rawEnhancerOutput),
           message: "Enhancement produced an empty final prompt. The LLM response could not be parsed or was blank.",
         }));
       }
@@ -2592,12 +2233,13 @@ async function runEnhanceTurnStream(requestData, options) {
         type: "enhance.metadata",
         turn_id: turnId,
         thread_id: activeThreadId,
-        payload: postProcessed,
-        session: buildSessionPayload("completed", {
-          contextSummary: finalContextSummary,
-          latestEnhancedPrompt: finalEnhancedPrompt || requestSession.latestEnhancedPrompt,
-        }),
-      });
+          payload: postProcessed,
+          request_warnings: threadOptionWarnings.length > 0 ? threadOptionWarnings : undefined,
+          session: buildSessionPayload("completed", {
+            contextSummary: finalContextSummary,
+            latestEnhancedPrompt: finalEnhancedPrompt || requestSession.latestEnhancedPrompt,
+          }),
+        });
     }
   } catch (error) {
     activeThreadId = resolveActiveCodexThreadId(activeThreadId, thread);
@@ -2642,7 +2284,7 @@ async function streamWithCodex(req, res, body, corsHeaders, requestContext) {
     return;
   }
 
-  const controller = new AbortController();
+  const controller = trackAbortController(new AbortController());
   req.on("aborted", () => {
     setRequestError(requestContext, "request_aborted", "Client disconnected.", 499);
     controller.abort("Client disconnected");
@@ -2655,13 +2297,17 @@ async function streamWithCodex(req, res, body, corsHeaders, requestContext) {
   });
 
   beginSse(res, corsHeaders);
-  await runEnhanceTurnStream(preparedRequest.requestData, {
-    signal: controller.signal,
-    emit: (payload) => writeSse(res, payload),
-    isClosed: () => res.writableEnded,
-    requestContext,
-  });
-  endSse(res);
+  try {
+    await runEnhanceTurnStream(preparedRequest.requestData, {
+      signal: controller.signal,
+      emit: (payload) => writeSse(res, payload),
+      isClosed: () => res.writableEnded,
+      requestContext,
+    });
+    endSse(res);
+  } finally {
+    untrackAbortController(controller);
+  }
 }
 
 function isWebSocketOpen(ws) {
@@ -2744,8 +2390,113 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
   ws.on("close", releaseConnectionSlot);
 
   try {
-    const controller = new AbortController();
+    const controller = trackAbortController(new AbortController());
     let receivedStartMessage = false;
+    let awaitingPong = false;
+    let idleTimeoutHandle = null;
+    let maxLifetimeHandle = null;
+
+    const cleanupTimers = () => {
+      if (idleTimeoutHandle) {
+        globalThis.clearTimeout(idleTimeoutHandle);
+        idleTimeoutHandle = null;
+      }
+      if (maxLifetimeHandle) {
+        globalThis.clearTimeout(maxLifetimeHandle);
+        maxLifetimeHandle = null;
+      }
+    };
+
+    const scheduleIdleTimeout = () => {
+      if (idleTimeoutHandle) {
+        globalThis.clearTimeout(idleTimeoutHandle);
+      }
+      idleTimeoutHandle = globalThis.setTimeout(() => {
+        if (!isWebSocketOpen(ws)) return;
+        setRequestError(
+          requestContext,
+          "request_timeout",
+          "Websocket connection timed out while idle.",
+          408,
+        );
+        emitWebSocketStreamError({
+          message: "Websocket connection timed out while idle.",
+          status: 408,
+          code: "request_timeout",
+        });
+        if (!controller.signal.aborted) {
+          controller.abort("Websocket idle timeout");
+        }
+        closeWebSocket(ws, 1008, "idle_timeout");
+      }, ENHANCE_WS_IDLE_TIMEOUT_MS);
+      idleTimeoutHandle.unref?.();
+    };
+
+    const markSocketActivity = () => {
+      awaitingPong = false;
+      scheduleIdleTimeout();
+    };
+
+    const closeForBackpressure = () => {
+      if (!isWebSocketOpen(ws)) return;
+      setRequestError(
+        requestContext,
+        "service_unavailable",
+        "Websocket client is not consuming events fast enough.",
+        503,
+      );
+      if (!controller.signal.aborted) {
+        controller.abort("Websocket backpressure limit exceeded");
+      }
+      closeWebSocket(ws, 1008, "backpressure_limit");
+    };
+
+    const emitWebSocketPayload = (payload) => {
+      if (!isWebSocketOpen(ws)) return false;
+      if (
+        typeof ws.bufferedAmount === "number"
+        && ws.bufferedAmount > ENHANCE_WS_MAX_BUFFERED_BYTES
+      ) {
+        closeForBackpressure();
+        return false;
+      }
+      try {
+        ws.send(JSON.stringify(payload));
+      } catch (error) {
+        setRequestError(requestContext, "service_error", toErrorMessage(error), 500);
+        if (!controller.signal.aborted) {
+          controller.abort("Websocket send failed");
+        }
+        closeWebSocket(ws, 1011, "send_failed");
+        return false;
+      }
+      markSocketActivity();
+      if (
+        typeof ws.bufferedAmount === "number"
+        && ws.bufferedAmount > ENHANCE_WS_MAX_BUFFERED_BYTES
+      ) {
+        closeForBackpressure();
+        return false;
+      }
+      return true;
+    };
+
+    const emitWebSocketStreamError = ({
+      message,
+      status,
+      code,
+      retryAfterSeconds,
+    }) => {
+      emitWebSocketPayload({
+        event: "turn/error",
+        type: "turn/error",
+        error: message,
+        ...(typeof status === "number" ? { status } : {}),
+        ...(typeof code === "string" ? { code } : {}),
+        ...(typeof retryAfterSeconds === "number" ? { retry_after_seconds: retryAfterSeconds } : {}),
+      });
+    };
+
     const firstMessageTimeoutHandle = globalThis.setTimeout(() => {
       if (receivedStartMessage || !isWebSocketOpen(ws)) return;
       setRequestError(
@@ -2754,19 +2505,83 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
         "Timed out waiting for websocket start payload.",
         408,
       );
-      writeWebSocketError(ws, {
+      emitWebSocketStreamError({
         message: "Timed out waiting for websocket start payload.",
         status: 408,
         code: "request_timeout",
       });
+      if (!controller.signal.aborted) {
+        controller.abort("Websocket start timeout");
+      }
       closeWebSocket(ws, 1008, "start_timeout");
     }, ENHANCE_WS_INITIAL_MESSAGE_TIMEOUT_MS);
+    firstMessageTimeoutHandle.unref?.();
+
+    maxLifetimeHandle = globalThis.setTimeout(() => {
+      if (!isWebSocketOpen(ws)) return;
+      setRequestError(
+        requestContext,
+        "request_timeout",
+        "Websocket connection exceeded the maximum lifetime.",
+        408,
+      );
+      emitWebSocketStreamError({
+        message: "Websocket connection exceeded the maximum lifetime.",
+        status: 408,
+        code: "request_timeout",
+      });
+      if (!controller.signal.aborted) {
+        controller.abort("Websocket maximum lifetime exceeded");
+      }
+      closeWebSocket(ws, 1008, "max_lifetime");
+    }, ENHANCE_WS_MAX_LIFETIME_MS);
+    maxLifetimeHandle.unref?.();
+
+    const heartbeatHandle = globalThis.setInterval(() => {
+      if (!isWebSocketOpen(ws)) return;
+      if (awaitingPong) {
+        setRequestError(
+          requestContext,
+          "request_timeout",
+          "Websocket heartbeat timed out.",
+          408,
+        );
+        emitWebSocketStreamError({
+          message: "Websocket heartbeat timed out.",
+          status: 408,
+          code: "request_timeout",
+        });
+        if (!controller.signal.aborted) {
+          controller.abort("Websocket heartbeat timeout");
+        }
+        closeWebSocket(ws, 1008, "heartbeat_timeout");
+        return;
+      }
+
+      awaitingPong = true;
+      try {
+        ws.ping();
+      } catch (error) {
+        setRequestError(requestContext, "service_error", toErrorMessage(error), 500);
+        if (!controller.signal.aborted) {
+          controller.abort("Websocket heartbeat send failed");
+        }
+        closeWebSocket(ws, 1011, "heartbeat_failed");
+      }
+    }, ENHANCE_WS_HEARTBEAT_MS);
+    heartbeatHandle.unref?.();
+
+    scheduleIdleTimeout();
+    ws.on("pong", markSocketActivity);
 
     ws.on("close", () => {
       globalThis.clearTimeout(firstMessageTimeoutHandle);
+      globalThis.clearInterval(heartbeatHandle);
+      cleanupTimers();
       if (!controller.signal.aborted) {
         controller.abort("Client disconnected");
       }
+      untrackAbortController(controller);
       const closeStatus = Number.isFinite(requestContext?.statusCode)
         ? resolveRequestCompletionStatus({
           transportStatusCode: 200,
@@ -2784,10 +2599,11 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
     ws.once("message", (rawData, isBinary) => {
       receivedStartMessage = true;
       globalThis.clearTimeout(firstMessageTimeoutHandle);
+      markSocketActivity();
       runGuardedAsync(async () => {
         if (isBinary) {
           setRequestError(requestContext, "bad_response", "Invalid websocket payload.", 400);
-          writeWebSocketError(ws, {
+          emitWebSocketStreamError({
             message: "Invalid websocket payload.",
             status: 400,
             code: "bad_response",
@@ -2805,7 +2621,7 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
           messageBody = JSON.parse(rawText);
         } catch {
           setRequestError(requestContext, "bad_response", "Invalid JSON body.", 400);
-          writeWebSocketError(ws, {
+          emitWebSocketStreamError({
             message: "Invalid JSON body.",
             status: 400,
             code: "bad_response",
@@ -2838,7 +2654,11 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
           request,
           extractWebSocketAuthHeadersFromPayload(rawAuthPayload),
         );
-        const auth = await authenticateRequestContext(req, requestContext);
+        const auth = await authService.authenticateRequestContext(
+          req,
+          requestContext,
+          authPolicyForEndpoint(requestContext?.endpoint || ENHANCE_WS_PATH),
+        );
         if (!auth.ok) {
           setRequestError(
             requestContext,
@@ -2846,7 +2666,7 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
             auth.error,
             auth.status,
           );
-          writeWebSocketError(ws, {
+          emitWebSocketStreamError({
             message: auth.error,
             status: auth.status,
             code: classifyWebSocketAuthErrorCode(auth.status, auth.error),
@@ -2856,12 +2676,13 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
         }
         if (requestContext) {
           requestContext.userIdHash = hashUserIdentifier(auth.userId);
+          requestContext.authMode = auth.authMode;
         }
 
         const rateLimit = checkEnhanceRateLimits(auth, clientIp);
         if (!rateLimit.ok) {
           setRequestError(requestContext, "rate_limited", rateLimit.error, rateLimit.status);
-          writeWebSocketError(ws, {
+          emitWebSocketStreamError({
             message: rateLimit.error,
             status: rateLimit.status,
             code: "rate_limited",
@@ -2879,7 +2700,7 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
             preparedRequest.detail,
             preparedRequest.status,
           );
-          writeWebSocketError(ws, {
+          emitWebSocketStreamError({
             message: preparedRequest.detail,
             status: preparedRequest.status,
             code: "bad_response",
@@ -2890,13 +2711,13 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
 
         await runEnhanceTurnStream(preparedRequest.requestData, {
           signal: controller.signal,
-          emit: (eventPayload) => writeWebSocketEvent(ws, eventPayload),
+          emit: (eventPayload) => emitWebSocketPayload(eventPayload),
           isClosed: () => !isWebSocketOpen(ws),
           requestContext,
         });
 
         if (!controller.signal.aborted && isWebSocketOpen(ws)) {
-          writeWebSocketEvent(ws, {
+          emitWebSocketPayload({
             event: "stream.done",
             type: "stream.done",
           });
@@ -2905,11 +2726,14 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
       }, (error) => {
         setRequestError(requestContext, "service_error", toErrorMessage(error), 500);
         if (isWebSocketOpen(ws)) {
-          writeWebSocketError(ws, {
+          emitWebSocketStreamError({
             message: toErrorMessage(error),
             status: 500,
             code: "service_error",
           });
+          if (!controller.signal.aborted) {
+            controller.abort("Websocket internal error");
+          }
           closeWebSocket(ws, 1011, "internal_error");
         }
       });
@@ -2928,7 +2752,7 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
 }
 
 function enforceRateLimit(res, corsHeaders, options, failureMessage, requestContext) {
-  const result = applyRateLimit(options);
+  const result = rateLimiter.check(options);
   if (result.ok) return true;
   setRequestError(requestContext, "rate_limited", failureMessage, 429);
   json(
@@ -2944,7 +2768,7 @@ function enforceRateLimit(res, corsHeaders, options, failureMessage, requestCont
 }
 
 function checkRateLimit(options, failureMessage) {
-  const result = applyRateLimit(options);
+  const result = rateLimiter.check(options);
   if (result.ok) {
     return { ok: true };
   }
@@ -2976,8 +2800,16 @@ function checkEnhanceRateLimits(auth, clientIp) {
   }, "Daily quota exceeded. Please try again tomorrow.");
 }
 
+function authPolicyForEndpoint(endpoint) {
+  return ROUTE_AUTH_POLICIES[endpoint] || ROUTE_AUTH_POLICIES["/enhance"];
+}
+
 async function authenticateRequest(req, res, corsHeaders, requestContext) {
-  const auth = await authenticateRequestContext(req, requestContext);
+  const auth = await authService.authenticateRequestContext(
+    req,
+    requestContext,
+    authPolicyForEndpoint(requestContext?.endpoint),
+  );
   if (!auth.ok) {
     setRequestError(
       requestContext,
@@ -2985,11 +2817,15 @@ async function authenticateRequest(req, res, corsHeaders, requestContext) {
       auth.error,
       auth.status,
     );
-    json(res, auth.status, { error: auth.error }, corsHeaders);
+    json(res, auth.status, {
+      error: auth.error,
+      code: classifyHttpAuthErrorCode(auth.status, auth.error),
+    }, corsHeaders);
     return null;
   }
   if (requestContext) {
     requestContext.userIdHash = hashUserIdentifier(auth.userId);
+    requestContext.authMode = auth.authMode;
   }
   return auth;
 }
@@ -3045,14 +2881,14 @@ async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
   const rawUrl = body?.url;
   const urlInput = typeof rawUrl === "string" ? rawUrl.trim() : "";
   if (!urlInput) {
-    json(res, 400, { error: "A valid URL is required." }, corsHeaders);
+    json(res, 400, { error: "A valid URL is required.", code: "bad_request" }, corsHeaders);
     return;
   }
   if (urlInput.length > MAX_URL_CHARS) {
     json(
       res,
       413,
-      { error: `URL is too large. Maximum ${MAX_URL_CHARS} characters.` },
+      { error: `URL is too large. Maximum ${MAX_URL_CHARS} characters.`, code: "payload_too_large" },
       corsHeaders,
     );
     return;
@@ -3060,12 +2896,16 @@ async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
 
   const parsedUrl = parseInputUrl(urlInput);
   if (!parsedUrl) {
-    json(res, 400, { error: "Invalid URL format." }, corsHeaders);
+    json(res, 400, { error: "Invalid URL format.", code: "bad_request" }, corsHeaders);
     return;
   }
 
   if (isPrivateHost(parsedUrl.hostname)) {
-    json(res, 400, { error: "URLs pointing to private or internal hosts are not allowed." }, corsHeaders);
+    setRequestError(requestContext, "unsafe_url", "URLs pointing to private or internal hosts are not allowed.", 400);
+    json(res, 400, {
+      error: "URLs pointing to private or internal hosts are not allowed.",
+      code: "unsafe_url",
+    }, corsHeaders);
     return;
   }
 
@@ -3084,15 +2924,17 @@ async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
     pageResponse = await fetchPageWithHeaderFallback(parsedUrl.href, FETCH_TIMEOUT_MS);
   } catch (error) {
     if (isTimeoutError(error)) {
-      json(res, 504, { error: "Timed out while fetching the URL." }, corsHeaders);
+      json(res, 504, { error: "Timed out while fetching the URL.", code: "request_timeout" }, corsHeaders);
       return;
     }
     if (isUrlNotAllowedError(error)) {
+      setRequestError(requestContext, "unsafe_url", toErrorMessage(error), 400);
       json(
         res,
         400,
         {
           error: toErrorMessage(error),
+          code: "unsafe_url",
         },
         corsHeaders,
       );
@@ -3107,6 +2949,7 @@ async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
       422,
       {
         error: `Could not fetch URL (status ${pageResponse.status}). The target site may block automated access.`,
+        code: "bad_response",
       },
       corsHeaders,
     );
@@ -3117,7 +2960,7 @@ async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
   try {
     bodyText = await readBodyWithLimit(pageResponse, MAX_RESPONSE_BYTES);
   } catch {
-    json(res, 413, { error: "Response body is too large to process." }, corsHeaders);
+    json(res, 413, { error: "Response body is too large to process.", code: "payload_too_large" }, corsHeaders);
     return;
   }
 
@@ -3129,6 +2972,7 @@ async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
       {
         error:
           "The URL appears to be non-text or binary content. Provide a page URL with readable text, or paste content manually.",
+        code: "bad_response",
       },
       corsHeaders,
     );
@@ -3146,6 +2990,7 @@ async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
       {
         error:
           "Page had too little readable text content (often caused by script-only pages or anti-bot blocks). You can still paste text manually.",
+        code: "bad_response",
       },
       corsHeaders,
     );
@@ -3157,7 +3002,7 @@ async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
     summaryResult = await summarizeExtractedText(plainText);
   } catch (error) {
     if (isTimeoutError(error)) {
-      json(res, 504, { error: "Timed out while extracting content." }, corsHeaders);
+      json(res, 504, { error: "Timed out while extracting content.", code: "request_timeout" }, corsHeaders);
       return;
     }
     throw error;
@@ -3167,18 +3012,18 @@ async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
     const errText = summaryResult.errorBody.trim();
     if (summaryResult.status === 429) {
       setRequestError(requestContext, "rate_limited", "Rate limit exceeded while extracting content.", 429);
-      json(res, 429, { error: "Rate limit exceeded. Please try again in a moment." }, corsHeaders);
+      json(res, 429, { error: "Rate limit exceeded. Please try again in a moment.", code: "rate_limited" }, corsHeaders);
       return;
     }
     if (summaryResult.status === 402) {
       setRequestError(requestContext, "quota_exceeded", "AI credits depleted.", 402);
-      json(res, 402, { error: "AI credits depleted. Please add funds to continue." }, corsHeaders);
+      json(res, 402, { error: "AI credits depleted. Please add funds to continue.", code: "quota_exceeded" }, corsHeaders);
       return;
     }
     setRequestError(
       requestContext,
       inferErrorCodeFromStatus(summaryResult.status) || "service_error",
-      errText || "OpenAI extraction request failed.",
+      "OpenAI extraction request failed.",
       summaryResult.status,
     );
     logEvent("error", "extract_url_openai_error", cleanLogFields({
@@ -3186,9 +3031,11 @@ async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
       endpoint: requestContext?.endpoint,
       status_code: summaryResult.status,
       error_code: requestContext?.errorCode || inferErrorCodeFromStatus(summaryResult.status) || "service_error",
-      error_message: errText || "OpenAI extraction request failed.",
+      error_message: "OpenAI extraction request failed.",
+      upstream_error_chars: errText.length || undefined,
+      upstream_error_sha256: hashTextForLogs(errText),
     }));
-    json(res, 500, { error: "Failed to extract content from the page." }, corsHeaders);
+    json(res, 500, { error: "Failed to extract content from the page.", code: "service_error" }, corsHeaders);
     return;
   }
 
@@ -3250,6 +3097,49 @@ async function handleInferBuilderFields(req, res, body, corsHeaders, requestCont
   json(res, 200, inference, corsHeaders);
 }
 
+function buildReadinessReport() {
+  const issues = [];
+  const warnings = [];
+  const authReadiness = authService.getReadiness();
+
+  const hasProviderApiKey = CODEX_CONFIG
+    ? Boolean(RESOLVED_API_KEY)
+    : Boolean(normalizeEnvValue("OPENAI_API_KEY") || normalizeEnvValue("CODEX_API_KEY"));
+
+  if (isShuttingDown) {
+    issues.push("service_shutting_down");
+  }
+  if (REQUIRE_PROVIDER_CONFIG && !CODEX_CONFIG) {
+    issues.push("provider_config_missing");
+  }
+  if (!hasProviderApiKey) {
+    issues.push("provider_api_key_missing");
+  }
+  if (HAS_MISSING_AZURE_MODEL) {
+    issues.push("provider_model_missing");
+  }
+  warnings.push(...authReadiness.warnings);
+  issues.push(...authReadiness.issues);
+
+  return {
+    ok: issues.length === 0,
+    issues,
+    warnings,
+    provider: "codex-sdk",
+    provider_source: CODEX_CONFIG_SOURCE,
+    provider_name: CODEX_CONFIG?.name || "OpenAI",
+    provider_base_url: OPENAI_API_BASE_URL,
+    model: DEFAULT_THREAD_OPTIONS.model || null,
+    extract_model: EXTRACT_MODEL || null,
+    infer_model: INFER_MODEL || null,
+    sandbox_mode: DEFAULT_THREAD_OPTIONS.sandboxMode || null,
+    strict_public_api_key: STRICT_PUBLIC_API_KEY,
+    trust_proxy: TRUST_PROXY,
+    rate_limit_backend: RATE_LIMIT_BACKEND,
+    ...authService.getStartupSummary(),
+  };
+}
+
 async function requestHandler(req, res) {
   const url = new URL(req.url || "/", "http://localhost");
   const rawRequestId = (headerValue(req, "x-request-id") || "").trim();
@@ -3270,17 +3160,40 @@ async function requestHandler(req, res) {
     transport: requestContext.transport,
   });
 
+  if (isShuttingDown) {
+    setRequestError(requestContext, "service_unavailable", "Server is shutting down.", 503);
+    json(res, 503, { error: "Server is shutting down.", code: "service_unavailable" });
+    return;
+  }
+
   if (req.method === "GET" && url.pathname === "/") {
     json(res, 200, {
       service: "ai-prompt-pro-codex-service",
       provider: "codex-sdk",
       status: "running",
       health: "/health",
+      ready: "/ready",
     });
     return;
   }
 
   if (req.method === "GET" && url.pathname === "/health") {
+    json(res, 200, {
+      ok: true,
+      status: "alive",
+      ready: "/ready",
+      provider: "codex-sdk",
+    });
+    return;
+  }
+
+  if (req.method === "GET" && url.pathname === "/ready") {
+    const readiness = buildReadinessReport();
+    json(res, readiness.ok ? 200 : 503, readiness);
+    return;
+  }
+
+  if (req.method === "GET" && url.pathname === "/health/details") {
     json(res, 200, {
       ok: true,
       provider: "codex-sdk",
@@ -3420,6 +3333,13 @@ server.on("upgrade", (req, socket, head) => {
     method: requestContext.method,
     transport: requestContext.transport,
   });
+  if (isShuttingDown) {
+    rejectWebSocketUpgrade(socket, 503, {
+      error: "Server is shutting down.",
+      code: "service_unavailable",
+    }, requestContext);
+    return;
+  }
   if (url.pathname !== ENHANCE_WS_PATH) {
     socket.destroy();
     setRequestError(requestContext, "not_found", "Not found.", 404);
@@ -3472,6 +3392,8 @@ server.listen(SERVICE_CONFIG.port, SERVICE_CONFIG.host, () => {
     strict_public_api_key: STRICT_PUBLIC_API_KEY,
     trust_proxy: TRUST_PROXY,
     trusted_proxy_ip_count: TRUSTED_PROXY_IPS.size,
+    rate_limit_backend: RATE_LIMIT_BACKEND,
+    ...authService.getStartupSummary(),
   });
 });
 
@@ -3484,11 +3406,20 @@ function gracefulShutdown(signal) {
   if (isShuttingDown) return;
   isShuttingDown = true;
 
-  logEvent("info", "service_shutdown_start", { signal });
+  logEvent("info", "service_shutdown_start", {
+    signal,
+    active_ws_connections: enhanceWebSocketServer.clients.size,
+    active_abort_controllers: activeAbortControllers.size,
+  });
 
   server.close(() => {
     logEvent("info", "service_shutdown_http_closed", { signal });
   });
+
+  for (const controller of activeAbortControllers) {
+    if (controller.signal.aborted) continue;
+    controller.abort("Server is shutting down.");
+  }
 
   for (const ws of enhanceWebSocketServer.clients) {
     try {

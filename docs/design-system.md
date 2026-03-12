@@ -1,6 +1,6 @@
 # PromptForge Design System
 
-Last updated: 2026-03-10
+Last updated: 2026-03-12
 
 ## 1) System Overview
 
@@ -34,6 +34,7 @@ Public surface contract:
 - Public hybrid entrypoints include `label`, `form`, `button-group`, and `progress-indicators/*`.
 - Some public entrypoints remain intentional bridge wrappers over legacy primitives (`card`, `drawer`, `table`, `tabs`, `scroll-area`, and similar facades).
 - Feature and product code should import the facade either way and never reach into `src/components/base/primitives/*` unless working on design-system internals.
+- Branded wrappers outside `src/components/base/*` still count as design-system contract surfaces: `src/components/PageShell.tsx`, `PageHero` within that module, and `src/components/community/ProfileHero.tsx`.
 
 Legacy note:
 
@@ -60,6 +61,7 @@ Phase 3 status (completed February 22, 2026):
   - `scripts/check-no-deprecated-textarea-usage.mjs`
   - `scripts/check-no-literal-colors.mjs`
   - `scripts/check-no-deprecated-ds-bridges.mjs`
+- Branded wrapper visual checkpoints live in `src/pages/ComponentsShowcase.tsx`, `src/components/PageShell.stories.tsx`, and `src/components/community/ProfileHero.stories.tsx`.
 
 ## 1.1) Canonical Surface (Use This, Not That)
 
@@ -496,11 +498,11 @@ Implementation map:
 
 ### 11.6 Release Verification Steps
 
-1. Run `npm run lint`.
-2. Run `npm test`.
-3. Run `npm run test:mobile`.
-4. Run `npm run build`.
-5. Run `npm run check:design-system-baseline`.
+1. Run `npm run check:docs`.
+2. Run `npm run check:design-system`.
+3. Run `npx vitest run src/test/accessibility-axe.test.tsx src/test/community-routes-accessibility-axe.test.tsx`.
+4. Run `npm run test:mobile`.
+5. Run `npm run check:prod` before merge when design-system work also changes product logic.
 6. Perform manual checklist pass for sections 11.1 through 11.5.
 
 ### 11.7 Maintenance Rule
@@ -520,4 +522,4 @@ Monitor source updates from:
 
 ## 12) State Matrix Template
 
-Use `docs/design-system-state-matrix-template.md` when auditing or introducing changes to core primitive states.
+Use `docs/design-system-state-matrix.md` as the current evidence-backed matrix and `docs/design-system-state-matrix-template.md` when auditing or introducing new core primitive states.

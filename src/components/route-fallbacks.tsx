@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/base/skeleton";
 function RouteFallbackFrame({ children }: { children: ReactNode }) {
   return (
     <PageShell>
-      <div className="space-y-4 sm:space-y-5">{children}</div>
+      <div className="space-y-4 sm:space-y-5" data-testid="route-fallback-root">{children}</div>
     </PageShell>
   );
 }

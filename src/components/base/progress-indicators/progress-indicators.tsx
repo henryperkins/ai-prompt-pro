@@ -6,6 +6,7 @@ export interface ProgressBarProps {
   max?: number;
   className?: string;
   progressClassName?: string;
+  ariaLabel?: string;
   valueFormatter?: (value: number, valueInPercentage: number) => string | number;
 }
 
@@ -21,12 +22,20 @@ function getProgressPercentage(value: number, min: number, max: number) {
   return Math.min(100, Math.max(0, raw));
 }
 
-export const ProgressBarBase = ({ value, min = 0, max = 100, className, progressClassName }: ProgressBarProps) => {
+export const ProgressBarBase = ({
+  value,
+  min = 0,
+  max = 100,
+  className,
+  progressClassName,
+  ariaLabel,
+}: ProgressBarProps) => {
   const percentage = getProgressPercentage(value, min, max);
 
   return (
     <div
       role="progressbar"
+      aria-label={ariaLabel}
       aria-valuenow={value}
       aria-valuemin={min}
       aria-valuemax={max}
@@ -48,11 +57,21 @@ export const ProgressBar = ({
   labelPosition,
   className,
   progressClassName,
+  ariaLabel,
 }: ProgressIndicatorWithTextProps) => {
   const percentage = getProgressPercentage(value, min, max);
   const formattedValue = valueFormatter ? valueFormatter(value, percentage) : `${percentage.toFixed(0)}%`;
   const label = <span className="shrink-0 text-sm font-medium text-muted-foreground tabular-nums">{formattedValue}</span>;
-  const bar = <ProgressBarBase min={min} max={max} value={value} className={className} progressClassName={progressClassName} />;
+  const bar = (
+    <ProgressBarBase
+      min={min}
+      max={max}
+      value={value}
+      ariaLabel={ariaLabel}
+      className={className}
+      progressClassName={progressClassName}
+    />
+  );
 
   if (labelPosition === "right") {
     return (
