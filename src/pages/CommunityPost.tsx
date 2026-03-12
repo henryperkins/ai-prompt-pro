@@ -452,7 +452,7 @@ const CommunityPost = () => {
             type="button"
             variant="secondary"
             size="sm"
-            className="type-button-label h-11 px-4 sm:h-8 sm:px-3"
+            className="type-button-label h-11 px-4 sm:h-9 sm:px-3"
             onClick={() => navigate("/community")}
           >
             <ArrowLeft className="h-3.5 w-3.5" />

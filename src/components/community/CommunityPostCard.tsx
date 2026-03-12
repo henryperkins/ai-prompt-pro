@@ -157,8 +157,9 @@ function CommunityPostCardComponent({
                     type="button"
                     size="sm"
                     variant={followingUserIds?.has(post.authorId) ? "secondary" : "primary"}
-                    className="type-button-label h-9 min-w-11 px-3 sm:h-8"
+                    className="type-button-label h-11 min-w-11 px-3 sm:h-9"
                     onClick={() => onToggleFollow(post.authorId, followingUserIds?.has(post.authorId) ?? false)}
+                    data-testid="community-card-follow"
                   >
                     {followingUserIds?.has(post.authorId) ? "Following" : "Follow"}
                   </Button>
@@ -186,7 +187,7 @@ function CommunityPostCardComponent({
                     type="button"
                     variant="tertiary"
                     size="sm"
-                    className="h-11 w-11 sm:h-9 sm:w-9"
+                    className="h-11 w-11 sm:h-10 sm:w-10"
                     aria-label="Open moderation actions"
                   >
                     <MoreHorizontal className="h-4 w-4" />

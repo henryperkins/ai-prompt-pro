@@ -15,6 +15,7 @@ import {
   postProcessEnhancementResponse,
 } from "./enhancement-pipeline.mjs";
 import {
+  appendContextSourceSummariesToEnhancementInput,
   buildExpandedContextSourceBlock,
   buildSourceExpansionDecisionPrompt,
   normalizeEnhanceContextSources,
@@ -48,6 +49,7 @@ import {
   classifyStreamFailure,
   isRateLimitMessage,
   resolveRequestCompletionStatus,
+  statusFromErrorCode,
 } from "./stream-errors.mjs";
 import {
   createAuthService,
@@ -59,6 +61,11 @@ import {
   isRetrySafeCodexPreludeEvent,
 } from "./codex-stream-prelude.mjs";
 import { resolveActiveCodexThreadId } from "./codex-thread-state.mjs";
+import {
+  isAbortLikeError,
+  sleepWithSignal,
+  throwIfAborted,
+} from "./request-abort-utils.mjs";
 
 // ---------------------------------------------------------------------------
 // Resolve provider from ~/.codex/config.toml (optionally via CODEX_PROFILE)
@@ -1746,10 +1753,6 @@ function isRateLimitTurnFailure(event) {
   return isRateLimitMessage(msg);
 }
 
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 async function* replayBufferedEvents(bufferedEvents, iterator) {
   for (const event of bufferedEvents) {
     yield event;
@@ -1764,10 +1767,12 @@ async function* replayBufferedEvents(bufferedEvents, iterator) {
 
 async function runStreamedWithRetry(thread, input, turnOptions, telemetry = {}) {
   const requestContext = telemetry.requestContext;
+  const retrySignal = turnOptions?.signal;
   let attempt = 0;
   retryLoop: while (true) {
     let retryBlocked = false;
     try {
+      throwIfAborted(retrySignal);
       const { events } = await thread.runStreamed(input, turnOptions);
       const iterator = events[Symbol.asyncIterator]();
       const bufferedEvents = [];
@@ -1804,7 +1809,7 @@ async function runStreamedWithRetry(thread, input, turnOptions, telemetry = {}) 
             backoff_ms: Math.round(delay),
             source: "codex_turn_failed",
           }));
-          await sleep(delay);
+          await sleepWithSignal(delay, retrySignal);
           attempt++;
           continue retryLoop;
         }
@@ -1836,7 +1841,7 @@ async function runStreamedWithRetry(thread, input, turnOptions, telemetry = {}) 
         backoff_ms: Math.round(delay),
         source: "codex_exception",
       }));
-      await sleep(delay);
+      await sleepWithSignal(delay, retrySignal);
       attempt++;
     }
   }
@@ -1844,10 +1849,12 @@ async function runStreamedWithRetry(thread, input, turnOptions, telemetry = {}) 
 
 async function runBufferedWithRetry(thread, input, turnOptions, telemetry = {}) {
   const requestContext = telemetry.requestContext;
+  const retrySignal = turnOptions?.signal;
   let attempt = 0;
 
   while (true) {
     try {
+      throwIfAborted(retrySignal);
       return await thread.run(input, turnOptions);
     } catch (error) {
       if (!isRateLimitError(error) || attempt >= CODEX_429_MAX_RETRIES) {
@@ -1871,7 +1878,7 @@ async function runBufferedWithRetry(thread, input, turnOptions, telemetry = {}) 
         backoff_ms: Math.round(delay),
         source: "codex_buffered_run",
       }));
-      await sleep(delay);
+      await sleepWithSignal(delay, retrySignal);
       attempt++;
     }
   }
@@ -1894,12 +1901,19 @@ async function resolveEnhancementInputWithSourceExpansion({
     };
   }
 
+  const enhancementInputWithSourceSummaries =
+    appendContextSourceSummariesToEnhancementInput({
+      prompt,
+      baseEnhancementInput,
+      contextSources,
+    });
+
   const expandableSources = contextSources.filter(
     (source) => source.expandable && hasText(source.summary) && hasText(source.rawContent),
   );
   if (expandableSources.length === 0) {
     return {
-      enhancementInput: baseEnhancementInput,
+      enhancementInput: enhancementInputWithSourceSummaries,
       sourceExpansion: {
         availableCount: contextSources.length,
         expandableCount: 0,
@@ -1942,8 +1956,8 @@ async function resolveEnhancementInputWithSourceExpansion({
       : [];
     const expandedBlock = buildExpandedContextSourceBlock(selectedSources);
     const enhancementInput = expandedBlock
-      ? `${baseEnhancementInput}\n\n${expandedBlock}`
-      : baseEnhancementInput;
+      ? `${enhancementInputWithSourceSummaries}\n\n${expandedBlock}`
+      : enhancementInputWithSourceSummaries;
 
     logEvent("info", "enhance_source_context_decision", cleanLogFields({
       request_id: requestContext?.requestId,
@@ -1969,6 +1983,9 @@ async function resolveEnhancementInputWithSourceExpansion({
       },
     };
   } catch (error) {
+    if (signal?.aborted || isAbortLikeError(error)) {
+      throw error;
+    }
     logEvent("warn", "enhance_source_context_preflight_failed", cleanLogFields({
       request_id: requestContext?.requestId,
       endpoint: requestContext?.endpoint,
@@ -1977,7 +1994,7 @@ async function resolveEnhancementInputWithSourceExpansion({
       expandable_context_sources: expandableSources.length,
     }));
     return {
-      enhancementInput: baseEnhancementInput,
+      enhancementInput: enhancementInputWithSourceSummaries,
       sourceExpansion: {
         availableCount: contextSources.length,
         expandableCount: expandableSources.length,
@@ -2131,6 +2148,8 @@ async function runEnhanceTurnStream(requestData, options) {
   }
 
   try {
+    throwIfAborted(signal);
+    if (isClosed()) return;
     const codex = getCodexClient();
     const enhancementPreparation = await resolveEnhancementInputWithSourceExpansion({
       codex,
@@ -2144,6 +2163,8 @@ async function runEnhanceTurnStream(requestData, options) {
     });
     const enhancementInput = enhancementPreparation.enhancementInput;
     sourceExpansion = enhancementPreparation.sourceExpansion;
+    throwIfAborted(signal);
+    if (isClosed()) return;
     thread = requestedThreadId
       ? codex.resumeThread(requestedThreadId, threadOptions)
       : codex.startThread(threadOptions);
@@ -2439,10 +2460,26 @@ async function runEnhanceTurnStream(requestData, options) {
     }
   } catch (error) {
     activeThreadId = resolveActiveCodexThreadId(activeThreadId, thread);
-    const failure = classifyStreamFailure({ message: toErrorMessage(error) }, {
-      defaultCode: "service_error",
-      defaultStatus: 500,
-    });
+    const existingErrorCode = requestContext?.errorCode;
+    const existingStatusCode = requestContext?.statusCode;
+    const aborted = signal?.aborted || isAbortLikeError(error);
+    const failure = aborted
+      ? {
+        message: requestContext?.errorMessage || toErrorMessage(error),
+        code: existingErrorCode || "request_aborted",
+        status:
+          existingStatusCode
+          ?? statusFromErrorCode(existingErrorCode || "request_aborted")
+          ?? 499,
+      }
+      : classifyStreamFailure({
+        message: requestContext?.errorMessage || toErrorMessage(error),
+        code: existingErrorCode,
+        status: existingStatusCode,
+      }, {
+        defaultCode: "service_error",
+        defaultStatus: 500,
+      });
     setRequestError(requestContext, failure.code, failure.message, failure.status);
     if (!isClosed()) {
       emit({

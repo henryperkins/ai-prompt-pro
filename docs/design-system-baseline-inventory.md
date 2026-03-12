@@ -76,7 +76,6 @@ Scope: `src/**/*.ts(x)` excluding `src/styles/**` and `src/test/**`.
 | `pf-arcane` | 2 | `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFTemplateCard.tsx` |
 | `pf-arcane-rgb` | 2 | `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFQualityGauge.tsx` |
 | `pf-coal` | 2 | `src/components/fantasy/PFTemplateCard.tsx`, `src/pages/Index.tsx` |
-| `pf-coal-rgb` | 2 | `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFQualityGauge.tsx` |
 | `pf-community-preview` | 2 | `src/components/community/CommunityPostCard.tsx`, `src/components/community/CommunityPostDetail.tsx` |
 | `pf-dialog-surface` | 2 | `src/components/AuthDialog.tsx`, `src/pages/Community.tsx` |
 | `pf-ember` | 2 | `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFTemplateCard.tsx` |
@@ -84,6 +83,8 @@ Scope: `src/**/*.ts(x)` excluding `src/styles/**` and `src/test/**`.
 | `pf-gold-rgb` | 2 | `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFQualityGauge.tsx` |
 | `pf-nav-button` | 2 | `src/components/Header.tsx`, `src/components/PageShell.tsx` |
 | `pf-rarity-legendary` | 2 | `src/components/fantasy/PFTemplateCard.tsx`, `src/lib/community-rarity.ts` |
+| `pf-card--static` | 1 | `src/components/community/ProfileHero.tsx` |
+| `pf-coal-rgb` | 1 | `src/components/fantasy/PFQualityGauge.tsx` |
 | `pf-community-popover` | 1 | `src/pages/Community.tsx` |
 | `pf-community-toolbar` | 1 | `src/pages/Community.tsx` |
 | `pf-hero-dismissed` | 1 | `src/pages/Index.tsx` |

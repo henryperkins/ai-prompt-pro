@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  appendContextSourceSummariesToEnhancementInput,
+  buildContextSourceSummaryBlock,
   buildExpandedContextSourceBlock,
   buildSourceExpansionDecisionPrompt,
   normalizeEnhanceContextSources,
   parseSourceExpansionDecision,
+  promptAlreadyIncludesContextSources,
   selectContextSourcesForExpansion,
 } from "../../agent_service/context-source-expansion.mjs";
 
@@ -152,5 +155,71 @@ describe("context source expansion helpers", () => {
     expect(block).toContain("Expanded Source: docs/api.md");
     expect(block).toContain("Detailed API guide");
     expect(block).toContain("Need route specifics.");
+  });
+
+  it("builds attached source summary blocks for prompts that rely on context_sources", () => {
+    const normalized = normalizeEnhanceContextSources([
+      {
+        id: "docs-api",
+        type: "file",
+        title: "docs/api.md",
+        summary: "Route list and auth expectations",
+        raw_content: "Expanded API docs",
+        reference: { ref_id: "file:docs/api.md" },
+      },
+    ]);
+
+    if (!normalized.ok) {
+      throw new Error("Expected normalized sources");
+    }
+
+    const block = buildContextSourceSummaryBlock(normalized.value);
+
+    expect(block).toContain("## ATTACHED SOURCE SUMMARIES");
+    expect(block).toContain("<sources>");
+    expect(block).toContain("[FILE: docs/api.md] [ref=file:docs/api.md]");
+    expect(block).toContain("Route list and auth expectations");
+  });
+
+  it("appends context source summaries only when the prompt does not already include them", () => {
+    const normalized = normalizeEnhanceContextSources([
+      {
+        id: "docs-api",
+        type: "file",
+        title: "docs/api.md",
+        summary: "Route list and auth expectations",
+        raw_content: "Expanded API docs",
+        reference: { ref_id: "file:docs/api.md" },
+      },
+    ]);
+
+    if (!normalized.ok) {
+      throw new Error("Expected normalized sources");
+    }
+
+    const promptWithoutSources = "Improve this API onboarding prompt.";
+    const baseEnhancementInput = "META PROMPT";
+    const appended = appendContextSourceSummariesToEnhancementInput({
+      prompt: promptWithoutSources,
+      baseEnhancementInput,
+      contextSources: normalized.value,
+    });
+    const promptWithSources = [
+      "Improve this API onboarding prompt.",
+      "",
+      "<sources>",
+      "[FILE: docs/api.md] [ref=file:docs/api.md]",
+      "Route list and auth expectations",
+      "</sources>",
+    ].join("\n");
+    const unchanged = appendContextSourceSummariesToEnhancementInput({
+      prompt: promptWithSources,
+      baseEnhancementInput,
+      contextSources: normalized.value,
+    });
+
+    expect(promptAlreadyIncludesContextSources(promptWithSources, normalized.value)).toBe(true);
+    expect(appended).toContain("## ATTACHED SOURCE SUMMARIES");
+    expect(unchanged).toBe(baseEnhancementInput);
   });
 });

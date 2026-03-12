@@ -99,8 +99,7 @@ export function ProfileHero({
           <div className="flex min-w-0 flex-1 flex-col items-center gap-2 sm:items-start">
             <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
               <TitleTag
-                className="pf-text-display text-xl font-bold text-pf-parchment/95 sm:text-2xl"
-                style={{ textShadow: "0 2px 12px rgba(var(--pf-coal-rgb) / 0.5)" }}
+                className="page-hero-title pf-text-display text-xl font-bold text-pf-parchment/95 sm:text-2xl"
               >
                 {profile.displayName}
               </TitleTag>
@@ -142,9 +141,10 @@ export function ProfileHero({
                 type="button"
                 size="sm"
                 variant={isFollowing ? "secondary" : "primary"}
-                className="type-button-label mt-1 h-10 min-w-[100px] sm:h-9"
+                className="type-button-label mt-1 h-11 min-w-[100px] sm:h-9"
                 onClick={onToggleFollow}
                 disabled={followPending}
+                data-testid="profile-follow-button"
               >
                 {followPending ? "Saving..." : isFollowing ? "Following" : "Follow"}
               </Button>
@@ -158,8 +158,7 @@ export function ProfileHero({
         {STAT_CELLS.map(({ key, label, icon: Icon, format }) => (
           <div
             key={key}
-            className="pf-card flex flex-col items-center gap-1 rounded-xl border border-border/60 px-3 py-3 text-center"
-            style={{ transform: "none" }}
+            className="pf-card pf-card--static flex flex-col items-center gap-1 rounded-xl border border-border/60 px-3 py-3 text-center"
           >
             <Icon className="h-4 w-4 text-muted-foreground" />
             <span className="type-numeric text-lg font-bold text-foreground">

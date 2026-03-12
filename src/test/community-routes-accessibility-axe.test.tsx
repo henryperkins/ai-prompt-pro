@@ -20,6 +20,8 @@ const mocks = vi.hoisted(() => ({
   loadMyRatings: vi.fn(),
   loadPost: vi.fn(),
   loadRemixes: vi.fn(),
+  loadComments: vi.fn(),
+  addComment: vi.fn(),
   remixToLibrary: vi.fn(),
   toggleVote: vi.fn(),
   setPromptRating: vi.fn(),
@@ -57,31 +59,6 @@ vi.mock("@/components/PageShell", () => ({
   ),
 }));
 
-vi.mock("@/components/community/CommunityFeed", () => ({
-  CommunityFeed: ({
-    posts,
-    featuredPostBadgeLabel,
-  }: {
-    posts: CommunityPost[];
-    featuredPostBadgeLabel?: string;
-  }) => (
-    <section aria-label="Published prompts">
-      {featuredPostBadgeLabel && <p>{featuredPostBadgeLabel}</p>}
-      {posts.map((post) => (
-        <article key={post.id}>
-          <h2>{post.title}</h2>
-        </article>
-      ))}
-    </section>
-  ),
-}));
-
-vi.mock("@/components/community/CommunityComments", () => ({
-  CommunityComments: ({ postId }: { postId: string }) => (
-    <div data-testid={`community-comments-${postId}`}>Comments for {postId}</div>
-  ),
-}));
-
 vi.mock("@/lib/community", () => ({
   computeNextPromptRatingSummary: () => ({ ratingCount: 1, ratingAverage: 4.8 }),
   followCommunityUser: vi.fn(),
@@ -98,6 +75,8 @@ vi.mock("@/lib/community", () => ({
   toggleVote: (...args: unknown[]) => mocks.toggleVote(...args),
   loadPost: (...args: unknown[]) => mocks.loadPost(...args),
   loadRemixes: (...args: unknown[]) => mocks.loadRemixes(...args),
+  loadComments: (...args: unknown[]) => mocks.loadComments(...args),
+  addComment: (...args: unknown[]) => mocks.addComment(...args),
   remixToLibrary: (...args: unknown[]) => mocks.remixToLibrary(...args),
 }));
 
@@ -163,6 +142,8 @@ async function renderProfileRoute() {
   });
 
   await screen.findByRole("heading", { name: "Alex Backend" });
+  await screen.findByTestId("profile-follow-button");
+  await screen.findByTestId("community-remix-cta");
   await waitFor(() => {
     expect(mocks.loadProfilesByIds).toHaveBeenCalledWith(["author-1"]);
     expect(mocks.loadPostsByAuthor).toHaveBeenCalled();
@@ -185,6 +166,8 @@ async function renderCommunityPostRoute() {
   });
 
   await screen.findByRole("heading", { name: "Launch Readiness Forge" });
+  await screen.findByTestId("community-detail-rating-summary");
+  await screen.findByLabelText("Write a comment");
   await waitFor(() => {
     expect(mocks.loadPost).toHaveBeenCalledWith(postId);
     expect(mocks.loadProfilesByIds).toHaveBeenCalled();
@@ -194,7 +177,10 @@ async function renderCommunityPostRoute() {
 describe("dynamic community route accessibility audits", () => {
   it("has no axe violations on the profile route", async () => {
     vi.clearAllMocks();
-    mocks.loadProfilesByIds.mockResolvedValue([buildProfile()]);
+    mocks.user = { id: "viewer-1" };
+    mocks.loadProfilesByIds.mockImplementation(async (ids: string[]) => {
+      return ids.includes("author-1") ? [buildProfile()] : [];
+    });
     mocks.loadFollowStats.mockResolvedValue({ followersCount: 28, followingCount: 12 });
     mocks.loadProfileActivityStats.mockResolvedValue({
       totalPosts: 3,
@@ -207,6 +193,8 @@ describe("dynamic community route accessibility audits", () => {
     mocks.loadPostsByIds.mockResolvedValue([]);
     mocks.loadMyVotes.mockResolvedValue({});
     mocks.loadMyRatings.mockResolvedValue({});
+    mocks.loadComments.mockResolvedValue([]);
+    mocks.addComment.mockResolvedValue(null);
 
     await renderProfileRoute();
 
@@ -216,12 +204,17 @@ describe("dynamic community route accessibility audits", () => {
 
   it("has no axe violations on the community post route", async () => {
     vi.clearAllMocks();
+    mocks.user = { id: "viewer-1" };
     const post = buildPost();
     mocks.loadPost.mockImplementation(async (postId: string) => (postId === post.id ? post : null));
     mocks.loadRemixes.mockResolvedValue([]);
-    mocks.loadProfilesByIds.mockResolvedValue([buildProfile()]);
+    mocks.loadProfilesByIds.mockImplementation(async (ids: string[]) => {
+      return ids.includes("author-1") ? [buildProfile()] : [];
+    });
     mocks.loadMyVotes.mockResolvedValue({ [post.id]: { upvote: false, verified: false } });
-    mocks.loadMyRatings.mockResolvedValue({ [post.id]: 4 });
+    mocks.loadMyRatings.mockResolvedValue({});
+    mocks.loadComments.mockResolvedValue([]);
+    mocks.addComment.mockResolvedValue(null);
     mocks.remixToLibrary.mockResolvedValue({ title: post.title });
 
     await renderCommunityPostRoute();

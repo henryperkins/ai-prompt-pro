@@ -46,6 +46,20 @@ describe("classifyStreamFailure", () => {
     });
   });
 
+  it("maps request_aborted errors to a non-500 client termination code", () => {
+    expect(classifyStreamFailure({
+      message: "Client disconnected.",
+      code: "request_aborted",
+    }, {
+      defaultCode: "service_error",
+      defaultStatus: 503,
+    })).toEqual({
+      message: "Client disconnected.",
+      code: "request_aborted",
+      status: 499,
+    });
+  });
+
   it("falls back to service_error when upstream metadata is missing", () => {
     expect(classifyStreamFailure({ message: "Codex worker failed." }, {
       defaultCode: "service_error",

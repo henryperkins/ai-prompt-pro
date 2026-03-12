@@ -226,8 +226,9 @@ export function CommunityComments({
                       type="button"
                       variant="tertiary"
                       size="sm"
-                      className="ml-auto h-7 w-7"
+                      className="ml-auto h-11 w-11 rounded-full p-0 sm:h-10 sm:w-10"
                       aria-label="Open comment moderation actions"
+                      data-testid="community-comment-overflow"
                     >
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
@@ -398,7 +399,7 @@ export function CommunityComments({
                 type="button"
                 size="sm"
                 variant="tertiary"
-                className="type-button-label h-10 rounded-full border border-border/60 bg-background/75 px-3 text-muted-foreground sm:h-8 sm:px-2.5"
+                className="type-button-label h-11 rounded-full border border-border/60 bg-background/75 px-3 text-muted-foreground sm:h-9 sm:px-2.5"
                 onClick={() => handleQuickReply(chip)}
                 data-testid="community-quick-reply-chip"
               >

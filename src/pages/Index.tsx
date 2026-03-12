@@ -2687,7 +2687,7 @@ const Index = () => {
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1">
-                    <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                    <span className="type-label-caps text-xs font-medium text-muted-foreground">
                       Builder
                     </span>
                     <Badge

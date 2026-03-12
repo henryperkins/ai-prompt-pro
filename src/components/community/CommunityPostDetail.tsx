@@ -222,7 +222,7 @@ export function CommunityPostDetail({
                     type="button"
                     variant="secondary"
                     size="sm"
-                    className="h-11 w-11 shrink-0 sm:h-9 sm:w-9"
+                    className="h-11 w-11 shrink-0 sm:h-10 sm:w-10"
                     aria-label="Open moderation actions"
                   >
                     <MoreHorizontal className="h-4 w-4" />
@@ -447,6 +447,7 @@ export function CommunityPostDetail({
             <span
               aria-label={ratingSummaryAriaLabel}
               className="type-numeric inline-flex items-center gap-1.5 rounded-full border border-border/65 bg-background/65 px-2.5 py-1"
+              data-testid="community-detail-rating-summary"
             >
               <Star
                 className={cx(
@@ -469,9 +470,10 @@ export function CommunityPostDetail({
                       type="button"
                       variant="tertiary"
                       size="sm"
-                      className="h-10 w-10 rounded-full p-0 sm:h-7 sm:w-7"
+                      className="h-11 w-11 rounded-full p-0 sm:h-10 sm:w-10"
                       aria-label={`Rate ${value} star${value === 1 ? "" : "s"}`}
                       onClick={() => onRatePrompt(post.id, ratingValue === value ? null : value)}
+                      data-testid={`community-detail-rating-star-${value}`}
                     >
                       <Star
                         className={cx(

@@ -270,6 +270,11 @@
   box-shadow: var(--pf-shadow-elevated);
 }
 
+.pf-card.pf-card--static:hover {
+  transform: none;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.26);
+}
+
 .pf-rarity-common {
   border-color: rgba(var(--pf-slate-rgb) / 0.95);
 }

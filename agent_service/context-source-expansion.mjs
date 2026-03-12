@@ -10,6 +10,10 @@ function normalizeFieldValue(value) {
   return value.trim();
 }
 
+function hasText(value) {
+  return normalizeFieldValue(value).length > 0;
+}
+
 function truncateText(value, maxChars) {
   const normalized = normalizeFieldValue(value);
   if (!normalized) return "";
@@ -48,6 +52,18 @@ function normalizeReference(value) {
 function normalizeBoolean(value, fallback = false) {
   if (typeof value === "boolean") return value;
   return fallback;
+}
+
+function normalizeComparableText(value) {
+  return normalizeFieldValue(value).toLowerCase().replace(/\s+/g, " ");
+}
+
+function buildContextSourceMarker(source) {
+  const marker = `[${source.type.toUpperCase()}: ${source.title}]`;
+  if (source.reference?.refId) {
+    return `${marker} [ref=${source.reference.refId}]`;
+  }
+  return marker;
 }
 
 function extractJsonObject(raw) {
@@ -167,6 +183,67 @@ export function normalizeEnhanceContextSources(input) {
     .filter(Boolean);
 
   return { ok: true, value };
+}
+
+export function buildContextSourceSummaryBlock(contextSources) {
+  if (!Array.isArray(contextSources) || contextSources.length === 0) {
+    return "";
+  }
+
+  const sourceLines = contextSources
+    .filter((source) => hasText(source?.summary))
+    .map((source) => `${buildContextSourceMarker(source)}\n${source.summary}`);
+
+  if (sourceLines.length === 0) {
+    return "";
+  }
+
+  return [
+    "## ATTACHED SOURCE SUMMARIES",
+    "These source summaries were attached separately from the main prompt. Use them as supporting context.",
+    "",
+    "<sources>",
+    sourceLines.join("\n\n"),
+    "</sources>",
+  ].join("\n");
+}
+
+export function promptAlreadyIncludesContextSources(prompt, contextSources) {
+  const normalizedPrompt = normalizeComparableText(prompt);
+  if (!normalizedPrompt) return false;
+
+  if (
+    normalizedPrompt.includes("<sources>")
+    || normalizedPrompt.includes("**sources:**")
+  ) {
+    return true;
+  }
+
+  if (!Array.isArray(contextSources) || contextSources.length === 0) {
+    return false;
+  }
+
+  return contextSources.some((source) => {
+    const normalizedMarker = normalizeComparableText(buildContextSourceMarker(source));
+    return Boolean(normalizedMarker) && normalizedPrompt.includes(normalizedMarker);
+  });
+}
+
+export function appendContextSourceSummariesToEnhancementInput({
+  prompt,
+  baseEnhancementInput,
+  contextSources,
+}) {
+  const summaryBlock = buildContextSourceSummaryBlock(contextSources);
+  if (!summaryBlock) {
+    return baseEnhancementInput;
+  }
+
+  if (promptAlreadyIncludesContextSources(prompt, contextSources)) {
+    return baseEnhancementInput;
+  }
+
+  return `${baseEnhancementInput}\n\n${summaryBlock}`;
 }
 
 function renderBuilderFieldSnapshot(builderFields) {

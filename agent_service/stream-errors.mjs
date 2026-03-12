@@ -21,6 +21,13 @@ function normalizeErrorCode(rawCode) {
   ) {
     return "auth_required";
   }
+  if (
+    normalized === "request_aborted"
+    || normalized.includes("client_disconnected")
+    || normalized.includes("request_cancel")
+  ) {
+    return "request_aborted";
+  }
   if (normalized.includes("auth") || normalized.includes("session")) return "auth_session_invalid";
   if (normalized.includes("payload") || normalized.includes("too_large")) return "payload_too_large";
   if (normalized.includes("unsafe_url") || normalized.includes("url_not_allowed")) return "unsafe_url";
@@ -48,6 +55,8 @@ export function statusFromErrorCode(errorCode) {
       return 404;
     case "method_not_allowed":
       return 405;
+    case "request_aborted":
+      return 499;
     case "request_timeout":
       return 408;
     case "payload_too_large":
