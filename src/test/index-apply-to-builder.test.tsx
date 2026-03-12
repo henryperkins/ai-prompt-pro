@@ -97,6 +97,18 @@ vi.mock("@/components/OutputPanel", () => ({
       </button>
       <button
         type="button"
+        data-testid="apply-multiline-constraints"
+        onClick={() =>
+          onApplyToBuilder?.({
+            constraints:
+              "1. Avoid jargon\n2. Include citations\n3. Keep under 200 words\n4. Use action verbs",
+          })
+        }
+      >
+        Apply multiline constraints
+      </button>
+      <button
+        type="button"
         data-testid="apply-role"
         onClick={() =>
           onApplyToBuilder?.({
@@ -290,6 +302,20 @@ describe("High-2: Apply to builder replaces format/constraint/role semantics", (
       const cfg = mocks.latestConfig as Record<string, unknown>;
       expect(cfg.constraints).toEqual([]);
       expect(cfg.customConstraint).toBe("Must be under 200 words, no jargon");
+    });
+  });
+
+  it("partitions multiline inspector constraints into preset and custom builder fields", async () => {
+    await renderIndex();
+
+    fireEvent.click(screen.getByTestId("apply-multiline-constraints"));
+
+    await waitFor(() => {
+      const cfg = mocks.latestConfig as Record<string, unknown>;
+      expect(cfg.constraints).toEqual(["Avoid jargon", "Include citations"]);
+      expect(cfg.customConstraint).toBe(
+        "Keep under 200 words\nUse action verbs",
+      );
     });
   });
 

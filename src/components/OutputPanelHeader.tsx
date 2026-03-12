@@ -55,8 +55,8 @@ export function OutputPanelHeader({
   onSaveVersion,
 }: OutputPanelHeaderProps) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-center gap-2">
+    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
         <h2 className="text-sm font-medium text-foreground">
           {hasEnhancedPrompt ? "✨ Enhanced Prompt" : "📝 Preview"}
         </h2>
@@ -68,6 +68,8 @@ export function OutputPanelHeader({
             {statusLabel}
           </span>
         )}
+      </div>
+      <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">
         {hasCompare && (
           <>
             <Button
@@ -92,8 +94,6 @@ export function OutputPanelHeader({
             )}
           </>
         )}
-      </div>
-      <div className="flex flex-wrap items-center gap-2 sm:justify-end">
         <Button
           variant="primary"
           size="sm"

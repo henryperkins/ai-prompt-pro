@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
@@ -6,9 +6,9 @@ import { defaultConfig } from "@/lib/prompt-builder";
 
 const mocks = vi.hoisted(() => ({
   toast: vi.fn(),
-  usePromptBuilder: vi.fn(),
   streamEnhance: vi.fn(),
   setEnhancedPrompt: vi.fn(),
+  promptBuilderOverrides: {} as Record<string, unknown>,
 }));
 
 type EnhanceStreamEvent = {
@@ -38,6 +38,53 @@ vi.mock("@/components/PageShell", () => ({
   PageShell: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
+vi.mock("@/components/CodexSessionDrawer", () => ({
+  CodexSessionDrawer: ({
+    open,
+    session,
+    onUpdateSession,
+    onUseCurrentPrompt,
+  }: {
+    open?: boolean;
+    session?: {
+      contextSummary?: string;
+      latestEnhancedPrompt?: string;
+    };
+    onUpdateSession?: (updates: {
+      contextSummary?: string;
+      latestEnhancedPrompt?: string;
+    }) => void;
+    onUseCurrentPrompt?: () => void;
+  }) => (
+    <div>
+      <div data-testid="codex-session-context-summary">
+        {session?.contextSummary ?? ""}
+      </div>
+      {open ? (
+        <div>
+          <input
+            aria-label="Outside context summary"
+            value={session?.contextSummary ?? ""}
+            onChange={(event) =>
+              onUpdateSession?.({ contextSummary: event.target.value })
+            }
+          />
+          <input
+            aria-label="Carry-forward prompt"
+            value={session?.latestEnhancedPrompt ?? ""}
+            onChange={(event) =>
+              onUpdateSession?.({ latestEnhancedPrompt: event.target.value })
+            }
+          />
+          <button type="button" onClick={onUseCurrentPrompt}>
+            Use current preview
+          </button>
+        </div>
+      ) : null}
+    </div>
+  ),
+}));
+
 
 
 
@@ -59,12 +106,14 @@ vi.mock("@/components/OutputPanel", () => ({
   OutputPanel: ({
     onEnhance,
     onWebSearchToggle,
+    onAppendToSessionContext,
     webSearchSources,
     webSearchActivity,
     reasoningSummary,
   }: {
     onEnhance: () => void;
     onWebSearchToggle?: (enabled: boolean) => void;
+    onAppendToSessionContext?: (content: string) => void;
     webSearchSources?: string[];
     webSearchActivity?: {
       phase?: string;
@@ -77,6 +126,18 @@ vi.mock("@/components/OutputPanel", () => ({
       <button type="button" onClick={() => onWebSearchToggle?.(true)}>
         enable web search
       </button>
+      {onAppendToSessionContext ? (
+        <button
+          type="button"
+          onClick={() =>
+            onAppendToSessionContext(
+              "Clarification questions to answer before finalizing:\n1. What audience should this target?",
+            )
+          }
+        >
+          add to session context
+        </button>
+      ) : null}
       <button type="button" onClick={onEnhance}>
         enhance
       </button>
@@ -125,41 +186,55 @@ vi.mock("@/components/base/card", () => ({
 }));
 
 vi.mock("@/hooks/usePromptBuilder", () => ({
-  usePromptBuilder: () => mocks.usePromptBuilder(),
-}));
-
-function buildPromptBuilderState(overrides: Record<string, unknown> = {}) {
-  return {
-    config: {
+  usePromptBuilder: () => {
+    const overrides = mocks.promptBuilderOverrides;
+    const [config] = useState({
       ...defaultConfig,
       originalPrompt: "Draft launch prompt",
-    },
-    updateConfig: vi.fn(),
-    resetConfig: vi.fn(),
-    clearOriginalPrompt: vi.fn(),
-    builtPrompt: "Built launch prompt",
-    score: { total: 70 },
-    enhancedPrompt: "",
-    setEnhancedPrompt: mocks.setEnhancedPrompt,
-    isEnhancing: false,
-    setIsEnhancing: vi.fn(),
-    isSignedIn: false,
-    saveVersion: vi.fn(),
-    savePrompt: vi.fn(),
-    saveAndSharePrompt: vi.fn(),
-    remixContext: null,
-    startRemix: vi.fn(),
-    clearRemix: vi.fn(),
-    updateContextSources: vi.fn(),
-    updateDatabaseConnections: vi.fn(),
-    updateRagParameters: vi.fn(),
-    updateContextStructured: vi.fn(),
-    updateContextInterview: vi.fn(),
-    updateProjectNotes: vi.fn(),
-    toggleDelimiters: vi.fn(),
-    ...overrides,
-  };
-}
+    });
+    const [enhancedPrompt, setEnhancedPromptState] = useState(
+      typeof overrides.enhancedPrompt === "string" ? overrides.enhancedPrompt : "",
+    );
+    const setEnhancedPrompt = useCallback((value: string) => {
+      mocks.setEnhancedPrompt(value);
+      setEnhancedPromptState(value);
+    }, []);
+    const stableFns = useMemo(
+      () => ({
+        updateConfig: vi.fn(),
+        resetConfig: vi.fn(),
+        clearOriginalPrompt: vi.fn(),
+        saveVersion: vi.fn(),
+        savePrompt: vi.fn(),
+        saveAndSharePrompt: vi.fn(),
+        startRemix: vi.fn(),
+        clearRemix: vi.fn(),
+        updateContextSources: vi.fn(),
+        updateDatabaseConnections: vi.fn(),
+        updateRagParameters: vi.fn(),
+        updateContextStructured: vi.fn(),
+        updateContextInterview: vi.fn(),
+        updateProjectNotes: vi.fn(),
+        toggleDelimiters: vi.fn(),
+      }),
+      [],
+    );
+
+    return {
+      config,
+      builtPrompt: "Built launch prompt",
+      score: { total: 70 },
+      enhancedPrompt,
+      setEnhancedPrompt,
+      isEnhancing: false,
+      setIsEnhancing: vi.fn(),
+      isSignedIn: Boolean(overrides.isSignedIn),
+      loadTemplate: vi.fn(),
+      remixContext: null,
+      ...stableFns,
+    };
+  },
+}));
 
 async function renderIndex() {
   const { default: Index } = await import("@/pages/Index");
@@ -174,7 +249,7 @@ describe("Index web search streaming", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
-    mocks.usePromptBuilder.mockReturnValue(buildPromptBuilderState());
+    mocks.promptBuilderOverrides = {};
   });
 
   it("passes webSearchEnabled and splits sources from streamed output", async () => {
@@ -426,7 +501,20 @@ describe("Index web search streaming", () => {
         variant: "destructive",
       }),
     );
-    expect(screen.queryByTestId("codex-session-context-summary")).not.toBeInTheDocument();
+    expect(screen.getByTestId("codex-session-context-summary")).toHaveTextContent(
+      "",
+    );
+  });
+
+  it("hides session-context mutation actions from signed-out review surfaces", async () => {
+    await renderIndex();
+
+    expect(
+      screen.queryByRole("button", { name: "add to session context" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("codex-session-context-summary")).toHaveTextContent(
+      "",
+    );
   });
 
   it("surfaces a destructive toast when enhance completes without prompt output", async () => {
@@ -457,7 +545,7 @@ describe("Index web search streaming", () => {
   });
 
   it("sends user-edited Codex session context from the drawer", async () => {
-    mocks.usePromptBuilder.mockReturnValue(buildPromptBuilderState({ isSignedIn: true }));
+    mocks.promptBuilderOverrides = { isSignedIn: true };
     mocks.streamEnhance.mockImplementation(
       ({
         session,

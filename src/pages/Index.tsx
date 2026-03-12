@@ -36,11 +36,13 @@ import {
 } from "@/lib/builder-inference";
 import { getSectionHealth } from "@/lib/section-health";
 import {
+  buildPromptConfigSignature,
   buildPrompt,
   defaultConfig,
   hasBuilderFieldInput,
   hasPromptInput,
   normalizeConstraintSelections,
+  partitionConstraintText,
   reconcileFormatLength,
   scorePrompt,
 } from "@/lib/prompt-builder";
@@ -750,6 +752,7 @@ const Index = () => {
   const activeEnhanceRunIdRef = useRef<string | null>(null);
   const acceptedRunIdsRef = useRef<Set<string>>(new Set());
   const lastEnhanceInputSnapshotRef = useRef<EnhanceInputSnapshot | null>(null);
+  const activeEnhancementBuilderSignatureRef = useRef<string | null>(null);
   const [suggestionChips, setSuggestionChips] = useState<
     BuilderSuggestionChip[]
   >([]);
@@ -776,6 +779,14 @@ const Index = () => {
     );
   const [enhancementProfileSnapshot, setEnhancementProfileSnapshot] =
     useState(() => loadEnhancementProfile());
+  const [
+    lastSuccessfulEnhancementBuilderSignature,
+    setLastSuccessfulEnhancementBuilderSignature,
+  ] = useState<string | null>(null);
+  const [
+    lastEnhancementArtifactBuilderSignature,
+    setLastEnhancementArtifactBuilderSignature,
+  ] = useState<string | null>(null);
   const { toast } = useToast();
   const isMobile = useIsMobile();
 
@@ -843,6 +854,11 @@ const Index = () => {
     updateProjectNotes,
     toggleDelimiters,
   } = usePromptBuilder();
+  const builderSignature = useMemo(
+    () => buildPromptConfigSignature(config),
+    [config],
+  );
+  const canManageCodexSession = isSignedIn;
 
   const launchAssignments = useMemo(() => getLaunchExperimentAssignments(), []);
   const heroCopyVariant = launchAssignments.heroCopy;
@@ -881,12 +897,15 @@ const Index = () => {
     enhanceAbortController.current = null;
     activeEnhanceRunIdRef.current = null;
     lastEnhanceInputSnapshotRef.current = null;
+    activeEnhancementBuilderSignatureRef.current = null;
     setSessionDrawerOpen(false);
     setEnhanceSession(createCodexSession());
     setReasoningSummary("");
     clearEnhanceOverrides();
     setWebSearchSources([]);
     setWebSearchActivity(IDLE_WEB_SEARCH_ACTIVITY);
+    setLastSuccessfulEnhancementBuilderSignature(null);
+    setLastEnhancementArtifactBuilderSignature(null);
     setIsEnhancing(false);
     setEnhancePhase("idle");
   }, [clearEnhanceTimers, clearEnhanceOverrides, setIsEnhancing]);
@@ -918,12 +937,19 @@ const Index = () => {
     if (!restoredPrompt) return;
     resetEnhanceSessionState();
     setEnhancedPrompt(restoredPrompt);
+    setLastSuccessfulEnhancementBuilderSignature(builderSignature);
     setReasoningSummary("");
     toast({ title: "Version restored", description: "Restored from History." });
     if (isMobile) {
       setDrawerOpen(true);
     }
-  }, [isMobile, resetEnhanceSessionState, setEnhancedPrompt, toast]);
+  }, [
+    builderSignature,
+    isMobile,
+    resetEnhanceSessionState,
+    setEnhancedPrompt,
+    toast,
+  ]);
 
   useEffect(() => {
     if (!presetId) return;
@@ -1064,7 +1090,7 @@ const Index = () => {
   );
 
   const handleOpenSessionDrawer = useCallback(() => {
-    if (!isSignedIn) {
+    if (!canManageCodexSession) {
       toast({
         title: "Sign in required",
         description: "Sign in to manage Codex session context.",
@@ -1073,7 +1099,12 @@ const Index = () => {
       return;
     }
     setSessionDrawerOpen(true);
-  }, [isSignedIn, toast]);
+  }, [canManageCodexSession, toast]);
+
+  const handleOpenSessionDrawerFromMobileSettings = useCallback(() => {
+    setMobileEnhancementSettingsOpen(false);
+    handleOpenSessionDrawer();
+  }, [handleOpenSessionDrawer]);
 
   const handleUpdateEnhanceSession = useCallback(
     (
@@ -1107,6 +1138,74 @@ const Index = () => {
   }, [activeEnhancementVariant, enhanceMetadata]);
 
   const selectedEnhancedPrompt = selectedVariantPrompt || enhancedPrompt;
+  const hasVisibleEnhancedOutput = selectedEnhancedPrompt.trim().length > 0;
+  const latestEnhancementOutputBuilderSignature =
+    activeEnhancementBuilderSignatureRef.current ??
+    lastSuccessfulEnhancementBuilderSignature;
+  const latestEnhancementArtifactBuilderSignatureValue =
+    activeEnhancementBuilderSignatureRef.current ??
+    lastSuccessfulEnhancementBuilderSignature ??
+    lastEnhancementArtifactBuilderSignature;
+  const hasEnhancedHistory = Boolean(
+    lastSuccessfulEnhancementBuilderSignature ||
+      hasVisibleEnhancedOutput ||
+      enhanceMetadata ||
+      reasoningSummary.trim() ||
+      webSearchSources.length > 0,
+  );
+  const hasCurrentEnhancedOutput = Boolean(
+    hasVisibleEnhancedOutput &&
+      latestEnhancementOutputBuilderSignature &&
+      latestEnhancementOutputBuilderSignature === builderSignature,
+  );
+  const hasCurrentEnhancementArtifacts = Boolean(
+    latestEnhancementArtifactBuilderSignatureValue &&
+      latestEnhancementArtifactBuilderSignatureValue === builderSignature &&
+      (hasVisibleEnhancedOutput ||
+        enhanceMetadata ||
+        reasoningSummary.trim() ||
+        webSearchSources.length > 0),
+  );
+  const isEnhancementStale = Boolean(
+    hasEnhancedHistory && hasVisibleEnhancedOutput && !hasCurrentEnhancedOutput,
+  );
+  const currentEnhancedPrompt = hasCurrentEnhancedOutput
+    ? selectedEnhancedPrompt
+    : "";
+  const currentPreviewPrompt = currentEnhancedPrompt || builtPrompt;
+  const currentEnhanceMetadata = hasCurrentEnhancementArtifacts
+    ? enhanceMetadata
+    : null;
+  const currentReasoningSummary = hasCurrentEnhancementArtifacts
+    ? reasoningSummary
+    : "";
+  const currentWebSearchSources = hasCurrentEnhancementArtifacts
+    ? webSearchSources
+    : [];
+  const effectiveActiveEnhancementVariant = hasCurrentEnhancedOutput
+    ? activeEnhancementVariant
+    : "original";
+  const staleEnhancementNotice = isEnhancementStale
+    ? "Builder changed since the last enhancement. Preview now shows the current draft. Re-run Enhance to refresh AI output."
+    : null;
+
+  useEffect(() => {
+    if (isEnhancing) return;
+    if (!selectedEnhancedPrompt.trim()) return;
+    if (
+      activeEnhancementBuilderSignatureRef.current ||
+      lastSuccessfulEnhancementBuilderSignature
+    ) {
+      return;
+    }
+    setLastSuccessfulEnhancementBuilderSignature(builderSignature);
+  }, [
+    builderSignature,
+    isEnhancing,
+    lastEnhancementArtifactBuilderSignature,
+    lastSuccessfulEnhancementBuilderSignature,
+    selectedEnhancedPrompt,
+  ]);
 
   const updateActiveRunSnapshot = useCallback(
     (updates: Partial<Omit<EnhanceInputSnapshot, "runId">>) => {
@@ -1132,9 +1231,15 @@ const Index = () => {
       const runId = activeEnhanceRunIdRef.current;
       const snapshot = lastEnhanceInputSnapshotRef.current;
       const acceptedRunIds = acceptedRunIdsRef.current;
-      const visiblePrompt = selectedEnhancedPrompt.trim();
+      const visiblePrompt = currentEnhancedPrompt.trim();
 
-      if (!runId || !snapshot || snapshot.runId !== runId || !visiblePrompt) {
+      if (
+        !hasCurrentEnhancedOutput ||
+        !runId ||
+        !snapshot ||
+        snapshot.runId !== runId ||
+        !visiblePrompt
+      ) {
         return;
       }
       if (acceptedRunIds.has(runId)) return;
@@ -1169,15 +1274,16 @@ const Index = () => {
     },
     [
       activeEnhancementVariant,
+      currentEnhancedPrompt,
       enhanceMetadata?.partsBreakdown?.output_format,
-      selectedEnhancedPrompt,
+      hasCurrentEnhancedOutput,
       syncEnhancementProfile,
     ],
   );
 
   const handleAppendToSessionContext = useCallback(
     (content: string) => {
-      if (!content.trim()) return;
+      if (!canManageCodexSession || !content.trim()) return;
       setEnhanceSession((previous) =>
         createCodexSession({
           ...previous,
@@ -1185,15 +1291,14 @@ const Index = () => {
           updatedAt: Date.now(),
         }),
       );
-      if (isSignedIn) {
-        setSessionDrawerOpen(true);
-      }
+      setSessionDrawerOpen(true);
     },
-    [isSignedIn],
+    [canManageCodexSession],
   );
 
   const handleUseCurrentPromptForSession = useCallback(() => {
-    const promptSnapshot = (selectedEnhancedPrompt || builtPrompt).trim();
+    if (!canManageCodexSession) return;
+    const promptSnapshot = currentPreviewPrompt.trim();
     if (!promptSnapshot) return;
     setEnhanceSession((previous) =>
       createCodexSession({
@@ -1202,7 +1307,7 @@ const Index = () => {
         updatedAt: Date.now(),
       }),
     );
-  }, [builtPrompt, selectedEnhancedPrompt]);
+  }, [canManageCodexSession, currentPreviewPrompt]);
 
   const handleApplySuggestionChip = useCallback(
     (chip: BuilderSuggestionChip) => {
@@ -1300,6 +1405,7 @@ const Index = () => {
         inputPromptText,
         "original",
       );
+      activeEnhancementBuilderSignatureRef.current = builderSignature;
       trackBuilderEvent("builder_enhance_clicked", {
         promptChars: promptForEnhance.length,
         hasExistingEnhancedPrompt: Boolean(enhancedPrompt.trim()),
@@ -1313,6 +1419,7 @@ const Index = () => {
       setEnhanceMetadata(null);
       setWebSearchSources([]);
       setWebSearchActivity(IDLE_WEB_SEARCH_ACTIVITY);
+      setLastEnhancementArtifactBuilderSignature(null);
 
       if (isMobile) {
         setMobileEnhancementSettingsOpen(false);
@@ -1368,6 +1475,11 @@ const Index = () => {
       const enhanceContextSources = buildEnhanceContextSources(
         configForEnhance.contextConfig.sources,
       );
+      const markCurrentEnhancementArtifacts = () => {
+        setLastEnhancementArtifactBuilderSignature(
+          activeEnhancementBuilderSignatureRef.current ?? builderSignature,
+        );
+      };
       const applyEnhancedOutput = (
         nextOutput: string,
         clearSourcesWhenMissing = false,
@@ -1375,6 +1487,7 @@ const Index = () => {
         const { promptText, sources } =
           splitEnhancedPromptAndSources(nextOutput);
         if (sources.length > 0) {
+          markCurrentEnhancementArtifacts();
           setEnhancedPrompt(promptText);
           setWebSearchSources(sources);
           return;
@@ -1465,6 +1578,7 @@ const Index = () => {
             )?.payload;
             const parsed = parseEnhanceMetadata(innerPayload);
             if (parsed) {
+              markCurrentEnhancementArtifacts();
               setEnhanceMetadata(parsed);
               updateActiveRunSnapshot({
                 ambiguityLevel: parsed.ambiguityLevel ?? null,
@@ -1490,6 +1604,7 @@ const Index = () => {
             } else {
               const { sources } = splitEnhancedPromptAndSources(metadataPrompt);
               if (sources.length > 0) {
+                markCurrentEnhancementArtifacts();
                 setWebSearchSources(sources);
               }
             }
@@ -1532,6 +1647,7 @@ const Index = () => {
             .filter((text) => text.length > 0)
             .join("\n\n")
             .trim();
+          markCurrentEnhancementArtifacts();
           setReasoningSummary(merged);
         },
         onSession: (nextSession) => {
@@ -1553,6 +1669,7 @@ const Index = () => {
           enhanceStartedAt.current = null;
           setWebSearchActivity(IDLE_WEB_SEARCH_ACTIVITY);
           if (!finalPromptText) {
+            activeEnhancementBuilderSignatureRef.current = null;
             trackBuilderEvent("builder_enhance_completed", {
               success: false,
               durationMs,
@@ -1567,9 +1684,13 @@ const Index = () => {
               description:
                 "The enhancement finished without returning a prompt. Please try again.",
               variant: "destructive",
-            });
+              });
             return;
           }
+          setLastSuccessfulEnhancementBuilderSignature(
+            activeEnhancementBuilderSignatureRef.current ?? builderSignature,
+          );
+          activeEnhancementBuilderSignatureRef.current = null;
           trackBuilderEvent("builder_enhance_completed", {
             success: true,
             durationMs,
@@ -1607,8 +1728,12 @@ const Index = () => {
           if (enhanceAbortController.current === streamAbortController) {
             enhanceAbortController.current = null;
           }
-          if (error.code === "request_aborted") return;
+          if (error.code === "request_aborted") {
+            activeEnhancementBuilderSignatureRef.current = null;
+            return;
+          }
 
+          activeEnhancementBuilderSignatureRef.current = null;
           const errorMessage = error.message;
           const startedAt = enhanceStartedAt.current;
           const durationMs = startedAt
@@ -1636,6 +1761,7 @@ const Index = () => {
   }, [
     activeEnhancementVariant,
     ambiguityMode,
+    builderSignature,
     clearEnhanceTimers,
     config,
     enhanceMetadata?.ambiguityLevel,
@@ -1736,7 +1862,9 @@ const Index = () => {
           category: input.category,
           remixNote: input.remixNote,
         }, {
-          enhancedPromptOverride: selectedEnhancedPrompt,
+          enhancedPromptOverride: hasCurrentEnhancedOutput
+            ? currentEnhancedPrompt
+            : "",
         });
         const warningText =
           result.warnings.length > 0
@@ -1752,7 +1880,9 @@ const Index = () => {
           title: `Prompt ${verb}: ${result.record.metadata.name}`,
           description: `Revision r${result.record.metadata.revision}.${warningText}`,
         });
-        trackEnhanceAccepted("save");
+        if (hasCurrentEnhancedOutput) {
+          trackEnhanceAccepted("save");
+        }
         if (remixContext) {
           handleClearRemix();
         }
@@ -1772,7 +1902,8 @@ const Index = () => {
       toast,
       remixContext,
       handleClearRemix,
-      selectedEnhancedPrompt,
+      currentEnhancedPrompt,
+      hasCurrentEnhancedOutput,
       trackEnhanceAccepted,
     ],
   );
@@ -1806,7 +1937,9 @@ const Index = () => {
           targetModel: input.targetModel,
           remixNote: input.remixNote,
         }, {
-          enhancedPromptOverride: selectedEnhancedPrompt,
+          enhancedPromptOverride: hasCurrentEnhancedOutput
+            ? currentEnhancedPrompt
+            : "",
         });
         toast({
           title: `Prompt shared: ${result.record.metadata.name}`,
@@ -1817,7 +1950,9 @@ const Index = () => {
             </ToastAction>
           ) : undefined,
         });
-        trackEnhanceAccepted("save_share");
+        if (hasCurrentEnhancedOutput) {
+          trackEnhanceAccepted("save_share");
+        }
         if (remixContext) {
           handleClearRemix();
         }
@@ -1838,7 +1973,8 @@ const Index = () => {
       toast,
       remixContext,
       handleClearRemix,
-      selectedEnhancedPrompt,
+      currentEnhancedPrompt,
+      hasCurrentEnhancedOutput,
       trackEnhanceAccepted,
     ],
   );
@@ -1912,15 +2048,16 @@ const Index = () => {
 
   const sourceCount = config.contextConfig.sources.length;
   const sectionHealth = getSectionHealth(config, score.total);
-  const hasEnhancementQualityScore = Boolean(enhanceMetadata?.qualityScore);
+  const hasEnhancementQualityScore = Boolean(
+    currentEnhanceMetadata?.qualityScore,
+  );
   const builderQualityLabel = `Builder quality score ${score.total} out of 100`;
   const selectedRole = config.customRole || config.role;
-  const displayPrompt = selectedEnhancedPrompt || builtPrompt;
   const handleSaveVersion = useCallback(() => {
-    saveVersion(undefined, displayPrompt);
-  }, [displayPrompt, saveVersion]);
+    saveVersion(undefined, currentPreviewPrompt);
+  }, [currentPreviewPrompt, saveVersion]);
   const sessionDrawerSummary = useMemo(() => {
-    if (!isSignedIn) {
+    if (!canManageCodexSession) {
       return "Sign in to manage the Codex session and carry supplemental context across turns.";
     }
     if (enhanceSession.contextSummary.trim()) {
@@ -1930,14 +2067,19 @@ const Index = () => {
       return "This builder is already attached to a Codex thread.";
     }
     return "Open the drawer to add supplemental context before the next enhancement pass.";
-  }, [enhanceSession.contextSummary, enhanceSession.threadId, isSignedIn]);
+  }, [
+    canManageCodexSession,
+    enhanceSession.contextSummary,
+    enhanceSession.threadId,
+  ]);
   const hasBuiltPrompt = builtPrompt.trim().length > 0;
   const hasOriginalPromptInput = config.originalPrompt.trim().length > 0;
   const hasBuilderDrivenInput = hasBuilderFieldInput(config);
-  const hasEnhancedOnce = enhancedPrompt.trim().length > 0;
   const builderQualityHint = hasEnhancementQualityScore
     ? "Draft-only score. The AI estimate for the enhanced output appears below."
-    : hasEnhancedOnce
+    : isEnhancementStale
+      ? "Draft-only score. Builder changes made the last enhancement stale. Re-run Enhance to refresh the AI output."
+      : hasCurrentEnhancedOutput
       ? "Draft-only score. This gauge still reflects the builder draft."
       : "Draft-only score before enhancement.";
   const hasDetailSelections = Boolean(
@@ -1956,7 +2098,7 @@ const Index = () => {
   );
   const hasStartedBuilderFlow =
     hasOriginalPromptInput ||
-    hasEnhancedOnce ||
+    hasEnhancedHistory ||
     hasDetailSelections ||
     hasSourceOrAdvancedSelections ||
     showAdvancedControls ||
@@ -1965,10 +2107,10 @@ const Index = () => {
   const showEnhanceFirstCard = !hasStartedBuilderFlow;
   const shouldShowAdvancedControls =
     showAdvancedControls ||
-    hasEnhancedOnce ||
+    hasEnhancedHistory ||
     hasDetailSelections ||
     hasSourceOrAdvancedSelections;
-  const previewSource: OutputPreviewSource = hasEnhancedOnce
+  const previewSource: OutputPreviewSource = hasCurrentEnhancedOutput
     ? "enhanced"
     : hasBuiltPrompt
       ? hasBuilderDrivenInput
@@ -1978,7 +2120,7 @@ const Index = () => {
           : "builder_fields"
       : "empty";
   const hasUnenhancedPreview =
-    !hasEnhancedOnce && builtPrompt.trim().length > 0;
+    !hasCurrentEnhancedOutput && builtPrompt.trim().length > 0;
   const canSavePrompt = hasPromptInput(config);
   const canSharePrompt = canSavePrompt && isSignedIn;
   const mobileEnhanceLabel = isEnhancing
@@ -2001,7 +2143,7 @@ const Index = () => {
             ? "Enhancement complete."
             : "";
   const mobilePreviewText = useMemo(() => {
-    const trimmed = displayPrompt.trim();
+    const trimmed = currentPreviewPrompt.trim();
     if (!trimmed) {
       return "Preview updates as you build.";
     }
@@ -2011,10 +2153,10 @@ const Index = () => {
       .filter(Boolean)
       .slice(0, 1)
       .join(" ");
-  }, [displayPrompt]);
-  const mobilePreviewLabel = hasEnhancedOnce
+  }, [currentPreviewPrompt]);
+  const mobilePreviewLabel = hasCurrentEnhancedOutput
     ? "Enhanced output"
-    : displayPrompt.trim()
+    : currentPreviewPrompt.trim()
       ? "Built prompt"
       : "Live preview";
   const mobileEnhancementSummary = useMemo(
@@ -2125,20 +2267,20 @@ const Index = () => {
 
   useEffect(() => {
     if (
-      hasEnhancedOnce ||
+      hasEnhancedHistory ||
       hasDetailSelections ||
       hasSourceOrAdvancedSelections
     ) {
       persistedSetShowAdvancedControls(true);
     }
-    if (hasDetailSelections || hasEnhancedOnce) {
+    if (hasDetailSelections || hasEnhancedHistory) {
       setIsAdjustDetailsOpen(true);
     }
-    if (hasSourceOrAdvancedSelections || hasEnhancedOnce) {
+    if (hasSourceOrAdvancedSelections || hasEnhancedHistory) {
       setIsSourcesAdvancedOpen(true);
     }
   }, [
-    hasEnhancedOnce,
+    hasEnhancedHistory,
     hasDetailSelections,
     hasSourceOrAdvancedSelections,
     persistedSetShowAdvancedControls,
@@ -2328,8 +2470,12 @@ const Index = () => {
         configUpdates.examples = updates.examples;
       }
       if (updates.constraints) {
-        configUpdates.customConstraint = updates.constraints;
-        configUpdates.constraints = [];
+        const normalizedConstraintUpdates = partitionConstraintText(
+          updates.constraints,
+        );
+        configUpdates.customConstraint =
+          normalizedConstraintUpdates.customConstraint;
+        configUpdates.constraints = normalizedConstraintUpdates.constraints;
       }
 
       updateConfig(configUpdates);
@@ -2528,7 +2674,7 @@ const Index = () => {
       {/* Split layout */}
       <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]">
         {/* Left: Input & Builder */}
-        <div className="space-y-3 sm:space-y-4">
+        <div className="min-w-0 space-y-3 sm:space-y-4">
               <BuilderHeroInput
                 value={config.originalPrompt}
                 onChange={(value) => updateConfig({ originalPrompt: value })}
@@ -2671,7 +2817,7 @@ const Index = () => {
 
         {/* Right: Output — inline on desktop, drawer on mobile */}
         {!isMobile && (
-          <div className="space-y-3 lg:sticky lg:top-20 lg:self-start">
+          <div className="min-w-0 space-y-3 lg:sticky lg:top-20 lg:self-start">
               <Card className="pf-panel mb-3 border-border/70 bg-card/80 p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -2735,8 +2881,8 @@ const Index = () => {
               </Card>
             <OutputPanel
               builtPrompt={builtPrompt}
-              enhancedPrompt={enhancedPrompt}
-              reasoningSummary={reasoningSummary}
+              enhancedPrompt={currentEnhancedPrompt}
+              reasoningSummary={currentReasoningSummary}
               isEnhancing={isEnhancing}
               enhancePhase={enhancePhase}
               onEnhance={handleEnhance}
@@ -2746,14 +2892,14 @@ const Index = () => {
               canSavePrompt={canSavePrompt}
               canSharePrompt={canSharePrompt}
               previewSource={previewSource}
-              hasEnhancedOnce={hasEnhancedOnce}
+              hasEnhancedOnce={hasCurrentEnhancedOutput}
               webSearchEnabled={webSearchEnabled}
               onWebSearchToggle={handleWebSearchToggle}
-              webSearchSources={webSearchSources}
+              webSearchSources={currentWebSearchSources}
               webSearchActivity={webSearchActivity}
               enhanceIdleLabel={primaryCtaLabel}
-              enhanceMetadata={enhanceMetadata}
-              activeVariant={activeEnhancementVariant}
+              enhanceMetadata={currentEnhanceMetadata}
+              activeVariant={effectiveActiveEnhancementVariant}
               onVariantChange={handleVariantChange}
               onPromptAccepted={trackEnhanceAccepted}
               enhancementDepth={enhancementDepth}
@@ -2764,9 +2910,14 @@ const Index = () => {
               onAmbiguityModeChange={handleAmbiguityModeChange}
               onApplyToBuilder={handleApplyToBuilder}
               onAppendClarificationBlockToPrompt={handleAppendClarificationBlockToPrompt}
-              onAppendToSessionContext={handleAppendToSessionContext}
+              onAppendToSessionContext={
+                canManageCodexSession
+                  ? handleAppendToSessionContext
+                  : undefined
+              }
               onEditableListSaved={handleEditableListSaved}
               onApplyEditableListToPrompt={handleApplyEditableListToPrompt}
+              staleEnhancementNotice={staleEnhancementNotice}
               remixContext={
                 remixContext
                   ? {
@@ -2836,21 +2987,25 @@ const Index = () => {
                     Next best action
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {!hasEnhancedOnce
-                      ? canSharePrompt
-                        ? `Preview is ready to copy, save, or share. ${primaryCtaLabel} to compare changes and get AI refinement suggestions.`
-                        : `Preview is ready to copy or save. Sign in to share, or ${primaryCtaLabel} to compare changes and get AI refinement suggestions.`
+                    {!hasCurrentEnhancedOutput
+                      ? isEnhancementStale
+                        ? "Builder changed since the last enhancement. Preview now shows the current draft. Re-run Enhance to refresh AI output."
+                        : canSharePrompt
+                          ? `Preview is ready to copy, save, or share. ${primaryCtaLabel} to compare changes and get AI refinement suggestions.`
+                          : `Preview is ready to copy or save. Sign in to share, or ${primaryCtaLabel} to compare changes and get AI refinement suggestions.`
                       : (refineSuggestions[0]?.description ??
                         "Use Improve this result suggestions to keep iterating.")}
                   </p>
                 </Card>
-                {webSearchSources.length > 0 && (
+                {currentWebSearchSources.length > 0 && (
                   <Card className="pf-panel border-border/70 bg-card/80 p-3">
                     <p className="text-sm font-medium text-foreground">
                       Recent web sources
                     </p>
                     <ul className="mt-2 space-y-1">
-                      {webSearchSources.slice(0, 3).map((source, index) => (
+                      {currentWebSearchSources
+                        .slice(0, 3)
+                        .map((source, index) => (
                         <li
                           key={`${source}-${index}`}
                           className="text-xs text-muted-foreground line-clamp-2 break-all"
@@ -2968,6 +3123,9 @@ const Index = () => {
           onEnhancementDepthChange={handleEnhancementDepthChange}
           onRewriteStrictnessChange={handleRewriteStrictnessChange}
           onAmbiguityModeChange={handleAmbiguityModeChange}
+          showCodexSession={canManageCodexSession}
+          codexSessionSummary={sessionDrawerSummary}
+          onOpenCodexSession={handleOpenSessionDrawerFromMobileSettings}
         />
       )}
 
@@ -2977,7 +3135,7 @@ const Index = () => {
           <DrawerContent className="max-h-[85vh]">
             <DrawerHeader>
               <DrawerTitle>
-                {enhancedPrompt
+                {hasCurrentEnhancedOutput
                   ? "Enhanced Prompt"
                   : builtPrompt
                     ? "Built Prompt"
@@ -2990,8 +3148,8 @@ const Index = () => {
             <div className="px-4 pb-6 overflow-auto flex-1">
               <OutputPanel
                 builtPrompt={builtPrompt}
-                enhancedPrompt={enhancedPrompt}
-                reasoningSummary={reasoningSummary}
+                enhancedPrompt={currentEnhancedPrompt}
+                reasoningSummary={currentReasoningSummary}
                 isEnhancing={isEnhancing}
                 enhancePhase={enhancePhase}
                 onEnhance={handleEnhance}
@@ -3001,19 +3159,24 @@ const Index = () => {
                 canSavePrompt={canSavePrompt}
                 canSharePrompt={canSharePrompt}
                 previewSource={previewSource}
-                hasEnhancedOnce={hasEnhancedOnce}
+                hasEnhancedOnce={hasCurrentEnhancedOutput}
                 enhanceIdleLabel={primaryCtaLabel}
-                enhanceMetadata={enhanceMetadata}
-                activeVariant={activeEnhancementVariant}
+                enhanceMetadata={currentEnhanceMetadata}
+                activeVariant={effectiveActiveEnhancementVariant}
                 onVariantChange={handleVariantChange}
                 onPromptAccepted={trackEnhanceAccepted}
                 onApplyToBuilder={handleApplyToBuilder}
                 onAppendClarificationBlockToPrompt={handleAppendClarificationBlockToPrompt}
-                onAppendToSessionContext={handleAppendToSessionContext}
+                onAppendToSessionContext={
+                  canManageCodexSession
+                    ? handleAppendToSessionContext
+                    : undefined
+                }
                 onEditableListSaved={handleEditableListSaved}
                 onApplyEditableListToPrompt={handleApplyEditableListToPrompt}
                 enhancementSettingsSummary={mobileEnhancementSummary}
                 onEditEnhancementSettings={handleEditMobileEnhancementSettings}
+                staleEnhancementNotice={staleEnhancementNotice}
                 // Enhancement depth/strictness/ambiguity controls omitted — hideEnhanceButton hides the section they render in
                 hideEnhanceButton
                 remixContext={
@@ -3036,7 +3199,7 @@ const Index = () => {
         session={enhanceSession}
         isEnhancing={isEnhancing}
         isMobile={isMobile}
-        currentPromptText={displayPrompt}
+        currentPromptText={currentPreviewPrompt}
         onUpdateSession={handleUpdateEnhanceSession}
         onResetSession={handleResetEnhanceSession}
         onUseCurrentPrompt={handleUseCurrentPromptForSession}

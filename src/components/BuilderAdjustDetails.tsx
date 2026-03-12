@@ -13,6 +13,7 @@ import {
   complexityOptions,
   constraintOptions,
   formatOptions,
+  getCustomConstraintLines,
   lengthChipOptions,
   normalizeConstraintSelections,
   roles,
@@ -138,7 +139,7 @@ export function BuilderAdjustDetails({
   const formatCount =
     config.format.length + (config.customFormat.trim() ? 1 : 0);
   const constraintCount =
-    config.constraints.length + (config.customConstraint.trim() ? 1 : 0);
+    config.constraints.length + getCustomConstraintLines(config.customConstraint).length;
   const selectedLength =
     lengthChipOptions.find((option) => option.value === config.lengthPreference)
       ?.label ?? "Standard";
@@ -506,12 +507,12 @@ export function BuilderAdjustDetails({
                     );
                   })}
                 </div>
-                <Input
+                <TextArea
                   value={config.customConstraint}
                   onChange={(value) => onUpdate({ customConstraint: value })}
-                  placeholder="Custom constraint"
-                  wrapperClassName="bg-background"
+                  placeholder="One custom guardrail per line"
                   aria-label="Custom constraint"
+                  textAreaClassName="min-h-[100px] bg-background font-mono"
                 />
               </div>
             </AdjustDetailsGroup>

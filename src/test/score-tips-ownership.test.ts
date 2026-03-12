@@ -25,4 +25,16 @@ describe("scorePrompt with fieldOwnership", () => {
     const result = scorePrompt(config, { role: "user", tone: "user" });
     expect(result.tips.every((t) => !t.includes("Select a role"))).toBe(true);
   });
+
+  it("counts custom format and multiline custom constraints in the score", () => {
+    const result = scorePrompt({
+      ...defaultConfig,
+      originalPrompt: "Write a launch brief.",
+      customFormat: "JSON object",
+      customConstraint: "1. Keep under 200 words\n2. Use action verbs",
+    });
+
+    expect(result.specificity).toBe(17);
+    expect(result.structure).toBe(8);
+  });
 });

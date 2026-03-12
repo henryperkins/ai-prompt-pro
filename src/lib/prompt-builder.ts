@@ -36,12 +36,58 @@ export const defaultConfig: PromptConfig = {
 };
 
 const hasText = (value: string): boolean => value.trim().length > 0;
+const LIST_ITEM_PREFIX_RE = /^\s*(?:[-*+•]\s+|\d+[.)]\s+)/;
 
 function arraysEqual(left: string[], right: string[]): boolean {
   return (
     left.length === right.length &&
     left.every((value, index) => value === right[index])
   );
+}
+
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => stableStringify(entry)).join(",")}]`;
+  }
+
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>).sort(
+      ([left], [right]) => left.localeCompare(right),
+    );
+    return `{${entries
+      .map(([key, entry]) => `${JSON.stringify(key)}:${stableStringify(entry)}`)
+      .join(",")}}`;
+  }
+
+  return JSON.stringify(value);
+}
+
+function fnv1aHash(input: string): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+function normalizeLogicalLine(value: string): string {
+  return value.replace(LIST_ITEM_PREFIX_RE, "").trim();
+}
+
+function splitLogicalLines(value: string): string[] {
+  return Array.from(
+    new Set(
+      value
+        .split(/\r?\n/)
+        .map((entry) => normalizeLogicalLine(entry))
+        .filter(Boolean),
+    ),
+  );
+}
+
+function sortStrings(values: string[]): string[] {
+  return [...values].sort((left, right) => left.localeCompare(right));
 }
 
 function getPrimaryTaskInput(config: PromptConfig): string {
@@ -155,6 +201,39 @@ export function normalizeConstraintSelections(constraints: string[]): string[] {
   return normalized;
 }
 
+export function getCustomConstraintLines(value: string): string[] {
+  return splitLogicalLines(value);
+}
+
+export function partitionConstraintLines(lines: string[]): {
+  constraints: string[];
+  customConstraint: string;
+} {
+  const nextConstraints: string[] = [];
+  const nextCustomConstraintLines: string[] = [];
+
+  lines.forEach((line) => {
+    if (constraintOptions.includes(line)) {
+      nextConstraints.push(line);
+      return;
+    }
+
+    nextCustomConstraintLines.push(line);
+  });
+
+  return {
+    constraints: normalizeConstraintSelections(nextConstraints),
+    customConstraint: nextCustomConstraintLines.join("\n"),
+  };
+}
+
+export function partitionConstraintText(value: string): {
+  constraints: string[];
+  customConstraint: string;
+} {
+  return partitionConstraintLines(getCustomConstraintLines(value));
+}
+
 export function applyPromptConfigInvariants(
   config: PromptConfig,
 ): PromptConfig {
@@ -189,6 +268,82 @@ export const lengthChipOptions = [
   { value: "detailed", label: "Detailed", hint: "500+ words" },
 ];
 
+export function buildPromptConfigSignature(config: PromptConfig): string {
+  const serializedSources = sortStrings(
+    config.contextConfig.sources.map((source) =>
+      stableStringify({
+        ...source,
+        addedAt: 0,
+        rawContent: source.rawContent.trim(),
+        summary: source.summary.trim(),
+        title: source.title.trim(),
+        validation: source.validation
+          ? {
+              ...source.validation,
+              checkedAt: 0,
+              message: source.validation.message?.trim() ?? "",
+            }
+          : null,
+      }),
+    ),
+  );
+  const serializedDatabaseConnections = sortStrings(
+    config.contextConfig.databaseConnections.map((connection) =>
+      stableStringify({
+        ...connection,
+        database: connection.database.trim(),
+        label: connection.label.trim(),
+        lastValidatedAt: 0,
+        schema: connection.schema?.trim() ?? "",
+        tables: sortStrings(connection.tables.map((table) => table.trim())),
+      }),
+    ),
+  );
+  const serializedInterviewAnswers = sortStrings(
+    config.contextConfig.interviewAnswers.map((answer) =>
+      stableStringify({
+        ...answer,
+        answer: answer.answer.trim(),
+        question: answer.question.trim(),
+      }),
+    ),
+  );
+
+  return fnv1aHash(
+    stableStringify({
+      originalPrompt: config.originalPrompt.trim(),
+      task: config.task.trim(),
+      role: config.role.trim(),
+      customRole: config.customRole.trim(),
+      context: config.context.trim(),
+      format: sortStrings(config.format.map((entry) => entry.trim())),
+      customFormat: config.customFormat.trim(),
+      lengthPreference: config.lengthPreference,
+      examples: config.examples.trim(),
+      constraints: sortStrings(normalizeConstraintSelections(config.constraints)),
+      customConstraints: sortStrings(getCustomConstraintLines(config.customConstraint)),
+      tone: config.tone.trim(),
+      complexity: config.complexity.trim(),
+      contextConfig: {
+        useDelimiters: config.contextConfig.useDelimiters,
+        projectNotes: config.contextConfig.projectNotes.trim(),
+        structured: config.contextConfig.structured,
+        sources: serializedSources,
+        databaseConnections: serializedDatabaseConnections,
+        interviewAnswers: serializedInterviewAnswers,
+        rag: {
+          ...config.contextConfig.rag,
+          vectorStoreRef: config.contextConfig.rag.vectorStoreRef.trim(),
+          namespace: config.contextConfig.rag.namespace.trim(),
+          documentRefs: sortStrings(
+            config.contextConfig.rag.documentRefs.map((ref) => ref.trim()),
+          ),
+        },
+      },
+    }),
+  );
+}
+
 export function buildPrompt(config: PromptConfig): string {
   const parts: string[] = [];
 
@@ -217,7 +372,7 @@ export function buildPrompt(config: PromptConfig): string {
   }
 
   const formats = [...config.format];
-  if (config.customFormat) formats.push(config.customFormat);
+  if (config.customFormat.trim()) formats.push(config.customFormat.trim());
   if (formats.length > 0) {
     const lengthLabel =
       config.lengthPreference === "brief"
@@ -234,8 +389,12 @@ export function buildPrompt(config: PromptConfig): string {
     parts.push(`**Examples:**\n${config.examples}`);
   }
 
-  const allConstraints = [...normalizeConstraintSelections(config.constraints)];
-  if (config.customConstraint) allConstraints.push(config.customConstraint);
+  const allConstraints = Array.from(
+    new Set([
+      ...normalizeConstraintSelections(config.constraints),
+      ...getCustomConstraintLines(config.customConstraint),
+    ]),
+  );
   if (config.tone && config.tone !== defaultConfig.tone) {
     allConstraints.push(`Use a ${config.tone.toLowerCase()} tone`);
   }
@@ -273,6 +432,14 @@ export function scorePrompt(
   const normalizedConstraints = normalizeConstraintSelections(
     config.constraints,
   );
+  const customConstraintLines = getCustomConstraintLines(
+    config.customConstraint,
+  );
+  const totalConstraintCount = Array.from(
+    new Set([...normalizedConstraints, ...customConstraintLines]),
+  ).length;
+  const hasFormatSelection =
+    config.format.length > 0 || hasText(config.customFormat);
 
   // Clarity (0-25)
   const primaryTaskInput = getPrimaryTaskInput(config);
@@ -311,10 +478,12 @@ export function scorePrompt(
   }
 
   // Specificity (0-25)
-  if (config.format.length > 0) specificity += 8;
+  if (hasFormatSelection) specificity += 8;
   if (config.lengthPreference) specificity += 5;
   if (config.examples) specificity += 7;
-  if (normalizedConstraints.length > 0) specificity += 5;
+  if (totalConstraintCount > 0) {
+    specificity += Math.min(5, totalConstraintCount * 2);
+  }
   specificity = Math.min(25, specificity);
   if (specificity < 15) {
     const aiFields = ["format", "lengthPreference", "constraints"].filter(
@@ -335,8 +504,12 @@ export function scorePrompt(
   if (config.role || config.customRole) structure += 7;
   if (config.tone) structure += 5;
   if (config.complexity) structure += 5;
-  if (normalizedConstraints.length >= 2) structure += 4;
-  if (config.format.length > 0) structure += 4;
+  if (totalConstraintCount >= 2) {
+    structure += 4;
+  } else if (totalConstraintCount === 1) {
+    structure += 2;
+  }
+  if (hasFormatSelection) structure += 4;
   structure = Math.min(25, structure);
   if (structure < 15) {
     const aiStructure = ["role", "tone"].filter(

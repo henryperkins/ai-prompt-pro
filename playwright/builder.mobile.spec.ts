@@ -1,9 +1,10 @@
 import { writeFile } from "node:fs/promises";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page, type Route } from "@playwright/test";
 
 const MOBILE_WIDTHS = [360, 390, 428] as const;
 const DEVTOOLS_MOBILE_WIDTHS = [320, 375, 390, 428] as const;
 const VIEWPORT_HEIGHT = 900;
+const AUTH_EXPIRES_AT = Math.floor(Date.now() / 1000) + 3600;
 const DEVELOPER_TOOL_MENU_ITEMS = [
   "Copy Codex exec command",
   "Copy Codex TUI command",
@@ -17,6 +18,32 @@ const DEVELOPER_TOOL_MENU_ITEMS = [
   "Copy latest enhance session summary",
 ] as const;
 
+const AUTH_USER = {
+  id: "builder-viewer-1",
+  aud: "authenticated",
+  role: "authenticated",
+  email: "builder-viewer@example.com",
+  app_metadata: {
+    provider: "email",
+    providers: ["email"],
+  },
+  user_metadata: {
+    display_name: "Taylor Builder",
+    full_name: "Taylor Builder",
+    avatar_url: null,
+  },
+  created_at: "2026-01-20T12:00:00.000Z",
+};
+
+const AUTH_SESSION = {
+  access_token: "builder-auth-access-token",
+  refresh_token: "builder-auth-refresh-token",
+  token_type: "bearer",
+  expires_in: 3600,
+  expires_at: AUTH_EXPIRES_AT,
+  user: AUTH_USER,
+};
+
 interface BuilderMobileMetric {
   width: number;
   viewportHeight: number;
@@ -25,6 +52,76 @@ interface BuilderMobileMetric {
   stickyOverlapWithBottomNavPx: number;
   stickySecondaryControlsGapPx: number;
   controlsUnder44px: Array<{ testId: string; width: number; height: number }>;
+}
+
+function fulfillJson(
+  route: Route,
+  payload: unknown,
+  status = 200,
+  headers: Record<string, string> = {},
+): Promise<void> {
+  return route.fulfill({
+    status,
+    contentType: "application/json",
+    headers,
+    body: JSON.stringify(payload),
+  });
+}
+
+async function installBuilderAuthMocks(
+  page: Page,
+  { authenticated = false }: { authenticated?: boolean } = {},
+): Promise<void> {
+  const authUser = authenticated ? AUTH_USER : null;
+  const authSession = authenticated ? AUTH_SESSION : null;
+
+  await page.route("**/auth/get-session", async (route) => {
+    await fulfillJson(route, { session: authSession, user: authUser });
+  });
+
+  await page.route("**/auth/token/anonymous", async (route) => {
+    await fulfillJson(route, {
+      token: "header.payload.signature",
+      expires_at: AUTH_EXPIRES_AT,
+    });
+  });
+
+  await page.route("**/auth/v1/user", async (route) => {
+    if (!authenticated) {
+      await fulfillJson(route, { code: 401, msg: "JWT missing" }, 401);
+      return;
+    }
+    await fulfillJson(route, { user: authUser });
+  });
+
+  await page.route("**/auth/get-user", async (route) => {
+    if (!authenticated) {
+      await fulfillJson(route, { code: 401, msg: "JWT missing" }, 401);
+      return;
+    }
+    await fulfillJson(route, { user: authUser });
+  });
+
+  await page.route("**/rest/v1/drafts**", async (route) => {
+    const method = route.request().method();
+    if (method === "GET" || method === "HEAD") {
+      await fulfillJson(route, null);
+      return;
+    }
+    await fulfillJson(route, []);
+  });
+
+  await page.route("**/rest/v1/saved_prompts**", async (route) => {
+    await fulfillJson(route, [], 200, { "content-range": "0-0/0" });
+  });
+
+  await page.route("**/rest/v1/community_posts**", async (route) => {
+    await fulfillJson(route, [], 200, { "content-range": "0-0/0" });
+  });
+
+  await page.route("**/rest/v1/prompt_versions**", async (route) => {
+    await fulfillJson(route, [], 200, { "content-range": "0-0/0" });
+  });
 }
 
 test("captures Builder mobile sticky-bar ergonomics at 360-430px widths", async ({ page }, testInfo) => {
@@ -166,6 +263,61 @@ test("lets mobile users change enhancement settings before running enhance", asy
   await expect(
     page.getByTestId("output-panel-enhancement-settings-summary"),
   ).toContainText("Expert prompt · Preserve wording · Ask me");
+});
+
+test("lets signed-in mobile users open the Codex session drawer from settings and keep carry-forward edits", async ({
+  page,
+}) => {
+  await installBuilderAuthMocks(page, { authenticated: true });
+  await page.setViewportSize({ width: 390, height: VIEWPORT_HEIGHT });
+  await page.goto("/");
+
+  await expect(
+    page.getByRole("textbox", { name: /What should the model do\?/i }),
+  ).toBeVisible();
+
+  await page.getByTestId("builder-mobile-settings-trigger").click();
+
+  const settingsSheet = page.getByTestId("builder-mobile-settings-sheet");
+  await expect(settingsSheet).toBeVisible();
+  await expect(
+    settingsSheet.getByTestId("builder-mobile-codex-session-section"),
+  ).toBeVisible();
+  await expect(
+    settingsSheet.getByTestId("builder-mobile-codex-session-summary"),
+  ).toContainText(
+    "Open the drawer to add supplemental context before the next enhancement pass.",
+  );
+
+  await settingsSheet.getByRole("button", { name: "Open session" }).click();
+
+  const contextSummary = page.getByLabel("Outside context summary");
+  const carryForwardPrompt = page.getByLabel("Carry-forward prompt");
+  await expect(contextSummary).toBeVisible();
+  await expect(carryForwardPrompt).toBeVisible();
+
+  await contextSummary.fill(
+    "Bring in the launch brief, beta feedback, and the legal review notes.",
+  );
+  await carryForwardPrompt.fill(
+    "Carry forward the partner launch prompt with the revised compliance guardrails.",
+  );
+
+  await page.getByRole("button", { name: "Done" }).click();
+  await expect(contextSummary).toHaveCount(0);
+
+  await page.getByTestId("builder-mobile-settings-trigger").click();
+  await expect(
+    settingsSheet.getByTestId("builder-mobile-codex-session-summary"),
+  ).toContainText("Outside context is ready to carry into the next Codex turn.");
+
+  await settingsSheet.getByRole("button", { name: "Open session" }).click();
+  await expect(contextSummary).toHaveValue(
+    "Bring in the launch brief, beta feedback, and the legal review notes.",
+  );
+  await expect(carryForwardPrompt).toHaveValue(
+    "Carry forward the partner launch prompt with the revised compliance guardrails.",
+  );
 });
 
 test("keeps adjust details progressive on mobile", async ({ page }) => {

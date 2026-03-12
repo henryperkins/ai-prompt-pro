@@ -4,7 +4,7 @@ import { Card } from "@/components/base/card";
 interface EnhancementClarificationCardProps {
   questions: string[];
   onAddToPrompt: () => void;
-  onAddToSessionContext: () => void;
+  onAddToSessionContext?: () => void;
   onCopyQuestions: () => void;
 }
 
@@ -39,14 +39,16 @@ export function EnhancementClarificationCard({
         <Button type="button" variant="secondary" size="sm" onClick={onAddToPrompt}>
           Add questions to prompt
         </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={onAddToSessionContext}
-        >
-          Add to session context
-        </Button>
+        {onAddToSessionContext && (
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={onAddToSessionContext}
+          >
+            Add to session context
+          </Button>
+        )}
         <Button type="button" variant="tertiary" size="sm" onClick={onCopyQuestions}>
           Copy questions
         </Button>

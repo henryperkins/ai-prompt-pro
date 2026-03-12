@@ -78,4 +78,20 @@ describe("buildPrompt", () => {
     expect(prompt).toContain("- Be conversational");
     expect(prompt).not.toContain("- Use formal tone");
   });
+
+  it("renders multiline custom constraints as separate bullets", () => {
+    const prompt = buildPrompt(
+      buildConfig({
+        originalPrompt: "Draft the launch plan.",
+        constraints: ["Avoid jargon"],
+        customConstraint: "1. Keep under 200 words\n2. Use action verbs",
+      }),
+    );
+
+    expect(prompt).toContain("**Constraints:**");
+    expect(prompt).toContain("- Avoid jargon");
+    expect(prompt).toContain("- Keep under 200 words");
+    expect(prompt).toContain("- Use action verbs");
+    expect(prompt).not.toContain("- Keep under 200 words\n2. Use action verbs");
+  });
 });

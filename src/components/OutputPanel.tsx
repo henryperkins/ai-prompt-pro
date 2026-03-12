@@ -95,6 +95,7 @@ interface OutputPanelProps {
     field: EditableEnhancementListField,
     items: string[],
   ) => void;
+  staleEnhancementNotice?: string | null;
   /** When false, the structured inspector and apply-to-builder actions are hidden. */
   showStructuredInspector?: boolean;
 }
@@ -170,6 +171,7 @@ export function OutputPanel({
   onAppendToSessionContext,
   onEditableListSaved,
   onApplyEditableListToPrompt,
+  staleEnhancementNotice,
   showStructuredInspector = true,
 }: OutputPanelProps) {
   const [copied, setCopied] = useState(false);
@@ -395,7 +397,7 @@ export function OutputPanel({
   };
 
   return (
-    <div className="ui-density space-y-4 h-full flex flex-col" data-density="comfortable">
+    <div className="ui-density min-w-0 space-y-4 h-full flex flex-col" data-density="comfortable">
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {enhanceAssistiveStatus}
       </p>
@@ -500,7 +502,11 @@ export function OutputPanel({
         <EnhancementClarificationCard
           questions={enhanceMetadata.openQuestions}
           onAddToPrompt={handleAppendClarificationToPrompt}
-          onAddToSessionContext={handleAppendClarificationToSessionContext}
+          onAddToSessionContext={
+            onAppendToSessionContext
+              ? handleAppendClarificationToSessionContext
+              : undefined
+          }
           onCopyQuestions={() =>
             void handleCopyText(
               "Clarification questions",
@@ -508,6 +514,15 @@ export function OutputPanel({
             )
           }
         />
+      )}
+
+      {staleEnhancementNotice && (
+        <Card
+          className="border-border/70 bg-muted/30 p-3 text-sm text-muted-foreground"
+          data-testid="output-panel-stale-enhancement-notice"
+        >
+          {staleEnhancementNotice}
+        </Card>
       )}
 
       <Card
@@ -551,14 +566,18 @@ export function OutputPanel({
         <EnhancementInspector
           metadata={enhanceMetadata}
           onApplyToBuilder={onApplyToBuilder}
-          onApplyToSessionContext={(label, content) => {
-            if (!onAppendToSessionContext) return;
-            onAppendToSessionContext?.(content);
-            toast({
-              title: `${label} added`,
-              description: "That plan detail was appended to the session context.",
-            });
-          }}
+          onApplyToSessionContext={
+            onAppendToSessionContext
+              ? (label, content) => {
+                  onAppendToSessionContext(content);
+                  toast({
+                    title: `${label} added`,
+                    description:
+                      "That plan detail was appended to the session context.",
+                  });
+                }
+              : undefined
+          }
           onCopyText={(label, content) => {
             void handleCopyText(label, content);
           }}

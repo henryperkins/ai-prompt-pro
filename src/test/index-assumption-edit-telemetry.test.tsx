@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   savePrompt: vi.fn(),
   saveAndSharePrompt: vi.fn(),
   trackBuilderEvent: vi.fn(),
+  isSignedIn: false,
 }));
 
 vi.mock("@/hooks/use-toast", () => ({
@@ -105,17 +106,19 @@ vi.mock("@/components/OutputPanel", () => ({
       >
         Save unchanged assumption
       </button>
-      <button
-        type="button"
-        data-testid="append-edited-assumption-to-session"
-        onClick={() =>
-          onAppendToSessionContext?.(
-            "Assumptions made\n1. Budget is approved by finance leadership",
-          )
-        }
-      >
-        Add edited assumption to session context
-      </button>
+      {onAppendToSessionContext ? (
+        <button
+          type="button"
+          data-testid="append-edited-assumption-to-session"
+          onClick={() =>
+            onAppendToSessionContext(
+              "Assumptions made\n1. Budget is approved by finance leadership",
+            )
+          }
+        >
+          Add edited assumption to session context
+        </button>
+      ) : null}
     </div>
   ),
 }));
@@ -201,7 +204,7 @@ vi.mock("@/hooks/usePromptBuilder", () => ({
       setEnhancedPrompt,
       isEnhancing,
       setIsEnhancing,
-      isSignedIn: false,
+      isSignedIn: mocks.isSignedIn,
       remixContext: null,
       versions: [],
       templateSummaries: [],
@@ -223,6 +226,7 @@ describe("Index assumption edit telemetry", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
+    mocks.isSignedIn = false;
     localStorage.clear();
     vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE1", "false");
     vi.stubEnv("VITE_BUILDER_REDESIGN_PHASE2", "false");
@@ -269,6 +273,7 @@ describe("Index assumption edit telemetry", () => {
   });
 
   it("appends edited assumptions to the session context", async () => {
+    mocks.isSignedIn = true;
     await renderIndex();
 
     fireEvent.click(screen.getByTestId("append-edited-assumption-to-session"));

@@ -4,7 +4,12 @@ import type {
   RagParameters,
 } from "@/lib/context-types";
 import { defaultContextConfig } from "@/lib/context-types";
-import { defaultConfig, type PromptConfig } from "@/lib/prompt-builder";
+import {
+  defaultConfig,
+  getCustomConstraintLines,
+  partitionConstraintLines,
+  type PromptConfig,
+} from "@/lib/prompt-builder";
 import { normalizeTemplateConfig } from "@/lib/template-store";
 
 type FieldOwnership = "ai" | "user" | "empty";
@@ -124,6 +129,9 @@ function hydrateConfigV2ToWorkingState(
   options: WorkingStateNormalizationOptions = {},
 ): PromptConfig {
   const { advanced } = payload;
+  const normalizedConstraints = partitionConstraintLines(
+    toStringArray(payload.constraints),
+  );
   const normalized = normalizeTemplateConfig(
     {
       ...defaultConfig,
@@ -134,8 +142,8 @@ function hydrateConfigV2ToWorkingState(
       format: toStringArray(payload.format),
       customFormat: "",
       lengthPreference: normalizeLengthPreference(payload.lengthPreference),
-      constraints: toStringArray(payload.constraints),
-      customConstraint: "",
+      constraints: normalizedConstraints.constraints,
+      customConstraint: normalizedConstraints.customConstraint,
       examples: payload.examples,
       contextConfig: {
         ...defaultContextConfig,
@@ -270,10 +278,12 @@ export function serializeWorkingStateToV2(
     format.push(normalized.customFormat.trim());
   }
 
-  const constraints = [...normalized.constraints];
-  if (normalized.customConstraint.trim()) {
-    constraints.push(normalized.customConstraint.trim());
-  }
+  const constraints = Array.from(
+    new Set([
+      ...normalized.constraints,
+      ...getCustomConstraintLines(normalized.customConstraint),
+    ]),
+  );
 
   const lengthPreference: "brief" | "standard" | "detailed" =
     normalized.lengthPreference === "brief" ||

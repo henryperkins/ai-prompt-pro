@@ -69,7 +69,7 @@ vi.mock("@/hooks/usePromptBuilder", () => ({
   usePromptBuilder: () => mocks.usePromptBuilder(),
 }));
 
-function buildPromptBuilderState() {
+function buildPromptBuilderState(overrides: Record<string, unknown> = {}) {
   return {
     config: defaultConfig,
     updateConfig: vi.fn(),
@@ -95,6 +95,7 @@ function buildPromptBuilderState() {
     updateContextInterview: vi.fn(),
     updateProjectNotes: vi.fn(),
     toggleDelimiters: vi.fn(),
+    ...overrides,
   };
 }
 
@@ -149,5 +150,30 @@ describe("Index mobile layout spacing", () => {
     expect(
       screen.queryByText("Enhancement settings"),
     ).not.toBeInTheDocument();
+  });
+
+  it("lets signed-in mobile users reach the Codex session drawer from settings", async () => {
+    mocks.usePromptBuilder.mockReturnValue(
+      buildPromptBuilderState({ isSignedIn: true }),
+    );
+
+    await renderIndex();
+
+    fireEvent.click(screen.getByTestId("builder-mobile-settings-trigger"));
+
+    expect(
+      screen.getByTestId("builder-mobile-codex-session-section"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("builder-mobile-codex-session-summary"),
+    ).toHaveTextContent("Open the drawer to add supplemental context");
+
+    fireEvent.click(screen.getByRole("button", { name: "Open session" }));
+
+    expect(
+      screen.queryByText("Enhancement settings"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Outside context summary")).toBeInTheDocument();
+    expect(screen.getByLabelText("Carry-forward prompt")).toBeInTheDocument();
   });
 });

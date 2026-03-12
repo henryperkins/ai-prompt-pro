@@ -26,6 +26,9 @@ interface MobileEnhancementSettingsSheetProps {
   onEnhancementDepthChange: (depth: EnhancementDepth) => void;
   onRewriteStrictnessChange: (strictness: RewriteStrictness) => void;
   onAmbiguityModeChange: (mode: AmbiguityMode) => void;
+  showCodexSession?: boolean;
+  codexSessionSummary?: string;
+  onOpenCodexSession?: () => void;
 }
 
 export function MobileEnhancementSettingsSheet({
@@ -40,6 +43,9 @@ export function MobileEnhancementSettingsSheet({
   onEnhancementDepthChange,
   onRewriteStrictnessChange,
   onAmbiguityModeChange,
+  showCodexSession = false,
+  codexSessionSummary,
+  onOpenCodexSession,
 }: MobileEnhancementSettingsSheetProps) {
   const summary = getEnhancementSettingsSummary({
     enhancementDepth,
@@ -80,6 +86,34 @@ export function MobileEnhancementSettingsSheet({
             onAmbiguityModeChange={onAmbiguityModeChange}
             layout="stacked"
           />
+
+          {showCodexSession && (
+            <div
+              className="space-y-3 rounded-xl border border-border/70 bg-card/50 p-3"
+              data-testid="builder-mobile-codex-session-section"
+            >
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-foreground">
+                  Codex session
+                </p>
+                <p
+                  className="text-xs text-muted-foreground"
+                  data-testid="builder-mobile-codex-session-summary"
+                >
+                  {codexSessionSummary}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="w-full"
+                onClick={onOpenCodexSession}
+              >
+                Open session
+              </Button>
+            </div>
+          )}
 
           <p className="rounded-xl border border-border/70 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
             These controls change the next enhancement request without moving the

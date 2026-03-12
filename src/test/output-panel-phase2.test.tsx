@@ -187,6 +187,25 @@ describe("OutputPanel phase 2 save flow", () => {
     expect(screen.getByRole("button", { name: "More" })).toBeInTheDocument();
   });
 
+  it("shows a stale-enhancement notice while keeping preview actions draft-scoped", () => {
+    renderPanel({
+      builtPrompt: "Updated launch plan draft",
+      enhancedPrompt: "",
+      hasEnhancedOnce: false,
+      previewSource: "builder_fields",
+      staleEnhancementNotice:
+        "Builder changed since the last enhancement. Preview now shows the current draft. Re-run Enhance to refresh AI output.",
+    });
+
+    expect(
+      screen.getByTestId("output-panel-stale-enhancement-notice"),
+    ).toHaveTextContent("Builder changed since the last enhancement.");
+    expect(screen.getByRole("button", { name: "Copy preview" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Too much changed" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("tracks pre-enhance copy intent", async () => {
     mocks.trackBuilderEvent.mockReset();
     renderPanel({
@@ -233,6 +252,23 @@ describe("OutputPanel phase 2 save flow", () => {
 
     expect(screen.queryByText("Compare changes")).not.toBeInTheDocument();
     expect(await screen.findByRole("menuitem", { name: "Developer tools" })).toBeInTheDocument();
+  });
+
+  it("uses wrap-safe header layout classes for crowded desktop enhancement actions", () => {
+    renderPanel({
+      enhancedPrompt: "Improved launch plan",
+      hasEnhancedOnce: true,
+    });
+
+    const headerMetaGroup = screen
+      .getByText("✨ Enhanced Prompt")
+      .parentElement;
+    const headerActionGroup = screen.getByRole("button", { name: "Copy" }).parentElement;
+
+    expect(headerMetaGroup).toHaveClass("min-w-0", "flex-1", "flex-wrap");
+    expect(headerActionGroup).toHaveClass("min-w-0", "flex-wrap");
+    expect(screen.getByRole("button", { name: "Show changes" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Too much changed" })).toBeInTheDocument();
   });
 
   it("shows telemetry exports in mobile developer tools and keeps them discoverable when empty", async () => {
