@@ -163,6 +163,15 @@ describe("Index UX friction improvements", () => {
     mocks.usePromptBuilder.mockReturnValue(buildPromptBuilderState());
   });
 
+  it("labels the draft score as builder-derived before enhancement", async () => {
+    await renderIndex();
+
+    expect(screen.getByText("Builder quality signal")).toBeInTheDocument();
+    expect(
+      screen.getByText("Draft-only score before enhancement."),
+    ).toBeInTheDocument();
+  });
+
   it("computes preview source from builder fields once the builder already has detail input", async () => {
     await renderIndex();
 

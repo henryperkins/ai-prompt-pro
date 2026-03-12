@@ -1907,6 +1907,8 @@ const Index = () => {
 
   const sourceCount = config.contextConfig.sources.length;
   const sectionHealth = getSectionHealth(config, score.total);
+  const hasEnhancementQualityScore = Boolean(enhanceMetadata?.qualityScore);
+  const builderQualityLabel = `Builder quality score ${score.total} out of 100`;
   const selectedRole = config.customRole || config.role;
   const displayPrompt = selectedEnhancedPrompt || builtPrompt;
   const handleSaveVersion = useCallback(() => {
@@ -1928,6 +1930,11 @@ const Index = () => {
   const hasOriginalPromptInput = config.originalPrompt.trim().length > 0;
   const hasBuilderDrivenInput = hasBuilderFieldInput(config);
   const hasEnhancedOnce = enhancedPrompt.trim().length > 0;
+  const builderQualityHint = hasEnhancementQualityScore
+    ? "Draft-only score. The AI estimate for the enhanced output appears below."
+    : hasEnhancedOnce
+      ? "Draft-only score. This gauge still reflects the builder draft."
+      : "Draft-only score before enhancement.";
   const hasDetailSelections = Boolean(
     selectedRole ||
     config.format.length ||
@@ -2659,20 +2666,29 @@ const Index = () => {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs font-medium text-foreground">
-                      Quality signal
+                      Builder quality signal
                     </p>
-                    <p className="mt-0.5 text-sm text-muted-foreground">
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {builderQualityHint}
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
                       {tipsWithOwnership?.[0] ||
                         "Add context and constraints to improve quality."}
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1">
+                    <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                      Builder
+                    </span>
                     <Badge
                       variant="pill"
                       tone={score.total >= 75 ? "brand" : "default"}
                       className="text-xs"
+                      aria-label={builderQualityLabel}
+                      title={builderQualityLabel}
                     >
-                      {score.total}/100
+                      <span className="sr-only">{builderQualityLabel}</span>
+                      <span aria-hidden="true">{score.total}/100</span>
                     </Badge>
                   </div>
                 </div>
@@ -2873,12 +2889,16 @@ const Index = () => {
               variant="pill"
               tone={score.total >= 75 ? "brand" : "default"}
               className="relative h-11 min-w-16 justify-center overflow-hidden rounded-md px-2 text-sm font-semibold"
+              aria-label={builderQualityLabel}
+              title={builderQualityLabel}
             >
               <span
                 className="absolute inset-y-0 left-0 bg-primary/20 transition-all duration-300"
                 style={{ width: `${score.total}%` }}
+                aria-hidden="true"
               />
-              <span className="relative">{score.total}/100</span>
+              <span className="sr-only">{builderQualityLabel}</span>
+              <span className="relative" aria-hidden="true">{score.total}/100</span>
             </Badge>
             <EnhancePrimaryButton
               isEnhancing={isEnhancing}

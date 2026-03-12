@@ -160,10 +160,10 @@ export function BuilderHeroInput({
           )}
 
         {phase3Enabled && (isInferringSuggestions || suggestionChips.length > 0 || canResetInferred) && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 duration-200 rounded-md border border-dashed border-primary/40 bg-primary/5 px-3 py-2">
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-200 overflow-hidden rounded-md border border-dashed border-primary/40 bg-primary/5 px-3 py-2">
             <div className="flex items-center justify-between gap-2">
               <p className="flex items-center gap-1.5 text-sm font-medium text-primary">
-                <Sparkles className="h-3.5 w-3.5" />
+                <Sparkles className="h-3.5 w-3.5 shrink-0" />
                 Smart suggestions
               </p>
               {canResetInferred && onResetInferred && (
@@ -171,7 +171,7 @@ export function BuilderHeroInput({
                   type="button"
                   variant="tertiary"
                   size="sm"
-                  className="h-11 px-3 text-sm sm:h-10 sm:px-2.5 sm:text-sm"
+                  className="h-11 shrink-0 px-3 text-sm sm:h-10 sm:px-2.5 sm:text-sm"
                   onClick={onResetInferred}
                 >
                   Reset AI details
@@ -186,20 +186,20 @@ export function BuilderHeroInput({
                 </p>
               )}
               {suggestionChips.length > 0 && (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                   {suggestionChips.map((chip) => (
                     <Button
                       key={chip.id}
                       type="button"
                       variant="secondary"
                       size="sm"
-                      className="h-auto max-w-[220px] px-2.5 py-1.5 text-left"
+                      className="h-auto min-w-0 w-full px-2.5 py-1.5 text-left sm:w-auto sm:max-w-[220px]"
                       onClick={() => onApplySuggestion?.(chip)}
                     >
-                      <span className="flex flex-col gap-0.5">
-                        <span className="text-sm font-medium">{chip.label}</span>
+                      <span className="flex min-w-0 flex-col gap-0.5">
+                        <span className="truncate text-sm font-medium">{chip.label}</span>
                         {chip.description && (
-                          <span className="text-xs text-muted-foreground">{chip.description}</span>
+                          <span className="line-clamp-2 text-xs text-muted-foreground">{chip.description}</span>
                         )}
                       </span>
                     </Button>

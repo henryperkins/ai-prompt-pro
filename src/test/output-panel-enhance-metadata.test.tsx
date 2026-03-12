@@ -66,6 +66,18 @@ function renderPanel(
 }
 
 describe("OutputPanel enhancement metadata", () => {
+  it("renders the AI quality score as a distinct post-enhance metric", () => {
+    renderPanel({ enhanceMetadata: BASE_METADATA });
+
+    expect(screen.getByText("Enhanced quality (AI)")).toBeInTheDocument();
+    expect(screen.getByText("7.3/10")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "AI-reported estimate for the current enhanced output, separate from the builder score.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("renders enhancements_made when metadata is present", () => {
     renderPanel({ enhanceMetadata: BASE_METADATA });
 

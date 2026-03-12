@@ -14,6 +14,10 @@ function formatModeLabel(mode: string | undefined): string | null {
   return labels[mode] ?? mode;
 }
 
+function formatQualityOverall(score: number): string {
+  return `${score.toFixed(1)}/10`;
+}
+
 interface OutputPanelEnhancementSummaryProps {
   metadata: EnhanceMetadata;
   activeVariant: EnhancementVariant;
@@ -29,6 +33,7 @@ export function OutputPanelEnhancementSummary({
 }: OutputPanelEnhancementSummaryProps) {
   const ctx = metadata.detectedContext;
   const modeLabel = formatModeLabel(ctx?.mode);
+  const hasQualityScore = Boolean(metadata.qualityScore);
   const hasDetected = Boolean(ctx && (ctx.intent.length > 0 || ctx.domain.length > 0));
   const hasChanges = Boolean(
     metadata.enhancementsMade && metadata.enhancementsMade.length > 0,
@@ -49,6 +54,7 @@ export function OutputPanelEnhancementSummary({
 
   if (
     !hasDetected &&
+    !hasQualityScore &&
     !hasChanges &&
     !hasMissing &&
     !hasSuggestions &&
@@ -61,6 +67,24 @@ export function OutputPanelEnhancementSummary({
 
   return (
     <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5 space-y-2 text-sm">
+      {hasQualityScore && metadata.qualityScore && (
+        <div className="rounded-lg border border-border/50 bg-background/60 px-2.5 py-2">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground">
+                Enhanced quality (AI)
+              </p>
+              <p className="mt-0.5 text-xs text-foreground/80">
+                AI-reported estimate for the current enhanced output, separate from the builder score.
+              </p>
+            </div>
+            <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+              {formatQualityOverall(metadata.qualityScore.overall)}
+            </span>
+          </div>
+        </div>
+      )}
+
       {hasDetected && ctx && (
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-xs font-medium text-muted-foreground">Detected:</span>
