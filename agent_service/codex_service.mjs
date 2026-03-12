@@ -4,6 +4,13 @@ import process from "node:process";
 import { Codex } from "@openai/codex-sdk";
 import { WebSocketServer } from "ws";
 import {
+  buildBuilderFieldInferenceResult,
+  buildInferUserMessage,
+  createEmptyBuilderFieldInferenceResult,
+  INFER_BUILDER_FIELDS_SCHEMA,
+  INFER_SYSTEM_PROMPT,
+} from "./builder-field-inference.mjs";
+import {
   buildEnhancementMetaPrompt,
   detectEnhancementContext,
   parseEnhancementRequestAmbiguityMode,
@@ -670,14 +677,6 @@ const TEXTUAL_CONTENT_TYPES = new Set([
   "application/ecmascript",
 ]);
 
-const INFERENCE_FIELD_LABELS = {
-  role: "Set AI persona",
-  tone: "Adjust tone",
-  lengthPreference: "Tune response length",
-  format: "Choose output format",
-  constraints: "Add guidance constraints",
-};
-
 const ENHANCE_WS_PATH = "/enhance/ws";
 const ENHANCE_WS_PROTOCOL = "promptforge.enhance.v1";
 const ENHANCE_WS_BEARER_PROTOCOL_PREFIX = "auth.bearer.";
@@ -1167,214 +1166,54 @@ function isAgentMessageItemType(itemType) {
   return AGENT_MESSAGE_ITEM_TYPES.has(itemType.trim().toLowerCase());
 }
 
-function hasListValue(values) {
-  return Array.isArray(values) && values.some((value) => hasText(value));
-}
-
-function isLockedToUser(lockMetadata, field) {
-  return lockMetadata[field] === "user";
-}
-
-function createSuggestionChip(field, updates) {
-  return {
-    id: `set-${field}`,
-    label: INFERENCE_FIELD_LABELS[field],
-    description: "Apply AI-inferred details",
-    action: {
-      type: "set_fields",
-      updates,
-      fields: [field],
-    },
-  };
-}
-
-const INFER_SYSTEM_PROMPT = [
-  "You infer builder fields for a prompt-engineering UI. Given a user's draft prompt and context, return JSON only.",
-  "",
-  "Fields to infer (skip any the user already set or locked):",
-  "- role: string — best AI persona (e.g. \"Software Developer\", \"Data Analyst\", \"Expert Copywriter\", \"Teacher\", \"Marketing Strategist\")",
-  "- tone: string — \"Casual\"|\"Technical\"|\"Creative\"|\"Academic\"|\"Professional\"|\"Empathetic\"|\"Persuasive\"",
-  "- lengthPreference: string — \"brief\"|\"moderate\"|\"detailed\"",
-  "- format: string[] — e.g. [\"JSON\"], [\"Bullet points\"], [\"Table\"], [\"Markdown\"], [\"Numbered steps\"]",
-  "- constraints: string[] — e.g. [\"Include citations\", \"Avoid jargon\", \"Use examples\"]",
-  "",
-  "Return ONLY valid JSON (no markdown fences, no prose):",
-  "{",
-  "  \"role\": { \"value\": \"...\", \"confidence\": 0.0-1.0 },",
-  "  \"tone\": { \"value\": \"...\", \"confidence\": 0.0-1.0 },",
-  "  \"lengthPreference\": { \"value\": \"...\", \"confidence\": 0.0-1.0 },",
-  "  \"format\": { \"value\": [\"...\"], \"confidence\": 0.0-1.0 },",
-  "  \"constraints\": { \"value\": [\"...\"], \"confidence\": 0.0-1.0 }",
-  "}",
-  "",
-  "Omit a field entirely if you cannot infer it with >0.4 confidence.",
-].join("\n");
-
-function buildRequestContextSummary(requestContext) {
-  if (!requestContext || typeof requestContext !== "object") return "";
-
-  const lines = [];
-  if (typeof requestContext.hasAttachedSources === "boolean") {
-    const count = typeof requestContext.attachedSourceCount === "number"
-      ? requestContext.attachedSourceCount
-      : 0;
-    lines.push(`- attached_sources: ${requestContext.hasAttachedSources ? `yes (${count})` : "no"}`);
-  }
-  if (typeof requestContext.hasPresetOrRemix === "boolean") {
-    lines.push(`- preset_or_remix_active: ${requestContext.hasPresetOrRemix ? "yes" : "no"}`);
-  }
-  if (typeof requestContext.hasSessionContext === "boolean") {
-    lines.push(`- session_context_present: ${requestContext.hasSessionContext ? "yes" : "no"}`);
-  }
-  if (Array.isArray(requestContext.selectedOutputFormats) && requestContext.selectedOutputFormats.length > 0) {
-    lines.push(`- selected_output_formats: ${requestContext.selectedOutputFormats.join(", ")}`);
-  }
-  if (typeof requestContext.hasPastedSourceMaterial === "boolean") {
-    lines.push(`- pasted_source_material_present: ${requestContext.hasPastedSourceMaterial ? "yes" : "no"}`);
-  }
-
-  return lines.join("\n");
-}
-
-function buildInferUserMessage(prompt, currentFields, lockMetadata, requestContext) {
-  const lockedList = Object.entries(lockMetadata)
-    .filter(([, v]) => v === "user")
-    .map(([k]) => k);
-  const setList = Object.entries(currentFields)
-    .filter(([, v]) => {
-      if (Array.isArray(v)) return v.some((e) => typeof e === "string" && e.trim());
-      return typeof v === "string" && v.trim();
-    })
-    .map(([k, v]) => `${k}=${JSON.stringify(v)}`);
-
-  const parts = [`Prompt:\n"""${prompt}"""`];
-  if (setList.length > 0) parts.push(`Already set: ${setList.join(", ")}`);
-  if (lockedList.length > 0) parts.push(`Locked (skip): ${lockedList.join(", ")}`);
-  const requestContextSummary = buildRequestContextSummary(requestContext);
-  if (requestContextSummary) {
-    parts.push(`Request context:\n${requestContextSummary}`);
-  }
-  return parts.join("\n");
-}
-
-function parseInferModelResponse(raw) {
-  if (typeof raw !== "string") return null;
-  let text = raw.trim();
-  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (fenced) text = fenced[1].trim();
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  if (start === -1 || end <= start) return null;
-  try {
-    const parsed = JSON.parse(text.slice(start, end + 1));
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
 async function inferBuilderFieldUpdates(prompt, currentFields, lockMetadata, requestContext = {}) {
   if (!INFER_MODEL) {
-    return { inferredUpdates: {}, inferredFields: [], suggestionChips: [], confidence: {} };
+    return createEmptyBuilderFieldInferenceResult();
   }
 
-  const apiKey = CODEX_CONFIG
+  const hasProviderApiKey = CODEX_CONFIG
     ? RESOLVED_API_KEY
     : (normalizeEnvValue("OPENAI_API_KEY") || normalizeEnvValue("CODEX_API_KEY"));
-  if (!apiKey) {
-    return { inferredUpdates: {}, inferredFields: [], suggestionChips: [], confidence: {} };
+  if (!hasProviderApiKey) {
+    return createEmptyBuilderFieldInferenceResult();
   }
 
-  const headers = IS_AZURE_PROVIDER
-    ? { "api-key": apiKey, "Content-Type": "application/json" }
-    : { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
-
-  let raw;
   try {
-    const response = await fetchWithTimeout(`${OPENAI_API_BASE_URL.replace(/\/+$/, "")}/chat/completions`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        model: INFER_MODEL,
-        messages: [
-          { role: "system", content: INFER_SYSTEM_PROMPT },
-          {
-            role: "user",
-            content: buildInferUserMessage(
-              prompt,
-              currentFields,
-              lockMetadata,
-              requestContext,
-            ),
-          },
-        ],
-        reasoning: { effort: "none" },
-        temperature: 0.3,
-        max_completion_tokens: 400,
-        stream: false,
-      }),
-    }, 10_000);
-
-    if (!response.ok) {
-      logEvent("warn", "infer_model_error", { status: response.status });
-      return { inferredUpdates: {}, inferredFields: [], suggestionChips: [], confidence: {} };
-    }
-
-    const data = await response.json().catch(() => ({}));
-    raw = extractTextFromOpenAiContent(data?.choices?.[0]?.message?.content);
+    const codex = getCodexClient();
+    const inferInput = [
+      INFER_SYSTEM_PROMPT,
+      buildInferUserMessage(
+        prompt,
+        currentFields,
+        lockMetadata,
+        requestContext,
+      ),
+    ].join("\n\n");
+    const inferThreadOptions = {
+      model: INFER_MODEL,
+      modelReasoningEffort: "minimal",
+      webSearchEnabled: false,
+    };
+    const inferThread = codex.startThread(inferThreadOptions);
+    const inferTurn = await runBufferedWithRetry(
+      inferThread,
+      inferInput,
+      {
+        outputSchema: INFER_BUILDER_FIELDS_SCHEMA,
+      },
+      { requestContext },
+    );
+    captureUsageMetrics(requestContext, inferTurn.usage);
+    return buildBuilderFieldInferenceResult({
+      rawResponse: inferTurn.finalResponse,
+      prompt,
+      currentFields,
+      lockMetadata,
+    });
   } catch (error) {
     logEvent("warn", "infer_model_exception", { error_message: toErrorMessage(error) });
-    return { inferredUpdates: {}, inferredFields: [], suggestionChips: [], confidence: {} };
+    return createEmptyBuilderFieldInferenceResult();
   }
-
-  const parsed = parseInferModelResponse(raw);
-  if (!parsed) {
-    return { inferredUpdates: {}, inferredFields: [], suggestionChips: [], confidence: {} };
-  }
-
-  const inferredUpdates = {};
-  const inferredFields = [];
-  const suggestionChips = [];
-  const confidence = {};
-
-  for (const field of ["role", "tone", "lengthPreference"]) {
-    const entry = parsed[field];
-    if (!entry || typeof entry.value !== "string" || !entry.value.trim()) continue;
-    if (hasText(currentFields[field]) || isLockedToUser(lockMetadata, field)) continue;
-    inferredUpdates[field] = entry.value.trim();
-    inferredFields.push(field);
-    suggestionChips.push(createSuggestionChip(field, { [field]: entry.value.trim() }));
-    confidence[field] = typeof entry.confidence === "number" ? entry.confidence : 0.8;
-  }
-
-  for (const field of ["format", "constraints"]) {
-    const entry = parsed[field];
-    if (!entry || !Array.isArray(entry.value) || entry.value.length === 0) continue;
-    const values = entry.value.filter((v) => typeof v === "string" && v.trim()).map((v) => v.trim());
-    if (values.length === 0) continue;
-    if (field === "format" && hasListValue(currentFields.format)) continue;
-    if (field === "constraints" && hasListValue(currentFields.constraints)) continue;
-    if (isLockedToUser(lockMetadata, field)) continue;
-    inferredUpdates[field] = values;
-    inferredFields.push(field);
-    suggestionChips.push(createSuggestionChip(field, { [field]: values }));
-    confidence[field] = typeof entry.confidence === "number" ? entry.confidence : 0.8;
-  }
-
-  if (suggestionChips.length === 0 && prompt.trim().length > 20) {
-    suggestionChips.push({
-      id: "append-audience",
-      label: "Add audience details",
-      description: "Append audience and success criteria hints.",
-      action: {
-        type: "append_prompt",
-        text: "\nAudience: [who this is for]\nDesired outcome: [what success looks like]",
-      },
-    });
-  }
-
-  return { inferredUpdates, inferredFields, suggestionChips, confidence };
 }
 
 function responseMimeType(resp) {

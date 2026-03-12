@@ -170,7 +170,7 @@ Set `REQUIRE_PROVIDER_CONFIG=true` to disable step 3 and fail fast instead of fa
 | `EXTRACT_FETCH_MAX_REDIRECTS` | `5` | Maximum redirects followed during `/extract-url` fetch (each hop re-validates public-network target) |
 | `EXTRACT_MAX_RESPONSE_BYTES` | `2097152` | Max downloaded page size (bytes) |
 | `EXTRACT_MODEL` | Inherits `CODEX_MODEL`/provider model (or `gpt-4.1-mini` for non-Azure) | OpenAI model for URL extraction summarization |
-| `INFER_MODEL` | `gpt-5.4` (non-Azure) or inherits `CODEX_MODEL` (Azure) | Model for `/infer-builder-fields` (reasoning: none, low verbosity) |
+| `INFER_MODEL` | `gpt-5.4` (non-Azure) or inherits `CODEX_MODEL` (Azure) | Model for `/infer-builder-fields` via Codex structured output (`outputSchema`, minimal reasoning) |
 | `SHUTDOWN_DRAIN_TIMEOUT_MS` | `10000` | Time to wait for in-flight connections to drain before forced exit on SIGTERM/SIGINT |
 | `EXTRACT_URL_CACHE_TTL_MS` | `600000` | TTL for cached `/extract-url` responses (milliseconds) |
 | `EXTRACT_URL_CACHE_MAX_ENTRIES` | `200` | Maximum number of cached `/extract-url` responses |
