@@ -43,10 +43,11 @@ export function normalizeBool(value, defaultValue = false) {
  *
  * @param {string} name - Environment variable name.
  * @param {number} defaultValue
+ * @param {Record<string, string | undefined>} [source] - Env source (defaults to `process.env`).
  * @returns {number}
  */
-export function parsePositiveIntegerEnv(name, defaultValue) {
-  const raw = normalizeEnvValue(name);
+export function parsePositiveIntegerEnv(name, defaultValue, source) {
+  const raw = normalizeEnvValue(name, source);
   if (!raw) return defaultValue;
   const parsed = Number.parseInt(raw, 10);
   if (!Number.isFinite(parsed) || parsed <= 0) {
@@ -59,10 +60,11 @@ export function parsePositiveIntegerEnv(name, defaultValue) {
  * Parse an env var as a JSON object, or return `undefined`.
  *
  * @param {string} name
+ * @param {Record<string, string | undefined>} [source] - Env source (defaults to `process.env`).
  * @returns {Record<string, unknown> | undefined}
  */
-export function parseJsonObjectEnv(name) {
-  const raw = normalizeEnvValue(name);
+export function parseJsonObjectEnv(name, source) {
+  const raw = normalizeEnvValue(name, source);
   if (!raw) return undefined;
   let parsed;
   try {
@@ -80,10 +82,11 @@ export function parseJsonObjectEnv(name) {
  * Parse an env var as a string array (JSON or comma-delimited).
  *
  * @param {string} name
+ * @param {Record<string, string | undefined>} [source] - Env source (defaults to `process.env`).
  * @returns {string[] | undefined}
  */
-export function parseStringArrayEnv(name) {
-  const raw = normalizeEnvValue(name);
+export function parseStringArrayEnv(name, source) {
+  const raw = normalizeEnvValue(name, source);
   if (!raw) return undefined;
 
   if (raw.startsWith("[")) {
@@ -112,10 +115,11 @@ export function parseStringArrayEnv(name) {
  *
  * @param {string} name
  * @param {Set<string>} allowedValues
+ * @param {Record<string, string | undefined>} [source] - Env source (defaults to `process.env`).
  * @returns {string | undefined}
  */
-export function parseEnumEnv(name, allowedValues) {
-  const raw = normalizeEnvValue(name);
+export function parseEnumEnv(name, allowedValues, source) {
+  const raw = normalizeEnvValue(name, source);
   if (!raw) return undefined;
   if (!allowedValues.has(raw)) {
     throw new Error(`${name} has invalid value "${raw}".`);

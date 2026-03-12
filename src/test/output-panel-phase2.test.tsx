@@ -456,6 +456,27 @@ describe("OutputPanel phase 2 save flow", () => {
     expect(screen.getAllByText("Reasoning summary")).toHaveLength(1);
   });
 
+  it("keeps the streaming shell clipped while prompt content scrolls inside", () => {
+    renderPanel({
+      isEnhancing: true,
+      enhancePhase: "streaming",
+      enhancedPrompt: "Improved launch plan",
+      previewSource: "enhanced",
+    });
+
+    const promptText = screen.getByText("Improved launch plan");
+    const scrollContainer = promptText.parentElement;
+    const previewCard = promptText.closest(".enhance-output-frame");
+
+    expect(previewCard).toHaveClass(
+      "enhance-output-frame",
+      "enhance-output-streaming",
+      "overflow-hidden",
+    );
+    expect(previewCard).not.toHaveClass("overflow-auto");
+    expect(scrollContainer).toHaveClass("overflow-auto", "p-4");
+  });
+
   it("fades reasoning summary out before removing it", () => {
     vi.useFakeTimers();
 

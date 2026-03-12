@@ -73,6 +73,89 @@ and graceful shutdown.
 - Slim `codex_service.mjs` from ~3,829 to ~2,100 lines (composition root)
 - All existing public API contracts remain unchanged
 
+### Phase 4: Extract Runtime Composition Root (2026-03-12 addendum)
+
+Status: Phases 1-3 landed enough shared/domain helpers that the next cut should
+stop adding more global state back into `codex_service.mjs`. The remaining
+runtime/config seam is now the highest-leverage extraction.
+
+Goals:
+- Make `agent_service/codex_service.mjs` consume a single `runtime` object
+  instead of resolving provider/auth/rate-limit/client state at module scope.
+- Preserve existing Azure deployment/model guard behavior, Codex stderr
+  sanitization, auth fallback/status mapping, and `/ready` + `/health/details`
+  runtime-truth semantics.
+- Keep this phase focused on runtime ownership only; do not mix in the later
+  request-shaping or transport splits.
+
+New module boundary:
+- `agent_service/service-runtime.mjs`
+  - env parsing and validation
+  - provider resolution and API-key lookup
+  - auth config + auth service creation
+  - rate-limit backend creation
+  - retry telemetry config
+  - default thread options + default Codex options
+  - `getClientIp()`
+  - shared abort-controller/cache/connection-slot state
+  - `getCodexClient()`
+  - readiness/health snapshot helpers used by `/ready`, `/health/details`, and
+    startup logging
+
+Target shape:
+
+```js
+const runtime = await createServiceRuntime({ env: process.env });
+```
+
+Phase 4 implementation order:
+1. Update this plan with explicit module boundaries and verification steps.
+2. Extract `service-runtime.mjs`.
+3. Rewire `codex_service.mjs` to consume the runtime object while leaving
+   request parsing, enhancement execution, and transports in place.
+4. Add focused runtime tests before moving on to the next extraction phase.
+
+Phase 4 verification:
+- `node --check agent_service/service-runtime.mjs`
+- `node --check agent_service/codex_service.mjs`
+- `npm test -- src/test/agent-service-runtime.test.ts src/test/agent-service-auth.test.ts`
+
+### Phase 5: Extract Request / Runner / Transport Modules (planned)
+
+This phase should continue only after `service-runtime.mjs` owns the shared
+state listed above.
+
+Planned module boundaries:
+- `agent_service/enhance-request.mjs`
+  - `extractEnhanceSession()`
+  - `buildEnhanceSessionEnvelope()`
+  - `parseCurrentFields()`
+  - `parseInferRequestContext()`
+  - `buildEnhanceStreamRequest()`
+- `agent_service/enhance-source-context.mjs`
+  - `resolveEnhancementInputWithSourceExpansion()`
+- `agent_service/enhance-turn-runner.mjs`
+  - `runEnhanceTurnStream()`
+  - internal helpers: `consumeEnhanceEvent()`,
+    `finalizeEnhanceSuccess()`, `emitEnhanceFailure()`
+- `agent_service/handlers/enhance-sse.mjs`
+- `agent_service/handlers/enhance-ws.mjs`
+- `agent_service/handlers/extract-url.mjs`
+- `agent_service/handlers/infer-builder-fields.mjs`
+
+Phase 5 order:
+1. `enhance-request.mjs`
+2. `enhance-source-context.mjs`
+3. `enhance-turn-runner.mjs`
+4. SSE / WebSocket handlers
+5. router/bootstrap cleanup in `codex_service.mjs`
+
+Phase 5 verification should add:
+- `src/test/agent-service-enhance-request.test.ts`
+- `src/test/agent-service-enhance-turn-runner.test.ts`
+- `src/test/agent-service-ws-handler.test.ts`
+- `src/test/agent-service-extract-url-handler.test.ts`
+
 ## 3. Backward Compatibility
 
 - **No public API changes**: All HTTP endpoints, WebSocket protocol, SSE event shapes, and

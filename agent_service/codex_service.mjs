@@ -1,22 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import process from "node:process";
-import { Codex } from "@openai/codex-sdk";
 import { WebSocketServer } from "ws";
 
 // ── Shared utilities ────────────────────────────────────────────────────────
 import {
-  normalizeEnvValue,
-  normalizeBool,
-  parsePositiveIntegerEnv,
-  parseJsonObjectEnv,
-  parseStringArrayEnv,
-  parseEnumEnv,
-  toFiniteNumber,
   asNonEmptyString,
   hasText,
   truncateString,
-  normalizeStringRecord,
 } from "./env-parse.mjs";
 import { cleanLogFields, logEvent } from "./logging.mjs";
 import {
@@ -37,7 +28,6 @@ import {
   endSse,
   headerValue,
   resolveCors,
-  baseCorsHeaders,
 } from "./http-helpers.mjs";
 
 // ── Domain modules ──────────────────────────────────────────────────────────
@@ -73,16 +63,8 @@ import {
   mergeEnhanceThreadOptions,
 } from "./thread-options.mjs";
 import {
-  loadCodexConfig,
-  resolveApiKey,
-  isAzureProvider,
-  resolveProviderConfig,
-} from "./codex-config.mjs";
-import {
   isPrivateHost,
   isUrlNotAllowedError,
-  normalizeIpAddress,
-  resolveClientIp,
 } from "./network-security.mjs";
 import { runGuardedAsync } from "./async-guard.mjs";
 import { isPayloadTooLargeError, readBodyJsonWithLimit } from "./http-body.mjs";
@@ -92,11 +74,6 @@ import {
   resolveRequestCompletionStatus,
   statusFromErrorCode,
 } from "./stream-errors.mjs";
-import {
-  createAuthService,
-  resolveAuthConfig,
-} from "./auth.mjs";
-import { createRateLimiter } from "./rate-limit.mjs";
 import { resolveActiveCodexThreadId } from "./codex-thread-state.mjs";
 import {
   isAbortLikeError,
@@ -105,7 +82,6 @@ import {
 
 // ── Extracted domain modules ────────────────────────────────────────────────
 import {
-  bindAbortControllers,
   fetchPageWithHeaderFallback,
   readBodyWithLimit,
   responseMimeType,
@@ -117,7 +93,6 @@ import {
   parseInputUrl,
   isTimeoutError,
   summarizeExtractedText,
-  createExtractUrlCache,
 } from "./url-extract.mjs";
 import {
   isAgentMessageItemType,
@@ -148,489 +123,11 @@ import {
   writeWebSocketError,
   classifyWebSocketAuthErrorCode,
   classifyHttpAuthErrorCode,
-  createConnectionSlotTracker,
   rejectWebSocketUpgrade,
 } from "./ws-helpers.mjs";
+import { createServiceRuntime } from "./service-runtime.mjs";
 
-// ---------------------------------------------------------------------------
-// Resolve provider from ~/.codex/config.toml (optionally via CODEX_PROFILE)
-// or CODEX_CONFIG_JSON.
-// ---------------------------------------------------------------------------
-const CODEX_PROFILE = normalizeEnvValue("CODEX_PROFILE");
-const CODEX_CONFIG_OVERRIDES = parseJsonObjectEnv("CODEX_CONFIG_JSON") || {};
-const CODEX_CONFIG_SEARCH_LABEL = CODEX_PROFILE
-  ? `~/.codex/config.toml profile "${CODEX_PROFILE}" or CODEX_CONFIG_JSON`
-  : "~/.codex/config.toml or CODEX_CONFIG_JSON";
-const CODEX_CONFIG_FROM_TOML = await loadCodexConfig(CODEX_PROFILE);
-const CODEX_CONFIG_FROM_ENV = resolveProviderConfig(CODEX_CONFIG_OVERRIDES, {
-  profile: CODEX_PROFILE,
-});
-const CODEX_CONFIG = CODEX_CONFIG_FROM_TOML || CODEX_CONFIG_FROM_ENV;
-const CODEX_CONFIG_SOURCE = CODEX_CONFIG_FROM_TOML
-  ? "config_toml"
-  : (CODEX_CONFIG_FROM_ENV ? "codex_config_json" : "fallback");
-const IS_AZURE_PROVIDER = isAzureProvider(CODEX_CONFIG);
-const RESOLVED_API_KEY = CODEX_CONFIG ? resolveApiKey(CODEX_CONFIG) : null;
-const REQUIRE_PROVIDER_CONFIG = normalizeBool(process.env.REQUIRE_PROVIDER_CONFIG, false);
-const RESOLVED_CODEX_MODEL = resolveConfiguredCodexModel();
-const HAS_MISSING_AZURE_MODEL = IS_AZURE_PROVIDER && !RESOLVED_CODEX_MODEL;
-
-if (CODEX_CONFIG) {
-  console.log(JSON.stringify({
-    timestamp: new Date().toISOString(),
-    level: "info",
-    event: "provider_config_resolved",
-    service: "ai-prompt-pro-codex-service",
-    config_source: CODEX_CONFIG_SOURCE,
-    requested_profile: CODEX_PROFILE || null,
-    provider: CODEX_CONFIG.provider,
-    provider_name: CODEX_CONFIG.name,
-    base_url: CODEX_CONFIG.baseUrl,
-    env_key: CODEX_CONFIG.envKey,
-    api_key_resolved: !!RESOLVED_API_KEY,
-    is_azure: IS_AZURE_PROVIDER,
-  }));
-} else {
-  console.log(JSON.stringify({
-    timestamp: new Date().toISOString(),
-    level: "warn",
-    event: "provider_config_not_found",
-    service: "ai-prompt-pro-codex-service",
-    message: `No model provider config found in ${CODEX_CONFIG_SEARCH_LABEL}. Falling back to OPENAI_API_KEY.`,
-    requested_profile: CODEX_PROFILE || null,
-    codex_config_json_set: Object.keys(CODEX_CONFIG_OVERRIDES).length > 0,
-    openai_api_key_set: !!process.env.OPENAI_API_KEY,
-  }));
-}
-
-if (REQUIRE_PROVIDER_CONFIG && !CODEX_CONFIG) {
-  throw new Error(
-    `REQUIRE_PROVIDER_CONFIG is true, but no provider config was found in ${CODEX_CONFIG_SEARCH_LABEL}.`,
-  );
-}
-
-const MAX_PROMPT_CHARS = Number.parseInt(process.env.MAX_PROMPT_CHARS || "32000", 10);
-if (!Number.isFinite(MAX_PROMPT_CHARS) || MAX_PROMPT_CHARS <= 0) {
-  throw new Error("MAX_PROMPT_CHARS must be a positive integer.");
-}
-
-const MAX_INFERENCE_PROMPT_CHARS = Number.parseInt(process.env.MAX_INFERENCE_PROMPT_CHARS || "24000", 10);
-if (!Number.isFinite(MAX_INFERENCE_PROMPT_CHARS) || MAX_INFERENCE_PROMPT_CHARS <= 0) {
-  throw new Error("MAX_INFERENCE_PROMPT_CHARS must be a positive integer.");
-}
-
-const MAX_URL_CHARS = Number.parseInt(process.env.MAX_URL_CHARS || "4096", 10);
-if (!Number.isFinite(MAX_URL_CHARS) || MAX_URL_CHARS <= 0) {
-  throw new Error("MAX_URL_CHARS must be a positive integer.");
-}
-
-const FETCH_TIMEOUT_MS = Number.parseInt(process.env.EXTRACT_FETCH_TIMEOUT_MS || "15000", 10);
-if (!Number.isFinite(FETCH_TIMEOUT_MS) || FETCH_TIMEOUT_MS <= 0) {
-  throw new Error("EXTRACT_FETCH_TIMEOUT_MS must be a positive integer.");
-}
-
-const MAX_RESPONSE_BYTES = Number.parseInt(
-  process.env.EXTRACT_MAX_RESPONSE_BYTES || String(2 * 1024 * 1024),
-  10,
-);
-if (!Number.isFinite(MAX_RESPONSE_BYTES) || MAX_RESPONSE_BYTES <= 0) {
-  throw new Error("EXTRACT_MAX_RESPONSE_BYTES must be a positive integer.");
-}
-
-const ENHANCE_PER_MINUTE = Number.parseInt(process.env.ENHANCE_PER_MINUTE || "12", 10);
-const ENHANCE_PER_DAY = Number.parseInt(process.env.ENHANCE_PER_DAY || "300", 10);
-const EXTRACT_PER_MINUTE = Number.parseInt(process.env.EXTRACT_PER_MINUTE || "6", 10);
-const EXTRACT_PER_DAY = Number.parseInt(process.env.EXTRACT_PER_DAY || "120", 10);
-const INFER_PER_MINUTE = Number.parseInt(process.env.INFER_PER_MINUTE || "15", 10);
-const INFER_PER_DAY = Number.parseInt(process.env.INFER_PER_DAY || "400", 10);
-const ENHANCE_WS_INITIAL_MESSAGE_TIMEOUT_MS = parsePositiveIntegerEnv(
-  "ENHANCE_WS_INITIAL_MESSAGE_TIMEOUT_MS",
-  5000,
-);
-const ENHANCE_WS_HEARTBEAT_MS = parsePositiveIntegerEnv(
-  "ENHANCE_WS_HEARTBEAT_MS",
-  30_000,
-);
-const ENHANCE_WS_IDLE_TIMEOUT_MS = parsePositiveIntegerEnv(
-  "ENHANCE_WS_IDLE_TIMEOUT_MS",
-  120_000,
-);
-const ENHANCE_WS_MAX_LIFETIME_MS = parsePositiveIntegerEnv(
-  "ENHANCE_WS_MAX_LIFETIME_MS",
-  15 * 60_000,
-);
-const ENHANCE_WS_MAX_PAYLOAD_BYTES = parsePositiveIntegerEnv(
-  "ENHANCE_WS_MAX_PAYLOAD_BYTES",
-  128 * 1024,
-);
-const ENHANCE_WS_MAX_BUFFERED_BYTES = parsePositiveIntegerEnv(
-  "ENHANCE_WS_MAX_BUFFERED_BYTES",
-  512 * 1024,
-);
-const MAX_HTTP_BODY_BYTES = parsePositiveIntegerEnv(
-  "MAX_HTTP_BODY_BYTES",
-  512 * 1024,
-);
-const ENHANCE_WS_MAX_CONNECTIONS_PER_IP = parsePositiveIntegerEnv(
-  "ENHANCE_WS_MAX_CONNECTIONS_PER_IP",
-  10,
-);
-const SHUTDOWN_DRAIN_TIMEOUT_MS = parsePositiveIntegerEnv(
-  "SHUTDOWN_DRAIN_TIMEOUT_MS",
-  10_000,
-);
-const EXTRACT_URL_CACHE_TTL_MS = parsePositiveIntegerEnv(
-  "EXTRACT_URL_CACHE_TTL_MS",
-  600_000,
-);
-const EXTRACT_URL_CACHE_MAX_ENTRIES = parsePositiveIntegerEnv(
-  "EXTRACT_URL_CACHE_MAX_ENTRIES",
-  200,
-);
-const MAX_SESSION_CONTEXT_SUMMARY_CHARS = parsePositiveIntegerEnv(
-  "MAX_SESSION_CONTEXT_SUMMARY_CHARS",
-  8_000,
-);
-const MAX_SESSION_LATEST_PROMPT_CHARS = parsePositiveIntegerEnv(
-  "MAX_SESSION_LATEST_PROMPT_CHARS",
-  24_000,
-);
-
-const OPENAI_API_BASE_URL = (CODEX_CONFIG?.baseUrl ? CODEX_CONFIG.baseUrl.replace(/\/+$/, "") : null)
-  || process.env.OPENAI_BASE_URL?.trim()
-  || "https://api.openai.com/v1";
-const EXTRACT_MODEL = normalizeEnvValue("EXTRACT_MODEL")
-  || RESOLVED_CODEX_MODEL
-  || (!IS_AZURE_PROVIDER ? "gpt-4.1-mini" : undefined);
-const INFER_MODEL = normalizeEnvValue("INFER_MODEL")
-  || (!IS_AZURE_PROVIDER ? "gpt-5.4" : RESOLVED_CODEX_MODEL);
-
-// ---------------------------------------------------------------------------
-// 429 retry configuration
-// ---------------------------------------------------------------------------
-const CODEX_429_MAX_RETRIES = (() => {
-  const raw = process.env.CODEX_429_MAX_RETRIES;
-  if (!raw) return 2;
-  const parsed = Number.parseInt(raw, 10);
-  if (!Number.isFinite(parsed) || parsed < 0) {
-    throw new Error("CODEX_429_MAX_RETRIES must be a non-negative integer.");
-  }
-  return parsed;
-})();
-
-const CODEX_429_BACKOFF_BASE_SECONDS = (() => {
-  const raw = process.env.CODEX_429_BACKOFF_BASE_SECONDS;
-  if (!raw) return 1.0;
-  const parsed = Number.parseFloat(raw);
-  if (!Number.isFinite(parsed) || parsed < 0) {
-    throw new Error("CODEX_429_BACKOFF_BASE_SECONDS must be a non-negative number.");
-  }
-  return parsed;
-})();
-
-const CODEX_429_BACKOFF_MAX_SECONDS = (() => {
-  const raw = process.env.CODEX_429_BACKOFF_MAX_SECONDS;
-  if (!raw) return 20.0;
-  const parsed = Number.parseFloat(raw);
-  if (!Number.isFinite(parsed) || parsed < 0) {
-    throw new Error("CODEX_429_BACKOFF_MAX_SECONDS must be a non-negative number.");
-  }
-  return parsed;
-})();
-
-const SANDBOX_MODES = new Set(["read-only", "workspace-write", "danger-full-access"]);
-const REASONING_EFFORTS = new Set(["minimal", "low", "medium", "high", "xhigh"]);
-const REASONING_SUMMARIES = new Set(["auto", "concise", "detailed"]);
-const WEB_SEARCH_MODES = new Set(["disabled", "cached", "live"]);
-const APPROVAL_POLICIES = new Set(["never", "on-request", "on-failure", "untrusted"]);
-if (HAS_MISSING_AZURE_MODEL) {
-  logEvent("warn", "provider_model_not_set", {
-    error_code: "provider_model_not_set",
-    message:
-      "Azure provider is configured but no model deployment name was resolved. "
-      + "Set CODEX_MODEL (or AZURE_OPENAI_DEPLOYMENT) to a valid Azure deployment name.",
-    provider: CODEX_CONFIG?.provider,
-    config_source: CODEX_CONFIG_SOURCE,
-  });
-}
-
-function resolveConfiguredCodexModel() {
-  const explicitModel = normalizeEnvValue("CODEX_MODEL")
-    || normalizeEnvValue("AZURE_OPENAI_DEPLOYMENT")
-    || normalizeEnvValue("AZURE_OPENAI_DEPLOYMENT_NAME");
-  if (explicitModel) return explicitModel;
-
-  const providerModel = typeof CODEX_CONFIG?.model === "string" ? CODEX_CONFIG.model.trim() : "";
-  if (providerModel) return providerModel;
-
-  // Use a default model only for non-Azure providers.
-  if (!IS_AZURE_PROVIDER) return "gpt-5.4";
-  return undefined;
-}
-
-function stripInternalPaths(message) {
-  return message
-    .replace(/(?:\/(?:home|tmp|var|usr|opt|etc|root))\S*/gi, "[path]")
-    .replace(/[A-Z]:\\[^\s"')]+/g, "[path]")
-    .replace(/https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|::1)(?::\d+)?[^\s"]*/gi, "[internal-url]");
-}
-
-function sanitizeCodexExecErrorMessage(message) {
-  if (typeof message !== "string") return "Unexpected error from Codex service.";
-  const trimmed = message.trim();
-  if (!trimmed) return "Unexpected error from Codex service.";
-  if (!trimmed.includes("Codex Exec exited with")) {
-    return stripInternalPaths(trimmed);
-  }
-
-  const stderrSection = trimmed.split(":").slice(1).join(":").trim();
-  const lines = stderrSection
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const meaningfulLines = lines.filter((line) => {
-    if (/^reading prompt from stdin/i.test(line)) return false;
-    if (/^\{"type":/.test(line)) return false;
-    if (/^\d{4}-\d{2}-\d{2}t/i.test(line.toLowerCase())) return false;
-    return true;
-  });
-
-  const deploymentMissingLine = meaningfulLines.find((line) =>
-    /api deployment .* does not exist|deployment .* does not exist/i.test(line));
-  if (deploymentMissingLine) {
-    return (
-      "Codex CLI failed because the configured Azure model deployment was not found. "
-      + "Set CODEX_MODEL (or AZURE_OPENAI_DEPLOYMENT) to a valid deployment name."
-    );
-  }
-
-  const missingApiKeyLine = meaningfulLines.find((line) =>
-    /no api key|api key.+(missing|not set|invalid)/i.test(line));
-  if (missingApiKeyLine) {
-    return (
-      "Codex CLI failed because provider credentials are missing or invalid. "
-      + "Verify AZURE_OPENAI_API_KEY or OPENAI_API_KEY."
-    );
-  }
-
-  const fallbackLine = meaningfulLines[meaningfulLines.length - 1];
-  if (fallbackLine) {
-    return `Codex CLI failed: ${fallbackLine}`;
-  }
-
-  return (
-    "Codex CLI exited before producing a response. "
-    + "Verify CODEX_MODEL, provider endpoint, and API key configuration."
-  );
-}
-
-const SERVICE_CONFIG = (() => {
-  const host = normalizeEnvValue("HOST") || "0.0.0.0";
-  const portRaw = normalizeEnvValue("PORT") || "8001";
-  const port = Number.parseInt(portRaw, 10);
-  if (!Number.isFinite(port) || port <= 0) {
-    throw new Error(`PORT must be a positive integer. Received "${portRaw}".`);
-  }
-
-  return {
-    host,
-    port,
-    token: normalizeEnvValue("AGENT_SERVICE_TOKEN"),
-  };
-})();
-
-const CORS_CONFIG = (() => {
-  const configured = normalizeEnvValue("ALLOWED_ORIGINS");
-  if (!configured || configured === "*" || configured.toLowerCase() === "any") {
-    return { mode: "any", origins: new Set() };
-  }
-
-  const origins = new Set(
-    configured
-      .split(",")
-      .map((origin) => origin.trim())
-      .filter(Boolean),
-  );
-
-  if (origins.size === 0) {
-    return { mode: "any", origins };
-  }
-
-  return { mode: "set", origins };
-})();
-
-const STRICT_PUBLIC_API_KEY = normalizeBool(process.env.STRICT_PUBLIC_API_KEY, true);
-const RATE_LIMIT_BACKEND = normalizeEnvValue("RATE_LIMIT_BACKEND") || "memory";
-const TRUST_PROXY = normalizeBool(process.env.TRUST_PROXY, false);
-const TRUSTED_PROXY_IPS = new Set(
-  (parseStringArrayEnv("TRUSTED_PROXY_IPS") || [])
-    .map((value) => normalizeIpAddress(value))
-    .filter((value) => typeof value === "string" && value.length > 0),
-);
-const EXTRACT_FETCH_MAX_REDIRECTS = parsePositiveIntegerEnv("EXTRACT_FETCH_MAX_REDIRECTS", 5);
-
-if (!STRICT_PUBLIC_API_KEY) {
-  logEvent("warn", "strict_public_api_key_disabled", {
-    error_code: "auth_config_weak_public_key_matching",
-    message:
-      "STRICT_PUBLIC_API_KEY is disabled. Publishable-format keys may be accepted without explicit configuration.",
-  });
-}
-
-const SERVICE_AUTH_CONFIG = resolveAuthConfig(process.env);
-
-const ROUTE_AUTH_POLICIES = {
-  "/enhance": { allowPublicKey: true, allowServiceToken: true, allowUserJwt: true },
-  "/extract-url": { allowPublicKey: true, allowServiceToken: true, allowUserJwt: true },
-  "/infer-builder-fields": { allowPublicKey: true, allowServiceToken: true, allowUserJwt: true },
-  [ENHANCE_WS_PATH]: { allowPublicKey: true, allowServiceToken: true, allowUserJwt: true },
-};
-
-const authService = createAuthService({
-  env: process.env,
-  authConfig: SERVICE_AUTH_CONFIG,
-  strictPublicApiKey: STRICT_PUBLIC_API_KEY,
-  serviceToken: SERVICE_CONFIG.token,
-  getClientIp,
-  logEvent,
-});
-
-const rateLimiter = createRateLimiter({ backend: RATE_LIMIT_BACKEND });
-const activeAbortControllers = new Set();
-bindAbortControllers(activeAbortControllers);
-const extractUrlCacheInstance = createExtractUrlCache({
-  ttlMs: EXTRACT_URL_CACHE_TTL_MS,
-  maxEntries: EXTRACT_URL_CACHE_MAX_ENTRIES,
-});
-const wsConnectionSlots = createConnectionSlotTracker(ENHANCE_WS_MAX_CONNECTIONS_PER_IP);
-
-function trackAbortController(controller) {
-  activeAbortControllers.add(controller);
-  return controller;
-}
-
-function untrackAbortController(controller) {
-  activeAbortControllers.delete(controller);
-}
-
-function getClientIp(req, requestContext) {
-  const resolvedIp = resolveClientIp({
-    forwardedFor: headerValue(req, "x-forwarded-for"),
-    realIp: headerValue(req, "x-real-ip"),
-    socketRemoteAddress: req?.socket?.remoteAddress,
-    trustProxy: TRUST_PROXY,
-    trustedProxyIps: TRUSTED_PROXY_IPS,
-  });
-
-  if (resolvedIp.ignoredForwarded && resolvedIp.forwardedIp) {
-    logEvent("warn", "forwarded_ip_ignored", cleanLogFields({
-      request_id: requestContext?.requestId,
-      endpoint: requestContext?.endpoint,
-      remote_ip: resolvedIp.socketIp,
-      forwarded_ip: resolvedIp.forwardedIp,
-      reason: TRUST_PROXY ? "untrusted_proxy" : "trust_proxy_disabled",
-    }));
-  }
-
-  return resolvedIp.ip;
-}
-
-const DEFAULT_THREAD_OPTIONS = (() => {
-  const options = {};
-  if (RESOLVED_CODEX_MODEL) {
-    options.model = RESOLVED_CODEX_MODEL;
-  }
-
-  const sandboxMode = parseEnumEnv("CODEX_SANDBOX_MODE", SANDBOX_MODES);
-  if (sandboxMode) options.sandboxMode = sandboxMode;
-
-  const workingDirectory = normalizeEnvValue("CODEX_WORKING_DIRECTORY");
-  if (workingDirectory) options.workingDirectory = workingDirectory;
-
-  const skipGitRepoCheckRaw = normalizeEnvValue("CODEX_SKIP_GIT_REPO_CHECK");
-  if (skipGitRepoCheckRaw) {
-    options.skipGitRepoCheck = normalizeBool(skipGitRepoCheckRaw, false);
-  }
-
-  options.modelReasoningEffort =
-    parseEnumEnv("CODEX_MODEL_REASONING_EFFORT", REASONING_EFFORTS) || "high";
-
-  const networkAccessEnabledRaw = normalizeEnvValue("CODEX_NETWORK_ACCESS_ENABLED");
-  if (networkAccessEnabledRaw) {
-    options.networkAccessEnabled = normalizeBool(networkAccessEnabledRaw, false);
-  }
-
-  const webSearchMode = parseEnumEnv("CODEX_WEB_SEARCH_MODE", WEB_SEARCH_MODES);
-  if (webSearchMode) options.webSearchMode = webSearchMode;
-
-  const webSearchEnabledRaw = normalizeEnvValue("CODEX_WEB_SEARCH_ENABLED");
-  if (webSearchEnabledRaw) {
-    options.webSearchEnabled = normalizeBool(webSearchEnabledRaw, false);
-  }
-
-  const approvalPolicy = parseEnumEnv("CODEX_APPROVAL_POLICY", APPROVAL_POLICIES);
-  if (approvalPolicy) options.approvalPolicy = approvalPolicy;
-
-  const additionalDirectories = parseStringArrayEnv("CODEX_ADDITIONAL_DIRECTORIES");
-  if (additionalDirectories) options.additionalDirectories = additionalDirectories;
-
-  return options;
-})();
-
-const DEFAULT_CODEX_OPTIONS = (() => {
-  const options = {};
-
-  // When a provider config is resolved (config.toml or CODEX_CONFIG_JSON),
-  // do NOT pass baseUrl/apiKey directly. Let the Codex CLI resolve provider
-  // settings and credentials from its config chain.
-  if (!CODEX_CONFIG) {
-    const baseUrl = normalizeEnvValue("OPENAI_BASE_URL") || normalizeEnvValue("CODEX_BASE_URL");
-    if (baseUrl) options.baseUrl = baseUrl;
-
-    const apiKey = normalizeEnvValue("CODEX_API_KEY") || normalizeEnvValue("OPENAI_API_KEY");
-    if (apiKey) options.apiKey = apiKey;
-  }
-
-  const codexPathOverride = normalizeEnvValue("CODEX_PATH_OVERRIDE");
-  if (codexPathOverride) options.codexPathOverride = codexPathOverride;
-
-  const config = { ...CODEX_CONFIG_OVERRIDES };
-
-  // Forward the provider from config.toml so the CLI subprocess gets it as a
-  // --config flag in addition to reading its own config.toml.
-  if (CODEX_CONFIG?.provider) {
-    config.model_provider = CODEX_CONFIG.provider;
-  }
-
-  // Reasoning summary format: auto | concise | detailed
-  config.model_reasoning_summary =
-    parseEnumEnv("CODEX_MODEL_REASONING_SUMMARY", REASONING_SUMMARIES) || "detailed";
-
-  const maxOutputTokensRaw = normalizeEnvValue("CODEX_MAX_OUTPUT_TOKENS");
-  if (maxOutputTokensRaw) {
-    const parsed = Number.parseInt(maxOutputTokensRaw, 10);
-    if (!Number.isFinite(parsed) || parsed <= 0) {
-      throw new Error("CODEX_MAX_OUTPUT_TOKENS must be a positive integer.");
-    }
-    config.max_output_tokens = parsed;
-  }
-  if (Object.keys(config).length > 0) options.config = config;
-
-  const envConfig = parseJsonObjectEnv("CODEX_ENV_JSON");
-  const normalizedEnv = normalizeStringRecord(envConfig);
-  if (normalizedEnv) options.env = normalizedEnv;
-
-  return options;
-})();
-
-let codexClient = null;
-
-function getCodexClient() {
-  if (!codexClient) {
-    codexClient = new Codex(DEFAULT_CODEX_OPTIONS);
-  }
-  return codexClient;
-}
+const runtime = await createServiceRuntime({ env: process.env });
 
 function extractEnhanceSession(input) {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
@@ -646,11 +143,11 @@ function extractEnhanceSession(input) {
     threadId: asNonEmptyString(source.thread_id) || asNonEmptyString(source.threadId),
     contextSummary: truncateString(
       asNonEmptyString(source.context_summary) || asNonEmptyString(source.contextSummary) || "",
-      MAX_SESSION_CONTEXT_SUMMARY_CHARS,
+      runtime.maxSessionContextSummaryChars,
     ),
     latestEnhancedPrompt: truncateString(
       asNonEmptyString(source.latest_enhanced_prompt) || asNonEmptyString(source.latestEnhancedPrompt) || "",
-      MAX_SESSION_LATEST_PROMPT_CHARS,
+      runtime.maxSessionLatestPromptChars,
     ),
   };
 }
@@ -676,27 +173,20 @@ function buildEnhanceSessionEnvelope({
 }
 
 function toErrorMessage(error) {
-  const rawMessage =
-    (error instanceof Error && typeof error.message === "string")
-      ? error.message
-      : String(error);
-  return sanitizeCodexExecErrorMessage(rawMessage);
+  return runtime.toErrorMessage(error);
 }
 
 async function inferBuilderFieldUpdates(prompt, currentFields, lockMetadata, requestContext = {}) {
-  if (!INFER_MODEL) {
+  if (!runtime.inferModel) {
     return createEmptyBuilderFieldInferenceResult();
   }
 
-  const hasProviderApiKey = CODEX_CONFIG
-    ? RESOLVED_API_KEY
-    : (normalizeEnvValue("OPENAI_API_KEY") || normalizeEnvValue("CODEX_API_KEY"));
-  if (!hasProviderApiKey) {
+  if (!runtime.hasProviderApiKey()) {
     return createEmptyBuilderFieldInferenceResult();
   }
 
   try {
-    const codex = getCodexClient();
+    const codex = runtime.getCodexClient();
     const inferInput = [
       INFER_SYSTEM_PROMPT,
       buildInferUserMessage(
@@ -707,7 +197,7 @@ async function inferBuilderFieldUpdates(prompt, currentFields, lockMetadata, req
       ),
     ].join("\n\n");
     const inferThreadOptions = {
-      model: INFER_MODEL,
+      model: runtime.inferModel,
       modelReasoningEffort: "minimal",
       webSearchEnabled: false,
     };
@@ -738,28 +228,30 @@ async function inferBuilderFieldUpdates(prompt, currentFields, lockMetadata, req
  * config resolved at the service level.
  */
 async function callSummarizeExtractedText(plainText) {
-  if (!EXTRACT_MODEL) {
+  if (!runtime.extractModel) {
     throw new Error(
       "No extract model configured for Azure provider. Set EXTRACT_MODEL, CODEX_MODEL, or AZURE_OPENAI_DEPLOYMENT.",
     );
   }
 
-  const apiKey = CODEX_CONFIG
-    ? RESOLVED_API_KEY
-    : (normalizeEnvValue("OPENAI_API_KEY") || normalizeEnvValue("CODEX_API_KEY"));
+  const apiKey = runtime.codexConfig
+    ? runtime.resolvedApiKey
+    : runtime.directApiKey;
   if (!apiKey) {
-    if (CODEX_CONFIG?.envKey) {
-      throw new Error(`No API key configured for provider '${CODEX_CONFIG.provider}'. Set ${CODEX_CONFIG.envKey}.`);
+    if (runtime.codexConfig?.envKey) {
+      throw new Error(
+        `No API key configured for provider '${runtime.codexConfig.provider}'. Set ${runtime.codexConfig.envKey}.`,
+      );
     }
     throw new Error("No API key configured. Set AZURE_OPENAI_API_KEY (via provider config) or OPENAI_API_KEY.");
   }
 
   return summarizeExtractedText(plainText, {
-    apiBaseUrl: OPENAI_API_BASE_URL,
+    apiBaseUrl: runtime.openaiApiBaseUrl,
     apiKey,
-    model: EXTRACT_MODEL,
-    isAzure: IS_AZURE_PROVIDER,
-    timeoutMs: FETCH_TIMEOUT_MS,
+    model: runtime.extractModel,
+    isAzure: runtime.isAzureProvider,
+    timeoutMs: runtime.fetchTimeoutMs,
   });
 }
 
@@ -798,11 +290,7 @@ function parseInferRequestContext(value) {
 }
 
 // Retry telemetry config used by both streamed and buffered calls.
-const RETRY_TELEMETRY = {
-  maxRetries: CODEX_429_MAX_RETRIES,
-  backoffBaseSeconds: CODEX_429_BACKOFF_BASE_SECONDS,
-  backoffMaxSeconds: CODEX_429_BACKOFF_MAX_SECONDS,
-};
+const RETRY_TELEMETRY = runtime.retryTelemetry;
 
 async function resolveEnhancementInputWithSourceExpansion({
   codex,
@@ -939,11 +427,11 @@ function buildEnhanceStreamRequest(body) {
       detail: "Prompt is required.",
     };
   }
-  if (prompt.length > MAX_PROMPT_CHARS) {
+  if (prompt.length > runtime.maxPromptChars) {
     return {
       ok: false,
       status: 413,
-      detail: `Prompt is too large. Maximum ${MAX_PROMPT_CHARS} characters.`,
+      detail: `Prompt is too large. Maximum ${runtime.maxPromptChars} characters.`,
     };
   }
 
@@ -988,7 +476,7 @@ function buildEnhanceStreamRequest(body) {
   }
 
   const threadOptions = mergeEnhanceThreadOptions(
-    DEFAULT_THREAD_OPTIONS,
+    runtime.defaultThreadOptions,
     sanitizedThreadOptions.value,
   );
   const builderMode = parseEnhancementRequestMode(requestBody);
@@ -1083,7 +571,7 @@ async function runEnhanceTurnStream(requestData, options) {
       status: "completed",
       detail: buildAnalyzeRequestWorkflowDetail(enhancementContext),
     });
-    const codex = getCodexClient();
+    const codex = runtime.getCodexClient();
     const enhancementPreparation = await resolveEnhancementInputWithSourceExpansion({
       codex,
       prompt,
@@ -1585,7 +1073,7 @@ async function streamWithCodex(req, res, body, corsHeaders, requestContext) {
     return;
   }
 
-  const controller = trackAbortController(new AbortController());
+  const controller = runtime.trackAbortController(new AbortController());
   req.on("aborted", () => {
     setRequestError(requestContext, "request_aborted", "Client disconnected.", 499);
     controller.abort("Client disconnected");
@@ -1607,13 +1095,13 @@ async function streamWithCodex(req, res, body, corsHeaders, requestContext) {
     });
     endSse(res);
   } finally {
-    untrackAbortController(controller);
+    runtime.untrackAbortController(controller);
   }
 }
 
 async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
-  const clientIp = getClientIp(request, requestContext);
-  if (!wsConnectionSlots.acquire(clientIp)) {
+  const clientIp = runtime.getClientIp(request, requestContext);
+  if (!runtime.wsConnectionSlots.acquire(clientIp)) {
     setRequestError(
       requestContext,
       "rate_limited",
@@ -1634,12 +1122,12 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
   const releaseConnectionSlot = () => {
     if (releasedConnectionSlot) return;
     releasedConnectionSlot = true;
-    wsConnectionSlots.release(clientIp);
+    runtime.wsConnectionSlots.release(clientIp);
   };
   ws.on("close", releaseConnectionSlot);
 
   try {
-    const controller = trackAbortController(new AbortController());
+    const controller = runtime.trackAbortController(new AbortController());
     let receivedStartMessage = false;
     let awaitingPong = false;
     let idleTimeoutHandle = null;
@@ -1677,7 +1165,7 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
           controller.abort("Websocket idle timeout");
         }
         closeWebSocket(ws, 1008, "idle_timeout");
-      }, ENHANCE_WS_IDLE_TIMEOUT_MS);
+      }, runtime.enhanceWsIdleTimeoutMs);
       idleTimeoutHandle.unref?.();
     };
 
@@ -1704,7 +1192,7 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
       if (!isWebSocketOpen(ws)) return false;
       if (
         typeof ws.bufferedAmount === "number"
-        && ws.bufferedAmount > ENHANCE_WS_MAX_BUFFERED_BYTES
+        && ws.bufferedAmount > runtime.enhanceWsMaxBufferedBytes
       ) {
         closeForBackpressure();
         return false;
@@ -1722,7 +1210,7 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
       markSocketActivity();
       if (
         typeof ws.bufferedAmount === "number"
-        && ws.bufferedAmount > ENHANCE_WS_MAX_BUFFERED_BYTES
+        && ws.bufferedAmount > runtime.enhanceWsMaxBufferedBytes
       ) {
         closeForBackpressure();
         return false;
@@ -1763,7 +1251,7 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
         controller.abort("Websocket start timeout");
       }
       closeWebSocket(ws, 1008, "start_timeout");
-    }, ENHANCE_WS_INITIAL_MESSAGE_TIMEOUT_MS);
+    }, runtime.enhanceWsInitialMessageTimeoutMs);
     firstMessageTimeoutHandle.unref?.();
 
     maxLifetimeHandle = globalThis.setTimeout(() => {
@@ -1783,7 +1271,7 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
         controller.abort("Websocket maximum lifetime exceeded");
       }
       closeWebSocket(ws, 1008, "max_lifetime");
-    }, ENHANCE_WS_MAX_LIFETIME_MS);
+    }, runtime.enhanceWsMaxLifetimeMs);
     maxLifetimeHandle.unref?.();
 
     const heartbeatHandle = globalThis.setInterval(() => {
@@ -1817,7 +1305,7 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
         }
         closeWebSocket(ws, 1011, "heartbeat_failed");
       }
-    }, ENHANCE_WS_HEARTBEAT_MS);
+    }, runtime.enhanceWsHeartbeatMs);
     heartbeatHandle.unref?.();
 
     scheduleIdleTimeout();
@@ -1830,7 +1318,7 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
       if (!controller.signal.aborted) {
         controller.abort("Client disconnected");
       }
-      untrackAbortController(controller);
+      runtime.untrackAbortController(controller);
       const closeStatus = Number.isFinite(requestContext?.statusCode)
         ? resolveRequestCompletionStatus({
           transportStatusCode: 200,
@@ -1903,7 +1391,7 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
           request,
           extractWebSocketAuthHeadersFromPayload(rawAuthPayload),
         );
-        const auth = await authService.authenticateRequestContext(
+        const auth = await runtime.authService.authenticateRequestContext(
           req,
           requestContext,
           authPolicyForEndpoint(requestContext?.endpoint || ENHANCE_WS_PATH),
@@ -2001,7 +1489,7 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
 }
 
 function enforceRateLimit(res, corsHeaders, options, failureMessage, requestContext) {
-  const result = rateLimiter.check(options);
+  const result = runtime.rateLimiter.check(options);
   if (result.ok) return true;
   setRequestError(requestContext, "rate_limited", failureMessage, 429);
   json(
@@ -2017,7 +1505,7 @@ function enforceRateLimit(res, corsHeaders, options, failureMessage, requestCont
 }
 
 function checkRateLimit(options, failureMessage) {
-  const result = rateLimiter.check(options);
+  const result = runtime.rateLimiter.check(options);
   if (result.ok) {
     return { ok: true };
   }
@@ -2034,7 +1522,7 @@ function checkEnhanceRateLimits(auth, clientIp) {
   const minuteWindow = checkRateLimit({
     scope: "enhance-minute",
     key: `${auth.rateKey}:${clientIp}`,
-    limit: ENHANCE_PER_MINUTE,
+    limit: runtime.enhancePerMinute,
     windowMs: 60_000,
   }, "Rate limit exceeded. Please try again later.");
   if (!minuteWindow.ok) {
@@ -2044,17 +1532,17 @@ function checkEnhanceRateLimits(auth, clientIp) {
   return checkRateLimit({
     scope: "enhance-day",
     key: auth.rateKey,
-    limit: ENHANCE_PER_DAY,
+    limit: runtime.enhancePerDay,
     windowMs: 86_400_000,
   }, "Daily quota exceeded. Please try again tomorrow.");
 }
 
 function authPolicyForEndpoint(endpoint) {
-  return ROUTE_AUTH_POLICIES[endpoint] || ROUTE_AUTH_POLICIES["/enhance"];
+  return runtime.routeAuthPolicies[endpoint] || runtime.routeAuthPolicies["/enhance"];
 }
 
 async function authenticateRequest(req, res, corsHeaders, requestContext) {
-  const auth = await authService.authenticateRequestContext(
+  const auth = await runtime.authService.authenticateRequestContext(
     req,
     requestContext,
     authPolicyForEndpoint(requestContext?.endpoint),
@@ -2083,7 +1571,7 @@ async function handleEnhance(req, res, body, corsHeaders, requestContext) {
   const auth = await authenticateRequest(req, res, corsHeaders, requestContext);
   if (!auth) return;
 
-  const clientIp = getClientIp(req, requestContext);
+  const clientIp = runtime.getClientIp(req, requestContext);
   const rateLimit = checkEnhanceRateLimits(auth, clientIp);
   if (!rateLimit.ok) {
     setRequestError(requestContext, "rate_limited", rateLimit.error, rateLimit.status);
@@ -2108,11 +1596,11 @@ async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
   const auth = await authenticateRequest(req, res, corsHeaders, requestContext);
   if (!auth) return;
 
-  const clientIp = getClientIp(req, requestContext);
+  const clientIp = runtime.getClientIp(req, requestContext);
   if (!enforceRateLimit(res, corsHeaders, {
     scope: "extract-minute",
     key: `${auth.rateKey}:${clientIp}`,
-    limit: EXTRACT_PER_MINUTE,
+    limit: runtime.extractPerMinute,
     windowMs: 60_000,
   }, "Rate limit exceeded. Please try again later.", requestContext)) {
     return;
@@ -2121,7 +1609,7 @@ async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
   if (!enforceRateLimit(res, corsHeaders, {
     scope: "extract-day",
     key: auth.rateKey,
-    limit: EXTRACT_PER_DAY,
+    limit: runtime.extractPerDay,
     windowMs: 86_400_000,
   }, "Daily quota exceeded. Please try again tomorrow.", requestContext)) {
     return;
@@ -2133,11 +1621,11 @@ async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
     json(res, 400, { error: "A valid URL is required.", code: "bad_request" }, corsHeaders);
     return;
   }
-  if (urlInput.length > MAX_URL_CHARS) {
+  if (urlInput.length > runtime.maxUrlChars) {
     json(
       res,
       413,
-      { error: `URL is too large. Maximum ${MAX_URL_CHARS} characters.`, code: "payload_too_large" },
+      { error: `URL is too large. Maximum ${runtime.maxUrlChars} characters.`, code: "payload_too_large" },
       corsHeaders,
     );
     return;
@@ -2158,7 +1646,7 @@ async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
     return;
   }
 
-  const cachedEntry = extractUrlCacheInstance.get(parsedUrl.href);
+  const cachedEntry = runtime.extractUrlCache.get(parsedUrl.href);
   if (cachedEntry) {
     logEvent("info", "extract_url_cache_hit", {
       request_id: requestContext?.requestId,
@@ -2170,7 +1658,11 @@ async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
 
   let pageResponse;
   try {
-    pageResponse = await fetchPageWithHeaderFallback(parsedUrl.href, FETCH_TIMEOUT_MS, EXTRACT_FETCH_MAX_REDIRECTS);
+    pageResponse = await fetchPageWithHeaderFallback(
+      parsedUrl.href,
+      runtime.fetchTimeoutMs,
+      runtime.extractFetchMaxRedirects,
+    );
   } catch (error) {
     if (isTimeoutError(error)) {
       json(res, 504, { error: "Timed out while fetching the URL.", code: "request_timeout" }, corsHeaders);
@@ -2207,7 +1699,7 @@ async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
 
   let bodyText;
   try {
-    bodyText = await readBodyWithLimit(pageResponse, MAX_RESPONSE_BYTES);
+    bodyText = await readBodyWithLimit(pageResponse, runtime.maxResponseBytes);
   } catch {
     json(res, 413, { error: "Response body is too large to process.", code: "payload_too_large" }, corsHeaders);
     return;
@@ -2288,7 +1780,7 @@ async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
     return;
   }
 
-  extractUrlCacheInstance.set(parsedUrl.href, title, summaryResult.content);
+  runtime.extractUrlCache.set(parsedUrl.href, title, summaryResult.content);
   json(res, 200, { title, content: summaryResult.content }, corsHeaders);
 }
 
@@ -2296,11 +1788,11 @@ async function handleInferBuilderFields(req, res, body, corsHeaders, requestCont
   const auth = await authenticateRequest(req, res, corsHeaders, requestContext);
   if (!auth) return;
 
-  const clientIp = getClientIp(req, requestContext);
+  const clientIp = runtime.getClientIp(req, requestContext);
   if (!enforceRateLimit(res, corsHeaders, {
     scope: "infer-minute",
     key: `${auth.rateKey}:${clientIp}`,
-    limit: INFER_PER_MINUTE,
+    limit: runtime.inferPerMinute,
     windowMs: 60_000,
   }, "Rate limit exceeded. Please try again later.", requestContext)) {
     return;
@@ -2309,7 +1801,7 @@ async function handleInferBuilderFields(req, res, body, corsHeaders, requestCont
   if (!enforceRateLimit(res, corsHeaders, {
     scope: "infer-day",
     key: auth.rateKey,
-    limit: INFER_PER_DAY,
+    limit: runtime.inferPerDay,
     windowMs: 86_400_000,
   }, "Daily quota exceeded. Please try again tomorrow.", requestContext)) {
     return;
@@ -2321,11 +1813,11 @@ async function handleInferBuilderFields(req, res, body, corsHeaders, requestCont
     json(res, 400, { error: "Prompt is required." }, corsHeaders);
     return;
   }
-  if (prompt.length > MAX_INFERENCE_PROMPT_CHARS) {
+  if (prompt.length > runtime.maxInferencePromptChars) {
     json(
       res,
       413,
-      { error: `Prompt is too large. Maximum ${MAX_INFERENCE_PROMPT_CHARS} characters.` },
+      { error: `Prompt is too large. Maximum ${runtime.maxInferencePromptChars} characters.` },
       corsHeaders,
     );
     return;
@@ -2344,49 +1836,6 @@ async function handleInferBuilderFields(req, res, body, corsHeaders, requestCont
     inferRequestContext,
   );
   json(res, 200, inference, corsHeaders);
-}
-
-function buildReadinessReport() {
-  const issues = [];
-  const warnings = [];
-  const authReadiness = authService.getReadiness();
-
-  const hasProviderApiKey = CODEX_CONFIG
-    ? Boolean(RESOLVED_API_KEY)
-    : Boolean(normalizeEnvValue("OPENAI_API_KEY") || normalizeEnvValue("CODEX_API_KEY"));
-
-  if (isShuttingDown) {
-    issues.push("service_shutting_down");
-  }
-  if (REQUIRE_PROVIDER_CONFIG && !CODEX_CONFIG) {
-    issues.push("provider_config_missing");
-  }
-  if (!hasProviderApiKey) {
-    issues.push("provider_api_key_missing");
-  }
-  if (HAS_MISSING_AZURE_MODEL) {
-    issues.push("provider_model_missing");
-  }
-  warnings.push(...authReadiness.warnings);
-  issues.push(...authReadiness.issues);
-
-  return {
-    ok: issues.length === 0,
-    issues,
-    warnings,
-    provider: "codex-sdk",
-    provider_source: CODEX_CONFIG_SOURCE,
-    provider_name: CODEX_CONFIG?.name || "OpenAI",
-    provider_base_url: OPENAI_API_BASE_URL,
-    model: DEFAULT_THREAD_OPTIONS.model || null,
-    extract_model: EXTRACT_MODEL || null,
-    infer_model: INFER_MODEL || null,
-    sandbox_mode: DEFAULT_THREAD_OPTIONS.sandboxMode || null,
-    strict_public_api_key: STRICT_PUBLIC_API_KEY,
-    trust_proxy: TRUST_PROXY,
-    rate_limit_backend: RATE_LIMIT_BACKEND,
-    ...authService.getStartupSummary(),
-  };
 }
 
 async function requestHandler(req, res) {
@@ -2437,7 +1886,7 @@ async function requestHandler(req, res) {
   }
 
   if (req.method === "GET" && url.pathname === "/ready") {
-    const readiness = buildReadinessReport();
+    const readiness = runtime.buildReadinessReport({ isShuttingDown });
     json(res, readiness.ok ? 200 : 503, readiness);
     return;
   }
@@ -2446,13 +1895,7 @@ async function requestHandler(req, res) {
     json(res, 200, {
       ok: true,
       provider: "codex-sdk",
-      provider_source: CODEX_CONFIG_SOURCE,
-      provider_name: CODEX_CONFIG?.name || "OpenAI",
-      provider_base_url: OPENAI_API_BASE_URL,
-      model: DEFAULT_THREAD_OPTIONS.model || null,
-      sandbox_mode: DEFAULT_THREAD_OPTIONS.sandboxMode || null,
-      strict_public_api_key: STRICT_PUBLIC_API_KEY,
-      trust_proxy: TRUST_PROXY,
+      ...runtime.buildHealthDetails(),
     });
     return;
   }
@@ -2464,7 +1907,7 @@ async function requestHandler(req, res) {
   );
 
   if (isFunctionPath) {
-    const cors = resolveCors(req, CORS_CONFIG);
+    const cors = resolveCors(req, runtime.corsConfig);
     if (req.method === "OPTIONS") {
       if (!cors.ok) {
         setRequestError(requestContext, inferErrorCodeFromStatus(cors.status), cors.error, cors.status);
@@ -2490,7 +1933,7 @@ async function requestHandler(req, res) {
 
     let body;
     try {
-      body = await readBodyJsonWithLimit(req, { maxBytes: MAX_HTTP_BODY_BYTES });
+      body = await readBodyJsonWithLimit(req, { maxBytes: runtime.maxHttpBodyBytes });
     } catch (error) {
       const statusCode = isPayloadTooLargeError(error) ? 413 : 400;
       const errorCode = statusCode === 413 ? "payload_too_large" : "bad_request";
@@ -2539,7 +1982,7 @@ async function requestHandler(req, res) {
 
 const enhanceWebSocketServer = new WebSocketServer({
   noServer: true,
-  maxPayload: ENHANCE_WS_MAX_PAYLOAD_BYTES,
+  maxPayload: runtime.enhanceWsMaxPayloadBytes,
   handleProtocols: (protocols) => {
     if (protocols.has(ENHANCE_WS_PROTOCOL)) {
       return ENHANCE_WS_PROTOCOL;
@@ -2609,7 +2052,7 @@ server.on("upgrade", (req, socket, head) => {
     return;
   }
 
-  const cors = resolveCors(req, CORS_CONFIG);
+  const cors = resolveCors(req, runtime.corsConfig);
   if (!cors.ok) {
     rejectWebSocketUpgrade(
       socket,
@@ -2626,24 +2069,8 @@ server.on("upgrade", (req, socket, head) => {
   });
 });
 
-server.listen(SERVICE_CONFIG.port, SERVICE_CONFIG.host, () => {
-  logEvent("info", "service_start", {
-    host: SERVICE_CONFIG.host,
-    port: SERVICE_CONFIG.port,
-    provider_source: CODEX_CONFIG_SOURCE,
-    provider: CODEX_CONFIG?.provider || "openai",
-    provider_name: CODEX_CONFIG?.name || "OpenAI",
-    provider_base_url: CODEX_CONFIG?.baseUrl || "https://api.openai.com/v1",
-    model: DEFAULT_THREAD_OPTIONS.model || null,
-    extract_model: EXTRACT_MODEL,
-    infer_model: INFER_MODEL,
-    sandbox_mode: DEFAULT_THREAD_OPTIONS.sandboxMode || null,
-    strict_public_api_key: STRICT_PUBLIC_API_KEY,
-    trust_proxy: TRUST_PROXY,
-    trusted_proxy_ip_count: TRUSTED_PROXY_IPS.size,
-    rate_limit_backend: RATE_LIMIT_BACKEND,
-    ...authService.getStartupSummary(),
-  });
+server.listen(runtime.serviceConfig.port, runtime.serviceConfig.host, () => {
+  logEvent("info", "service_start", runtime.buildServiceStartLogFields());
 });
 
 // ---------------------------------------------------------------------------
@@ -2658,14 +2085,14 @@ function gracefulShutdown(signal) {
   logEvent("info", "service_shutdown_start", {
     signal,
     active_ws_connections: enhanceWebSocketServer.clients.size,
-    active_abort_controllers: activeAbortControllers.size,
+    active_abort_controllers: runtime.activeAbortControllers.size,
   });
 
   server.close(() => {
     logEvent("info", "service_shutdown_http_closed", { signal });
   });
 
-  for (const controller of activeAbortControllers) {
+  for (const controller of runtime.activeAbortControllers) {
     if (controller.signal.aborted) continue;
     controller.abort("Server is shutting down.");
   }
@@ -2686,10 +2113,10 @@ function gracefulShutdown(signal) {
   const drainTimer = setTimeout(() => {
     logEvent("warn", "service_shutdown_drain_timeout", {
       signal,
-      timeout_ms: SHUTDOWN_DRAIN_TIMEOUT_MS,
+      timeout_ms: runtime.shutdownDrainTimeoutMs,
     });
     process.exit(1);
-  }, SHUTDOWN_DRAIN_TIMEOUT_MS);
+  }, runtime.shutdownDrainTimeoutMs);
   drainTimer.unref();
 }
 

@@ -486,7 +486,7 @@ export function OutputPanel({
           <p className={cx("ui-section-label", UI_STATUS_TEXT_CLASSES.warning)}>
             Reasoning summary
           </p>
-          <div className="scrollbar-themed mt-2 max-h-36 sm:max-h-56 overflow-y-auto overscroll-contain prose prose-sm max-w-none whitespace-normal text-foreground/90 dark:prose-invert prose-headings:my-1 prose-p:my-1 prose-pre:my-1 prose-code:break-words prose-ul:my-1 prose-ol:my-1">
+          <div className="scrollbar-themed mt-2 max-h-36 sm:max-h-56 overflow-y-auto overscroll-contain prose prose-sm max-w-none whitespace-normal text-foreground/90 dark:prose-invert prose-headings:my-1 prose-p:my-1 prose-pre:my-1 prose-code:wrap-break-word prose-ul:my-1 prose-ol:my-1">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {displayedReasoningSummary}
             </ReactMarkdown>
@@ -536,30 +536,32 @@ export function OutputPanel({
 
       <Card
         className={cx(
-          "enhance-output-frame flex-1 p-4 bg-card overflow-auto",
+          "enhance-output-frame flex min-h-0 flex-1 flex-col overflow-hidden bg-card",
           isStreamingVisual && "enhance-output-streaming",
           isSettledVisual && "enhance-output-complete"
         )}
       >
-        {displayPrompt ? (
-          <pre className="whitespace-pre-wrap text-sm font-mono text-foreground leading-relaxed">
-            {displayPrompt}
-          </pre>
-        ) : (
-          <div className="flex flex-col items-center justify-center gap-3 h-full min-h-[120px] sm:min-h-[200px] px-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-muted/30">
-              <Target className="h-5 w-5 text-muted-foreground" />
+        <div className="min-h-0 flex-1 overflow-auto p-4">
+          {displayPrompt ? (
+            <pre className="whitespace-pre-wrap text-sm font-mono text-foreground leading-relaxed">
+              {displayPrompt}
+            </pre>
+          ) : (
+            <div className="flex h-full min-h-30 flex-col items-center justify-center gap-3 px-4 sm:min-h-50">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-muted/30">
+                <Target className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <div className="space-y-1 text-center">
+                <p className="text-sm font-medium text-foreground">
+                  Your prompt preview appears here
+                </p>
+                <p className="max-w-xs text-xs text-muted-foreground">
+                  Start by describing what the model should do, then enhance to get a polished, structured prompt.
+                </p>
+              </div>
             </div>
-            <div className="text-center space-y-1">
-              <p className="text-sm font-medium text-foreground">
-                Your prompt preview appears here
-              </p>
-              <p className="text-xs text-muted-foreground max-w-xs">
-                Start by describing what the model should do, then enhance to get a polished, structured prompt.
-              </p>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </Card>
 
       {enhanceMetadata && !isEnhancing && (
