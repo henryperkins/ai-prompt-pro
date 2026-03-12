@@ -338,45 +338,121 @@ describe("ai-client auth recovery", () => {
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
-  it("returns a clearer error when enhance request repeatedly fails with a network load error", async () => {
-    const nowSeconds = Math.floor(Date.now() / 1000);
+  it("does not emit failed session state or console errors when an SSE retry later succeeds", async () => {
+    vi.useFakeTimers();
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      vi.spyOn(Math, "random").mockReturnValue(0.5);
 
-    mocks.getSession.mockResolvedValue({
-      data: {
-        session: {
-          access_token: "valid-token",
-          expires_at: nowSeconds + 3600,
+      const nowSeconds = Math.floor(Date.now() / 1000);
+
+      mocks.getSession.mockResolvedValue({
+        data: {
+          session: {
+            access_token: "valid-token",
+            expires_at: nowSeconds + 3600,
+          },
         },
-      },
-      error: null,
-    });
+        error: null,
+      });
 
-    const fetchMock = vi
-      .fn()
-      .mockRejectedValueOnce(new TypeError("Load failed"))
-      .mockRejectedValueOnce(new TypeError("Load failed"));
-    vi.stubGlobal("fetch", fetchMock);
+      const fetchMock = vi
+        .fn()
+        .mockRejectedValueOnce(new TypeError("Load failed"))
+        .mockRejectedValueOnce(new TypeError("Load failed"))
+        .mockResolvedValueOnce(streamingResponse("retry-success-final"));
+      vi.stubGlobal("fetch", fetchMock);
 
-    const { streamEnhance } = await import("@/lib/ai-client");
+      const { streamEnhance } = await import("@/lib/ai-client");
 
-    const onDone = vi.fn();
-    const onError = vi.fn();
+      const onDelta = vi.fn();
+      const onDone = vi.fn();
+      const onError = vi.fn();
+      const onSession = vi.fn();
 
-    await streamEnhance({
-      prompt: "Improve this",
-      onDelta: vi.fn(),
-      onDone,
-      onError,
-    });
+      const streamPromise = streamEnhance({
+        prompt: "Improve this",
+        onDelta,
+        onDone,
+        onError,
+        onSession,
+        timeoutMs: 60_000,
+      });
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(onDone).not.toHaveBeenCalled();
-    expect(onError).toHaveBeenCalledWith(
-      expect.objectContaining({
-        code: "network_unavailable",
-        message: "Could not reach the enhancement service at https://agent.test. Check your connection and try again.",
-      }),
-    );
+      await vi.advanceTimersByTimeAsync(30_000);
+      await streamPromise;
+
+      const sessionSnapshots = onSession.mock.calls.map((call) => call[0] as {
+        status?: string;
+        lastErrorMessage?: string | null;
+      });
+
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      expect(onError).not.toHaveBeenCalled();
+      expect(onDelta).toHaveBeenCalledWith("retry-success-final");
+      expect(onDone).toHaveBeenCalledTimes(1);
+      expect(sessionSnapshots.some((session) => session.status === "failed")).toBe(false);
+      expect(sessionSnapshots.some((session) => Boolean(session.lastErrorMessage))).toBe(false);
+      expect(sessionSnapshots.at(-1)).toMatchObject({
+        status: "completed",
+      });
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+    } finally {
+      consoleErrorSpy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("returns a clearer error when enhance request repeatedly fails with a network load error", async () => {
+    vi.useFakeTimers();
+    try {
+      const nowSeconds = Math.floor(Date.now() / 1000);
+
+      mocks.getSession.mockResolvedValue({
+        data: {
+          session: {
+            access_token: "valid-token",
+            expires_at: nowSeconds + 3600,
+          },
+        },
+        error: null,
+      });
+
+      // streamEnhance retries network_unavailable errors up to 2 times.
+      // Each attempt uses requestWithRetry which itself retries once,
+      // so we need 2 rejections per attempt × 3 total attempts = 6.
+      // Fake timers ensure the exponential backoff sleeps between enhance
+      // attempts don't cause real-time test flakiness.
+      const fetchMock = vi.fn().mockRejectedValue(new TypeError("Load failed"));
+      vi.stubGlobal("fetch", fetchMock);
+
+      const { streamEnhance } = await import("@/lib/ai-client");
+
+      const onDone = vi.fn();
+      const onError = vi.fn();
+
+      const streamPromise = streamEnhance({
+        prompt: "Improve this",
+        onDelta: vi.fn(),
+        onDone,
+        onError,
+      });
+
+      await vi.advanceTimersByTimeAsync(30_000);
+      await streamPromise;
+
+      // 2 fetch calls per requestWithRetry × 3 streamEnhance attempts = 6
+      expect(fetchMock).toHaveBeenCalledTimes(6);
+      expect(onDone).not.toHaveBeenCalled();
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: "network_unavailable",
+          message: "Could not reach the enhancement service at https://agent.test. Check your connection and try again.",
+        }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("preserves auth_required when stream error payload includes an auth code", async () => {
@@ -468,6 +544,98 @@ describe("ai-client auth recovery", () => {
         code: "rate_limited",
         status: 429,
         message: "429 Too Many Requests",
+      }),
+    );
+  });
+
+  it("propagates HTTP Retry-After metadata on enhance rate limits", async () => {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "valid-token",
+          expires_at: nowSeconds + 3600,
+        },
+      },
+      error: null,
+    });
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: "Rate limit exceeded." }), {
+        status: 429,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": "7",
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { streamEnhance } = await import("@/lib/ai-client");
+
+    const onDone = vi.fn();
+    const onError = vi.fn();
+
+    await streamEnhance({
+      prompt: "Improve this",
+      onDelta: vi.fn(),
+      onDone,
+      onError,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(onDone).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "rate_limited",
+        retryAfterMs: 7000,
+      }),
+    );
+  });
+
+  it("ignores invalid HTTP Retry-After metadata on enhance rate limits", async () => {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "valid-token",
+          expires_at: nowSeconds + 3600,
+        },
+      },
+      error: null,
+    });
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: "Rate limit exceeded." }), {
+        status: 429,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": "later",
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { streamEnhance } = await import("@/lib/ai-client");
+
+    const onDone = vi.fn();
+    const onError = vi.fn();
+
+    await streamEnhance({
+      prompt: "Improve this",
+      onDelta: vi.fn(),
+      onDone,
+      onError,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(onDone).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "rate_limited",
+        retryAfterMs: undefined,
       }),
     );
   });
@@ -1170,6 +1338,135 @@ describe("ai-client auth recovery", () => {
         expect.objectContaining({
           code: "request_timeout",
           message: "Enhancement timed out. Please try again.",
+        }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reports request_timeout when timeout expires during retry backoff", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.spyOn(Math, "random").mockReturnValue(0.5);
+
+      const nowSeconds = Math.floor(Date.now() / 1000);
+
+      mocks.getSession.mockResolvedValue({
+        data: {
+          session: {
+            access_token: "valid-token",
+            expires_at: nowSeconds + 3600,
+          },
+        },
+        error: null,
+      });
+
+      // Every fetch rejects with a retryable network error.
+      const fetchMock = vi.fn().mockRejectedValue(new TypeError("Load failed"));
+      vi.stubGlobal("fetch", fetchMock);
+
+      const { streamEnhance } = await import("@/lib/ai-client");
+
+      const onDone = vi.fn();
+      const onError = vi.fn();
+
+      // Timeout (500 ms) is shorter than the enhance retry backoff
+      // (~1125 ms with Math.random() stubbed to 0.5), so it fires while the
+      // client is sleeping between attempts.  The inner requestWithRetry delay
+      // is 250 ms, so the first attempt completes at ~250 ms.
+      const streamPromise = streamEnhance({
+        prompt: "Improve this",
+        onDelta: vi.fn(),
+        onDone,
+        onError,
+        timeoutMs: 500,
+      });
+
+      // Advance enough time for everything to settle — regardless of whether
+      // the implementation correctly aborts the backoff or lets it complete.
+      await vi.advanceTimersByTimeAsync(15_000);
+      await streamPromise;
+
+      expect(onDone).not.toHaveBeenCalled();
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: "request_timeout",
+          message: "Enhancement timed out. Please try again.",
+        }),
+      );
+      // Only the first attempt's 2 fetch calls (requestWithRetry: original +
+      // 1 inner retry).  The timeout must prevent a second enhance attempt.
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not retry after the SSE stream emits backend activity events", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.spyOn(Math, "random").mockReturnValue(0.5);
+
+      const nowSeconds = Math.floor(Date.now() / 1000);
+
+      mocks.getSession.mockResolvedValue({
+        data: {
+          session: {
+            access_token: "valid-token",
+            expires_at: nowSeconds + 3600,
+          },
+        },
+        error: null,
+      });
+
+      // The stream yields a backend activity event (item.started with
+      // web_search_call) that carries thread_id/turn_id/item_id but no
+      // renderable text, then ends without a [DONE] marker.
+      const body = [
+        `data: ${JSON.stringify({
+          event: "item.started",
+          type: "item.started",
+          thread_id: "thread_sse_activity_1",
+          turn_id: "turn_sse_activity_1",
+          item_id: "item_web_search_1",
+          item_type: "web_search_call",
+          item: {
+            id: "item_web_search_1",
+            type: "web_search_call",
+            arguments: "{\"query\":\"test\"}",
+          },
+        })}`,
+        "",
+      ].join("\n");
+
+      const fetchMock = vi.fn().mockImplementation(() =>
+        Promise.resolve(streamingRaw(body)),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+
+      const { streamEnhance } = await import("@/lib/ai-client");
+
+      const onDone = vi.fn();
+      const onError = vi.fn();
+
+      const streamPromise = streamEnhance({
+        prompt: "Improve this",
+        onDelta: vi.fn(),
+        onDone,
+        onError,
+      });
+
+      await vi.advanceTimersByTimeAsync(30_000);
+      await streamPromise;
+
+      // One HTTP request — no retry after backend-emitted attempt activity.
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(onDone).not.toHaveBeenCalled();
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: "network_unavailable",
+          message: "Enhancement stream ended before completion. Please try again.",
         }),
       );
     } finally {

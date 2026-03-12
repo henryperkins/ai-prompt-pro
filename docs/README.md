@@ -19,6 +19,8 @@ Use this file as the starting point for repo documentation.
 
 ## Active planning docs
 
+- `docs/plans/2026-03-12-enhance-retry-regression-remediation.md` - step-by-step remediation plan for the reviewed ai-client retry-state surfacing, HTTP rate-limit hint propagation, and docs drift gaps in the current transport diff.
+- `docs/plans/2026-03-12-agent-service-hardening-remediation.md` - step-by-step remediation plan for the remaining agent-service operational, security, and maintainability gaps.
 - `docs/plans/2026-03-09-prompt-enhancement-improvements.md` - broader prompt enhancement roadmap and implementation ordering.
 - `docs/plans/2026-03-09-telemetry-findings-remediation.md` - step-by-step remediation plan for the verified enhancement telemetry gaps.
 - `docs/plans/2026-03-10-prompt-enhancement-verification-remediation.md` - step-by-step remediation plan for the remaining prompt-enhancement verification gaps.

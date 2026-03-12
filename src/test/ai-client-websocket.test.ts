@@ -39,11 +39,13 @@ type FakeWebSocketBehavior =
 class FakeWebSocket {
   static instances: FakeWebSocket[] = [];
   static behavior: FakeWebSocketBehavior = "stream";
+  static behaviorSequence: FakeWebSocketBehavior[] | null = null;
 
   readonly url: string;
   readonly protocols: string[];
   readonly sentMessages: string[] = [];
   readyState = 0;
+  private readonly behavior: FakeWebSocketBehavior;
 
   private readonly listeners: Record<string, Set<(event: unknown) => void>> = {
     open: new Set(),
@@ -59,14 +61,18 @@ class FakeWebSocket {
       : typeof protocols === "string"
         ? [protocols]
         : [];
+    this.behavior = FakeWebSocket.behaviorSequence?.shift() ?? FakeWebSocket.behavior;
+    if (FakeWebSocket.behaviorSequence && FakeWebSocket.behaviorSequence.length === 0) {
+      FakeWebSocket.behaviorSequence = null;
+    }
     FakeWebSocket.instances.push(this);
 
-    if (FakeWebSocket.behavior === "connect-hang") {
+    if (this.behavior === "connect-hang") {
       return;
     }
 
     queueMicrotask(() => {
-      if (FakeWebSocket.behavior === "fallback") {
+      if (this.behavior === "fallback") {
         this.readyState = 3;
         this.emit("error", {});
         this.emit("close", { code: 1006, reason: "upgrade_failed" });
@@ -89,7 +95,7 @@ class FakeWebSocket {
   send(data: string) {
     this.sentMessages.push(data);
 
-    if (FakeWebSocket.behavior === "auth-required") {
+    if (this.behavior === "auth-required") {
       queueMicrotask(() => {
         this.emit("message", {
           data: JSON.stringify({
@@ -106,7 +112,7 @@ class FakeWebSocket {
       return;
     }
 
-    if (FakeWebSocket.behavior === "thread-started-then-close") {
+    if (this.behavior === "thread-started-then-close") {
       queueMicrotask(() => {
         this.emit("message", {
           data: JSON.stringify({
@@ -121,7 +127,7 @@ class FakeWebSocket {
       return;
     }
 
-    if (FakeWebSocket.behavior === "item-started-then-close") {
+    if (this.behavior === "item-started-then-close") {
       queueMicrotask(() => {
         this.emit("message", {
           data: JSON.stringify({
@@ -144,7 +150,7 @@ class FakeWebSocket {
       return;
     }
 
-    if (FakeWebSocket.behavior === "prelude-error-with-ids") {
+    if (this.behavior === "prelude-error-with-ids") {
       // Simulates a turn/error that carries thread_id and turn_id but arrives
       // before any lifecycle event (thread.started / turn.started). The client
       // should still allow SSE fallback in auto mode.
@@ -168,7 +174,7 @@ class FakeWebSocket {
       return;
     }
 
-    if (FakeWebSocket.behavior !== "stream") return;
+    if (this.behavior !== "stream") return;
     JSON.parse(data);
 
     queueMicrotask(() => {
@@ -217,6 +223,7 @@ describe("ai-client websocket enhance transport", () => {
     vi.clearAllMocks();
     FakeWebSocket.instances = [];
     FakeWebSocket.behavior = "stream";
+    FakeWebSocket.behaviorSequence = null;
 
     vi.stubEnv("VITE_AGENT_SERVICE_URL", "https://agent.test");
     vi.stubEnv("VITE_NEON_PUBLISHABLE_KEY", "\"sb_publishable_test\"");
@@ -406,7 +413,9 @@ describe("ai-client websocket enhance transport", () => {
         onError,
       });
 
-      await vi.advanceTimersByTimeAsync(300);
+      // Advance enough time for connect timeouts + retry backoff delays.
+      // Each WS connect timeout is 20ms, retry backoff grows exponentially.
+      await vi.advanceTimersByTimeAsync(15_000);
       await streamPromise;
 
       expect(fetchMock).not.toHaveBeenCalled();
@@ -417,6 +426,61 @@ describe("ai-client websocket enhance transport", () => {
         }),
       );
     } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not emit failed session state when a forced-ws retry later succeeds", async () => {
+    vi.useFakeTimers();
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      vi.stubEnv("VITE_ENHANCE_TRANSPORT", "ws");
+      vi.spyOn(Math, "random").mockReturnValue(0.5);
+      FakeWebSocket.behaviorSequence = ["fallback", "stream"];
+      vi.stubGlobal("WebSocket", FakeWebSocket as unknown as typeof WebSocket);
+
+      const fetchMock = vi.fn();
+      vi.stubGlobal("fetch", fetchMock);
+
+      const { streamEnhance } = await import("@/lib/ai-client");
+
+      const onDelta = vi.fn();
+      const onDone = vi.fn();
+      const onError = vi.fn();
+      const onSession = vi.fn();
+
+      const streamPromise = streamEnhance({
+        prompt: "Improve this",
+        onDelta,
+        onDone,
+        onError,
+        onSession,
+        timeoutMs: 60_000,
+      });
+
+      await vi.advanceTimersByTimeAsync(30_000);
+      await streamPromise;
+
+      const sessionSnapshots = onSession.mock.calls.map((call) => call[0] as {
+        status?: string;
+        lastErrorMessage?: string | null;
+        transport?: string | null;
+      });
+
+      expect(FakeWebSocket.instances).toHaveLength(2);
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(onError).not.toHaveBeenCalled();
+      expect(onDelta).toHaveBeenCalledWith("ws-output");
+      expect(onDone).toHaveBeenCalledTimes(1);
+      expect(sessionSnapshots.some((session) => session.status === "failed")).toBe(false);
+      expect(sessionSnapshots.some((session) => Boolean(session.lastErrorMessage))).toBe(false);
+      expect(sessionSnapshots.at(-1)).toMatchObject({
+        status: "completed",
+        transport: "ws",
+      });
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+    } finally {
+      consoleErrorSpy.mockRestore();
       vi.useRealTimers();
     }
   });
@@ -521,6 +585,63 @@ describe("ai-client websocket enhance transport", () => {
     expect(onError).not.toHaveBeenCalled();
     expect(onDelta).toHaveBeenCalledWith("sse-fallback");
     expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not replay the request in forced ws mode after item.started prelude activity", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.stubEnv("VITE_ENHANCE_TRANSPORT", "ws");
+      vi.spyOn(Math, "random").mockReturnValue(0.5);
+      FakeWebSocket.behavior = "item-started-then-close";
+      vi.stubGlobal("WebSocket", FakeWebSocket as unknown as typeof WebSocket);
+
+      const fetchMock = vi.fn();
+      vi.stubGlobal("fetch", fetchMock);
+
+      const { streamEnhance } = await import("@/lib/ai-client");
+
+      const onDone = vi.fn();
+      const onError = vi.fn();
+      const onSession = vi.fn();
+
+      const streamPromise = streamEnhance({
+        prompt: "Improve this",
+        onDelta: vi.fn(),
+        onDone,
+        onError,
+        onSession,
+      });
+
+      // Advance far enough for multiple retry backoff cycles, if the
+      // implementation incorrectly retries after prelude activity.
+      await vi.advanceTimersByTimeAsync(30_000);
+      await streamPromise;
+
+      // Only one WebSocket connection should have been opened — no replay
+      // after the backend already started attempt work (item.started).
+      expect(FakeWebSocket.instances).toHaveLength(1);
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(onDone).not.toHaveBeenCalled();
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: "network_unavailable",
+        }),
+      );
+
+      // Session should preserve the attempt-local metadata from the
+      // failed attempt rather than resetting it.
+      const finalSession = onSession.mock.calls.at(-1)?.[0] as {
+        threadId?: string;
+        turnId?: string;
+        status?: string;
+      };
+      expect(finalSession).toMatchObject({
+        threadId: "thread_item_prelude_1",
+        status: "failed",
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("falls back to SSE in auto mode after item-only prelude events without lifecycle start", async () => {

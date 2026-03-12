@@ -63,6 +63,9 @@ let bootstrapTokenPromise: Promise<string> | null = null;
 let publishableKeyFallbackUntilMs = 0;
 const ACCESS_TOKEN_REFRESH_GRACE_SECONDS = 30;
 const FUNCTION_NETWORK_RETRY_DELAY_MS = 250;
+const ENHANCE_STREAM_MAX_RETRIES = 2;
+const ENHANCE_STREAM_BACKOFF_BASE_MS = 1_500;
+const ENHANCE_STREAM_BACKOFF_MAX_MS = 12_000;
 const PUBLISHABLE_KEY_AUTH_FALLBACK_WINDOW_MS = 2 * 60_000;
 export const ENHANCE_REQUEST_TIMEOUT_MS =
   configuredEnhanceRequestTimeoutMs ?? undefined;
@@ -100,6 +103,7 @@ interface AIClientErrorInit {
   code: AIClientErrorCode;
   status?: number;
   retryable?: boolean;
+  retryAfterMs?: number;
   cause?: unknown;
 }
 
@@ -107,13 +111,15 @@ export class AIClientError extends Error {
   readonly code: AIClientErrorCode;
   readonly status?: number;
   readonly retryable: boolean;
+  readonly retryAfterMs?: number;
 
-  constructor({ message, code, status, retryable = false, cause }: AIClientErrorInit) {
+  constructor({ message, code, status, retryable = false, retryAfterMs, cause }: AIClientErrorInit) {
     super(message);
     this.name = "AIClientError";
     this.code = code;
     this.status = status;
     this.retryable = retryable;
+    this.retryAfterMs = retryAfterMs;
     if (cause !== undefined) {
       Object.defineProperty(this, "cause", {
         value: cause,
@@ -343,7 +349,7 @@ function messageLooksLikeServiceError(message: string): boolean {
 function normalizeClientError(
   name: "enhance-prompt" | "extract-url" | "infer-builder-fields",
   error: unknown,
-  options: { status?: number; code?: AIClientErrorCode } = {},
+  options: { status?: number; code?: AIClientErrorCode; retryAfterMs?: number } = {},
 ): AIClientError {
   if (isAIClientError(error)) return error;
 
@@ -367,6 +373,7 @@ function normalizeClientError(
       code: options.code,
       status,
       retryable: options.code === "network_unavailable" || options.code === "rate_limited" || options.code === "service_error" || options.code === "request_timeout",
+      retryAfterMs: options.retryAfterMs,
       cause: error,
     });
   }
@@ -386,6 +393,7 @@ function normalizeClientError(
       code: "rate_limited",
       status,
       retryable: true,
+      retryAfterMs: options.retryAfterMs,
       cause: error,
     });
   }
@@ -416,6 +424,7 @@ function normalizeClientError(
       code: "service_error",
       status,
       retryable: true,
+      retryAfterMs: options.retryAfterMs,
       cause: error,
     });
   }
@@ -425,6 +434,7 @@ function normalizeClientError(
     code: errorCodeFromStatus(status),
     status,
     retryable: typeof status === "number" && status >= 500,
+    retryAfterMs: options.retryAfterMs,
     cause: error,
   });
 }
@@ -690,11 +700,36 @@ function normalizeServerErrorCode(code: unknown): AIClientErrorCode | undefined 
   return undefined;
 }
 
-async function readFunctionError(resp: Response): Promise<{ message: string; code?: AIClientErrorCode }> {
+function parseRetryAfterHeaderValue(value: string | null): number | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  if (/^\d+$/.test(trimmed)) {
+    const seconds = Number.parseInt(trimmed, 10);
+    if (Number.isFinite(seconds) && seconds > 0) {
+      return seconds * 1000;
+    }
+    return undefined;
+  }
+
+  const parsedDate = Date.parse(trimmed);
+  if (!Number.isFinite(parsedDate)) return undefined;
+
+  const delay = parsedDate - Date.now();
+  return delay > 0 ? delay : undefined;
+}
+
+async function readFunctionError(resp: Response): Promise<{
+  message: string;
+  code?: AIClientErrorCode;
+  retryAfterMs?: number;
+}> {
   const fallbackMessage = `Request failed with status ${resp.status}.`;
+  const retryAfterMs = parseRetryAfterHeaderValue(resp.headers.get("Retry-After"));
   const errorData = await resp.json().catch(() => null);
   if (!errorData || typeof errorData !== "object") {
-    return { message: fallbackMessage };
+    return { message: fallbackMessage, retryAfterMs };
   }
 
   const normalizedCode = normalizeServerErrorCode((errorData as { code?: unknown }).code);
@@ -704,6 +739,7 @@ async function readFunctionError(resp: Response): Promise<{ message: string; cod
     return {
       message: maybeError.trim(),
       code: normalizedCode,
+      retryAfterMs,
     };
   }
 
@@ -712,12 +748,14 @@ async function readFunctionError(resp: Response): Promise<{ message: string; cod
     return {
       message: maybeDetail.trim(),
       code: normalizedCode,
+      retryAfterMs,
     };
   }
 
   return {
     message: fallbackMessage,
     code: normalizedCode,
+    retryAfterMs,
   };
 }
 
@@ -779,6 +817,7 @@ async function postFunctionWithAuthRecovery(
       throw normalizeClientError(name, errorMessage, {
         status: response.status,
         code: errorDetails.code,
+        retryAfterMs: errorDetails.retryAfterMs,
       });
     }
 
@@ -795,6 +834,7 @@ async function postFunctionWithAuthRecovery(
       throw normalizeClientError(name, errorMessage, {
         status: response.status,
         code: errorDetails.code,
+        retryAfterMs: errorDetails.retryAfterMs,
       });
     }
 
@@ -807,19 +847,32 @@ async function postFunctionWithAuthRecovery(
     throw normalizeClientError(name, errorDetails.message, {
       status: response.status,
       code: errorDetails.code,
+      retryAfterMs: errorDetails.retryAfterMs,
     });
   } catch (error) {
     throw normalizeClientError(name, error);
   }
 }
 
+function parseRetryAfterSeconds(payload: unknown): number | undefined {
+  if (!payload || typeof payload !== "object") return undefined;
+  const candidate = (payload as { retry_after_seconds?: unknown }).retry_after_seconds;
+  if (typeof candidate === "number" && Number.isFinite(candidate) && candidate > 0) {
+    return candidate;
+  }
+  return undefined;
+}
+
 function extractSseErrorDetails(payload: unknown): {
   message: string;
   code?: AIClientErrorCode;
   status?: number;
+  retryAfterMs?: number;
 } | null {
   if (!payload || typeof payload !== "object") return null;
   const data = payload as { error?: unknown; code?: unknown; status?: unknown };
+  const retryAfterSeconds = parseRetryAfterSeconds(payload);
+  const retryAfterMs = retryAfterSeconds !== undefined ? retryAfterSeconds * 1000 : undefined;
 
   if (typeof data.error === "string" && data.error.trim()) {
     const status = typeof data.status === "number" ? data.status : undefined;
@@ -827,6 +880,7 @@ function extractSseErrorDetails(payload: unknown): {
       message: data.error.trim(),
       status,
       code: normalizeServerErrorCode(data.code),
+      retryAfterMs,
     };
   }
 
@@ -848,6 +902,7 @@ function extractSseErrorDetails(payload: unknown): {
       message,
       status,
       code: normalizeServerErrorCode(errObject.code ?? data.code),
+      retryAfterMs,
     };
   }
 
@@ -1056,6 +1111,7 @@ async function streamEnhanceViaWebSocket({
         terminalError = normalizeClientError("enhance-prompt", parsedError.message, {
           status: parsedError.status,
           code: parsedError.code,
+          retryAfterMs: parsedError.retryAfterMs,
         });
         allowFallbackAfterError = !sawSessionProgress;
         try {
@@ -1210,6 +1266,13 @@ export async function streamEnhance({
     payload: unknown,
     transport: CodexSessionTransport,
   ) => {
+    if (hasCodexSessionProgress(meta)) {
+      sawSessionProgress = true;
+      sawAttemptActivity = true;
+    }
+    if (meta.threadId || meta.turnId || meta.itemId) {
+      sawAttemptActivity = true;
+    }
     emitSessionUpdate(advanceCodexSessionFromEvent(currentSession, {
       ...meta,
       payload,
@@ -1290,7 +1353,107 @@ export async function streamEnhance({
   }
 
   let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+  let enhanceAttempt = 0;
+  let sawDelta = false;
+  let sawSessionProgress = false;
+  // Tracks whether the backend has emitted any attempt-specific state that
+  // would make replaying the request unsafe (duplicate work, mixed session).
+  // This is separate from sawSessionProgress which drives UI/fallback semantics.
+  let sawAttemptActivity = false;
 
+  const onDeltaWithTracking = (text: string) => {
+    sawDelta = true;
+    sawAttemptActivity = true;
+    onDelta(text);
+  };
+
+  const requestDeadlineMs =
+    typeof timeoutMs === "number" && Number.isFinite(timeoutMs) && timeoutMs > 0
+      ? Date.now() + timeoutMs
+      : undefined;
+
+  const remainingBudgetMs = (): number | undefined => {
+    if (requestDeadlineMs === undefined) return undefined;
+    return Math.max(0, requestDeadlineMs - Date.now());
+  };
+
+  const computeRetryDelayMs = (error: AIClientError): number => {
+    if (typeof error.retryAfterMs === "number" && error.retryAfterMs > 0) {
+      return Math.min(error.retryAfterMs, ENHANCE_STREAM_BACKOFF_MAX_MS);
+    }
+    const base = ENHANCE_STREAM_BACKOFF_BASE_MS * (2 ** (enhanceAttempt - 1));
+    const jitter = 0.5 + Math.random() * 0.5;
+    return Math.min(base * jitter, ENHANCE_STREAM_BACKOFF_MAX_MS);
+  };
+
+  // Sleep for the retry backoff, capped to the remaining request budget.
+  // Throws immediately if budget is exhausted, or re-throws if the request
+  // controller aborts during the sleep (timeout or caller cancel).
+  const sleepForRetry = async (error: AIClientError): Promise<void> => {
+    const budget = remainingBudgetMs();
+    if (budget !== undefined && budget <= 0) {
+      throw new AIClientError({
+        message: timeoutMessage("enhance-prompt"),
+        code: "request_timeout",
+        retryable: true,
+      });
+    }
+    const rawDelay = computeRetryDelayMs(error);
+    const delay = budget !== undefined ? Math.min(rawDelay, budget) : rawDelay;
+    await waitFor(delay, requestController.signal);
+    if (requestController.signal.aborted) {
+      throw getAbortSignalReason(requestController.signal) ?? new AIClientError({
+        message: timeoutMessage("enhance-prompt"),
+        code: "request_timeout",
+        retryable: true,
+      });
+    }
+  };
+
+  const canRetryEnhance = (error: AIClientError): boolean => {
+    // Block replay once the backend has emitted any attempt-specific state.
+    if (sawAttemptActivity) return false;
+    if (!error.retryable) return false;
+    if (enhanceAttempt >= ENHANCE_STREAM_MAX_RETRIES) return false;
+    if (requestController.signal.aborted) return false;
+    // Only retry transport/network failures and server errors.
+    // Rate limits and timeouts are not retried: rate limits from stream events
+    // mean the backend already retried against the upstream provider, and the
+    // agent service's own rate limits are intentional. Timeouts are governed by
+    // the overall request timeout which continues ticking across retries.
+    if (
+      error.code !== "network_unavailable"
+      && error.code !== "service_error"
+    ) {
+      return false;
+    }
+    return true;
+  };
+
+  const resetRetryableAttemptState = () => {
+    sawDelta = false;
+    sawSessionProgress = false;
+    sawAttemptActivity = false;
+    currentSession = createCodexSession(session ?? undefined);
+  };
+
+  const clearReader = async () => {
+    if (!reader) return;
+    await reader.cancel().catch(() => undefined);
+    reader = null;
+  };
+
+  const retryEnhanceIfAllowed = async (error: AIClientError): Promise<boolean> => {
+    if (!canRetryEnhance(error)) return false;
+    enhanceAttempt++;
+    await clearReader();
+    await sleepForRetry(error);
+    resetRetryableAttemptState();
+    return true;
+  };
+
+  try {
+  while (true) {
   try {
     const shouldTryWebSocket =
       ENHANCE_TRANSPORT_MODE !== "sse"
@@ -1306,7 +1469,7 @@ export async function streamEnhance({
         signal: requestController.signal,
         didTimeout: () => timeoutTriggered,
         connectTimeoutMs: resolvedConnectTimeoutMs,
-        onDelta,
+        onDelta: onDeltaWithTracking,
         onEvent: (event) => {
           onEvent?.(event);
           applySessionEvent(event, event.payload, "ws");
@@ -1335,6 +1498,9 @@ export async function streamEnhance({
         ) {
           // Fall through to SSE transport as a compatibility fallback.
         } else {
+          if (await retryEnhanceIfAllowed(wsResult.error)) {
+            continue;
+          }
           emitSessionUpdate(failCodexSession(currentSession, {
             code: wsResult.error.code,
             message: wsResult.error.message,
@@ -1344,15 +1510,19 @@ export async function streamEnhance({
         }
       } else if (wsResult.outcome === "fallback") {
         if (ENHANCE_TRANSPORT_MODE === "ws") {
+          const fallbackError = new AIClientError({
+            message: serviceUnavailableMessage("enhance-prompt"),
+            code: "network_unavailable",
+            retryable: true,
+          });
+          if (await retryEnhanceIfAllowed(fallbackError)) {
+            continue;
+          }
           emitSessionUpdate(failCodexSession(currentSession, {
             code: "network_unavailable",
             message: serviceUnavailableMessage("enhance-prompt"),
           }, { transport: "ws" }));
-          onError(new AIClientError({
-            message: serviceUnavailableMessage("enhance-prompt"),
-            code: "network_unavailable",
-            retryable: true,
-          }));
+          onError(fallbackError);
           return;
         }
       } else {
@@ -1416,6 +1586,7 @@ export async function streamEnhance({
             terminalError = normalizeClientError("enhance-prompt", parsedError.message, {
               status: parsedError.status,
               code: parsedError.code,
+              retryAfterMs: parsedError.retryAfterMs,
             });
             streamDone = true;
             break;
@@ -1431,7 +1602,7 @@ export async function streamEnhance({
             const delta = diffOutputText(renderedOutput, outputUpdate.text);
             renderedOutput = outputUpdate.text;
             if (delta) {
-              onDelta(delta);
+              onDeltaWithTracking(delta);
             }
             continue;
           }
@@ -1441,7 +1612,7 @@ export async function streamEnhance({
           }
 
           const content = extractSseText(parsed);
-          if (content) onDelta(content);
+          if (content) onDeltaWithTracking(content);
         } catch {
           textBuffer = line + "\n" + textBuffer;
           break;
@@ -1450,6 +1621,9 @@ export async function streamEnhance({
     }
 
     if (terminalError) {
+      if (await retryEnhanceIfAllowed(terminalError)) {
+        continue;
+      }
       emitSessionUpdate(failCodexSession(currentSession, {
         code: terminalError.code,
         message: terminalError.message,
@@ -1478,6 +1652,7 @@ export async function streamEnhance({
             terminalError = normalizeClientError("enhance-prompt", parsedError.message, {
               status: parsedError.status,
               code: parsedError.code,
+              retryAfterMs: parsedError.retryAfterMs,
             });
             break;
           }
@@ -1492,7 +1667,7 @@ export async function streamEnhance({
             const delta = diffOutputText(renderedOutput, outputUpdate.text);
             renderedOutput = outputUpdate.text;
             if (delta) {
-              onDelta(delta);
+              onDeltaWithTracking(delta);
             }
             continue;
           }
@@ -1502,7 +1677,7 @@ export async function streamEnhance({
           }
 
           const content = extractSseText(parsed);
-          if (content) onDelta(content);
+          if (content) onDeltaWithTracking(content);
         } catch {
           /* ignore */
         }
@@ -1510,6 +1685,9 @@ export async function streamEnhance({
     }
 
     if (terminalError) {
+      if (await retryEnhanceIfAllowed(terminalError)) {
+        continue;
+      }
       emitSessionUpdate(failCodexSession(currentSession, {
         code: terminalError.code,
         message: terminalError.message,
@@ -1519,20 +1697,25 @@ export async function streamEnhance({
     }
 
     if (!streamDone) {
+      const interruptedError = new AIClientError({
+        message: interruptedStreamMessage("enhance-prompt"),
+        code: "network_unavailable",
+        retryable: true,
+      });
+      if (await retryEnhanceIfAllowed(interruptedError)) {
+        continue;
+      }
       emitSessionUpdate(failCodexSession(currentSession, {
         code: "network_unavailable",
         message: interruptedStreamMessage("enhance-prompt"),
       }, { transport: "sse" }));
-      onError(new AIClientError({
-        message: interruptedStreamMessage("enhance-prompt"),
-        code: "network_unavailable",
-        retryable: true,
-      }));
+      onError(interruptedError);
       return;
     }
 
     emitSessionUpdate(completeCodexSession(currentSession, { transport: "sse" }));
     onDone();
+    return;
   } catch (e) {
     const abortReason = requestController.signal.aborted
       ? getAbortSignalReason(requestController.signal)
@@ -1545,6 +1728,30 @@ export async function streamEnhance({
       return;
     }
 
+    if (canRetryEnhance(normalizedError)) {
+      try {
+        if (await retryEnhanceIfAllowed(normalizedError)) {
+          continue;
+        }
+      } catch {
+        // Timeout or caller abort fired during retry backoff.
+        const sleepAbortReason = requestController.signal.aborted
+          ? getAbortSignalReason(requestController.signal)
+          : null;
+        const surfaceError = normalizeClientError("enhance-prompt", sleepAbortReason ?? normalizedError);
+        if (surfaceError.code === "request_aborted") {
+          emitSessionUpdate(abortCodexSession(currentSession, { transport: currentSession.transport }));
+          return;
+        }
+        emitSessionUpdate(failCodexSession(currentSession, {
+          code: surfaceError.code,
+          message: surfaceError.message,
+        }, { transport: currentSession.transport }));
+        console.error("Stream error:", surfaceError);
+        onError(surfaceError);
+        return;
+      }
+    }
     console.error("Stream error:", normalizedError);
     emitSessionUpdate(failCodexSession(currentSession, {
       code: normalizedError.code,
@@ -1553,13 +1760,15 @@ export async function streamEnhance({
       transport: currentSession.transport,
     }));
     onError(normalizedError);
+    return;
+  } finally {
+    await clearReader();
+  }
+  } // end while(true) retry loop
   } finally {
     unlinkExternalSignal();
     if (timeoutHandle !== null) {
       globalThis.clearTimeout(timeoutHandle);
-    }
-    if (reader) {
-      await reader.cancel().catch(() => undefined);
     }
   }
 }
