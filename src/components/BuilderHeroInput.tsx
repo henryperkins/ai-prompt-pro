@@ -107,6 +107,7 @@ export function BuilderHeroInput({
         </div>
 
         <TextArea
+          data-testid="builder-primary-prompt-field"
           textAreaRef={textareaRef}
           id={promptInputId}
           value={value}

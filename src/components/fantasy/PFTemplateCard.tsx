@@ -46,27 +46,27 @@ export function PFTemplateCard({
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-xs text-[rgba(230,225,213,.65)]">{author}</div>
-          <div className="mt-1 text-lg font-extrabold text-[rgba(230,225,213,.96)]">{title}</div>
+          <div className="text-xs text-pf-parchment/65">{author}</div>
+          <div className="mt-1 text-lg font-extrabold text-pf-parchment/95">{title}</div>
         </div>
 
         <span
           className={cx(
             "rounded-full border px-3 py-1 text-xs font-extrabold",
             rarity === "legendary"
-              ? "border-[rgba(214,166,64,.65)] bg-[rgba(214,166,64,.08)] text-[rgba(214,166,64,.95)]"
+              ? "border-pf-gold/65 bg-pf-gold/10 text-pf-gold/95"
               : rarity === "epic"
-                ? "border-[rgba(255,122,24,.55)] bg-[rgba(255,122,24,.08)] text-[rgba(255,170,120,.95)]"
+                ? "border-pf-ember/55 bg-pf-ember/10 text-pf-ember/90"
                 : rarity === "rare"
-                  ? "border-[rgba(18,200,181,.55)] bg-[rgba(18,200,181,.08)] text-[rgba(160,255,242,.95)]"
-                  : "border-white/15 bg-white/5 text-[rgba(230,225,213,.78)]",
+                  ? "border-pf-arcane/55 bg-pf-arcane/10 text-pf-arcane"
+                  : "border-pf-parchment/15 bg-pf-parchment/5 text-pf-parchment/80",
           )}
         >
           {rarityLabel[rarity]}
         </span>
       </div>
 
-      <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-[rgba(230,225,213,.75)]">
+      <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-pf-parchment/75">
         {description}
       </p>
 
@@ -75,7 +75,7 @@ export function PFTemplateCard({
           {tags.slice(0, 4).map((tag) => (
             <span
               key={tag}
-              className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs font-semibold text-[rgba(230,225,213,.70)]"
+              className="rounded-full border border-pf-parchment/10 bg-pf-coal/25 px-3 py-1 text-xs font-semibold text-pf-parchment/70"
             >
               #{tag}
             </span>
@@ -85,7 +85,7 @@ export function PFTemplateCard({
 
       <div className="mt-5 pf-divider" />
 
-      <div className="mt-3 flex items-center justify-between text-xs text-[rgba(230,225,213,.6)]">
+      <div className="mt-3 flex items-center justify-between text-xs text-pf-parchment/60">
         <span>{footerLeft}</span>
         <span>{footerRight}</span>
       </div>

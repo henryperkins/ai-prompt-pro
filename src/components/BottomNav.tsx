@@ -18,7 +18,7 @@ export function BottomNav() {
             key={to}
             to={to}
             className={cx(
-              "mobile-route-link flex min-h-[3.5rem] flex-1 flex-col items-center justify-center gap-1 rounded-md px-1 py-2 text-[0.875rem] leading-4 font-medium transition-colors",
+              "mobile-route-link flex min-h-[3.5rem] flex-1 flex-col items-center justify-center gap-1 rounded-md px-1 py-2 text-sm leading-4 font-medium transition-colors",
               isActive
                 ? "text-primary font-medium"
                 : "text-muted-foreground hover:text-foreground",

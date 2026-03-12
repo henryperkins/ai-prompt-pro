@@ -91,7 +91,7 @@ function PresetCard({
           </Button>
         </div>
 
-        <p className="line-clamp-2 text-[0.9375rem] leading-relaxed text-foreground/92">{template.description}</p>
+        <p className="line-clamp-2 text-sm leading-relaxed text-foreground/92 sm:text-base">{template.description}</p>
 
         <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
           <span className="font-medium text-foreground/92">Starter:</span> {template.starterPrompt}

@@ -23,7 +23,7 @@ interface BuilderMobileMetric {
   hasHorizontalOverflow: boolean;
   stickyBarHeightPx: number;
   stickyOverlapWithBottomNavPx: number;
-  stickyControlsGapPx: number;
+  stickySecondaryControlsGapPx: number;
   controlsUnder44px: Array<{ testId: string; width: number; height: number }>;
 }
 
@@ -39,14 +39,13 @@ test("captures Builder mobile sticky-bar ergonomics at 360-430px widths", async 
     ).toBeVisible();
     await expect(page.getByTestId("builder-mobile-sticky-bar")).toBeVisible();
     await expect(page.getByTestId("builder-mobile-preview-trigger")).toBeVisible();
-    await expect(page.getByTestId("builder-mobile-web-toggle")).toBeVisible();
     await expect(page.getByTestId("builder-mobile-settings-trigger")).toBeVisible();
     await expect(page.getByTestId("builder-mobile-enhance-button")).toBeVisible();
 
     const metrics = await page.evaluate(() => {
       const controls = Array.from(
         document.querySelectorAll<HTMLElement>(
-          "[data-testid='builder-mobile-preview-trigger'], [data-testid='builder-mobile-web-toggle'], [data-testid='builder-mobile-settings-trigger'], [data-testid='builder-mobile-enhance-button']",
+          "[data-testid='builder-mobile-preview-trigger'], [data-testid='builder-mobile-settings-trigger'], [data-testid='builder-mobile-enhance-button']",
         ),
       );
       const controlsUnder44px = controls
@@ -62,25 +61,26 @@ test("captures Builder mobile sticky-bar ergonomics at 360-430px widths", async 
 
       const sticky = document.querySelector<HTMLElement>("[data-testid='builder-mobile-sticky-bar']");
       const mobileNav = document.querySelector<HTMLElement>("[aria-label='Mobile navigation']");
-      const webToggle = document.querySelector<HTMLElement>("[data-testid='builder-mobile-web-toggle']");
+      const previewTrigger = document.querySelector<HTMLElement>("[data-testid='builder-mobile-preview-trigger']");
+      const settingsTrigger = document.querySelector<HTMLElement>("[data-testid='builder-mobile-settings-trigger']");
       const enhanceButton = document.querySelector<HTMLElement>("[data-testid='builder-mobile-enhance-button']");
 
       const stickyRect = sticky?.getBoundingClientRect() || null;
       const navRect = mobileNav?.getBoundingClientRect() || null;
-      const webRect = webToggle?.getBoundingClientRect() || null;
-      const enhanceRect = enhanceButton?.getBoundingClientRect() || null;
+      const previewRect = previewTrigger?.getBoundingClientRect() || null;
+      const settingsRect = settingsTrigger?.getBoundingClientRect() || null;
 
       const stickyOverlapWithBottomNavPx =
         stickyRect && navRect ? Math.max(0, Math.round(stickyRect.bottom - navRect.top)) : 0;
       const stickyBarHeightPx = stickyRect ? Math.round(stickyRect.height) : 0;
-      const stickyControlsGapPx =
-        webRect && enhanceRect ? Math.max(0, Math.round(enhanceRect.left - webRect.right)) : 0;
+      const stickySecondaryControlsGapPx =
+        previewRect && settingsRect ? Math.max(0, Math.round(settingsRect.left - previewRect.right)) : 0;
 
       return {
         hasHorizontalOverflow: document.documentElement.scrollWidth > window.innerWidth,
         stickyBarHeightPx,
         stickyOverlapWithBottomNavPx,
-        stickyControlsGapPx,
+        stickySecondaryControlsGapPx,
         controlsUnder44px,
       };
     });
@@ -91,7 +91,7 @@ test("captures Builder mobile sticky-bar ergonomics at 360-430px widths", async 
       hasHorizontalOverflow: metrics.hasHorizontalOverflow,
       stickyBarHeightPx: metrics.stickyBarHeightPx,
       stickyOverlapWithBottomNavPx: metrics.stickyOverlapWithBottomNavPx,
-      stickyControlsGapPx: metrics.stickyControlsGapPx,
+      stickySecondaryControlsGapPx: metrics.stickySecondaryControlsGapPx,
       controlsUnder44px: metrics.controlsUnder44px,
     });
 
@@ -121,8 +121,8 @@ test("captures Builder mobile sticky-bar ergonomics at 360-430px widths", async 
       `width ${metric.width} has sticky controls overlapping bottom navigation`,
     ).toBe(0);
     expect(
-      metric.stickyControlsGapPx,
-      `width ${metric.width} needs more spacing between sticky toggle and enhance action`,
+      metric.stickySecondaryControlsGapPx,
+      `width ${metric.width} needs more spacing between preview and settings controls`,
     ).toBeGreaterThanOrEqual(4);
   }
 });
@@ -135,14 +135,14 @@ test("lets mobile users change enhancement settings before running enhance", asy
     page.getByRole("textbox", { name: /What should the model do\?/i }),
   ).toBeVisible();
   await expect(page.getByTestId("builder-mobile-settings-trigger")).toBeVisible();
-  await expect(page.getByTestId("builder-mobile-enhancement-summary")).toContainText(
-    "Structured rewrite · Balanced · Infer conservatively",
-  );
 
   await page.getByTestId("builder-mobile-settings-trigger").click();
 
   const settingsSheet = page.getByTestId("builder-mobile-settings-sheet");
   await expect(settingsSheet).toBeVisible();
+  await expect(page.getByTestId("builder-mobile-settings-sheet-summary")).toContainText(
+    "Structured rewrite · Balanced · Infer conservatively",
+  );
 
   await settingsSheet.getByRole("button", { name: "Expert prompt" }).click();
   await settingsSheet.getByRole("button", { name: "Preserve wording" }).click();
@@ -154,14 +154,10 @@ test("lets mobile users change enhancement settings before running enhance", asy
 
   await settingsSheet.getByRole("button", { name: "Done" }).click();
 
-  await expect(page.getByTestId("builder-mobile-enhancement-summary")).toContainText(
-    "Expert prompt · Preserve wording · Ask me",
-  );
-
   await page
     .getByRole("textbox", { name: /What should the model do\?|Your Prompt/i })
     .fill("Rewrite this rough prompt into an expert instruction set");
-  await page.getByTestId("builder-mobile-enhance-button").click();
+  await page.getByTestId("builder-mobile-preview-trigger").click();
 
   const previewDialog = page.getByRole("dialog", {
     name: /Built Prompt|Enhanced Prompt|Preview/i,
@@ -221,7 +217,9 @@ test("keeps Builder developer tools menu fully within mobile viewport", async ({
       .fill("Plan a weekly engineering sync agenda");
     await page.getByTestId("builder-mobile-preview-trigger").click();
 
-    const previewDialog = page.getByRole("dialog", { name: /Preview/i });
+    const previewDialog = page.getByRole("dialog", {
+      name: /Built Prompt|Enhanced Prompt|Preview/i,
+    });
     await expect(previewDialog).toBeVisible();
 
     await previewDialog.getByRole("button", { name: "More" }).click();

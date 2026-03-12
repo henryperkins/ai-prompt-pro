@@ -23,4 +23,5 @@ Use this checklist when reviewing typography changes.
 - Long-form prose line length stays in readable range on desktop (`~45–75` chars per line).
 
 ## Automated Guardrail
+- Run `npm run check:no-arbitrary-typography` to catch ad-hoc `text-[...]`, `tracking-[...]`, and `leading-[...]` utilities in shipped source.
 - Run `npm run test:mobile -- --grep "Typography guardrails"` to validate core typography thresholds.

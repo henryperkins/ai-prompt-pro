@@ -292,11 +292,8 @@ async function main() {
 
   const pfRows = summarizePfUsage(pfUsage);
 
-  const today = new Date().toISOString().slice(0, 10);
   const markdown = [
     "# Design System Baseline Inventory",
-    "",
-    `Last updated: ${today}`,
     "",
     "This file captures the pre-normalization baseline requested in the design-system refactor checklist (section 1.3).",
     "",

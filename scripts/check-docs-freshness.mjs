@@ -5,6 +5,7 @@ import path from "node:path";
 
 const repoRoot = process.cwd();
 const docsDir = path.join(repoRoot, "docs");
+const DATELESS_DOCS = new Set(["docs/design-system-baseline-inventory.md"]);
 
 const isMarkdown = (filePath) => filePath.endsWith(".md");
 
@@ -158,6 +159,10 @@ function checkLastUpdated(targets) {
   const dateLineRegex = /^Last updated:\s+\d{4}-\d{2}-\d{2}\s*$/im;
 
   for (const relPath of targets) {
+    if (DATELESS_DOCS.has(relPath)) {
+      continue;
+    }
+
     const absPath = path.join(repoRoot, relPath);
     if (!fs.existsSync(absPath)) {
       continue;

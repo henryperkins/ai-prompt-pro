@@ -116,7 +116,6 @@ function CommunityPostCardComponent({
   const [commentsOpen, setCommentsOpen] = useState(false);
   const promptBody = (post.enhancedPrompt || post.starterPrompt || "").trim();
   const tokenEstimate = useMemo(() => estimateTokens(promptBody), [promptBody]);
-  const tokenEstimateDescription = `Estimated token count: ${tokenEstimate} tokens. Approximate, based on 1.35x word count.`;
   const ratingAverage = post.ratingAverage ?? 0;
   const ratingCount = post.ratingCount ?? 0;
   const ratingSummaryAriaLabel = `Average rating ${ratingAverage.toFixed(1)} from ${ratingCount} rating${ratingCount === 1 ? "" : "s"}`;
@@ -158,7 +157,7 @@ function CommunityPostCardComponent({
                     type="button"
                     size="sm"
                     variant={followingUserIds?.has(post.authorId) ? "secondary" : "primary"}
-                    className="type-button-label h-9 min-w-11 px-3 text-[0.8125rem] leading-none sm:h-8"
+                    className="type-button-label h-9 min-w-11 px-3 sm:h-8"
                     onClick={() => onToggleFollow(post.authorId, followingUserIds?.has(post.authorId) ?? false)}
                   >
                     {followingUserIds?.has(post.authorId) ? "Following" : "Follow"}
@@ -294,12 +293,11 @@ function CommunityPostCardComponent({
         <div className="type-meta flex flex-wrap items-center justify-between gap-2.5 border-t border-border/65 pt-3 text-foreground/80">
           <div className="flex flex-wrap items-center gap-3">
             <span
+              className="type-numeric inline-flex items-center gap-1 font-mono"
               title="Estimated token count (~1.35x word count)"
-              className="type-numeric inline-flex items-center gap-1 font-mono text-inherit"
             >
-              <Database aria-hidden="true" className="h-3.5 w-3.5" />
-              <span aria-hidden="true">{tokenEstimate}t</span>
-              <span className="sr-only">{tokenEstimateDescription}</span>
+              <Database className="h-3.5 w-3.5" />
+              {tokenEstimate}t
             </span>
             <span className="type-numeric inline-flex items-center gap-1">
               <GitBranch className="h-3.5 w-3.5" />

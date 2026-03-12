@@ -41,4 +41,16 @@ describe("check-no-literal-colors AST scanner", () => {
     const violations = collectLiteralColorUsages(source, "fixture.tsx");
     expect(violations).toHaveLength(0);
   });
+
+  it("ignores token-backed svg and filter color functions", async () => {
+    const { collectLiteralColorUsages } = await loadChecker();
+    const source = `
+      export const glow = "drop-shadow(0 0 18px rgb(var(--pf-gold-rgb) / 0.35))";
+      export const stopColor = "rgb(var(--pf-parchment-rgb) / 0.35)";
+      export const stroke = "rgb(var(--pf-slate-rgb) / 0.65)";
+    `;
+
+    const violations = collectLiteralColorUsages(source, "fixture.tsx");
+    expect(violations).toHaveLength(0);
+  });
 });

@@ -84,7 +84,7 @@ function AdjustDetailsGroup({
               <Badge
                 variant="pill"
                 tone="brand"
-                className="text-[10px] px-1.5 py-0"
+                className="text-2xs px-1.5 py-0"
               >
                 AI
               </Badge>
@@ -148,7 +148,7 @@ export function BuilderAdjustDetails({
       <Badge
         variant="pill"
         tone="brand"
-        className="ml-1.5 text-[10px] px-1.5 py-0"
+        className="ml-1.5 text-2xs px-1.5 py-0"
       >
         AI
       </Badge>

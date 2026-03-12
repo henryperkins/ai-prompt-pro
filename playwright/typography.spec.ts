@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 
 const MOBILE_VIEWPORT = { width: 390, height: 844 } as const;
 const DESKTOP_VIEWPORT = { width: 1280, height: 900 } as const;
@@ -8,12 +8,38 @@ function toNumber(value: string | null | undefined): number {
   return Number.parseFloat(value) || 0;
 }
 
+async function readTypeMetrics(locator: Locator): Promise<{
+  fontSize: string;
+  lineHeight: string;
+}> {
+  return locator.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      fontSize: style.fontSize,
+      lineHeight: style.lineHeight,
+    };
+  });
+}
+
 test.describe("Typography guardrails", () => {
   test("builder typography stays readable on mobile and desktop", async ({ page }) => {
     for (const viewport of [MOBILE_VIEWPORT, DESKTOP_VIEWPORT]) {
       await page.setViewportSize(viewport);
       await page.goto("/");
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+
+      const promptField = page.getByTestId("builder-primary-prompt-field");
+      const promptInput = promptField.getByRole("textbox");
+
+      await expect(promptInput).toBeVisible();
+      const promptInputId = await promptInput.getAttribute("id");
+      expect(promptInputId).not.toBeNull();
+      if (!promptInputId) {
+        throw new Error("Builder prompt input is missing an id");
+      }
+
+      const promptLabel = page.locator(`label[for='${promptInputId}']`);
+      await expect(promptLabel).toBeVisible();
 
       const metrics = await page.evaluate(() => {
         const css = (selector: string) => {
@@ -33,10 +59,10 @@ test.describe("Typography guardrails", () => {
           })(),
           heroTitle: css("[data-testid='builder-hero'] h1"),
           heroSubtitle: css("[data-testid='builder-hero'] > p"),
-          promptLabel: css("label[for='builder-original-prompt']"),
-          promptInput: css("#builder-original-prompt"),
         };
       });
+      const promptLabelMetrics = await readTypeMetrics(promptLabel);
+      const promptInputMetrics = await readTypeMetrics(promptInput);
 
       const isMobile = viewport.width < 640;
       const minBodySize = isMobile ? 14 : 16;
@@ -47,9 +73,9 @@ test.describe("Typography guardrails", () => {
       expect(toNumber(metrics.heroTitle?.fontSize)).toBeGreaterThanOrEqual(isMobile ? 24 : 30);
       expect(toNumber(metrics.heroSubtitle?.fontSize)).toBeGreaterThanOrEqual(minSubtitleSize);
       expect(toNumber(metrics.heroSubtitle?.lineHeight)).toBeGreaterThanOrEqual(minSubtitleLine);
-      expect(toNumber(metrics.promptLabel?.fontSize)).toBeGreaterThanOrEqual(14);
-      expect(toNumber(metrics.promptInput?.fontSize)).toBeGreaterThanOrEqual(16);
-      expect(toNumber(metrics.promptInput?.lineHeight)).toBeGreaterThanOrEqual(24);
+      expect(toNumber(promptLabelMetrics.fontSize)).toBeGreaterThanOrEqual(14);
+      expect(toNumber(promptInputMetrics.fontSize)).toBeGreaterThanOrEqual(16);
+      expect(toNumber(promptInputMetrics.lineHeight)).toBeGreaterThanOrEqual(24);
     }
   });
 

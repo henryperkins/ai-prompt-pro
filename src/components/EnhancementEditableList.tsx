@@ -14,6 +14,8 @@ function formatLabeledList(label: string, values: string[]): string {
   return [label, ...values.map((value, index) => `${index + 1}. ${value}`)].join("\n");
 }
 
+const COMPACT_ACTION_BUTTON_CLASS_NAME = "h-6 px-2 text-2xs";
+
 interface EnhancementEditableListProps {
   field: EditableEnhancementListField;
   label: string;
@@ -106,7 +108,7 @@ export function EnhancementEditableList({
         <div className="flex items-center gap-2">
           <p className="text-xs font-medium text-muted-foreground">{label}</p>
           {hasEdits && (
-            <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+            <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-2xs font-medium text-primary">
               Edited
             </span>
           )}
@@ -117,7 +119,7 @@ export function EnhancementEditableList({
               type="button"
               variant="tertiary"
               size="sm"
-              className="h-6 px-2 text-[11px]"
+              className={COMPACT_ACTION_BUTTON_CLASS_NAME}
               onClick={() => onApplyToPrompt(field, draftItems)}
             >
               Apply to prompt
@@ -128,7 +130,7 @@ export function EnhancementEditableList({
               type="button"
               variant="tertiary"
               size="sm"
-              className="h-6 px-2 text-[11px]"
+              className={COMPACT_ACTION_BUTTON_CLASS_NAME}
               onClick={() => onApplyToSessionContext(label, content)}
             >
               Add to session context
@@ -139,7 +141,7 @@ export function EnhancementEditableList({
               type="button"
               variant="tertiary"
               size="sm"
-              className="h-6 px-2 text-[11px]"
+              className={COMPACT_ACTION_BUTTON_CLASS_NAME}
               onClick={() => onCopyText(label, content)}
             >
               Copy
@@ -166,7 +168,7 @@ export function EnhancementEditableList({
                       type="button"
                       variant="secondary"
                       size="sm"
-                      className="h-6 px-2 text-[11px]"
+                      className={COMPACT_ACTION_BUTTON_CLASS_NAME}
                       onClick={handleSave}
                     >
                       Save
@@ -175,14 +177,14 @@ export function EnhancementEditableList({
                       type="button"
                       variant="tertiary"
                       size="sm"
-                      className="h-6 px-2 text-[11px]"
+                      className={COMPACT_ACTION_BUTTON_CLASS_NAME}
                       onClick={handleCancel}
                     >
                       Cancel
                     </Button>
                   </div>
                   {validationError && (
-                    <p className="text-[11px] text-destructive">{validationError}</p>
+                    <p className="text-2xs text-destructive">{validationError}</p>
                   )}
                 </>
               ) : (
@@ -192,7 +194,7 @@ export function EnhancementEditableList({
                     type="button"
                     variant="tertiary"
                     size="sm"
-                    className="h-6 px-2 text-[11px]"
+                    className={COMPACT_ACTION_BUTTON_CLASS_NAME}
                     onClick={() => handleEdit(index)}
                   >
                     Edit

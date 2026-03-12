@@ -24,17 +24,17 @@ function getTierStroke(tier: Tier): { stroke: string; glow: string } {
     case "Legendary":
       return {
         stroke: "rgb(var(--pf-gold-rgb))",
-        glow: "drop-shadow(0 0 18px rgba(214,166,64,.35))",
+        glow: "drop-shadow(0 0 18px rgb(var(--pf-gold-rgb) / 0.35))",
       };
     case "Epic":
       return {
         stroke: "rgb(var(--pf-ember-rgb))",
-        glow: "drop-shadow(0 0 18px rgba(255,122,24,.28))",
+        glow: "drop-shadow(0 0 18px rgb(var(--pf-ember-rgb) / 0.28))",
       };
     case "Rare":
       return {
         stroke: "rgb(var(--pf-arcane-rgb))",
-        glow: "drop-shadow(0 0 18px rgba(18,200,181,.28))",
+        glow: "drop-shadow(0 0 18px rgb(var(--pf-arcane-rgb) / 0.28))",
       };
     default:
       return {
@@ -48,6 +48,13 @@ export function PFQualityGauge({ value, size = 128, showLabel = true }: PFQualit
   const normalizedValue = clamp(value, 0, 100);
   const tier = getTier(normalizedValue);
   const { stroke, glow } = getTierStroke(tier);
+  const gradientStart = "rgb(var(--pf-parchment-rgb) / 0.35)";
+  const gradientEnd = "rgb(var(--pf-coal-rgb) / 0.35)";
+  const trackStroke = "rgb(var(--pf-slate-rgb) / 0.65)";
+  const centerFill = "rgb(var(--pf-coal-rgb) / 0.88)";
+  const centerStroke = "rgb(var(--pf-gold-rgb) / 0.25)";
+  const valueFill = "rgb(var(--pf-parchment-rgb) / 0.95)";
+  const totalFill = "rgb(var(--pf-parchment-rgb) / 0.70)";
 
   const strokeWidth = Math.max(10, Math.round(size * 0.09));
   const radius = (size - strokeWidth) / 2;
@@ -61,9 +68,9 @@ export function PFQualityGauge({ value, size = 128, showLabel = true }: PFQualit
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ filter: glow }}>
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="rgba(255,255,255,0.35)" />
+            <stop offset="0%" stopColor={gradientStart} />
             <stop offset="40%" stopColor={stroke} />
-            <stop offset="100%" stopColor="rgba(0,0,0,0.35)" />
+            <stop offset="100%" stopColor={gradientEnd} />
           </linearGradient>
         </defs>
 
@@ -73,7 +80,7 @@ export function PFQualityGauge({ value, size = 128, showLabel = true }: PFQualit
           r={radius}
           fill="transparent"
           strokeWidth={strokeWidth}
-          style={{ stroke: "rgb(var(--pf-slate-rgb) / 0.65)" }}
+          style={{ stroke: trackStroke }}
         />
 
         <circle
@@ -93,7 +100,7 @@ export function PFQualityGauge({ value, size = 128, showLabel = true }: PFQualit
           cx={size / 2}
           cy={size / 2}
           r={Math.max(18, radius - strokeWidth * 0.75)}
-          style={{ fill: "rgb(var(--pf-coal-rgb) / 0.88)", stroke: "rgb(var(--pf-gold-rgb) / 0.25)" }}
+          style={{ fill: centerFill, stroke: centerStroke }}
         />
 
         <text
@@ -103,7 +110,7 @@ export function PFQualityGauge({ value, size = 128, showLabel = true }: PFQualit
           textAnchor="middle"
           fontSize={Math.round(size * 0.18)}
           fontWeight="800"
-          style={{ fill: "rgb(var(--pf-parchment-rgb) / 0.95)" }}
+          style={{ fill: valueFill }}
         >
           {Math.round(normalizedValue)}
         </text>
@@ -114,7 +121,7 @@ export function PFQualityGauge({ value, size = 128, showLabel = true }: PFQualit
           textAnchor="middle"
           fontSize={Math.round(size * 0.085)}
           fontWeight="700"
-          style={{ fill: "rgb(var(--pf-parchment-rgb) / 0.70)" }}
+          style={{ fill: totalFill }}
         >
           / 100
         </text>

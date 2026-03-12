@@ -1,7 +1,5 @@
 # Design System Baseline Inventory
 
-Last updated: 2026-03-10
-
 This file captures the pre-normalization baseline requested in the design-system refactor checklist (section 1.3).
 
 ## Core design-system components used by product screens
@@ -70,24 +68,24 @@ Scope: `src/**/*.ts(x)` excluding `src/styles/**` and `src/test/**`.
 | `pf-gilded-frame` | 12 | `src/components/PageShell.tsx`, `src/components/community/ProfileHero.tsx`, `src/pages/Community.tsx`, `src/pages/History.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/LibraryBulkEdit.tsx`, `src/pages/Presets.tsx`, _+4 more_ |
 | `pf-hero-surface` | 11 | `src/components/PageShell.tsx`, `src/components/community/ProfileHero.tsx`, `src/pages/Community.tsx`, `src/pages/History.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/LibraryBulkEdit.tsx`, `src/pages/Presets.tsx`, _+3 more_ |
 | `pf-community-page` | 5 | `src/pages/Community.tsx`, `src/pages/CommunityPost.tsx`, `src/pages/Contact.tsx`, `src/pages/NotFound.tsx`, `src/pages/Profile.tsx` |
+| `pf-gold` | 4 | `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFTemplateCard.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx` |
 | `pf-panel` | 4 | `src/pages/Community.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx` |
+| `pf-parchment` | 4 | `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFTemplateCard.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx` |
 | `pf-text-display` | 4 | `src/components/PageShell.tsx`, `src/components/community/ProfileHero.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx` |
 | `pf-divider` | 3 | `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFTemplateCard.tsx`, `src/pages/Index.tsx` |
-| `pf-gold` | 3 | `src/components/community/ProfileHero.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx` |
-| `pf-parchment` | 3 | `src/components/community/ProfileHero.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx` |
+| `pf-arcane` | 2 | `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFTemplateCard.tsx` |
 | `pf-arcane-rgb` | 2 | `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFQualityGauge.tsx` |
+| `pf-coal` | 2 | `src/components/fantasy/PFTemplateCard.tsx`, `src/pages/Index.tsx` |
 | `pf-coal-rgb` | 2 | `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFQualityGauge.tsx` |
 | `pf-community-preview` | 2 | `src/components/community/CommunityPostCard.tsx`, `src/components/community/CommunityPostDetail.tsx` |
 | `pf-dialog-surface` | 2 | `src/components/AuthDialog.tsx`, `src/pages/Community.tsx` |
+| `pf-ember` | 2 | `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFTemplateCard.tsx` |
 | `pf-ember-rgb` | 2 | `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFQualityGauge.tsx` |
 | `pf-gold-rgb` | 2 | `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFQualityGauge.tsx` |
 | `pf-nav-button` | 2 | `src/components/Header.tsx`, `src/components/PageShell.tsx` |
 | `pf-rarity-legendary` | 2 | `src/components/fantasy/PFTemplateCard.tsx`, `src/lib/community-rarity.ts` |
-| `pf-arcane` | 1 | `src/components/community/ProfileHero.tsx` |
-| `pf-coal` | 1 | `src/pages/Index.tsx` |
 | `pf-community-popover` | 1 | `src/pages/Community.tsx` |
 | `pf-community-toolbar` | 1 | `src/pages/Community.tsx` |
-| `pf-ember` | 1 | `src/components/community/ProfileHero.tsx` |
 | `pf-hero-dismissed` | 1 | `src/pages/Index.tsx` |
 | `pf-mobile-nav` | 1 | `src/components/BottomNav.tsx` |
 | `pf-nav-header` | 1 | `src/components/Header.tsx` |

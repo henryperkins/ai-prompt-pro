@@ -2461,7 +2461,7 @@ const Index = () => {
           >
             <X className="h-4 w-4" />
           </button>
-          <h1 className="pf-text-display mb-1 text-[1.75rem] font-bold tracking-tight text-pf-parchment/95 sm:mb-2 sm:text-3xl md:text-4xl">
+          <h1 className="pf-text-display mb-1 text-3xl font-bold tracking-tight text-pf-parchment/95 sm:mb-2 md:text-4xl">
             {heroCopy.headline}
           </h1>
           <p className="mx-auto max-w-2xl text-sm text-pf-parchment/90 sm:text-base">
@@ -2872,7 +2872,7 @@ const Index = () => {
             <Badge
               variant="pill"
               tone={score.total >= 75 ? "brand" : "default"}
-              className="relative h-10 min-w-16 justify-center overflow-hidden rounded-md px-2 text-sm font-semibold"
+              className="relative h-11 min-w-16 justify-center overflow-hidden rounded-md px-2 text-sm font-semibold"
             >
               <span
                 className="absolute inset-y-0 left-0 bg-primary/20 transition-all duration-300"
@@ -2888,7 +2888,7 @@ const Index = () => {
               enhanceLabel={mobileEnhanceLabel}
               size="md"
               fullWidth={false}
-              className="h-10 min-w-0 flex-1"
+              className="h-11 min-w-0 flex-1"
               dataTestId="builder-mobile-enhance-button"
             />
           </div>
@@ -2898,15 +2898,15 @@ const Index = () => {
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
-              className="interactive-chip flex-1 min-h-9 rounded-lg border border-border/80 bg-background/70 px-3 py-1.5 text-left"
+              className="interactive-chip flex-1 min-h-11 rounded-lg border border-border/80 bg-background/70 px-3 py-1.5 text-left"
               aria-label="Open output preview"
               data-testid="builder-mobile-preview-trigger"
             >
-              <div className="type-label-caps flex items-center gap-1.5 text-[0.7rem] font-medium text-foreground/85">
+              <div className="type-label-caps flex items-center gap-1.5 text-2xs font-medium text-foreground/85">
                 <Eye className="h-3.5 w-3.5" />
                 {mobilePreviewLabel}
               </div>
-              <p className="mt-0.5 truncate text-[0.7rem] leading-4 text-muted-foreground">
+              <p className="mt-0.5 truncate text-2xs leading-4 text-muted-foreground">
                 {mobilePreviewText}
               </p>
             </button>
@@ -2914,7 +2914,7 @@ const Index = () => {
               type="button"
               variant="secondary"
               size="sm"
-              className="h-9 shrink-0 gap-1.5 px-3 text-xs"
+              className="h-11 shrink-0 gap-1.5 px-3 text-sm"
               onClick={() => setMobileEnhancementSettingsOpen(true)}
               data-testid="builder-mobile-settings-trigger"
             >

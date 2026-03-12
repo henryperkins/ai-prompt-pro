@@ -50,6 +50,8 @@ function formatLabeledList(label: string, values: string[]): string {
   return [label, ...values.map((value, index) => `${index + 1}. ${value}`)].join("\n");
 }
 
+const COMPACT_ACTION_BUTTON_CLASS_NAME = "h-6 px-2 text-2xs";
+
 function trackStructuredApply(
   action: "apply_field" | "apply_all" | "copy" | "apply_to_context",
   field: string,
@@ -83,7 +85,7 @@ function InspectorSection({
             type="button"
             variant="tertiary"
             size="sm"
-            className="h-6 px-2 text-[11px]"
+            className={COMPACT_ACTION_BUTTON_CLASS_NAME}
             onClick={() => {
               onApply({
                 [fieldKey]: value,
@@ -116,7 +118,7 @@ function PlanSummaryRow({
 
   return (
     <div className="rounded-lg border border-border/50 bg-background/60 p-2.5">
-      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+      <p className="type-label-caps text-2xs font-medium text-muted-foreground">
         {label}
       </p>
       <p className="mt-1 text-xs leading-relaxed text-foreground/85">
@@ -151,7 +153,7 @@ function PlanListSection({
               type="button"
               variant="tertiary"
               size="sm"
-              className="h-6 px-2 text-[11px]"
+              className={COMPACT_ACTION_BUTTON_CLASS_NAME}
               onClick={() => {
                 onApplyToSessionContext(label, content);
                 trackStructuredApply("apply_to_context", label);
@@ -165,7 +167,7 @@ function PlanListSection({
               type="button"
               variant="tertiary"
               size="sm"
-              className="h-6 px-2 text-[11px]"
+              className={COMPACT_ACTION_BUTTON_CLASS_NAME}
               onClick={() => {
                 onCopyText(label, content);
                 trackStructuredApply("copy", label);

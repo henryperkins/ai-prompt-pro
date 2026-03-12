@@ -74,7 +74,7 @@ function SessionBody({
           </div>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <div className="rounded-lg border border-border/70 bg-background/70 p-3">
-              <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+              <p className="type-label-caps text-2xs font-medium text-muted-foreground">
                 Thread
               </p>
               <p className="mt-1 break-all text-xs text-foreground">
@@ -82,7 +82,7 @@ function SessionBody({
               </p>
             </div>
             <div className="rounded-lg border border-border/70 bg-background/70 p-3">
-              <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+              <p className="type-label-caps text-2xs font-medium text-muted-foreground">
                 Transport
               </p>
               <p className="mt-1 text-xs text-foreground">

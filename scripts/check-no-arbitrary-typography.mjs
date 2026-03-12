@@ -1,23 +1,19 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { collectLiteralColorUsages } from "./check-no-literal-colors-lib.mjs";
+import { collectArbitraryTypographyUsages } from "./check-no-arbitrary-typography-lib.mjs";
 
 const projectRoot = process.cwd();
 const srcRoot = path.join(projectRoot, "src");
 const sourceExtensions = new Set([".ts", ".tsx"]);
 
-const ignoredPathPrefixes = [
-  "src/test/",
-  "src/components/icons/",
-  "src/components/foundations/logo/",
-  "src/components/foundations/payment-icons/",
-];
-
 function shouldSkipFile(relativePath) {
+  if (relativePath.startsWith("src/test/")) {
+    return true;
+  }
   if (relativePath.includes(".stories.")) {
     return true;
   }
-  return ignoredPathPrefixes.some((prefix) => relativePath.startsWith(prefix));
+  return false;
 }
 
 async function* walk(dir) {
@@ -42,18 +38,19 @@ for await (const filePath of walk(srcRoot)) {
   if (shouldSkipFile(relativePath)) {
     continue;
   }
-  const refs = collectLiteralColorUsages(source, relativePath);
+
+  const refs = collectArbitraryTypographyUsages(source, relativePath);
   for (const ref of refs) {
-    violations.push(`${ref.filePath}:${ref.line} [${ref.kind}] -> ${ref.value}`);
+    violations.push(`${ref.filePath}:${ref.line} -> ${ref.value}`);
   }
 }
 
 if (violations.length > 0) {
-  console.error("Found literal color values in source (use semantic tokens/classes instead):");
+  console.error("Found arbitrary typography utilities in source (use tokenized text sizes and shared label utilities instead):");
   for (const violation of violations) {
     console.error(`- ${violation}`);
   }
   process.exit(1);
 }
 
-console.log("No literal color values found in scanned source files.");
+console.log("No arbitrary typography utilities found in scanned source files.");
