@@ -1,5 +1,11 @@
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { isConfiguredPublicApiKey as matchesConfiguredPublicApiKey } from "./public-api-key.mjs";
+import {
+  normalizeEnvValue as _normalizeEnvValue,
+  normalizeBool,
+  parseStringArrayValue,
+} from "./env-parse.mjs";
+import { headerValue } from "./http-helpers.mjs";
 
 export const DEFAULT_ROUTE_AUTH_POLICY = Object.freeze({
   allowPublicKey: true,
@@ -7,53 +13,15 @@ export const DEFAULT_ROUTE_AUTH_POLICY = Object.freeze({
   allowUserJwt: true,
 });
 
+/**
+ * Read an env value from a custom source object.
+ *
+ * @param {Record<string, string | undefined>} source
+ * @param {string} name
+ * @returns {string | undefined}
+ */
 function normalizeEnvValue(source, name) {
-  const value = source?.[name];
-  if (typeof value !== "string") return undefined;
-  const trimmed = value.trim();
-  return trimmed ? trimmed : undefined;
-}
-
-function normalizeBool(value, defaultValue = false) {
-  if (typeof value !== "string") return defaultValue;
-  const normalized = value.trim().toLowerCase();
-  if (!normalized) return defaultValue;
-  if (["1", "true", "yes", "on"].includes(normalized)) return true;
-  if (["0", "false", "no", "off"].includes(normalized)) return false;
-  throw new Error(`Invalid boolean value "${value}".`);
-}
-
-function parseStringArrayValue(rawValue) {
-  if (typeof rawValue !== "string") return undefined;
-  const raw = rawValue.trim();
-  if (!raw) return undefined;
-
-  if (raw.startsWith("[")) {
-    let parsed;
-    try {
-      parsed = JSON.parse(raw);
-    } catch (error) {
-      throw new Error("Auth audience config must be a JSON array of strings.", { cause: error });
-    }
-    if (!Array.isArray(parsed) || !parsed.every((entry) => typeof entry === "string")) {
-      throw new Error("Auth audience config must be a JSON array of strings.");
-    }
-    const normalized = parsed.map((entry) => entry.trim()).filter(Boolean);
-    return normalized.length > 0 ? normalized : undefined;
-  }
-
-  const normalized = raw
-    .split(",")
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-  return normalized.length > 0 ? normalized : undefined;
-}
-
-function headerValue(req, headerName) {
-  const rawValue = req?.headers?.[headerName.toLowerCase()];
-  if (typeof rawValue === "string") return rawValue;
-  if (Array.isArray(rawValue)) return rawValue[0];
-  return undefined;
+  return _normalizeEnvValue(name, source);
 }
 
 function parseBearerToken(req) {

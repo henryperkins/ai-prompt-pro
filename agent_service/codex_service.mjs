@@ -1,8 +1,46 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import process from "node:process";
 import { Codex } from "@openai/codex-sdk";
 import { WebSocketServer } from "ws";
+
+// ── Shared utilities ────────────────────────────────────────────────────────
+import {
+  normalizeEnvValue,
+  normalizeBool,
+  parsePositiveIntegerEnv,
+  parseJsonObjectEnv,
+  parseStringArrayEnv,
+  parseEnumEnv,
+  toFiniteNumber,
+  asNonEmptyString,
+  hasText,
+  truncateString,
+  normalizeStringRecord,
+} from "./env-parse.mjs";
+import { cleanLogFields, logEvent } from "./logging.mjs";
+import {
+  createRequestContext,
+  setRequestError,
+  completeRequestContext,
+  attachHttpRequestLifecycleLogging,
+  captureUsageMetrics,
+  inferErrorCodeFromStatus,
+  hashUserIdentifier,
+  hashTextForLogs,
+  transportForEndpoint,
+} from "./request-context.mjs";
+import {
+  json,
+  beginSse,
+  writeSse,
+  endSse,
+  headerValue,
+  resolveCors,
+  baseCorsHeaders,
+} from "./http-helpers.mjs";
+
+// ── Domain modules ──────────────────────────────────────────────────────────
 import {
   buildBuilderFieldInferenceResult,
   buildInferUserMessage,
@@ -41,10 +79,7 @@ import {
   resolveProviderConfig,
 } from "./codex-config.mjs";
 import {
-  assertPublicHttpTarget,
-  createUrlNotAllowedError,
   isPrivateHost,
-  isRedirectStatus,
   isUrlNotAllowedError,
   normalizeIpAddress,
   resolveClientIp,
@@ -54,7 +89,6 @@ import { isPayloadTooLargeError, readBodyJsonWithLimit } from "./http-body.mjs";
 import { extractItemText } from "./stream-text.mjs";
 import {
   classifyStreamFailure,
-  isRateLimitMessage,
   resolveRequestCompletionStatus,
   statusFromErrorCode,
 } from "./stream-errors.mjs";
@@ -63,16 +97,60 @@ import {
   resolveAuthConfig,
 } from "./auth.mjs";
 import { createRateLimiter } from "./rate-limit.mjs";
-import {
-  hasOnlyRetrySafeCodexPreludeEvents,
-  isRetrySafeCodexPreludeEvent,
-} from "./codex-stream-prelude.mjs";
 import { resolveActiveCodexThreadId } from "./codex-thread-state.mjs";
 import {
   isAbortLikeError,
-  sleepWithSignal,
   throwIfAborted,
 } from "./request-abort-utils.mjs";
+
+// ── Extracted domain modules ────────────────────────────────────────────────
+import {
+  bindAbortControllers,
+  fetchPageWithHeaderFallback,
+  readBodyWithLimit,
+  responseMimeType,
+  isTextLikeContentType,
+  looksLikeBinaryPayload,
+  extractTitle,
+  normalizeExtractableText,
+  clampExtractText,
+  parseInputUrl,
+  isTimeoutError,
+  summarizeExtractedText,
+  createExtractUrlCache,
+} from "./url-extract.mjs";
+import {
+  isAgentMessageItemType,
+  isWorkflowWebSearchItemType,
+  isCountableWorkflowWebSearchItemType,
+  extractWorkflowWebSearchQuery,
+  buildAnalyzeRequestWorkflowDetail,
+  buildSourceContextWorkflowUpdate,
+  buildWebSearchWorkflowDetail,
+  buildGeneratePromptWorkflowDetail,
+  emitEnhancementWorkflowStep,
+  truncateWorkflowDetail,
+  idFromItem,
+  typeFromItem,
+} from "./enhance-workflow.mjs";
+import {
+  runStreamedWithRetry,
+  runBufferedWithRetry,
+} from "./codex-retry.mjs";
+import {
+  ENHANCE_WS_PATH,
+  ENHANCE_WS_PROTOCOL,
+  parseWebSocketProtocols,
+  extractWebSocketAuthHeadersFromPayload,
+  createWebSocketRequestView,
+  isWebSocketOpen,
+  closeWebSocket,
+  writeWebSocketError,
+  classifyWebSocketAuthErrorCode,
+  classifyHttpAuthErrorCode,
+  createConnectionSlotTracker,
+  rejectWebSocketUpgrade,
+} from "./ws-helpers.mjs";
 
 // ---------------------------------------------------------------------------
 // Resolve provider from ~/.codex/config.toml (optionally via CODEX_PROFILE)
@@ -265,8 +343,6 @@ const REASONING_EFFORTS = new Set(["minimal", "low", "medium", "high", "xhigh"])
 const REASONING_SUMMARIES = new Set(["auto", "concise", "detailed"]);
 const WEB_SEARCH_MODES = new Set(["disabled", "cached", "live"]);
 const APPROVAL_POLICIES = new Set(["never", "on-request", "on-failure", "untrusted"]);
-const SERVICE_NAME = "ai-prompt-pro-codex-service";
-
 if (HAS_MISSING_AZURE_MODEL) {
   logEvent("warn", "provider_model_not_set", {
     error_code: "provider_model_not_set",
@@ -276,255 +352,6 @@ if (HAS_MISSING_AZURE_MODEL) {
     provider: CODEX_CONFIG?.provider,
     config_source: CODEX_CONFIG_SOURCE,
   });
-}
-
-function cleanLogFields(fields) {
-  const entries = Object.entries(fields || {});
-  return Object.fromEntries(entries.filter(([, value]) => value !== undefined));
-}
-
-function logEvent(level, event, fields = {}) {
-  const payload = cleanLogFields({
-    timestamp: new Date().toISOString(),
-    level,
-    event,
-    service: SERVICE_NAME,
-    ...fields,
-  });
-  const serialized = JSON.stringify(payload);
-  if (level === "error") {
-    console.error(serialized);
-    return;
-  }
-  if (level === "warn") {
-    console.warn(serialized);
-    return;
-  }
-  console.log(serialized);
-}
-
-function toFiniteNumber(value) {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string" && value.trim()) {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return undefined;
-}
-
-function hashUserIdentifier(userId) {
-  if (typeof userId !== "string") return undefined;
-  const normalized = userId.trim();
-  if (!normalized) return undefined;
-  return createHash("sha256").update(normalized).digest("hex").slice(0, 16);
-}
-
-function hashTextForLogs(value) {
-  if (typeof value !== "string" || !value) return undefined;
-  return createHash("sha256").update(value).digest("hex").slice(0, 16);
-}
-
-function inferErrorCodeFromStatus(statusCode) {
-  if (!Number.isFinite(statusCode)) return undefined;
-  if (statusCode === 401) return "auth_session_invalid";
-  if (statusCode === 403) return "forbidden";
-  if (statusCode === 404) return "not_found";
-  if (statusCode === 405) return "method_not_allowed";
-  if (statusCode === 408 || statusCode === 504) return "request_timeout";
-  if (statusCode === 413) return "payload_too_large";
-  if (statusCode === 422) return "bad_response";
-  if (statusCode === 429) return "rate_limited";
-  if (statusCode === 499) return "request_aborted";
-  if (statusCode === 503) return "service_unavailable";
-  if (statusCode >= 500) return "service_error";
-  if (statusCode >= 400) return "bad_request";
-  return undefined;
-}
-
-function createRequestContext(requestId, endpoint, method, transport) {
-  return {
-    requestId,
-    endpoint,
-    method,
-    transport,
-    startedAt: Date.now(),
-    retryCount: 0,
-    circuitState: "closed",
-    userIdHash: undefined,
-    authMode: undefined,
-    usageInputTokens: undefined,
-    usageOutputTokens: undefined,
-    errorCode: undefined,
-    errorMessage: undefined,
-    statusCode: undefined,
-    completed: false,
-  };
-}
-
-function setRequestError(requestContext, errorCode, errorMessage, statusCode) {
-  if (!requestContext) return;
-  if (typeof errorCode === "string" && errorCode.trim()) {
-    requestContext.errorCode = errorCode.trim();
-  }
-  if (typeof errorMessage === "string" && errorMessage.trim()) {
-    requestContext.errorMessage = errorMessage.trim().slice(0, 400);
-  }
-  if (Number.isFinite(statusCode)) {
-    requestContext.statusCode = statusCode;
-  }
-}
-
-function completeRequestContext(requestContext, statusCode) {
-  if (!requestContext || requestContext.completed) return;
-  requestContext.completed = true;
-  const durationMs = Math.max(0, Date.now() - requestContext.startedAt);
-  const resolvedStatus = resolveRequestCompletionStatus({
-    transportStatusCode: statusCode,
-    requestStatusCode: requestContext.statusCode,
-    errorCode: requestContext.errorCode,
-  });
-  const resolvedErrorCode = requestContext.errorCode || inferErrorCodeFromStatus(resolvedStatus);
-  const basePayload = cleanLogFields({
-    request_id: requestContext.requestId,
-    endpoint: requestContext.endpoint,
-    method: requestContext.method,
-    transport: requestContext.transport,
-    status_code: resolvedStatus,
-    duration_ms: durationMs,
-    retry_count: requestContext.retryCount,
-    circuit_state: requestContext.circuitState,
-    error_code: resolvedErrorCode,
-    error_message: requestContext.errorMessage,
-    user_id_hash: requestContext.userIdHash,
-    auth_mode: requestContext.authMode,
-    usage_input_tokens: requestContext.usageInputTokens,
-    usage_output_tokens: requestContext.usageOutputTokens,
-  });
-
-  if (resolvedErrorCode) {
-    const level = resolvedStatus >= 500 ? "error" : "warn";
-    logEvent(level, "request_error", basePayload);
-  }
-  const endLevel = resolvedStatus >= 500 ? "error" : resolvedStatus >= 400 ? "warn" : "info";
-  logEvent(endLevel, "request_end", basePayload);
-}
-
-function attachHttpRequestLifecycleLogging(res, requestContext) {
-  res.on("finish", () => {
-    completeRequestContext(requestContext, res.statusCode);
-  });
-  res.on("close", () => {
-    if (requestContext?.completed) return;
-    const closedBeforeFinish = !res.writableEnded;
-    if (closedBeforeFinish && !requestContext.errorCode) {
-      setRequestError(requestContext, "request_aborted", "Client disconnected before response completed.");
-    }
-    const statusCode = closedBeforeFinish ? 499 : res.statusCode;
-    completeRequestContext(requestContext, statusCode);
-  });
-}
-
-function transportForEndpoint(endpoint) {
-  if (endpoint === "/enhance") return "sse";
-  if (endpoint === ENHANCE_WS_PATH) return "ws";
-  return "http";
-}
-
-function captureUsageMetrics(requestContext, usage) {
-  if (!requestContext || !usage || typeof usage !== "object") return;
-  const inputTokens = toFiniteNumber(
-    usage.input_tokens
-    ?? usage.inputTokens
-    ?? usage.prompt_tokens
-    ?? usage.promptTokens,
-  );
-  const outputTokens = toFiniteNumber(
-    usage.output_tokens
-    ?? usage.outputTokens
-    ?? usage.completion_tokens
-    ?? usage.completionTokens,
-  );
-  if (inputTokens !== undefined) {
-    requestContext.usageInputTokens = (requestContext.usageInputTokens || 0) + inputTokens;
-  }
-  if (outputTokens !== undefined) {
-    requestContext.usageOutputTokens = (requestContext.usageOutputTokens || 0) + outputTokens;
-  }
-}
-
-function normalizeEnvValue(name) {
-  const value = process.env[name];
-  if (typeof value !== "string") return undefined;
-  const trimmed = value.trim();
-  return trimmed ? trimmed : undefined;
-}
-
-function normalizeBool(value, defaultValue = false) {
-  if (typeof value !== "string") return defaultValue;
-  const normalized = value.trim().toLowerCase();
-  if (!normalized) return defaultValue;
-  if (["1", "true", "yes", "on"].includes(normalized)) return true;
-  if (["0", "false", "no", "off"].includes(normalized)) return false;
-  throw new Error(`Invalid boolean value "${value}".`);
-}
-
-function parseJsonObjectEnv(name) {
-  const raw = normalizeEnvValue(name);
-  if (!raw) return undefined;
-  let parsed;
-  try {
-    parsed = JSON.parse(raw);
-  } catch (error) {
-    throw new Error(`${name} must be valid JSON.`, { cause: error });
-  }
-  if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
-    throw new Error(`${name} must be a JSON object.`);
-  }
-  return parsed;
-}
-
-function parseStringArrayEnv(name) {
-  const raw = normalizeEnvValue(name);
-  if (!raw) return undefined;
-
-  if (raw.startsWith("[")) {
-    let parsed;
-    try {
-      parsed = JSON.parse(raw);
-    } catch (error) {
-      throw new Error(`${name} must be a JSON array of strings.`, { cause: error });
-    }
-    if (!Array.isArray(parsed) || !parsed.every((entry) => typeof entry === "string")) {
-      throw new Error(`${name} must be a JSON array of strings.`);
-    }
-    const normalized = parsed.map((entry) => entry.trim()).filter(Boolean);
-    return normalized.length > 0 ? normalized : undefined;
-  }
-
-  const normalized = raw
-    .split(",")
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-  return normalized.length > 0 ? normalized : undefined;
-}
-
-function parseEnumEnv(name, allowedValues) {
-  const raw = normalizeEnvValue(name);
-  if (!raw) return undefined;
-  if (!allowedValues.has(raw)) {
-    throw new Error(`${name} has invalid value "${raw}".`);
-  }
-  return raw;
-}
-
-function parsePositiveIntegerEnv(name, defaultValue) {
-  const raw = normalizeEnvValue(name);
-  if (!raw) return defaultValue;
-  const parsed = Number.parseInt(raw, 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    throw new Error(`${name} must be a positive integer.`);
-  }
-  return parsed;
 }
 
 function resolveConfiguredCodexModel() {
@@ -597,18 +424,6 @@ function sanitizeCodexExecErrorMessage(message) {
   );
 }
 
-function normalizeStringRecord(value) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
-  const record = {};
-  for (const [key, raw] of Object.entries(value)) {
-    if (typeof raw !== "string") {
-      throw new Error("CODEX_ENV_JSON must contain only string values.");
-    }
-    record[key] = raw;
-  }
-  return Object.keys(record).length > 0 ? record : undefined;
-}
-
 const SERVICE_CONFIG = (() => {
   const host = normalizeEnvValue("HOST") || "0.0.0.0";
   const portRaw = normalizeEnvValue("PORT") || "8001";
@@ -664,25 +479,6 @@ if (!STRICT_PUBLIC_API_KEY) {
 
 const SERVICE_AUTH_CONFIG = resolveAuthConfig(process.env);
 
-const TEXTUAL_CONTENT_TYPES = new Set([
-  "application/xhtml+xml",
-  "application/xml",
-  "text/xml",
-  "application/json",
-  "application/ld+json",
-  "application/rss+xml",
-  "application/atom+xml",
-  "application/javascript",
-  "application/x-javascript",
-  "application/ecmascript",
-]);
-
-const ENHANCE_WS_PATH = "/enhance/ws";
-const ENHANCE_WS_PROTOCOL = "promptforge.enhance.v1";
-const ENHANCE_WS_BEARER_PROTOCOL_PREFIX = "auth.bearer.";
-const ENHANCE_WS_APIKEY_PROTOCOL_PREFIX = "auth.apikey.";
-const ENHANCE_WS_SERVICE_PROTOCOL_PREFIX = "auth.service.";
-
 const ROUTE_AUTH_POLICIES = {
   "/enhance": { allowPublicKey: true, allowServiceToken: true, allowUserJwt: true },
   "/extract-url": { allowPublicKey: true, allowServiceToken: true, allowUserJwt: true },
@@ -700,9 +496,13 @@ const authService = createAuthService({
 });
 
 const rateLimiter = createRateLimiter({ backend: RATE_LIMIT_BACKEND });
-const activeEnhanceWebSocketConnectionsByIp = new Map();
-const extractUrlCache = new Map();
 const activeAbortControllers = new Set();
+bindAbortControllers(activeAbortControllers);
+const extractUrlCacheInstance = createExtractUrlCache({
+  ttlMs: EXTRACT_URL_CACHE_TTL_MS,
+  maxEntries: EXTRACT_URL_CACHE_MAX_ENTRIES,
+});
+const wsConnectionSlots = createConnectionSlotTracker(ENHANCE_WS_MAX_CONNECTIONS_PER_IP);
 
 function trackAbortController(controller) {
   activeAbortControllers.add(controller);
@@ -711,197 +511,6 @@ function trackAbortController(controller) {
 
 function untrackAbortController(controller) {
   activeAbortControllers.delete(controller);
-}
-
-function getExtractUrlCacheEntry(url) {
-  const entry = extractUrlCache.get(url);
-  if (!entry) return null;
-  if (Date.now() - entry.cachedAt > EXTRACT_URL_CACHE_TTL_MS) {
-    extractUrlCache.delete(url);
-    return null;
-  }
-  return entry;
-}
-
-function setExtractUrlCacheEntry(url, title, content) {
-  // Prune expired entries
-  for (const [key, entry] of extractUrlCache) {
-    if (Date.now() - entry.cachedAt > EXTRACT_URL_CACHE_TTL_MS) {
-      extractUrlCache.delete(key);
-    }
-  }
-  // Evict oldest if at capacity
-  if (extractUrlCache.size >= EXTRACT_URL_CACHE_MAX_ENTRIES) {
-    const oldestKey = extractUrlCache.keys().next().value;
-    extractUrlCache.delete(oldestKey);
-  }
-  extractUrlCache.set(url, { title, content, cachedAt: Date.now() });
-}
-
-function headerValue(req, headerName) {
-  const rawValue = req.headers[headerName.toLowerCase()];
-  if (typeof rawValue === "string") return rawValue;
-  if (Array.isArray(rawValue)) return rawValue[0];
-  return undefined;
-}
-
-function decodeBase64UrlValue(value) {
-  if (typeof value !== "string" || !value.trim()) return undefined;
-  try {
-    return Buffer.from(value.trim(), "base64url").toString("utf8").trim() || undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-function parseWebSocketProtocols(req) {
-  const raw = headerValue(req, "sec-websocket-protocol") || "";
-  return raw
-    .split(",")
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-}
-
-function extractWebSocketAuthHeadersFromProtocols(req) {
-  const protocols = parseWebSocketProtocols(req);
-  const authHeaders = {};
-
-  for (const protocol of protocols) {
-    if (protocol.startsWith(ENHANCE_WS_BEARER_PROTOCOL_PREFIX)) {
-      const encodedToken = protocol.slice(ENHANCE_WS_BEARER_PROTOCOL_PREFIX.length);
-      const token = decodeBase64UrlValue(encodedToken);
-      if (token) {
-        authHeaders.authorization = `Bearer ${token}`;
-      }
-      continue;
-    }
-
-    if (protocol.startsWith(ENHANCE_WS_APIKEY_PROTOCOL_PREFIX)) {
-      const encodedToken = protocol.slice(ENHANCE_WS_APIKEY_PROTOCOL_PREFIX.length);
-      const apiKey = decodeBase64UrlValue(encodedToken);
-      if (apiKey) {
-        authHeaders.apikey = apiKey;
-      }
-      continue;
-    }
-
-    if (protocol.startsWith(ENHANCE_WS_SERVICE_PROTOCOL_PREFIX)) {
-      const encodedToken = protocol.slice(ENHANCE_WS_SERVICE_PROTOCOL_PREFIX.length);
-      const serviceToken = decodeBase64UrlValue(encodedToken);
-      if (serviceToken) {
-        authHeaders["x-agent-token"] = serviceToken;
-      }
-    }
-  }
-
-  return authHeaders;
-}
-
-function extractWebSocketAuthHeadersFromPayload(rawAuth) {
-  if (!rawAuth || typeof rawAuth !== "object" || Array.isArray(rawAuth)) {
-    return {};
-  }
-
-  const auth = rawAuth;
-  const authHeaders = {};
-
-  const bearerToken =
-    asNonEmptyString(auth.bearer_token)
-    || asNonEmptyString(auth.bearerToken)
-    || asNonEmptyString(auth.access_token)
-    || asNonEmptyString(auth.accessToken);
-  if (bearerToken) {
-    authHeaders.authorization = `Bearer ${bearerToken}`;
-  }
-
-  const apiKey =
-    asNonEmptyString(auth.apikey)
-    || asNonEmptyString(auth.api_key)
-    || asNonEmptyString(auth.apiKey);
-  if (apiKey) {
-    authHeaders.apikey = apiKey;
-  }
-
-  const serviceToken =
-    asNonEmptyString(auth.service_token)
-    || asNonEmptyString(auth.serviceToken);
-  if (serviceToken) {
-    authHeaders["x-agent-token"] = serviceToken;
-  }
-
-  return authHeaders;
-}
-
-function createWebSocketRequestView(req, overrideHeaders = {}) {
-  return {
-    socket: req.socket,
-    headers: {
-      ...req.headers,
-      ...extractWebSocketAuthHeadersFromProtocols(req),
-      ...overrideHeaders,
-    },
-  };
-}
-
-function rejectWebSocketUpgrade(socket, status, payload, requestContext) {
-  setRequestError(
-    requestContext,
-    inferErrorCodeFromStatus(status),
-    typeof payload?.error === "string" ? payload.error : undefined,
-  );
-  const body = JSON.stringify(payload);
-  const statusText =
-    status === 400
-      ? "Bad Request"
-      : status === 401
-        ? "Unauthorized"
-        : status === 403
-          ? "Forbidden"
-          : status === 405
-            ? "Method Not Allowed"
-            : status === 429
-              ? "Too Many Requests"
-              : "Internal Server Error";
-  const response =
-    `HTTP/1.1 ${status} ${statusText}\r\n`
-    + "Connection: close\r\n"
-    + "Content-Type: application/json; charset=utf-8\r\n"
-    + `Content-Length: ${Buffer.byteLength(body)}\r\n`
-    + "\r\n"
-    + body;
-
-  socket.write(response);
-  socket.destroy();
-  completeRequestContext(requestContext, status);
-}
-
-function baseCorsHeaders(origin) {
-  return {
-    "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Max-Age": "86400",
-    Vary: "Origin",
-  };
-}
-
-function resolveCors(req) {
-  const origin = (headerValue(req, "origin") || "").trim();
-  if (!origin) {
-    return { ok: true, headers: baseCorsHeaders("null"), origin: "null" };
-  }
-
-  if (CORS_CONFIG.mode === "set" && !CORS_CONFIG.origins.has(origin)) {
-    return {
-      ok: false,
-      status: 403,
-      error: "Origin is not allowed.",
-      headers: baseCorsHeaders("null"),
-    };
-  }
-
-  return { ok: true, headers: baseCorsHeaders(origin), origin };
 }
 
 function getClientIp(req, requestContext) {
@@ -924,26 +533,6 @@ function getClientIp(req, requestContext) {
   }
 
   return resolvedIp.ip;
-}
-
-function acquireEnhanceWebSocketConnectionSlot(clientIp) {
-  const key = clientIp || "unknown";
-  const current = activeEnhanceWebSocketConnectionsByIp.get(key) || 0;
-  if (current >= ENHANCE_WS_MAX_CONNECTIONS_PER_IP) {
-    return false;
-  }
-  activeEnhanceWebSocketConnectionsByIp.set(key, current + 1);
-  return true;
-}
-
-function releaseEnhanceWebSocketConnectionSlot(clientIp) {
-  const key = clientIp || "unknown";
-  const current = activeEnhanceWebSocketConnectionsByIp.get(key) || 0;
-  if (current <= 1) {
-    activeEnhanceWebSocketConnectionsByIp.delete(key);
-    return;
-  }
-  activeEnhanceWebSocketConnectionsByIp.set(key, current - 1);
 }
 
 const DEFAULT_THREAD_OPTIONS = (() => {
@@ -1043,50 +632,6 @@ function getCodexClient() {
   return codexClient;
 }
 
-function json(res, status, payload, headers = {}) {
-  const body = JSON.stringify(payload);
-  res.writeHead(status, {
-    "Content-Type": "application/json; charset=utf-8",
-    "Content-Length": Buffer.byteLength(body),
-    ...headers,
-  });
-  res.end(body);
-}
-
-function beginSse(res, headers = {}) {
-  res.writeHead(200, {
-    "Content-Type": "text/event-stream; charset=utf-8",
-    "Cache-Control": "no-cache",
-    Connection: "keep-alive",
-    "X-Accel-Buffering": "no",
-    ...headers,
-  });
-}
-
-function writeSse(res, payload) {
-  if (res.writableEnded) return;
-  res.write(`data: ${JSON.stringify(payload)}\n\n`);
-}
-
-function endSse(res) {
-  if (res.writableEnded) return;
-  res.write("data: [DONE]\n\n");
-  res.end();
-}
-
-function asNonEmptyString(value) {
-  if (typeof value !== "string") return undefined;
-  const trimmed = value.trim();
-  return trimmed ? trimmed : undefined;
-}
-
-function truncateString(value, maxChars) {
-  if (typeof value !== "string") return "";
-  const trimmed = value.trim();
-  if (!trimmed) return "";
-  return trimmed.length > maxChars ? trimmed.slice(0, maxChars) : trimmed;
-}
-
 function extractEnhanceSession(input) {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     return {
@@ -1130,200 +675,12 @@ function buildEnhanceSessionEnvelope({
   };
 }
 
-function idFromItem(item) {
-  if (!item || typeof item !== "object") return undefined;
-  return typeof item.id === "string" ? item.id : undefined;
-}
-
-function typeFromItem(item) {
-  if (!item || typeof item !== "object") return undefined;
-  return typeof item.type === "string" ? item.type : undefined;
-}
-
 function toErrorMessage(error) {
   const rawMessage =
     (error instanceof Error && typeof error.message === "string")
       ? error.message
       : String(error);
   return sanitizeCodexExecErrorMessage(rawMessage);
-}
-
-function hasText(value) {
-  return typeof value === "string" && value.trim().length > 0;
-}
-
-const AGENT_MESSAGE_ITEM_TYPES = new Set([
-  "agent_message",
-  "assistant_message",
-  "message",
-  "output_text",
-  "text",
-  "enhancement",
-]);
-const ENHANCEMENT_WORKFLOW_STEP_ORDER = {
-  analyze_request: 10,
-  source_context: 20,
-  web_search: 30,
-  generate_prompt: 40,
-};
-
-function isAgentMessageItemType(itemType) {
-  if (typeof itemType !== "string") return false;
-  return AGENT_MESSAGE_ITEM_TYPES.has(itemType.trim().toLowerCase());
-}
-
-function truncateWorkflowDetail(value, maxChars = 180) {
-  if (typeof value !== "string") return "";
-  const trimmed = value.trim();
-  if (!trimmed) return "";
-  if (trimmed.length <= maxChars) return trimmed;
-  return `${trimmed.slice(0, Math.max(0, maxChars - 3)).trimEnd()}...`;
-}
-
-function formatEnhancementModeLabel(mode) {
-  if (mode === "quick") return "light polish";
-  if (mode === "guided") return "structured rewrite";
-  if (mode === "advanced") return "expert prompt";
-  return "standard enhancement";
-}
-
-function buildAnalyzeRequestWorkflowDetail(enhancementContext) {
-  const primaryIntent = enhancementContext?.primaryIntent
-    || enhancementContext?.intent?.[0]
-    || "general";
-  const modeLabel = formatEnhancementModeLabel(enhancementContext?.builderMode);
-  const ambiguityLevel = enhancementContext?.ambiguityLevel || "unknown";
-  return `Detected ${primaryIntent} intent in ${modeLabel} mode. Ambiguity ${ambiguityLevel}.`;
-}
-
-function buildSourceContextWorkflowUpdate(sourceExpansion, contextSources) {
-  const availableCount = Array.isArray(contextSources) ? contextSources.length : 0;
-  const summaryLabel = `${availableCount} attached source summar${availableCount === 1 ? "y" : "ies"}`;
-  if (!sourceExpansion || availableCount === 0) {
-    return {
-      status: "skipped",
-      detail: "No attached sources were provided.",
-    };
-  }
-
-  if (sourceExpansion.expandedRefs.length > 0) {
-    const rationale = truncateWorkflowDetail(sourceExpansion.rationale);
-    return {
-      status: "completed",
-      detail: rationale
-        ? `Expanded ${sourceExpansion.expandedRefs.length} attached source(s). ${rationale}`
-        : `Expanded ${sourceExpansion.expandedRefs.length} attached source(s) for additional context.`,
-    };
-  }
-
-  if (availableCount > 0) {
-    const rationale = truncateWorkflowDetail(sourceExpansion.rationale);
-    return {
-      status: "completed",
-      detail: rationale
-        ? `Used ${summaryLabel}. ${rationale}`
-        : `Used ${summaryLabel} without expanding raw content.`,
-    };
-  }
-
-  return {
-    status: "skipped",
-    detail: "No attached sources were provided.",
-  };
-}
-
-function normalizeWorkflowToken(value) {
-  return typeof value === "string" ? value.trim().toLowerCase() : "";
-}
-
-function isWorkflowWebSearchItemType(itemType) {
-  const normalized = normalizeWorkflowToken(itemType);
-  if (!normalized) return false;
-  return (
-    normalized === "web_search_call"
-    || normalized === "web_search"
-    || normalized === "web_search_result"
-    || /(^|[./_-])web[_-]?search([./_-]|$)/.test(normalized)
-    || /(^|[./_-])web[_-]?search[_-]?call([./_-]|$)/.test(normalized)
-  );
-}
-
-function isCountableWorkflowWebSearchItemType(itemType) {
-  const normalized = normalizeWorkflowToken(itemType);
-  if (!normalized || normalized === "web_search_result") return false;
-  return (
-    normalized === "web_search_call"
-    || normalized === "web_search"
-    || /(^|[./_-])web[_-]?search[_-]?call([./_-]|$)/.test(normalized)
-  );
-}
-
-function extractWorkflowWebSearchQuery(item) {
-  if (!item || typeof item !== "object") return "";
-
-  const directQuery = typeof item.query === "string" ? item.query.trim() : "";
-  if (directQuery) return directQuery;
-
-  const rawArgs = item.arguments ?? item.args ?? item.input;
-  if (typeof rawArgs === "string") {
-    try {
-      const parsed = JSON.parse(rawArgs);
-      if (parsed && typeof parsed === "object" && typeof parsed.query === "string") {
-        return parsed.query.trim();
-      }
-    } catch {
-      const trimmed = rawArgs.trim();
-      return trimmed.length > 0 && trimmed.length < 300 ? trimmed : "";
-    }
-  }
-
-  if (rawArgs && typeof rawArgs === "object" && typeof rawArgs.query === "string") {
-    return rawArgs.query.trim();
-  }
-
-  return "";
-}
-
-function buildWebSearchWorkflowDetail(searchCount, query) {
-  const countLabel = `${searchCount} web search${searchCount === 1 ? "" : "es"}`;
-  const normalizedQuery = truncateWorkflowDetail(query, 120);
-  return normalizedQuery
-    ? `Ran ${countLabel}. Last query: ${normalizedQuery}`
-    : `Ran ${countLabel}.`;
-}
-
-function buildGeneratePromptWorkflowDetail(postProcessed) {
-  if (postProcessed?.parse_status === "json") {
-    return "Generated the final prompt and structured enhancement metadata.";
-  }
-  return "Generated the final prompt; metadata required fallback text recovery.";
-}
-
-function emitEnhancementWorkflowStep({
-  emit,
-  turnId,
-  threadId,
-  stepId,
-  label,
-  status,
-  detail,
-}) {
-  const order = ENHANCEMENT_WORKFLOW_STEP_ORDER[stepId];
-  if (!order) return;
-
-  emit({
-    event: "enhance/workflow",
-    type: "enhance.workflow",
-    turn_id: turnId,
-    thread_id: threadId || null,
-    payload: {
-      step_id: stepId,
-      order,
-      label,
-      status,
-      detail: truncateWorkflowDetail(detail) || undefined,
-    },
-  });
 }
 
 async function inferBuilderFieldUpdates(prompt, currentFields, lockMetadata, requestContext = {}) {
@@ -1361,7 +718,7 @@ async function inferBuilderFieldUpdates(prompt, currentFields, lockMetadata, req
       {
         outputSchema: INFER_BUILDER_FIELDS_SCHEMA,
       },
-      { requestContext },
+      { requestContext, ...RETRY_TELEMETRY },
     );
     captureUsageMetrics(requestContext, inferTurn.usage);
     return buildBuilderFieldInferenceResult({
@@ -1376,277 +733,11 @@ async function inferBuilderFieldUpdates(prompt, currentFields, lockMetadata, req
   }
 }
 
-function responseMimeType(resp) {
-  const ct = resp.headers.get("content-type") || "";
-  return ct.split(";")[0].trim().toLowerCase();
-}
-
-function isTextLikeContentType(mimeType) {
-  if (!mimeType) return true;
-  if (mimeType.startsWith("text/")) return true;
-  return TEXTUAL_CONTENT_TYPES.has(mimeType);
-}
-
-function isHtmlLikeMimeType(mimeType) {
-  return (
-    !mimeType
-    || mimeType === "text/html"
-    || mimeType === "application/xhtml+xml"
-    || mimeType === "application/xml"
-    || mimeType === "text/xml"
-  );
-}
-
-function looksLikeBinaryPayload(payload) {
-  if (!payload) return true;
-  const sample = payload.slice(0, 4096);
-  if (sample.includes("\u0000")) return true;
-
-  let suspicious = 0;
-  for (let i = 0; i < sample.length; i += 1) {
-    const code = sample.charCodeAt(i);
-    const isAllowedControl = code === 9 || code === 10 || code === 13;
-    if (code < 32 && !isAllowedControl) suspicious += 1;
-  }
-
-  if (sample.length === 0) return false;
-  return suspicious / sample.length > 0.12;
-}
-
-async function readBodyWithLimit(resp, maxBytes) {
-  if (!resp.body) return "";
-
-  const contentLength = resp.headers.get("content-length");
-  if (contentLength && Number(contentLength) > maxBytes) {
-    await resp.body.cancel();
-    throw new Error(`Response too large (${contentLength} bytes).`);
-  }
-
-  const reader = resp.body.getReader();
-  const chunks = [];
-  let totalBytes = 0;
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    totalBytes += value.byteLength;
-    if (totalBytes > maxBytes) {
-      await reader.cancel();
-      throw new Error("Response too large.");
-    }
-    chunks.push(value);
-  }
-
-  const decoder = new TextDecoder();
-  return chunks.map((chunk) => decoder.decode(chunk, { stream: true })).join("") + decoder.decode();
-}
-
-function stripHtml(html) {
-  let text = html.replace(/<script[\s\S]*?<\/script>/gi, "");
-  text = text.replace(/<style[\s\S]*?<\/style>/gi, "");
-  text = text.replace(/<[^>]+>/g, " ");
-  text = text.replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, "\"")
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, " ");
-  text = text.replace(/\s+/g, " ").trim();
-  return text;
-}
-
-function extractMetaContent(html, matcher) {
-  const metaTags = html.match(/<meta\b[^>]*>/gi) || [];
-  for (const tag of metaTags) {
-    if (!matcher.test(tag)) continue;
-    const contentMatch = tag.match(/\bcontent=(["'])([\s\S]*?)\1/i);
-    if (contentMatch?.[2]) {
-      const value = contentMatch[2].replace(/\s+/g, " ").trim();
-      if (value) return value;
-    }
-  }
-  return "";
-}
-
-function extractTitle(html, url) {
-  const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-  if (titleMatch?.[1]) {
-    return titleMatch[1].replace(/\s+/g, " ").trim().slice(0, 120);
-  }
-  const ogTitle = extractMetaContent(html, /\bproperty=["']og:title["']/i);
-  if (ogTitle) return ogTitle.slice(0, 120);
-  const twitterTitle = extractMetaContent(html, /\bname=["']twitter:title["']/i);
-  if (twitterTitle) return twitterTitle.slice(0, 120);
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return "Extracted content";
-  }
-}
-
-function extractMetadataText(html) {
-  const values = [
-    extractMetaContent(html, /\bname=["']description["']/i),
-    extractMetaContent(html, /\bproperty=["']og:description["']/i),
-    extractMetaContent(html, /\bname=["']twitter:description["']/i),
-  ].filter(Boolean);
-  return values.join(" ").trim();
-}
-
-function normalizeExtractableText(rawBody, mimeType) {
-  if (!rawBody) return "";
-  if (isHtmlLikeMimeType(mimeType)) {
-    const htmlText = stripHtml(rawBody);
-    const metadataText = extractMetadataText(rawBody);
-    return [htmlText, metadataText].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
-  }
-  return rawBody.replace(/\s+/g, " ").trim();
-}
-
-function clampExtractText(text, maxChars = 16000) {
-  if (text.length <= maxChars) return text;
-  return `${text.slice(0, maxChars)}…`;
-}
-
-function buildPrimaryFetchHeaders() {
-  return {
-    "User-Agent": "Mozilla/5.0 (compatible; PromptForge/1.0; +https://promptforge.app)",
-    Accept: "text/html,application/xhtml+xml,application/xml,text/plain,application/json;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Cache-Control": "no-cache",
-    Pragma: "no-cache",
-  };
-}
-
-function buildRetryFetchHeaders() {
-  return {
-    "User-Agent":
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-    Accept:
-      "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Upgrade-Insecure-Requests": "1",
-    "Cache-Control": "max-age=0",
-  };
-}
-
-async function fetchPageWithHeaderFallback(url, timeoutMs) {
-  const attempts = [buildPrimaryFetchHeaders(), buildRetryFetchHeaders()];
-  let lastResponse = null;
-  let lastError = null;
-
-  for (const headers of attempts) {
-    try {
-      const response = await fetchWithSafeRedirects(
-        url,
-        {
-          headers,
-        },
-        timeoutMs,
-      );
-      if (response.ok) {
-        return response;
-      }
-      lastResponse = response;
-    } catch (error) {
-      lastError = error;
-      if (isTimeoutError(error)) {
-        throw error;
-      }
-    }
-  }
-
-  if (lastResponse) return lastResponse;
-  throw lastError || new Error("Failed to fetch URL.");
-}
-
-async function fetchWithSafeRedirects(url, options, timeoutMs) {
-  let currentUrl = url;
-  let redirectCount = 0;
-
-  while (true) {
-    await assertPublicHttpTarget(currentUrl);
-    const response = await fetchWithTimeout(
-      currentUrl,
-      {
-        ...options,
-        redirect: "manual",
-      },
-      timeoutMs,
-    );
-
-    if (!isRedirectStatus(response.status)) {
-      return response;
-    }
-
-    const location = response.headers.get("location");
-    if (!location) {
-      return response;
-    }
-
-    if (redirectCount >= EXTRACT_FETCH_MAX_REDIRECTS) {
-      await response.body?.cancel().catch(() => undefined);
-      throw createUrlNotAllowedError(
-        `Too many redirects while fetching URL. Maximum ${EXTRACT_FETCH_MAX_REDIRECTS} redirects allowed.`,
-      );
-    }
-
-    const nextUrl = new URL(location, currentUrl);
-    await response.body?.cancel().catch(() => undefined);
-    currentUrl = nextUrl.toString();
-    redirectCount += 1;
-  }
-}
-
-function parseInputUrl(input) {
-  if (!input.trim()) return null;
-  const candidate = /^https?:\/\//i.test(input.trim()) ? input.trim() : `https://${input.trim()}`;
-
-  try {
-    const parsed = new URL(candidate);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      return null;
-    }
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-function isTimeoutError(error) {
-  if (!(error instanceof Error)) return false;
-  return error.name === "AbortError" || error.name === "TimeoutError" || error.message.toLowerCase().includes("timed out");
-}
-
-async function fetchWithTimeout(url, options, timeoutMs) {
-  const controller = trackAbortController(new AbortController());
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timeoutId);
-    untrackAbortController(controller);
-  }
-}
-
-function extractTextFromOpenAiContent(content) {
-  if (typeof content === "string") return content.trim();
-  if (!Array.isArray(content)) return "";
-  const joined = content
-    .map((entry) => {
-      if (!entry || typeof entry !== "object") return "";
-      if (typeof entry.text === "string") return entry.text;
-      return "";
-    })
-    .filter(Boolean)
-    .join("\n");
-  return joined.trim();
-}
-
-async function summarizeExtractedText(plainText) {
+/**
+ * Summarize extracted text using the shared url-extract module with
+ * config resolved at the service level.
+ */
+async function callSummarizeExtractedText(plainText) {
   if (!EXTRACT_MODEL) {
     throw new Error(
       "No extract model configured for Azure provider. Set EXTRACT_MODEL, CODEX_MODEL, or AZURE_OPENAI_DEPLOYMENT.",
@@ -1663,38 +754,13 @@ async function summarizeExtractedText(plainText) {
     throw new Error("No API key configured. Set AZURE_OPENAI_API_KEY (via provider config) or OPENAI_API_KEY.");
   }
 
-  // Azure OpenAI uses `api-key` header; standard OpenAI uses `Authorization: Bearer`.
-  const headers = IS_AZURE_PROVIDER
-    ? { "api-key": apiKey, "Content-Type": "application/json" }
-    : { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
-
-  const response = await fetchWithTimeout(`${OPENAI_API_BASE_URL.replace(/\/+$/, "")}/chat/completions`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      model: EXTRACT_MODEL,
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a content extractor. Given raw text from a web page, extract the 5-10 most important and relevant points as concise bullet points. Focus on facts, data, and key claims. Omit navigation text, ads, and boilerplate. Return only bullet points, one per line, prefixed with a bullet character (•).",
-        },
-        {
-          role: "user",
-          content: `Extract the key points from this page:\n\n${plainText}`,
-        },
-      ],
-      stream: false,
-    }),
-  }, FETCH_TIMEOUT_MS);
-
-  if (!response.ok) {
-    return { ok: false, status: response.status, errorBody: await response.text() };
-  }
-
-  const data = await response.json().catch(() => ({}));
-  const content = extractTextFromOpenAiContent(data?.choices?.[0]?.message?.content);
-  return { ok: true, content };
+  return summarizeExtractedText(plainText, {
+    apiBaseUrl: OPENAI_API_BASE_URL,
+    apiKey,
+    model: EXTRACT_MODEL,
+    isAzure: IS_AZURE_PROVIDER,
+    timeoutMs: FETCH_TIMEOUT_MS,
+  });
 }
 
 function parseCurrentFields(value) {
@@ -1731,157 +797,12 @@ function parseInferRequestContext(value) {
   return parsed;
 }
 
-// ---------------------------------------------------------------------------
-// 429 rate-limit retry helpers
-// ---------------------------------------------------------------------------
-function isRateLimitError(err) {
-  if (!err) return false;
-  const status = err.status ?? err.statusCode ?? err.response?.status ?? err.cause?.status ?? err.cause?.statusCode ?? err.cause?.response?.status;
-  if (status === 429) return true;
-
-  const code = err.code ?? err.cause?.code;
-  if (code === 429 || code === "rate_limit_exceeded") return true;
-
-  const msg = String(err.message ?? err.cause?.message ?? "");
-  return /(^|\b)429(\b|$)|rate.limit|too many requests|throttl/i.test(msg);
-}
-
-function isRateLimitTurnFailure(event) {
-  if (event?.type !== "turn.failed") return false;
-  const msg = event.error?.message ?? "";
-  return isRateLimitMessage(msg);
-}
-
-async function* replayBufferedEvents(bufferedEvents, iterator) {
-  for (const event of bufferedEvents) {
-    yield event;
-  }
-
-  while (true) {
-    const next = await iterator.next();
-    if (next.done) break;
-    yield next.value;
-  }
-}
-
-async function runStreamedWithRetry(thread, input, turnOptions, telemetry = {}) {
-  const requestContext = telemetry.requestContext;
-  const retrySignal = turnOptions?.signal;
-  let attempt = 0;
-  retryLoop: while (true) {
-    let retryBlocked = false;
-    try {
-      throwIfAborted(retrySignal);
-      const { events } = await thread.runStreamed(input, turnOptions);
-      const iterator = events[Symbol.asyncIterator]();
-      const bufferedEvents = [];
-
-      while (true) {
-        const next = await iterator.next();
-        if (next.done) {
-          return { events: replayBufferedEvents(bufferedEvents, iterator) };
-        }
-
-        const event = next.value;
-        if (
-          isRateLimitTurnFailure(event)
-          && hasOnlyRetrySafeCodexPreludeEvents(bufferedEvents)
-          && attempt < CODEX_429_MAX_RETRIES
-        ) {
-          if (typeof iterator.return === "function") {
-            await iterator.return().catch(() => undefined);
-          }
-          const backoff = CODEX_429_BACKOFF_BASE_SECONDS * (2 ** attempt);
-          const jitter = 0.5 + Math.random() * 0.5;
-          const delay = Math.min(backoff * jitter, CODEX_429_BACKOFF_MAX_SECONDS) * 1000;
-          if (requestContext) {
-            requestContext.retryCount = attempt + 1;
-          }
-          logEvent("warn", "retry_attempt", cleanLogFields({
-            request_id: requestContext?.requestId,
-            endpoint: requestContext?.endpoint,
-            method: requestContext?.method,
-            transport: requestContext?.transport,
-            retry_count: attempt + 1,
-            max_retries: CODEX_429_MAX_RETRIES,
-            error_code: "rate_limited",
-            backoff_ms: Math.round(delay),
-            source: "codex_turn_failed",
-          }));
-          await sleepWithSignal(delay, retrySignal);
-          attempt++;
-          continue retryLoop;
-        }
-
-        bufferedEvents.push(event);
-        if (!isRetrySafeCodexPreludeEvent(event)) {
-          retryBlocked = true;
-          return { events: replayBufferedEvents(bufferedEvents, iterator) };
-        }
-      }
-    } catch (err) {
-      if (retryBlocked || !isRateLimitError(err) || attempt >= CODEX_429_MAX_RETRIES) {
-        throw err;
-      }
-      const backoff = CODEX_429_BACKOFF_BASE_SECONDS * (2 ** attempt);
-      const jitter = 0.5 + Math.random() * 0.5;
-      const delay = Math.min(backoff * jitter, CODEX_429_BACKOFF_MAX_SECONDS) * 1000;
-      if (requestContext) {
-        requestContext.retryCount = attempt + 1;
-      }
-      logEvent("warn", "retry_attempt", cleanLogFields({
-        request_id: requestContext?.requestId,
-        endpoint: requestContext?.endpoint,
-        method: requestContext?.method,
-        transport: requestContext?.transport,
-        retry_count: attempt + 1,
-        max_retries: CODEX_429_MAX_RETRIES,
-        error_code: "rate_limited",
-        backoff_ms: Math.round(delay),
-        source: "codex_exception",
-      }));
-      await sleepWithSignal(delay, retrySignal);
-      attempt++;
-    }
-  }
-}
-
-async function runBufferedWithRetry(thread, input, turnOptions, telemetry = {}) {
-  const requestContext = telemetry.requestContext;
-  const retrySignal = turnOptions?.signal;
-  let attempt = 0;
-
-  while (true) {
-    try {
-      throwIfAborted(retrySignal);
-      return await thread.run(input, turnOptions);
-    } catch (error) {
-      if (!isRateLimitError(error) || attempt >= CODEX_429_MAX_RETRIES) {
-        throw error;
-      }
-
-      const backoff = CODEX_429_BACKOFF_BASE_SECONDS * (2 ** attempt);
-      const jitter = 0.5 + Math.random() * 0.5;
-      const delay = Math.min(backoff * jitter, CODEX_429_BACKOFF_MAX_SECONDS) * 1000;
-      if (requestContext) {
-        requestContext.retryCount = attempt + 1;
-      }
-      logEvent("warn", "retry_attempt", cleanLogFields({
-        request_id: requestContext?.requestId,
-        endpoint: requestContext?.endpoint,
-        method: requestContext?.method,
-        transport: requestContext?.transport,
-        retry_count: attempt + 1,
-        max_retries: CODEX_429_MAX_RETRIES,
-        error_code: "rate_limited",
-        backoff_ms: Math.round(delay),
-        source: "codex_buffered_run",
-      }));
-      await sleepWithSignal(delay, retrySignal);
-      attempt++;
-    }
-  }
-}
+// Retry telemetry config used by both streamed and buffered calls.
+const RETRY_TELEMETRY = {
+  maxRetries: CODEX_429_MAX_RETRIES,
+  backoffBaseSeconds: CODEX_429_BACKOFF_BASE_SECONDS,
+  backoffMaxSeconds: CODEX_429_BACKOFF_MAX_SECONDS,
+};
 
 async function resolveEnhancementInputWithSourceExpansion({
   codex,
@@ -1944,7 +865,7 @@ async function resolveEnhancementInputWithSourceExpansion({
         signal,
         outputSchema: SOURCE_EXPANSION_DECISION_SCHEMA,
       },
-      { requestContext },
+      { requestContext, ...RETRY_TELEMETRY },
     );
     captureUsageMetrics(requestContext, turn.usage);
 
@@ -2208,7 +1129,7 @@ async function runEnhanceTurnStream(requestData, options) {
       thread,
       enhancementInput,
       { signal },
-      { requestContext },
+      { requestContext, ...RETRY_TELEMETRY },
     );
     activeThreadId = resolveActiveCodexThreadId(activeThreadId, thread);
 
@@ -2690,61 +1611,9 @@ async function streamWithCodex(req, res, body, corsHeaders, requestContext) {
   }
 }
 
-function isWebSocketOpen(ws) {
-  return ws && ws.readyState === 1;
-}
-
-function writeWebSocketEvent(ws, payload) {
-  if (!isWebSocketOpen(ws)) return;
-  ws.send(JSON.stringify(payload));
-}
-
-function closeWebSocket(ws, code = 1000, reason = "done") {
-  if (typeof ws.readyState === "number" && ws.readyState >= 2) return;
-  ws.close(code, reason);
-}
-
-function writeWebSocketError(ws, options) {
-  const {
-    message,
-    status,
-    code,
-    retryAfterSeconds,
-  } = options;
-  writeWebSocketEvent(ws, {
-    event: "turn/error",
-    type: "turn/error",
-    error: message,
-    ...(typeof status === "number" ? { status } : {}),
-    ...(typeof code === "string" ? { code } : {}),
-    ...(typeof retryAfterSeconds === "number" ? { retry_after_seconds: retryAfterSeconds } : {}),
-  });
-}
-
-function classifyWebSocketAuthErrorCode(status, message) {
-  if (status !== 401) return "service_error";
-  const normalized = typeof message === "string" ? message.toLowerCase() : "";
-  if (
-    normalized.includes("missing bearer token")
-    || normalized.includes("missing token")
-    || normalized.includes("sign in required")
-  ) {
-    return "auth_required";
-  }
-  return "auth_session_invalid";
-}
-
-function classifyHttpAuthErrorCode(status, message) {
-  if (status === 401) {
-    return classifyWebSocketAuthErrorCode(status, message);
-  }
-  if (status === 503) return "service_unavailable";
-  return "service_error";
-}
-
 async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
   const clientIp = getClientIp(request, requestContext);
-  if (!acquireEnhanceWebSocketConnectionSlot(clientIp)) {
+  if (!wsConnectionSlots.acquire(clientIp)) {
     setRequestError(
       requestContext,
       "rate_limited",
@@ -2765,7 +1634,7 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
   const releaseConnectionSlot = () => {
     if (releasedConnectionSlot) return;
     releasedConnectionSlot = true;
-    releaseEnhanceWebSocketConnectionSlot(clientIp);
+    wsConnectionSlots.release(clientIp);
   };
   ws.on("close", releaseConnectionSlot);
 
@@ -3289,7 +2158,7 @@ async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
     return;
   }
 
-  const cachedEntry = getExtractUrlCacheEntry(parsedUrl.href);
+  const cachedEntry = extractUrlCacheInstance.get(parsedUrl.href);
   if (cachedEntry) {
     logEvent("info", "extract_url_cache_hit", {
       request_id: requestContext?.requestId,
@@ -3301,7 +2170,7 @@ async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
 
   let pageResponse;
   try {
-    pageResponse = await fetchPageWithHeaderFallback(parsedUrl.href, FETCH_TIMEOUT_MS);
+    pageResponse = await fetchPageWithHeaderFallback(parsedUrl.href, FETCH_TIMEOUT_MS, EXTRACT_FETCH_MAX_REDIRECTS);
   } catch (error) {
     if (isTimeoutError(error)) {
       json(res, 504, { error: "Timed out while fetching the URL.", code: "request_timeout" }, corsHeaders);
@@ -3379,7 +2248,7 @@ async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
 
   let summaryResult;
   try {
-    summaryResult = await summarizeExtractedText(plainText);
+    summaryResult = await callSummarizeExtractedText(plainText);
   } catch (error) {
     if (isTimeoutError(error)) {
       json(res, 504, { error: "Timed out while extracting content.", code: "request_timeout" }, corsHeaders);
@@ -3419,7 +2288,7 @@ async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
     return;
   }
 
-  setExtractUrlCacheEntry(parsedUrl.href, title, summaryResult.content);
+  extractUrlCacheInstance.set(parsedUrl.href, title, summaryResult.content);
   json(res, 200, { title, content: summaryResult.content }, corsHeaders);
 }
 
@@ -3529,7 +2398,7 @@ async function requestHandler(req, res) {
     requestId,
     url.pathname,
     method,
-    transportForEndpoint(url.pathname),
+    transportForEndpoint(url.pathname, ENHANCE_WS_PATH),
   );
   res.setHeader("x-request-id", requestId);
   attachHttpRequestLifecycleLogging(res, requestContext);
@@ -3595,7 +2464,7 @@ async function requestHandler(req, res) {
   );
 
   if (isFunctionPath) {
-    const cors = resolveCors(req);
+    const cors = resolveCors(req, CORS_CONFIG);
     if (req.method === "OPTIONS") {
       if (!cors.ok) {
         setRequestError(requestContext, inferErrorCodeFromStatus(cors.status), cors.error, cors.status);
@@ -3740,7 +2609,7 @@ server.on("upgrade", (req, socket, head) => {
     return;
   }
 
-  const cors = resolveCors(req);
+  const cors = resolveCors(req, CORS_CONFIG);
   if (!cors.ok) {
     rejectWebSocketUpgrade(
       socket,
