@@ -110,6 +110,7 @@ vi.mock("@/components/OutputPanel", () => ({
     webSearchSources,
     webSearchActivity,
     reasoningSummary,
+    enhanceWorkflow,
   }: {
     onEnhance: () => void;
     onWebSearchToggle?: (enabled: boolean) => void;
@@ -121,6 +122,7 @@ vi.mock("@/components/OutputPanel", () => ({
       query?: string | null;
     };
     reasoningSummary?: string;
+    enhanceWorkflow?: Array<{ label?: string; status?: string }>;
   }) => (
     <div>
       <button type="button" onClick={() => onWebSearchToggle?.(true)}>
@@ -146,6 +148,11 @@ vi.mock("@/components/OutputPanel", () => ({
       <div data-testid="web-search-count">{String(webSearchActivity?.searchCount || 0)}</div>
       <div data-testid="web-search-query">{webSearchActivity?.query || ""}</div>
       <div data-testid="reasoning-summary">{reasoningSummary || ""}</div>
+      <div data-testid="workflow-steps">
+        {(enhanceWorkflow || [])
+          .map((step) => `${step.label || ""}:${step.status || ""}`)
+          .join("|")}
+      </div>
     </div>
   ),
 }));
@@ -379,6 +386,68 @@ describe("Index web search streaming", () => {
 
     await waitFor(() => {
       expect(mocks.setEnhancedPrompt).toHaveBeenLastCalledWith("Canonical prompt output");
+    });
+  });
+
+  it("captures explicit workflow steps from enhance.workflow events", async () => {
+    mocks.streamEnhance.mockImplementation(
+      ({
+        onEvent,
+        onDone,
+      }: {
+        onEvent?: (event: EnhanceStreamEvent) => void;
+        onDone?: () => void;
+      }) => {
+        onEvent?.({
+          eventType: "enhance/workflow",
+          responseType: "enhance.workflow",
+          threadId: null,
+          turnId: "turn_1",
+          itemId: null,
+          itemType: null,
+          payload: {
+            event: "enhance/workflow",
+            type: "enhance.workflow",
+            payload: {
+              step_id: "analyze_request",
+              order: 10,
+              label: "Analyze request",
+              status: "completed",
+              detail: "Detected analysis intent in structured rewrite mode.",
+            },
+          },
+        });
+        onEvent?.({
+          eventType: "enhance/workflow",
+          responseType: "enhance.workflow",
+          threadId: "thread_1",
+          turnId: "turn_1",
+          itemId: null,
+          itemType: null,
+          payload: {
+            event: "enhance/workflow",
+            type: "enhance.workflow",
+            payload: {
+              step_id: "generate_prompt",
+              order: 40,
+              label: "Generate enhanced prompt",
+              status: "running",
+              detail: "Generating the enhanced prompt and supporting artifacts.",
+            },
+          },
+        });
+        onDone?.();
+      },
+    );
+
+    await renderIndex();
+
+    fireEvent.click(screen.getByRole("button", { name: "enhance" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("workflow-steps")).toHaveTextContent(
+        "Analyze request:completed|Generate enhanced prompt:running",
+      );
     });
   });
 

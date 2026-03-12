@@ -230,6 +230,7 @@ Set `REQUIRE_PROVIDER_CONFIG=true` to disable step 3 and fail fast instead of fa
 
 - **Prompt structure analysis**: Pre-flight inspection checks for Role/Task/Context/Format/Constraints sections and includes findings in the prompt input so the enhancer can address gaps.
 - **On-demand source expansion**: The service appends attached source summaries to the primary enhancement prompt, while a hidden preflight turn can request deeper source excerpts only when the model determines the summaries are insufficient.
+- **Explicit workflow events**: `/enhance` now emits `enhance.workflow` step updates for request analysis, attached-source handling, web-search usage, and prompt generation so the UI can render a curated workflow trace above the final prompt.
 - **429 retry with backoff**: Automatic retry on rate-limit errors with exponential backoff and jitter. Only retries if no chunks have been emitted yet.
 - **Thread resumption**: Pass `thread_id` to continue a previous conversation.
 - **SSE streaming**: Compatible with the frontend's `streamEnhance()` parser (supports both `/` and `.` event separators).

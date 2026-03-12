@@ -81,6 +81,11 @@ import {
   type EnhanceMetadata,
 } from "@/lib/enhance-metadata";
 import {
+  parseEnhanceWorkflowStep,
+  upsertEnhanceWorkflowStep,
+  type EnhanceWorkflowStep,
+} from "@/lib/enhance-workflow";
+import {
   detectDraftIntent,
   isIntentRoute,
   type IntentRoute,
@@ -767,6 +772,7 @@ const Index = () => {
   );
   const [reasoningSummary, setReasoningSummary] = useState("");
   const [enhanceMetadata, setEnhanceMetadata] = useState<EnhanceMetadata | null>(null);
+  const [enhanceWorkflow, setEnhanceWorkflow] = useState<EnhanceWorkflowStep[]>([]);
   const [activeEnhancementVariant, setActiveEnhancementVariant] =
     useState<EnhancementVariant>("original");
   const [intentOverride, setIntentOverride] = useState<IntentRoute | null>(null);
@@ -1150,6 +1156,7 @@ const Index = () => {
     lastSuccessfulEnhancementBuilderSignature ||
     hasVisibleEnhancedOutput ||
     enhanceMetadata ||
+    enhanceWorkflow.length > 0 ||
     reasoningSummary.trim() ||
     webSearchSources.length > 0,
   );
@@ -1163,6 +1170,7 @@ const Index = () => {
     latestEnhancementArtifactBuilderSignatureValue === builderSignature &&
     (hasVisibleEnhancedOutput ||
       enhanceMetadata ||
+      enhanceWorkflow.length > 0 ||
       reasoningSummary.trim() ||
       webSearchSources.length > 0),
   );
@@ -1179,6 +1187,9 @@ const Index = () => {
   const currentReasoningSummary = hasCurrentEnhancementArtifacts
     ? reasoningSummary
     : "";
+  const currentEnhanceWorkflow = hasCurrentEnhancementArtifacts
+    ? enhanceWorkflow
+    : [];
   const currentWebSearchSources = hasCurrentEnhancementArtifacts
     ? webSearchSources
     : [];
@@ -1417,6 +1428,7 @@ const Index = () => {
       setEnhancedPrompt("");
       setReasoningSummary("");
       setEnhanceMetadata(null);
+      setEnhanceWorkflow([]);
       setWebSearchSources([]);
       setWebSearchActivity(IDLE_WEB_SEARCH_ACTIVITY);
       setLastEnhancementArtifactBuilderSignature(null);
@@ -1566,6 +1578,15 @@ const Index = () => {
             accumulated = outputUpdate.text;
             hasReceivedDelta = accumulated.length > 0;
             applyEnhancedOutput(accumulated);
+          }
+
+          const workflowStep = parseEnhanceWorkflowStep(event.payload);
+          if (workflowStep) {
+            markCurrentEnhancementArtifacts();
+            setEnhanceWorkflow((previous) =>
+              upsertEnhanceWorkflowStep(previous, workflowStep),
+            );
+            return;
           }
 
           const metadataPrompt = extractEnhancedPromptFromMetadataEvent(
@@ -2897,6 +2918,7 @@ const Index = () => {
               onWebSearchToggle={handleWebSearchToggle}
               webSearchSources={currentWebSearchSources}
               webSearchActivity={webSearchActivity}
+              enhanceWorkflow={currentEnhanceWorkflow}
               enhanceIdleLabel={primaryCtaLabel}
               enhanceMetadata={currentEnhanceMetadata}
               activeVariant={effectiveActiveEnhancementVariant}
@@ -3150,6 +3172,7 @@ const Index = () => {
                 builtPrompt={builtPrompt}
                 enhancedPrompt={currentEnhancedPrompt}
                 reasoningSummary={currentReasoningSummary}
+                enhanceWorkflow={currentEnhanceWorkflow}
                 isEnhancing={isEnhancing}
                 enhancePhase={enhancePhase}
                 onEnhance={handleEnhance}

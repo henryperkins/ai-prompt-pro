@@ -1160,10 +1160,170 @@ const AGENT_MESSAGE_ITEM_TYPES = new Set([
   "text",
   "enhancement",
 ]);
+const ENHANCEMENT_WORKFLOW_STEP_ORDER = {
+  analyze_request: 10,
+  source_context: 20,
+  web_search: 30,
+  generate_prompt: 40,
+};
 
 function isAgentMessageItemType(itemType) {
   if (typeof itemType !== "string") return false;
   return AGENT_MESSAGE_ITEM_TYPES.has(itemType.trim().toLowerCase());
+}
+
+function truncateWorkflowDetail(value, maxChars = 180) {
+  if (typeof value !== "string") return "";
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  if (trimmed.length <= maxChars) return trimmed;
+  return `${trimmed.slice(0, Math.max(0, maxChars - 3)).trimEnd()}...`;
+}
+
+function formatEnhancementModeLabel(mode) {
+  if (mode === "quick") return "light polish";
+  if (mode === "guided") return "structured rewrite";
+  if (mode === "advanced") return "expert prompt";
+  return "standard enhancement";
+}
+
+function buildAnalyzeRequestWorkflowDetail(enhancementContext) {
+  const primaryIntent = enhancementContext?.primaryIntent
+    || enhancementContext?.intent?.[0]
+    || "general";
+  const modeLabel = formatEnhancementModeLabel(enhancementContext?.builderMode);
+  const ambiguityLevel = enhancementContext?.ambiguityLevel || "unknown";
+  return `Detected ${primaryIntent} intent in ${modeLabel} mode. Ambiguity ${ambiguityLevel}.`;
+}
+
+function buildSourceContextWorkflowUpdate(sourceExpansion, contextSources) {
+  const availableCount = Array.isArray(contextSources) ? contextSources.length : 0;
+  const summaryLabel = `${availableCount} attached source summar${availableCount === 1 ? "y" : "ies"}`;
+  if (!sourceExpansion || availableCount === 0) {
+    return {
+      status: "skipped",
+      detail: "No attached sources were provided.",
+    };
+  }
+
+  if (sourceExpansion.expandedRefs.length > 0) {
+    const rationale = truncateWorkflowDetail(sourceExpansion.rationale);
+    return {
+      status: "completed",
+      detail: rationale
+        ? `Expanded ${sourceExpansion.expandedRefs.length} attached source(s). ${rationale}`
+        : `Expanded ${sourceExpansion.expandedRefs.length} attached source(s) for additional context.`,
+    };
+  }
+
+  if (availableCount > 0) {
+    const rationale = truncateWorkflowDetail(sourceExpansion.rationale);
+    return {
+      status: "completed",
+      detail: rationale
+        ? `Used ${summaryLabel}. ${rationale}`
+        : `Used ${summaryLabel} without expanding raw content.`,
+    };
+  }
+
+  return {
+    status: "skipped",
+    detail: "No attached sources were provided.",
+  };
+}
+
+function normalizeWorkflowToken(value) {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+function isWorkflowWebSearchItemType(itemType) {
+  const normalized = normalizeWorkflowToken(itemType);
+  if (!normalized) return false;
+  return (
+    normalized === "web_search_call"
+    || normalized === "web_search"
+    || normalized === "web_search_result"
+    || /(^|[./_-])web[_-]?search([./_-]|$)/.test(normalized)
+    || /(^|[./_-])web[_-]?search[_-]?call([./_-]|$)/.test(normalized)
+  );
+}
+
+function isCountableWorkflowWebSearchItemType(itemType) {
+  const normalized = normalizeWorkflowToken(itemType);
+  if (!normalized || normalized === "web_search_result") return false;
+  return (
+    normalized === "web_search_call"
+    || normalized === "web_search"
+    || /(^|[./_-])web[_-]?search[_-]?call([./_-]|$)/.test(normalized)
+  );
+}
+
+function extractWorkflowWebSearchQuery(item) {
+  if (!item || typeof item !== "object") return "";
+
+  const directQuery = typeof item.query === "string" ? item.query.trim() : "";
+  if (directQuery) return directQuery;
+
+  const rawArgs = item.arguments ?? item.args ?? item.input;
+  if (typeof rawArgs === "string") {
+    try {
+      const parsed = JSON.parse(rawArgs);
+      if (parsed && typeof parsed === "object" && typeof parsed.query === "string") {
+        return parsed.query.trim();
+      }
+    } catch {
+      const trimmed = rawArgs.trim();
+      return trimmed.length > 0 && trimmed.length < 300 ? trimmed : "";
+    }
+  }
+
+  if (rawArgs && typeof rawArgs === "object" && typeof rawArgs.query === "string") {
+    return rawArgs.query.trim();
+  }
+
+  return "";
+}
+
+function buildWebSearchWorkflowDetail(searchCount, query) {
+  const countLabel = `${searchCount} web search${searchCount === 1 ? "" : "es"}`;
+  const normalizedQuery = truncateWorkflowDetail(query, 120);
+  return normalizedQuery
+    ? `Ran ${countLabel}. Last query: ${normalizedQuery}`
+    : `Ran ${countLabel}.`;
+}
+
+function buildGeneratePromptWorkflowDetail(postProcessed) {
+  if (postProcessed?.parse_status === "json") {
+    return "Generated the final prompt and structured enhancement metadata.";
+  }
+  return "Generated the final prompt; metadata required fallback text recovery.";
+}
+
+function emitEnhancementWorkflowStep({
+  emit,
+  turnId,
+  threadId,
+  stepId,
+  label,
+  status,
+  detail,
+}) {
+  const order = ENHANCEMENT_WORKFLOW_STEP_ORDER[stepId];
+  if (!order) return;
+
+  emit({
+    event: "enhance/workflow",
+    type: "enhance.workflow",
+    turn_id: turnId,
+    thread_id: threadId || null,
+    payload: {
+      step_id: stepId,
+      order,
+      label,
+      status,
+      detail: truncateWorkflowDetail(detail) || undefined,
+    },
+  });
 }
 
 async function inferBuilderFieldUpdates(prompt, currentFields, lockMetadata, requestContext = {}) {
@@ -1977,6 +2137,10 @@ async function runEnhanceTurnStream(requestData, options) {
   let activeThreadId = requestedThreadId || null;
   let thread = null;
   let sourceExpansion = null;
+  let emittedGenerateWorkflowTerminal = false;
+  let webSearchCount = 0;
+  let lastWebSearchQuery = "";
+  const seenWebSearchItemIds = new Set();
 
   if (Array.isArray(threadOptionWarnings) && threadOptionWarnings.length > 0) {
     logEvent("warn", "thread_options_sanitized", cleanLogFields({
@@ -1989,6 +2153,15 @@ async function runEnhanceTurnStream(requestData, options) {
   try {
     throwIfAborted(signal);
     if (isClosed()) return;
+    emitEnhancementWorkflowStep({
+      emit,
+      turnId,
+      threadId: activeThreadId,
+      stepId: "analyze_request",
+      label: "Analyze request",
+      status: "completed",
+      detail: buildAnalyzeRequestWorkflowDetail(enhancementContext),
+    });
     const codex = getCodexClient();
     const enhancementPreparation = await resolveEnhancementInputWithSourceExpansion({
       codex,
@@ -2002,6 +2175,30 @@ async function runEnhanceTurnStream(requestData, options) {
     });
     const enhancementInput = enhancementPreparation.enhancementInput;
     sourceExpansion = enhancementPreparation.sourceExpansion;
+    const sourceContextWorkflow = buildSourceContextWorkflowUpdate(
+      sourceExpansion,
+      contextSources,
+    );
+    emitEnhancementWorkflowStep({
+      emit,
+      turnId,
+      threadId: activeThreadId,
+      stepId: "source_context",
+      label: "Attach source context",
+      status: sourceContextWorkflow.status,
+      detail: sourceContextWorkflow.detail,
+    });
+    if (threadOptions.webSearchEnabled !== true) {
+      emitEnhancementWorkflowStep({
+        emit,
+        turnId,
+        threadId: activeThreadId,
+        stepId: "web_search",
+        label: "Search the web",
+        status: "skipped",
+        detail: "Web search was disabled for this run.",
+      });
+    }
     throwIfAborted(signal);
     if (isClosed()) return;
     thread = requestedThreadId
@@ -2052,6 +2249,15 @@ async function runEnhanceTurnStream(requestData, options) {
           kind: "enhance",
           session: buildSessionPayload("streaming"),
         });
+        emitEnhancementWorkflowStep({
+          emit,
+          turnId,
+          threadId: activeThreadId,
+          stepId: "generate_prompt",
+          label: "Generate enhanced prompt",
+          status: "running",
+          detail: "Generating the enhanced prompt and supporting artifacts.",
+        });
         continue;
       }
 
@@ -2078,6 +2284,16 @@ async function runEnhanceTurnStream(requestData, options) {
           defaultCode: "service_error",
           defaultStatus: 503,
         });
+        emittedGenerateWorkflowTerminal = true;
+        emitEnhancementWorkflowStep({
+          emit,
+          turnId,
+          threadId: activeThreadId,
+          stepId: "generate_prompt",
+          label: "Generate enhanced prompt",
+          status: "failed",
+          detail: failure.message,
+        });
         setRequestError(requestContext, failure.code, failure.message, failure.status);
         emit({
           event: "turn.failed",
@@ -2102,6 +2318,16 @@ async function runEnhanceTurnStream(requestData, options) {
           defaultCode: "service_error",
           defaultStatus: 503,
         });
+        emittedGenerateWorkflowTerminal = true;
+        emitEnhancementWorkflowStep({
+          emit,
+          turnId,
+          threadId: activeThreadId,
+          stepId: "generate_prompt",
+          label: "Generate enhanced prompt",
+          status: "failed",
+          detail: failure.message,
+        });
         setRequestError(requestContext, failure.code, failure.message, failure.status);
         emit({
           event: "thread.error",
@@ -2123,6 +2349,29 @@ async function runEnhanceTurnStream(requestData, options) {
       if (event.type === "item.started") {
         const itemId = idFromItem(event.item);
         const itemType = typeFromItem(event.item);
+        if (isWorkflowWebSearchItemType(itemType)) {
+          const nextQuery = extractWorkflowWebSearchQuery(event.item) || lastWebSearchQuery;
+          if (
+            itemId
+            && isCountableWorkflowWebSearchItemType(itemType)
+            && !seenWebSearchItemIds.has(itemId)
+          ) {
+            seenWebSearchItemIds.add(itemId);
+            webSearchCount += 1;
+          }
+          lastWebSearchQuery = nextQuery;
+          emitEnhancementWorkflowStep({
+            emit,
+            turnId,
+            threadId: activeThreadId,
+            stepId: "web_search",
+            label: "Search the web",
+            status: "running",
+            detail: nextQuery
+              ? `Searching the web for ${truncateWorkflowDetail(nextQuery, 120)}`
+              : "Searching the web for supporting context.",
+          });
+        }
         emit({
           event: "item.started",
           type: "item.started",
@@ -2140,6 +2389,18 @@ async function runEnhanceTurnStream(requestData, options) {
         const itemType = typeFromItem(event.item);
         const isAgentMessage = isAgentMessageItemType(itemType);
         const currentText = extractItemText(event.item);
+        if (isWorkflowWebSearchItemType(itemType)) {
+          const nextQuery = extractWorkflowWebSearchQuery(event.item) || lastWebSearchQuery;
+          if (
+            itemId
+            && isCountableWorkflowWebSearchItemType(itemType)
+            && !seenWebSearchItemIds.has(itemId)
+          ) {
+            seenWebSearchItemIds.add(itemId);
+            webSearchCount += 1;
+          }
+          lastWebSearchQuery = nextQuery;
+        }
         if (isAgentMessage) {
           const agentItemKey = itemId || "__agent_message__";
           if (!agentMessageByItemId.has(agentItemKey)) {
@@ -2168,6 +2429,18 @@ async function runEnhanceTurnStream(requestData, options) {
         const itemType = typeFromItem(event.item);
         const isAgentMessage = isAgentMessageItemType(itemType);
         const text = extractItemText(event.item);
+        if (isWorkflowWebSearchItemType(itemType)) {
+          const nextQuery = extractWorkflowWebSearchQuery(event.item) || lastWebSearchQuery;
+          if (
+            itemId
+            && isCountableWorkflowWebSearchItemType(itemType)
+            && !seenWebSearchItemIds.has(itemId)
+          ) {
+            seenWebSearchItemIds.add(itemId);
+            webSearchCount += 1;
+          }
+          lastWebSearchQuery = nextQuery;
+        }
         if (isAgentMessage) {
           const agentItemKey = itemId || "__agent_message__";
           if (!agentMessageByItemId.has(agentItemKey)) {
@@ -2193,6 +2466,20 @@ async function runEnhanceTurnStream(requestData, options) {
     }
 
     if (!signal.aborted && !isClosed() && !turnFailed && !turnError) {
+      if (threadOptions.webSearchEnabled === true) {
+        emitEnhancementWorkflowStep({
+          emit,
+          turnId,
+          threadId: activeThreadId,
+          stepId: "web_search",
+          label: "Search the web",
+          status: webSearchCount > 0 ? "completed" : "skipped",
+          detail: webSearchCount > 0
+            ? buildWebSearchWorkflowDetail(webSearchCount, lastWebSearchQuery)
+            : "No web lookup was needed for this enhancement.",
+        });
+      }
+
       const rawEnhancerOutput = pickPrimaryAgentMessageText(agentMessageByItemId, agentMessageItemOrder);
 
       // ── Enhancement response diagnostics ─────────────────────────────
@@ -2257,6 +2544,16 @@ async function runEnhanceTurnStream(requestData, options) {
 
       const finalEnhancedPrompt = postProcessed.enhanced_prompt?.trim() || rawEnhancerOutput.trim();
       const finalContextSummary = postProcessed.session_context_summary || requestSession.contextSummary;
+      emittedGenerateWorkflowTerminal = true;
+      emitEnhancementWorkflowStep({
+        emit,
+        turnId,
+        threadId: activeThreadId,
+        stepId: "generate_prompt",
+        label: "Generate enhanced prompt",
+        status: "completed",
+        detail: buildGeneratePromptWorkflowDetail(postProcessed),
+      });
 
       if (!finalEnhancedPrompt) {
         logEvent("error", "enhance_empty_result", cleanLogFields({
@@ -2321,6 +2618,17 @@ async function runEnhanceTurnStream(requestData, options) {
       });
     setRequestError(requestContext, failure.code, failure.message, failure.status);
     if (!isClosed()) {
+      if (!emittedGenerateWorkflowTerminal && !signal?.aborted) {
+        emitEnhancementWorkflowStep({
+          emit,
+          turnId,
+          threadId: activeThreadId,
+          stepId: "generate_prompt",
+          label: "Generate enhanced prompt",
+          status: "failed",
+          detail: failure.message,
+        });
+      }
       emit({
         event: "turn/error",
         type: "turn/error",

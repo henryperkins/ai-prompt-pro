@@ -26,6 +26,7 @@ import type {
   EditableEnhancementListField,
   EnhanceMetadata,
 } from "@/lib/enhance-metadata";
+import type { EnhanceWorkflowStep } from "@/lib/enhance-workflow";
 import type { AmbiguityMode, EnhancementDepth, RewriteStrictness } from "@/lib/user-preferences";
 import {
   OutputPanelSaveDialog,
@@ -41,6 +42,7 @@ import { OutputPanelHeader } from "@/components/OutputPanelHeader";
 import { OutputPanelCompareDialog } from "@/components/OutputPanelCompareDialog";
 import { OutputPanelEnhancementSummary } from "@/components/OutputPanelEnhancementSummary";
 import { OutputPanelEnhanceControls } from "@/components/OutputPanelEnhanceControls";
+import { OutputPanelWorkflow } from "@/components/OutputPanelWorkflow";
 import { EnhancementInspector, type ApplyToBuilderUpdate } from "@/components/EnhancementInspector";
 import { EnhancementClarificationCard } from "@/components/EnhancementClarificationCard";
 import {
@@ -73,6 +75,7 @@ interface OutputPanelProps {
   webSearchSources?: string[];
   webSearchActivity?: WebSearchActivity;
   reasoningSummary?: string;
+  enhanceWorkflow?: EnhanceWorkflowStep[];
   previewSource?: OutputPreviewSource;
   hasEnhancedOnce?: boolean;
   enhanceMetadata?: EnhanceMetadata | null;
@@ -152,6 +155,7 @@ export function OutputPanel({
   webSearchSources = [],
   webSearchActivity,
   reasoningSummary = "",
+  enhanceWorkflow = [],
   previewSource,
   hasEnhancedOnce = true,
   enhanceMetadata,
@@ -497,6 +501,11 @@ export function OutputPanel({
           searchCount={webSearchActivity.searchCount}
         />
       )}
+
+      <OutputPanelWorkflow
+        steps={enhanceWorkflow}
+        isEnhancing={isEnhancing}
+      />
 
       {showClarificationActions && enhanceMetadata?.openQuestions && (
         <EnhancementClarificationCard
