@@ -411,20 +411,20 @@ function normalizeRemoteInferenceResult(
 
   const inferredFields = Array.isArray(inferredFieldsRaw)
     ? inferredFieldsRaw.filter(
-        (
-          field,
-        ): field is
-          | "role"
-          | "tone"
-          | "lengthPreference"
-          | "format"
-          | "constraints" =>
-          field === "role" ||
-          field === "tone" ||
-          field === "lengthPreference" ||
-          field === "format" ||
-          field === "constraints",
-      )
+      (
+        field,
+      ): field is
+        | "role"
+        | "tone"
+        | "lengthPreference"
+        | "format"
+        | "constraints" =>
+        field === "role" ||
+        field === "tone" ||
+        field === "lengthPreference" ||
+        field === "format" ||
+        field === "constraints",
+    )
     : [];
   if (inferredFields.length === 0) {
     if (typeof inferredUpdates.role === "string") inferredFields.push("role");
@@ -438,109 +438,109 @@ function normalizeRemoteInferenceResult(
 
   const suggestionChips = Array.isArray(suggestionChipsRaw)
     ? suggestionChipsRaw
-        .map((chip): BuilderSuggestionChip | null => {
-          if (!chip || typeof chip !== "object") return null;
-          const id = typeof chip.id === "string" ? chip.id : null;
-          const label = typeof chip.label === "string" ? chip.label : null;
-          const description =
-            typeof chip.description === "string" ? chip.description : "";
-          const action = chip.action;
-          if (!id || !label || !action || typeof action !== "object")
-            return null;
-
-          const actionType = action.type;
-          if (
-            actionType === "append_prompt" &&
-            typeof action.text === "string"
-          ) {
-            return {
-              id,
-              label,
-              description,
-              action: {
-                type: "append_prompt",
-                text: action.text,
-              },
-            };
-          }
-
-          if (
-            actionType === "set_fields" &&
-            action.updates &&
-            typeof action.updates === "object"
-          ) {
-            const updates = action.updates as Record<string, unknown>;
-            const fields = Array.isArray(action.fields)
-              ? action.fields.filter(
-                  (
-                    field,
-                  ): field is
-                    | "role"
-                    | "tone"
-                    | "lengthPreference"
-                    | "format"
-                    | "constraints" =>
-                    field === "role" ||
-                    field === "tone" ||
-                    field === "lengthPreference" ||
-                    field === "format" ||
-                    field === "constraints",
-                )
-              : [];
-
-            return {
-              id,
-              label,
-              description,
-              action: {
-                type: "set_fields",
-                updates: (() => {
-                  const normalizedUpdates: {
-                    role?: string;
-                    tone?: string;
-                    lengthPreference?: string;
-                    format?: string[];
-                    constraints?: string[];
-                    customRole?: string;
-                    customFormat?: string;
-                    customConstraint?: string;
-                  } = {};
-                  if (typeof updates.role === "string") {
-                    normalizedUpdates.role = updates.role;
-                    normalizedUpdates.customRole = "";
-                  }
-                  if (typeof updates.tone === "string") {
-                    normalizedUpdates.tone = updates.tone;
-                  }
-                  if (typeof updates.lengthPreference === "string") {
-                    normalizedUpdates.lengthPreference =
-                      updates.lengthPreference;
-                  }
-                  if (Array.isArray(updates.format)) {
-                    normalizedUpdates.format = updates.format.filter(
-                      (entry): entry is string => typeof entry === "string",
-                    );
-                    normalizedUpdates.customFormat = "";
-                  }
-                  if (Array.isArray(updates.constraints)) {
-                    normalizedUpdates.constraints =
-                      normalizeConstraintSelections(
-                        updates.constraints.filter(
-                          (entry): entry is string => typeof entry === "string",
-                        ),
-                      );
-                    normalizedUpdates.customConstraint = "";
-                  }
-                  return normalizedUpdates;
-                })(),
-                fields,
-              },
-            };
-          }
-
+      .map((chip): BuilderSuggestionChip | null => {
+        if (!chip || typeof chip !== "object") return null;
+        const id = typeof chip.id === "string" ? chip.id : null;
+        const label = typeof chip.label === "string" ? chip.label : null;
+        const description =
+          typeof chip.description === "string" ? chip.description : "";
+        const action = chip.action;
+        if (!id || !label || !action || typeof action !== "object")
           return null;
-        })
-        .filter((chip): chip is BuilderSuggestionChip => chip !== null)
+
+        const actionType = action.type;
+        if (
+          actionType === "append_prompt" &&
+          typeof action.text === "string"
+        ) {
+          return {
+            id,
+            label,
+            description,
+            action: {
+              type: "append_prompt",
+              text: action.text,
+            },
+          };
+        }
+
+        if (
+          actionType === "set_fields" &&
+          action.updates &&
+          typeof action.updates === "object"
+        ) {
+          const updates = action.updates as Record<string, unknown>;
+          const fields = Array.isArray(action.fields)
+            ? action.fields.filter(
+              (
+                field,
+              ): field is
+                | "role"
+                | "tone"
+                | "lengthPreference"
+                | "format"
+                | "constraints" =>
+                field === "role" ||
+                field === "tone" ||
+                field === "lengthPreference" ||
+                field === "format" ||
+                field === "constraints",
+            )
+            : [];
+
+          return {
+            id,
+            label,
+            description,
+            action: {
+              type: "set_fields",
+              updates: (() => {
+                const normalizedUpdates: {
+                  role?: string;
+                  tone?: string;
+                  lengthPreference?: string;
+                  format?: string[];
+                  constraints?: string[];
+                  customRole?: string;
+                  customFormat?: string;
+                  customConstraint?: string;
+                } = {};
+                if (typeof updates.role === "string") {
+                  normalizedUpdates.role = updates.role;
+                  normalizedUpdates.customRole = "";
+                }
+                if (typeof updates.tone === "string") {
+                  normalizedUpdates.tone = updates.tone;
+                }
+                if (typeof updates.lengthPreference === "string") {
+                  normalizedUpdates.lengthPreference =
+                    updates.lengthPreference;
+                }
+                if (Array.isArray(updates.format)) {
+                  normalizedUpdates.format = updates.format.filter(
+                    (entry): entry is string => typeof entry === "string",
+                  );
+                  normalizedUpdates.customFormat = "";
+                }
+                if (Array.isArray(updates.constraints)) {
+                  normalizedUpdates.constraints =
+                    normalizeConstraintSelections(
+                      updates.constraints.filter(
+                        (entry): entry is string => typeof entry === "string",
+                      ),
+                    );
+                  normalizedUpdates.customConstraint = "";
+                }
+                return normalizedUpdates;
+              })(),
+              fields,
+            },
+          };
+        }
+
+        return null;
+      })
+      .filter((chip): chip is BuilderSuggestionChip => chip !== null)
     : [];
 
   return {
@@ -682,7 +682,7 @@ function buildInferenceRequestContext({
   const attachedSourceCount = config.contextConfig.sources.length;
   const hasSessionContext = Boolean(
     enhanceSession.contextSummary.trim() ||
-      enhanceSession.latestEnhancedPrompt.trim(),
+    enhanceSession.latestEnhancedPrompt.trim(),
   );
   const selectedOutputFormats = extractSelectedOutputFormats(config);
   const hasPastedSourceMaterial =
@@ -1148,23 +1148,23 @@ const Index = () => {
     lastEnhancementArtifactBuilderSignature;
   const hasEnhancedHistory = Boolean(
     lastSuccessfulEnhancementBuilderSignature ||
-      hasVisibleEnhancedOutput ||
-      enhanceMetadata ||
-      reasoningSummary.trim() ||
-      webSearchSources.length > 0,
+    hasVisibleEnhancedOutput ||
+    enhanceMetadata ||
+    reasoningSummary.trim() ||
+    webSearchSources.length > 0,
   );
   const hasCurrentEnhancedOutput = Boolean(
     hasVisibleEnhancedOutput &&
-      latestEnhancementOutputBuilderSignature &&
-      latestEnhancementOutputBuilderSignature === builderSignature,
+    latestEnhancementOutputBuilderSignature &&
+    latestEnhancementOutputBuilderSignature === builderSignature,
   );
   const hasCurrentEnhancementArtifacts = Boolean(
     latestEnhancementArtifactBuilderSignatureValue &&
-      latestEnhancementArtifactBuilderSignatureValue === builderSignature &&
-      (hasVisibleEnhancedOutput ||
-        enhanceMetadata ||
-        reasoningSummary.trim() ||
-        webSearchSources.length > 0),
+    latestEnhancementArtifactBuilderSignatureValue === builderSignature &&
+    (hasVisibleEnhancedOutput ||
+      enhanceMetadata ||
+      reasoningSummary.trim() ||
+      webSearchSources.length > 0),
   );
   const isEnhancementStale = Boolean(
     hasEnhancedHistory && hasVisibleEnhancedOutput && !hasCurrentEnhancedOutput,
@@ -1447,10 +1447,10 @@ const Index = () => {
       const debugEventStore =
         debugEnhanceEvents && typeof window !== "undefined"
           ? ((
-              window as typeof window & {
-                __promptforgeEnhanceEvents?: EnhanceDebugEventSnapshot[];
-              }
-            ).__promptforgeEnhanceEvents ??= [])
+            window as typeof window & {
+              __promptforgeEnhanceEvents?: EnhanceDebugEventSnapshot[];
+            }
+          ).__promptforgeEnhanceEvents ??= [])
           : null;
       const outputFormats = [
         ...configForEnhance.format,
@@ -1684,7 +1684,7 @@ const Index = () => {
               description:
                 "The enhancement finished without returning a prompt. Please try again.",
               variant: "destructive",
-              });
+            });
             return;
           }
           setLastSuccessfulEnhancementBuilderSignature(
@@ -1697,9 +1697,9 @@ const Index = () => {
             outputChars: accumulated.length,
             ...(lastEnhanceInputSnapshotRef.current
               ? buildEnhanceMeasurementPayload(
-                  lastEnhanceInputSnapshotRef.current,
-                  finalPromptText,
-                )
+                lastEnhanceInputSnapshotRef.current,
+                finalPromptText,
+              )
               : {}),
           });
           syncEnhancementProfile({
@@ -1987,7 +1987,7 @@ const Index = () => {
       hasAttachedSources: config.contextConfig.sources.length > 0,
       hasSessionContext: Boolean(
         enhanceSession.contextSummary.trim() ||
-          enhanceSession.latestEnhancedPrompt.trim(),
+        enhanceSession.latestEnhancedPrompt.trim(),
       ),
       hasPastedSourceMaterial:
         looksLikePastedSourceMaterial(config.originalPrompt) ||
@@ -2080,8 +2080,8 @@ const Index = () => {
     : isEnhancementStale
       ? "Draft-only score. Builder changes made the last enhancement stale. Re-run Enhance to refresh the AI output."
       : hasCurrentEnhancedOutput
-      ? "Draft-only score. This gauge still reflects the builder draft."
-      : "Draft-only score before enhancement.";
+        ? "Draft-only score. This gauge still reflects the builder draft."
+        : "Draft-only score before enhancement.";
   const hasDetailSelections = Boolean(
     selectedRole ||
     config.format.length ||
@@ -2675,118 +2675,118 @@ const Index = () => {
       <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]">
         {/* Left: Input & Builder */}
         <div className="min-w-0 space-y-3 sm:space-y-4">
-              <BuilderHeroInput
-                value={config.originalPrompt}
-                onChange={(value) => updateConfig({ originalPrompt: value })}
-                onClear={handleClearPrompt}
-                onResetAll={handleResetAll}
-                phase3Enabled
-                suggestionChips={suggestionChips}
-                isInferringSuggestions={isInferringSuggestions}
-                hasInferenceError={hasInferenceError}
-                onApplySuggestion={handleApplySuggestionChip}
-                onResetInferred={handleResetInferredDetails}
-                canResetInferred={hasAiOwnedFields}
-                detectedIntent={detectedIntent}
-                intentOverride={intentOverride}
-                onIntentOverrideChange={handleIntentOverrideChange}
+          <BuilderHeroInput
+            value={config.originalPrompt}
+            onChange={(value) => updateConfig({ originalPrompt: value })}
+            onClear={handleClearPrompt}
+            onResetAll={handleResetAll}
+            phase3Enabled
+            suggestionChips={suggestionChips}
+            isInferringSuggestions={isInferringSuggestions}
+            hasInferenceError={hasInferenceError}
+            onApplySuggestion={handleApplySuggestionChip}
+            onResetInferred={handleResetInferredDetails}
+            canResetInferred={hasAiOwnedFields}
+            detectedIntent={detectedIntent}
+            intentOverride={intentOverride}
+            onIntentOverrideChange={handleIntentOverrideChange}
+          />
+
+          {showEnhanceFirstCard && (
+            <Card className="border-border/70 bg-card/80 p-3">
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground">
+                  Start in 3 steps
+                </p>
+                <ol className="grid gap-1 text-sm text-muted-foreground sm:grid-cols-3">
+                  <li>1. Add your rough prompt</li>
+                  <li>
+                    2. {isMobile ? "Tap" : "Click"} {primaryCtaLabel}
+                  </li>
+                  <li>3. Refine details</li>
+                </ol>
+                <p className="text-sm text-muted-foreground">
+                  Keep the first pass simple, then strengthen quality,
+                  context, and remix readiness.
+                </p>
+              </div>
+            </Card>
+          )}
+
+          {showRefineSuggestions && (
+            <Card className="border-primary/25 bg-primary/5 p-3">
+              <p className="text-xs font-medium text-primary">
+                Improve this result
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {refineSuggestions.map((suggestion) => (
+                  <Button
+                    key={suggestion.id}
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    className="h-11 text-sm sm:h-9 sm:text-sm"
+                    onClick={() => openAndFocusSection(suggestion.id)}
+                  >
+                    {suggestion.title}
+                  </Button>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                {refineSuggestions[0]?.description}
+              </p>
+            </Card>
+          )}
+
+          {!shouldShowAdvancedControls && (
+            <Card className="border-border/70 bg-card/80 p-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    Need more control?
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Reveal advanced settings when you are ready to refine.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  className="h-11 text-sm sm:h-10 sm:text-sm"
+                  onClick={() => persistedSetShowAdvancedControls(true)}
+                >
+                  Show advanced controls
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          {shouldShowAdvancedControls && (
+            <>
+              <BuilderAdjustDetails
+                config={config}
+                isOpen={isAdjustDetailsOpen}
+                onOpenChange={setIsAdjustDetailsOpen}
+                onUpdate={handleAdjustDetailsUpdate}
+                fieldOwnership={fieldOwnership}
               />
 
-              {showEnhanceFirstCard && (
-                <Card className="border-border/70 bg-card/80 p-3">
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-foreground">
-                      Start in 3 steps
-                    </p>
-                    <ol className="grid gap-1 text-sm text-muted-foreground sm:grid-cols-3">
-                      <li>1. Add your rough prompt</li>
-                      <li>
-                        2. {isMobile ? "Tap" : "Click"} {primaryCtaLabel}
-                      </li>
-                      <li>3. Refine details</li>
-                    </ol>
-                    <p className="text-sm text-muted-foreground">
-                      Keep the first pass simple, then strengthen quality,
-                      context, and remix readiness.
-                    </p>
-                  </div>
-                </Card>
-              )}
-
-              {showRefineSuggestions && (
-                <Card className="border-primary/25 bg-primary/5 p-3">
-                  <p className="text-xs font-medium text-primary">
-                    Improve this result
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {refineSuggestions.map((suggestion) => (
-                      <Button
-                        key={suggestion.id}
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        className="h-11 text-sm sm:h-9 sm:text-sm"
-                        onClick={() => openAndFocusSection(suggestion.id)}
-                      >
-                        {suggestion.title}
-                      </Button>
-                    ))}
-                  </div>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {refineSuggestions[0]?.description}
-                  </p>
-                </Card>
-              )}
-
-              {!shouldShowAdvancedControls && (
-                <Card className="border-border/70 bg-card/80 p-3">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">
-                        Need more control?
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Reveal advanced settings when you are ready to refine.
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="secondary"
-                      className="h-11 text-sm sm:h-10 sm:text-sm"
-                      onClick={() => persistedSetShowAdvancedControls(true)}
-                    >
-                      Show advanced controls
-                    </Button>
-                  </div>
-                </Card>
-              )}
-
-              {shouldShowAdvancedControls && (
-                <>
-                  <BuilderAdjustDetails
-                    config={config}
-                    isOpen={isAdjustDetailsOpen}
-                    onOpenChange={setIsAdjustDetailsOpen}
-                    onUpdate={handleAdjustDetailsUpdate}
-                    fieldOwnership={fieldOwnership}
-                  />
-
-                  <BuilderSourcesAdvanced
-                    contextConfig={config.contextConfig}
-                    isOpen={isSourcesAdvancedOpen}
-                    onOpenChange={setIsSourcesAdvancedOpen}
-                    onUpdateSources={updateContextSources}
-                    onUpdateDatabaseConnections={updateDatabaseConnections}
-                    onUpdateRag={updateRagParameters}
-                    onUpdateProjectNotes={updateProjectNotes}
-                    onToggleDelimiters={toggleDelimiters}
-                    webSearchEnabled={webSearchEnabled}
-                    onToggleWebSearch={handleWebSearchToggle}
-                    isEnhancing={isEnhancing}
-                  />
-                </>
-              )}
+              <BuilderSourcesAdvanced
+                contextConfig={config.contextConfig}
+                isOpen={isSourcesAdvancedOpen}
+                onOpenChange={setIsSourcesAdvancedOpen}
+                onUpdateSources={updateContextSources}
+                onUpdateDatabaseConnections={updateDatabaseConnections}
+                onUpdateRag={updateRagParameters}
+                onUpdateProjectNotes={updateProjectNotes}
+                onToggleDelimiters={toggleDelimiters}
+                webSearchEnabled={webSearchEnabled}
+                onToggleWebSearch={handleWebSearchToggle}
+                isEnhancing={isEnhancing}
+              />
+            </>
+          )}
 
           <Card className="border-border/70 bg-card/80 p-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -2818,67 +2818,67 @@ const Index = () => {
         {/* Right: Output — inline on desktop, drawer on mobile */}
         {!isMobile && (
           <div className="min-w-0 space-y-3 lg:sticky lg:top-20 lg:self-start">
-              <Card className="pf-panel mb-3 border-border/70 bg-card/80 p-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-medium text-foreground">
-                      Builder quality signal
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {builderQualityHint}
-                    </p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {tipsWithOwnership?.[0] ||
-                        "Add context and constraints to improve quality."}
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <span className="type-label-caps text-xs font-medium text-muted-foreground">
-                      Builder
-                    </span>
-                    <Badge
-                      variant="pill"
-                      tone={score.total >= 75 ? "brand" : "default"}
-                      className="text-xs"
-                      aria-label={builderQualityLabel}
-                      title={builderQualityLabel}
-                    >
-                      <span className="sr-only">{builderQualityLabel}</span>
-                      <span aria-hidden="true">{score.total}/100</span>
-                    </Badge>
-                  </div>
+            <Card className="pf-panel mb-3 border-border/70 bg-card/80 p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-medium text-foreground">
+                    Builder quality signal
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {builderQualityHint}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {tipsWithOwnership?.[0] ||
+                      "Add context and constraints to improve quality."}
+                  </p>
                 </div>
-                <div className="mt-3 rounded-2xl border border-pf-parchment/10 bg-pf-coal/20 p-2">
-                  <PFQualityGauge
-                    value={score.total}
-                    size={128}
-                    showLabel={false}
-                  />
+                <div className="flex flex-col items-end gap-1">
+                  <span className="type-label-caps text-xs font-medium text-muted-foreground">
+                    Builder
+                  </span>
+                  <Badge
+                    variant="pill"
+                    tone={score.total >= 75 ? "brand" : "default"}
+                    className="text-xs"
+                    aria-label={builderQualityLabel}
+                    title={builderQualityLabel}
+                  >
+                    <span className="sr-only">{builderQualityLabel}</span>
+                    <span aria-hidden="true">{score.total}/100</span>
+                  </Badge>
                 </div>
-                <div className="mt-3 space-y-1.5">
-                  {([
-                    { label: "Clarity", value: score.clarity, tip: "How specific and detailed your task description is" },
-                    { label: "Context", value: score.context, tip: "Background info, role, sources, and structured data" },
-                    { label: "Specificity", value: score.specificity, tip: "Output format, length, examples, and constraints" },
-                    { label: "Structure", value: score.structure, tip: "Role, tone, complexity, and formatting choices" },
-                  ] as const).map((axis) => (
-                    <div key={axis.label} className="space-y-0.5">
-                      <div className="flex justify-between text-xs">
-                        <span className="text-muted-foreground" title={axis.tip}>
-                          {axis.label}
-                        </span>
-                        <span className="font-medium text-foreground">{axis.value}/25</span>
-                      </div>
-                      <div className="h-1 rounded-full bg-muted/50 overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-primary transition-all duration-300"
-                          style={{ width: `${Math.round((axis.value / 25) * 100)}%` }}
-                        />
-                      </div>
+              </div>
+              <div className="mt-3 rounded-2xl border border-pf-parchment/10 bg-pf-coal/20 p-2">
+                <PFQualityGauge
+                  value={score.total}
+                  size={128}
+                  showLabel={false}
+                />
+              </div>
+              <div className="mt-3 space-y-1.5">
+                {([
+                  { label: "Clarity", value: score.clarity, tip: "How specific and detailed your task description is" },
+                  { label: "Context", value: score.context, tip: "Background info, role, sources, and structured data" },
+                  { label: "Specificity", value: score.specificity, tip: "Output format, length, examples, and constraints" },
+                  { label: "Structure", value: score.structure, tip: "Role, tone, complexity, and formatting choices" },
+                ] as const).map((axis) => (
+                  <div key={axis.label} className="space-y-0.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground" title={axis.tip}>
+                        {axis.label}
+                      </span>
+                      <span className="font-medium text-foreground">{axis.value}/25</span>
                     </div>
-                  ))}
-                </div>
-              </Card>
+                    <div className="h-1 rounded-full bg-muted/50 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all duration-300"
+                        style={{ width: `${Math.round((axis.value / 25) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
             <OutputPanel
               builtPrompt={builtPrompt}
               enhancedPrompt={currentEnhancedPrompt}
@@ -2921,9 +2921,9 @@ const Index = () => {
               remixContext={
                 remixContext
                   ? {
-                      title: remixContext.parentTitle,
-                      authorName: remixContext.parentAuthor,
-                    }
+                    title: remixContext.parentTitle,
+                    authorName: remixContext.parentAuthor,
+                  }
                   : undefined
               }
             />
@@ -3006,13 +3006,13 @@ const Index = () => {
                       {currentWebSearchSources
                         .slice(0, 3)
                         .map((source, index) => (
-                        <li
-                          key={`${source}-${index}`}
-                          className="text-xs text-muted-foreground line-clamp-2 break-all"
-                        >
-                          {source}
-                        </li>
-                      ))}
+                          <li
+                            key={`${source}-${index}`}
+                            className="text-xs text-muted-foreground line-clamp-2 break-all"
+                          >
+                            {source}
+                          </li>
+                        ))}
                     </ul>
                   </Card>
                 )}
@@ -3182,9 +3182,9 @@ const Index = () => {
                 remixContext={
                   remixContext
                     ? {
-                        title: remixContext.parentTitle,
-                        authorName: remixContext.parentAuthor,
-                      }
+                      title: remixContext.parentTitle,
+                      authorName: remixContext.parentAuthor,
+                    }
                     : undefined
                 }
               />

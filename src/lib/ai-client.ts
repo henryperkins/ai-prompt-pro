@@ -958,6 +958,7 @@ async function streamEnhanceViaWebSocket({
   didTimeout,
   connectTimeoutMs,
   onDelta,
+  onOutputText,
   onEvent,
 }: {
   payload: Record<string, unknown>;
@@ -965,6 +966,7 @@ async function streamEnhanceViaWebSocket({
   didTimeout: () => boolean;
   connectTimeoutMs: number;
   onDelta: (text: string) => void;
+  onOutputText?: (payload: { delta: string; fullText: string }) => void;
   onEvent?: (event: {
     eventType: string | null;
     responseType: string | null;
@@ -1132,9 +1134,12 @@ async function streamEnhanceViaWebSocket({
       if (outputUpdate.didHandle) {
         const delta = diffOutputText(renderedOutput, outputUpdate.text);
         renderedOutput = outputUpdate.text;
+        onOutputText?.({ delta, fullText: outputUpdate.text });
         if (delta) {
           sawSessionProgress = true;
-          onDelta(delta);
+          if (!onOutputText) {
+            onDelta(delta);
+          }
         }
         return;
       }
@@ -1379,15 +1384,45 @@ export async function streamEnhance({
   let enhanceAttempt = 0;
   let sawDelta = false;
   let sawSessionProgress = false;
+  let latestAttemptPrompt = "";
   // Tracks whether the backend has emitted any attempt-specific state that
   // would make replaying the request unsafe (duplicate work, mixed session).
   // This is separate from sawSessionProgress which drives UI/fallback semantics.
   let sawAttemptActivity = false;
 
-  const onDeltaWithTracking = (text: string) => {
-    sawDelta = true;
-    sawAttemptActivity = true;
-    onDelta(text);
+  const rememberLatestEnhancedPrompt = (promptText: string) => {
+    const normalized = promptText.trim();
+    if (!normalized || currentSession.latestEnhancedPrompt === normalized) return;
+    currentSession = createCodexSession({
+      ...currentSession,
+      latestEnhancedPrompt: normalized,
+    });
+  };
+
+  const trackStreamOutput = ({
+    delta,
+    fullText,
+  }: {
+    delta?: string;
+    fullText?: string;
+  }) => {
+    if (typeof fullText === "string") {
+      latestAttemptPrompt = fullText;
+      if (fullText.trim()) {
+        sawDelta = true;
+        sawAttemptActivity = true;
+        rememberLatestEnhancedPrompt(fullText);
+      }
+    } else if (delta) {
+      latestAttemptPrompt += delta;
+      sawDelta = true;
+      sawAttemptActivity = true;
+      rememberLatestEnhancedPrompt(latestAttemptPrompt);
+    }
+
+    if (delta) {
+      onDelta(delta);
+    }
   };
 
   const requestDeadlineMs =
@@ -1457,6 +1492,7 @@ export async function streamEnhance({
     sawDelta = false;
     sawSessionProgress = false;
     sawAttemptActivity = false;
+    latestAttemptPrompt = "";
     currentSession = createCodexSession(session ?? undefined);
   };
 
@@ -1476,318 +1512,319 @@ export async function streamEnhance({
   };
 
   try {
-  while (true) {
-  try {
-    const shouldTryWebSocket =
-      ENHANCE_TRANSPORT_MODE !== "sse"
-      && typeof globalThis.WebSocket === "function";
-    if (shouldTryWebSocket) {
-      markSessionStarted("ws");
-      const resolvedConnectTimeoutMs =
-        typeof timeoutMs === "number" && Number.isFinite(timeoutMs) && timeoutMs > 0
-          ? Math.max(250, Math.min(ENHANCE_WS_CONNECT_TIMEOUT_MS, Math.floor(timeoutMs * 0.35)))
-          : ENHANCE_WS_CONNECT_TIMEOUT_MS;
-      const wsResult = await streamEnhanceViaWebSocket({
-        payload: buildEnhancePayload(),
-        signal: requestController.signal,
-        didTimeout: () => timeoutTriggered,
-        connectTimeoutMs: resolvedConnectTimeoutMs,
-        onDelta: onDeltaWithTracking,
-        onEvent: (event) => {
-          onEvent?.(event);
-          applySessionEvent(event, event.payload, "ws");
-        },
-      });
+    while (true) {
+      try {
+        const shouldTryWebSocket =
+          ENHANCE_TRANSPORT_MODE !== "sse"
+          && typeof globalThis.WebSocket === "function";
+        if (shouldTryWebSocket) {
+          markSessionStarted("ws");
+          const resolvedConnectTimeoutMs =
+            typeof timeoutMs === "number" && Number.isFinite(timeoutMs) && timeoutMs > 0
+              ? Math.max(250, Math.min(ENHANCE_WS_CONNECT_TIMEOUT_MS, Math.floor(timeoutMs * 0.35)))
+              : ENHANCE_WS_CONNECT_TIMEOUT_MS;
+          const wsResult = await streamEnhanceViaWebSocket({
+            payload: buildEnhancePayload(),
+            signal: requestController.signal,
+            didTimeout: () => timeoutTriggered,
+            connectTimeoutMs: resolvedConnectTimeoutMs,
+            onDelta: (deltaText) => {
+              trackStreamOutput({ delta: deltaText });
+            },
+            onOutputText: ({ delta, fullText }) => {
+              trackStreamOutput({ delta, fullText });
+            },
+            onEvent: (event) => {
+              onEvent?.(event);
+              applySessionEvent(event, event.payload, "ws");
+            },
+          });
 
-      if (wsResult.outcome === "completed") {
-        emitSessionUpdate(completeCodexSession(currentSession, { transport: "ws" }));
-        onDone();
-        return;
-      }
-      if (wsResult.outcome === "aborted") {
-        emitSessionUpdate(abortCodexSession(currentSession, { transport: "ws" }));
-        return;
-      }
-      if (wsResult.outcome === "error") {
-        if (
-          wsResult.allowFallback
-          &&
-          ENHANCE_TRANSPORT_MODE === "auto"
-          && (
-            (wsResult.error.retryable && wsResult.error.code !== "request_timeout")
-            || wsResult.error.code === "auth_session_invalid"
-            || wsResult.error.code === "auth_required"
-          )
-        ) {
-          // Fall through to SSE transport as a compatibility fallback.
-        } else {
-          if (await retryEnhanceIfAllowed(wsResult.error)) {
+          if (wsResult.outcome === "completed") {
+            emitSessionUpdate(completeCodexSession(currentSession, { transport: "ws" }));
+            onDone();
+            return;
+          }
+          if (wsResult.outcome === "aborted") {
+            emitSessionUpdate(abortCodexSession(currentSession, { transport: "ws" }));
+            return;
+          }
+          if (wsResult.outcome === "error") {
+            if (
+              wsResult.allowFallback
+              &&
+              ENHANCE_TRANSPORT_MODE === "auto"
+              && (
+                (wsResult.error.retryable && wsResult.error.code !== "request_timeout")
+                || wsResult.error.code === "auth_session_invalid"
+                || wsResult.error.code === "auth_required"
+              )
+            ) {
+              // Fall through to SSE transport as a compatibility fallback.
+            } else {
+              if (await retryEnhanceIfAllowed(wsResult.error)) {
+                continue;
+              }
+              emitSessionUpdate(failCodexSession(currentSession, {
+                code: wsResult.error.code,
+                message: wsResult.error.message,
+              }, { transport: "ws" }));
+              onError(wsResult.error);
+              return;
+            }
+          } else if (wsResult.outcome === "fallback") {
+            if (ENHANCE_TRANSPORT_MODE === "ws") {
+              const fallbackError = new AIClientError({
+                message: serviceUnavailableMessage("enhance-prompt"),
+                code: "network_unavailable",
+                retryable: true,
+              });
+              if (await retryEnhanceIfAllowed(fallbackError)) {
+                continue;
+              }
+              emitSessionUpdate(failCodexSession(currentSession, {
+                code: "network_unavailable",
+                message: serviceUnavailableMessage("enhance-prompt"),
+              }, { transport: "ws" }));
+              onError(fallbackError);
+              return;
+            }
+          } else {
+            return;
+          }
+        }
+
+        markSessionStarted("sse");
+        const resp = await postFunctionWithAuthRecovery("enhance-prompt", buildEnhancePayload(), {
+          signal: requestController.signal,
+        });
+
+        if (!resp.body) {
+          emitSessionUpdate(failCodexSession(currentSession, {
+            code: "bad_response",
+            message: "No response body from enhancement service.",
+          }, { transport: "sse" }));
+          onError(new AIClientError({
+            message: "No response body from enhancement service.",
+            code: "bad_response",
+          }));
+          return;
+        }
+
+        reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let textBuffer = "";
+        let streamDone = false;
+        let terminalError: AIClientError | null = null;
+        const outputState = createEnhanceOutputStreamState();
+        let renderedOutput = "";
+
+        while (!streamDone) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          textBuffer += decoder.decode(value, { stream: true });
+
+          let newlineIndex: number;
+          while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+            let line = textBuffer.slice(0, newlineIndex);
+            textBuffer = textBuffer.slice(newlineIndex + 1);
+
+            if (line.endsWith("\r")) line = line.slice(0, -1);
+            if (line.startsWith(":") || line.trim() === "") continue;
+            if (!line.startsWith("data: ")) continue;
+
+            const jsonStr = line.slice(6).trim();
+            if (jsonStr === "[DONE]") {
+              streamDone = true;
+              break;
+            }
+
+            try {
+              const parsed = JSON.parse(jsonStr);
+              const meta = readSseEventMeta(parsed);
+              onEvent?.({ ...meta, payload: parsed });
+              applySessionEvent(meta, parsed, "sse");
+
+              const parsedError = extractSseErrorDetails(parsed);
+              if (parsedError) {
+                terminalError = normalizeClientError("enhance-prompt", parsedError.message, {
+                  status: parsedError.status,
+                  code: parsedError.code,
+                  retryAfterMs: parsedError.retryAfterMs,
+                });
+                streamDone = true;
+                break;
+              }
+
+              const outputUpdate = applyEnhanceOutputEvent(outputState, {
+                eventType: meta.eventType,
+                responseType: meta.responseType,
+                itemId: meta.itemId,
+                itemType: meta.itemType,
+              }, parsed);
+              if (outputUpdate.didHandle) {
+                const delta = diffOutputText(renderedOutput, outputUpdate.text);
+                renderedOutput = outputUpdate.text;
+                trackStreamOutput({ delta, fullText: outputUpdate.text });
+                continue;
+              }
+
+              if (!shouldEmitSseText(meta)) {
+                continue;
+              }
+
+              const content = extractSseText(parsed);
+              if (content) trackStreamOutput({ delta: content });
+            } catch {
+              textBuffer = line + "\n" + textBuffer;
+              break;
+            }
+          }
+        }
+
+        if (terminalError) {
+          if (await retryEnhanceIfAllowed(terminalError)) {
             continue;
           }
           emitSessionUpdate(failCodexSession(currentSession, {
-            code: wsResult.error.code,
-            message: wsResult.error.message,
-          }, { transport: "ws" }));
-          onError(wsResult.error);
+            code: terminalError.code,
+            message: terminalError.message,
+          }, { transport: "sse" }));
+          onError(terminalError);
           return;
         }
-      } else if (wsResult.outcome === "fallback") {
-        if (ENHANCE_TRANSPORT_MODE === "ws") {
-          const fallbackError = new AIClientError({
-            message: serviceUnavailableMessage("enhance-prompt"),
+
+        // Final flush
+        if (textBuffer.trim()) {
+          for (let raw of textBuffer.split("\n")) {
+            if (!raw) continue;
+            if (raw.endsWith("\r")) raw = raw.slice(0, -1);
+            if (raw.startsWith(":") || raw.trim() === "") continue;
+            if (!raw.startsWith("data: ")) continue;
+            const jsonStr = raw.slice(6).trim();
+            if (jsonStr === "[DONE]") continue;
+            try {
+              const parsed = JSON.parse(jsonStr);
+              const meta = readSseEventMeta(parsed);
+              onEvent?.({ ...meta, payload: parsed });
+              applySessionEvent(meta, parsed, "sse");
+
+              const parsedError = extractSseErrorDetails(parsed);
+              if (parsedError) {
+                terminalError = normalizeClientError("enhance-prompt", parsedError.message, {
+                  status: parsedError.status,
+                  code: parsedError.code,
+                  retryAfterMs: parsedError.retryAfterMs,
+                });
+                break;
+              }
+
+              const outputUpdate = applyEnhanceOutputEvent(outputState, {
+                eventType: meta.eventType,
+                responseType: meta.responseType,
+                itemId: meta.itemId,
+                itemType: meta.itemType,
+              }, parsed);
+              if (outputUpdate.didHandle) {
+                const delta = diffOutputText(renderedOutput, outputUpdate.text);
+                renderedOutput = outputUpdate.text;
+                trackStreamOutput({ delta, fullText: outputUpdate.text });
+                continue;
+              }
+
+              if (!shouldEmitSseText(meta)) {
+                continue;
+              }
+
+              const content = extractSseText(parsed);
+              if (content) trackStreamOutput({ delta: content });
+            } catch {
+              /* ignore */
+            }
+          }
+        }
+
+        if (terminalError) {
+          if (await retryEnhanceIfAllowed(terminalError)) {
+            continue;
+          }
+          emitSessionUpdate(failCodexSession(currentSession, {
+            code: terminalError.code,
+            message: terminalError.message,
+          }, { transport: "sse" }));
+          onError(terminalError);
+          return;
+        }
+
+        if (!streamDone) {
+          const interruptedError = new AIClientError({
+            message: interruptedStreamMessage("enhance-prompt"),
             code: "network_unavailable",
             retryable: true,
           });
-          if (await retryEnhanceIfAllowed(fallbackError)) {
+          if (await retryEnhanceIfAllowed(interruptedError)) {
             continue;
           }
           emitSessionUpdate(failCodexSession(currentSession, {
             code: "network_unavailable",
-            message: serviceUnavailableMessage("enhance-prompt"),
-          }, { transport: "ws" }));
-          onError(fallbackError);
+            message: interruptedStreamMessage("enhance-prompt"),
+          }, { transport: "sse" }));
+          onError(interruptedError);
           return;
         }
-      } else {
+
+        emitSessionUpdate(completeCodexSession(currentSession, { transport: "sse" }));
+        onDone();
         return;
-      }
-    }
-
-    markSessionStarted("sse");
-    const resp = await postFunctionWithAuthRecovery("enhance-prompt", buildEnhancePayload(), {
-      signal: requestController.signal,
-    });
-
-    if (!resp.body) {
-      emitSessionUpdate(failCodexSession(currentSession, {
-        code: "bad_response",
-        message: "No response body from enhancement service.",
-      }, { transport: "sse" }));
-      onError(new AIClientError({
-        message: "No response body from enhancement service.",
-        code: "bad_response",
-      }));
-      return;
-    }
-
-    reader = resp.body.getReader();
-    const decoder = new TextDecoder();
-    let textBuffer = "";
-    let streamDone = false;
-    let terminalError: AIClientError | null = null;
-    const outputState = createEnhanceOutputStreamState();
-    let renderedOutput = "";
-
-    while (!streamDone) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      textBuffer += decoder.decode(value, { stream: true });
-
-      let newlineIndex: number;
-      while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
-        let line = textBuffer.slice(0, newlineIndex);
-        textBuffer = textBuffer.slice(newlineIndex + 1);
-
-        if (line.endsWith("\r")) line = line.slice(0, -1);
-        if (line.startsWith(":") || line.trim() === "") continue;
-        if (!line.startsWith("data: ")) continue;
-
-        const jsonStr = line.slice(6).trim();
-        if (jsonStr === "[DONE]") {
-          streamDone = true;
-          break;
-        }
-
-        try {
-          const parsed = JSON.parse(jsonStr);
-          const meta = readSseEventMeta(parsed);
-          onEvent?.({ ...meta, payload: parsed });
-          applySessionEvent(meta, parsed, "sse");
-
-          const parsedError = extractSseErrorDetails(parsed);
-          if (parsedError) {
-            terminalError = normalizeClientError("enhance-prompt", parsedError.message, {
-              status: parsedError.status,
-              code: parsedError.code,
-              retryAfterMs: parsedError.retryAfterMs,
-            });
-            streamDone = true;
-            break;
-          }
-
-          const outputUpdate = applyEnhanceOutputEvent(outputState, {
-            eventType: meta.eventType,
-            responseType: meta.responseType,
-            itemId: meta.itemId,
-            itemType: meta.itemType,
-          }, parsed);
-          if (outputUpdate.didHandle) {
-            const delta = diffOutputText(renderedOutput, outputUpdate.text);
-            renderedOutput = outputUpdate.text;
-            if (delta) {
-              onDeltaWithTracking(delta);
-            }
-            continue;
-          }
-
-          if (!shouldEmitSseText(meta)) {
-            continue;
-          }
-
-          const content = extractSseText(parsed);
-          if (content) onDeltaWithTracking(content);
-        } catch {
-          textBuffer = line + "\n" + textBuffer;
-          break;
-        }
-      }
-    }
-
-    if (terminalError) {
-      if (await retryEnhanceIfAllowed(terminalError)) {
-        continue;
-      }
-      emitSessionUpdate(failCodexSession(currentSession, {
-        code: terminalError.code,
-        message: terminalError.message,
-      }, { transport: "sse" }));
-      onError(terminalError);
-      return;
-    }
-
-    // Final flush
-    if (textBuffer.trim()) {
-      for (let raw of textBuffer.split("\n")) {
-        if (!raw) continue;
-        if (raw.endsWith("\r")) raw = raw.slice(0, -1);
-        if (raw.startsWith(":") || raw.trim() === "") continue;
-        if (!raw.startsWith("data: ")) continue;
-        const jsonStr = raw.slice(6).trim();
-        if (jsonStr === "[DONE]") continue;
-        try {
-          const parsed = JSON.parse(jsonStr);
-          const meta = readSseEventMeta(parsed);
-          onEvent?.({ ...meta, payload: parsed });
-          applySessionEvent(meta, parsed, "sse");
-
-          const parsedError = extractSseErrorDetails(parsed);
-          if (parsedError) {
-            terminalError = normalizeClientError("enhance-prompt", parsedError.message, {
-              status: parsedError.status,
-              code: parsedError.code,
-              retryAfterMs: parsedError.retryAfterMs,
-            });
-            break;
-          }
-
-          const outputUpdate = applyEnhanceOutputEvent(outputState, {
-            eventType: meta.eventType,
-            responseType: meta.responseType,
-            itemId: meta.itemId,
-            itemType: meta.itemType,
-          }, parsed);
-          if (outputUpdate.didHandle) {
-            const delta = diffOutputText(renderedOutput, outputUpdate.text);
-            renderedOutput = outputUpdate.text;
-            if (delta) {
-              onDeltaWithTracking(delta);
-            }
-            continue;
-          }
-
-          if (!shouldEmitSseText(meta)) {
-            continue;
-          }
-
-          const content = extractSseText(parsed);
-          if (content) onDeltaWithTracking(content);
-        } catch {
-          /* ignore */
-        }
-      }
-    }
-
-    if (terminalError) {
-      if (await retryEnhanceIfAllowed(terminalError)) {
-        continue;
-      }
-      emitSessionUpdate(failCodexSession(currentSession, {
-        code: terminalError.code,
-        message: terminalError.message,
-      }, { transport: "sse" }));
-      onError(terminalError);
-      return;
-    }
-
-    if (!streamDone) {
-      const interruptedError = new AIClientError({
-        message: interruptedStreamMessage("enhance-prompt"),
-        code: "network_unavailable",
-        retryable: true,
-      });
-      if (await retryEnhanceIfAllowed(interruptedError)) {
-        continue;
-      }
-      emitSessionUpdate(failCodexSession(currentSession, {
-        code: "network_unavailable",
-        message: interruptedStreamMessage("enhance-prompt"),
-      }, { transport: "sse" }));
-      onError(interruptedError);
-      return;
-    }
-
-    emitSessionUpdate(completeCodexSession(currentSession, { transport: "sse" }));
-    onDone();
-    return;
-  } catch (e) {
-    const abortReason = requestController.signal.aborted
-      ? getAbortSignalReason(requestController.signal)
-      : null;
-    const normalizedError = normalizeClientError("enhance-prompt", abortReason ?? e);
-    if (normalizedError.code === "request_aborted") {
-      emitSessionUpdate(abortCodexSession(currentSession, {
-        transport: currentSession.transport,
-      }));
-      return;
-    }
-
-    if (canRetryEnhance(normalizedError)) {
-      try {
-        if (await retryEnhanceIfAllowed(normalizedError)) {
-          continue;
-        }
-      } catch {
-        // Timeout or caller abort fired during retry backoff.
-        const sleepAbortReason = requestController.signal.aborted
+      } catch (e) {
+        const abortReason = requestController.signal.aborted
           ? getAbortSignalReason(requestController.signal)
           : null;
-        const surfaceError = normalizeClientError("enhance-prompt", sleepAbortReason ?? normalizedError);
-        if (surfaceError.code === "request_aborted") {
-          emitSessionUpdate(abortCodexSession(currentSession, { transport: currentSession.transport }));
+        const normalizedError = normalizeClientError("enhance-prompt", abortReason ?? e);
+        if (normalizedError.code === "request_aborted") {
+          emitSessionUpdate(abortCodexSession(currentSession, {
+            transport: currentSession.transport,
+          }));
           return;
         }
+
+        if (canRetryEnhance(normalizedError)) {
+          try {
+            if (await retryEnhanceIfAllowed(normalizedError)) {
+              continue;
+            }
+          } catch {
+            // Timeout or caller abort fired during retry backoff.
+            const sleepAbortReason = requestController.signal.aborted
+              ? getAbortSignalReason(requestController.signal)
+              : null;
+            const surfaceError = normalizeClientError("enhance-prompt", sleepAbortReason ?? normalizedError);
+            if (surfaceError.code === "request_aborted") {
+              emitSessionUpdate(abortCodexSession(currentSession, { transport: currentSession.transport }));
+              return;
+            }
+            emitSessionUpdate(failCodexSession(currentSession, {
+              code: surfaceError.code,
+              message: surfaceError.message,
+            }, { transport: currentSession.transport }));
+            console.error("Stream error:", surfaceError);
+            onError(surfaceError);
+            return;
+          }
+        }
+        console.error("Stream error:", normalizedError);
         emitSessionUpdate(failCodexSession(currentSession, {
-          code: surfaceError.code,
-          message: surfaceError.message,
-        }, { transport: currentSession.transport }));
-        console.error("Stream error:", surfaceError);
-        onError(surfaceError);
+          code: normalizedError.code,
+          message: normalizedError.message,
+        }, {
+          transport: currentSession.transport,
+        }));
+        onError(normalizedError);
         return;
+      } finally {
+        await clearReader();
       }
-    }
-    console.error("Stream error:", normalizedError);
-    emitSessionUpdate(failCodexSession(currentSession, {
-      code: normalizedError.code,
-      message: normalizedError.message,
-    }, {
-      transport: currentSession.transport,
-    }));
-    onError(normalizedError);
-    return;
-  } finally {
-    await clearReader();
-  }
-  } // end while(true) retry loop
+    } // end while(true) retry loop
   } finally {
     unlinkExternalSignal();
     if (timeoutHandle !== null) {
@@ -1885,7 +1922,7 @@ export async function inferBuilderFields(
           : undefined,
       selectedOutputFormats:
         Array.isArray(input.requestContext.selectedOutputFormats) &&
-        input.requestContext.selectedOutputFormats.length > 0
+          input.requestContext.selectedOutputFormats.length > 0
           ? input.requestContext.selectedOutputFormats
           : undefined,
       hasPastedSourceMaterial:

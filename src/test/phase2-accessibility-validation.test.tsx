@@ -112,6 +112,45 @@ describe("Phase 2 accessibility and validation", () => {
     expect(summary).toHaveTextContent("(AI-suggested)");
   });
 
+  it("truncates long selected roles in the collapsed header and removes the duplicate open-state summary", () => {
+    const longRole =
+      "Senior UX auditor and design systems strategist for AI-assisted product experiences";
+    const { rerender } = render(
+      <BuilderAdjustDetails
+        config={{
+          ...defaultConfig,
+          customRole: longRole,
+        }}
+        isOpen={false}
+        onOpenChange={() => undefined}
+        onUpdate={() => undefined}
+      />,
+    );
+
+    const collapsedRole = screen.getByTestId(
+      "builder-adjust-details-selected-role",
+    );
+    expect(collapsedRole).toHaveTextContent(longRole);
+    expect(collapsedRole).toHaveAttribute("title", longRole);
+    expect(collapsedRole.className).toContain("truncate");
+
+    rerender(
+      <BuilderAdjustDetails
+        config={{
+          ...defaultConfig,
+          customRole: longRole,
+        }}
+        isOpen
+        onOpenChange={() => undefined}
+        onUpdate={() => undefined}
+      />,
+    );
+
+    expect(
+      screen.queryByTestId("builder-adjust-details-selected-role"),
+    ).not.toBeInTheDocument();
+  });
+
   it("announces enhance phase transitions via live region", () => {
     const { rerender } = render(
       <OutputPanel

@@ -231,10 +231,14 @@ export function BuilderAdjustDetails({
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {selectedRole && (
-              <Badge variant="modern" className="max-w-[180px] text-xs">
-                <span className="type-wrap-safe">{selectedRole}</span>
-              </Badge>
+            {selectedRole && !isOpen && (
+              <p
+                data-testid="builder-adjust-details-selected-role"
+                className="hidden max-w-[220px] truncate text-xs font-medium text-muted-foreground sm:block"
+                title={selectedRole}
+              >
+                {selectedRole}
+              </p>
             )}
             {isOpen ? (
               <ChevronDown className="h-4 w-4 text-muted-foreground" />

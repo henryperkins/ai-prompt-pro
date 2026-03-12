@@ -188,21 +188,24 @@ export function BuilderHeroInput({
               {suggestionChips.length > 0 && (
                 <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                   {suggestionChips.map((chip) => (
-                    <Button
+                    <button
                       key={chip.id}
                       type="button"
-                      variant="secondary"
-                      size="sm"
-                      className="h-auto min-w-0 w-full px-2.5 py-1.5 text-left sm:w-auto sm:max-w-[220px]"
+                      data-testid={`builder-suggestion-chip-${chip.id}`}
+                      className="interactive-card min-h-18 w-full min-w-0 rounded-lg border border-border/70 bg-background/80 px-3 py-2 text-left shadow-xs transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:w-[220px] sm:flex-none"
                       onClick={() => onApplySuggestion?.(chip)}
                     >
-                      <span className="flex min-w-0 flex-col gap-0.5">
-                        <span className="truncate text-sm font-medium">{chip.label}</span>
+                      <span className="flex min-w-0 flex-col gap-1">
+                        <span className="type-wrap-safe line-clamp-2 block min-w-0 text-sm font-medium text-foreground">
+                          {chip.label}
+                        </span>
                         {chip.description && (
-                          <span className="line-clamp-2 text-xs text-muted-foreground">{chip.description}</span>
+                          <span className="type-wrap-safe line-clamp-2 block min-w-0 text-xs leading-5 text-muted-foreground">
+                            {chip.description}
+                          </span>
                         )}
                       </span>
-                    </Button>
+                    </button>
                   ))}
                 </div>
               )}

@@ -706,6 +706,84 @@ describe("ai-client auth recovery", () => {
     });
   });
 
+  it("retains partial streamed prompt text in the failed session after a rate limit", async () => {
+    const onSession = vi.fn();
+    const onError = vi.fn();
+    const body = [
+      `data: ${JSON.stringify({
+        event: "thread.started",
+        type: "thread.started",
+        thread_id: "thread_partial_1",
+      })}`,
+      "",
+      `data: ${JSON.stringify({
+        event: "item.updated",
+        type: "item.updated",
+        thread_id: "thread_partial_1",
+        turn_id: "turn_partial_1",
+        item_id: "item_partial_1",
+        item_type: "agent_message",
+        item: {
+          id: "item_partial_1",
+          type: "agent_message",
+          text: "Partial prompt draft",
+        },
+      })}`,
+      "",
+      `data: ${JSON.stringify({
+        event: "turn.failed",
+        type: "turn.failed",
+        thread_id: "thread_partial_1",
+        turn_id: "turn_partial_1",
+        error: {
+          message: "429 Too Many Requests",
+          code: "rate_limit_exceeded",
+          status: 429,
+        },
+      })}`,
+      "",
+      "data: [DONE]",
+      "",
+    ].join("\n");
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(streamingRaw(body));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { streamEnhance } = await import("@/lib/ai-client");
+
+    await streamEnhance({
+      prompt: "Improve this",
+      onDelta: vi.fn(),
+      onDone: vi.fn(),
+      onError,
+      onSession,
+    });
+
+    const finalSession = onSession.mock.calls.at(-1)?.[0] as {
+      threadId?: string;
+      turnId?: string;
+      status?: string;
+      latestEnhancedPrompt?: string;
+      lastErrorCode?: string;
+      lastErrorMessage?: string;
+    };
+
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "rate_limited",
+        status: 429,
+      }),
+    );
+    expect(finalSession).toMatchObject({
+      threadId: "thread_partial_1",
+      turnId: "turn_partial_1",
+      status: "failed",
+      latestEnhancedPrompt: "Partial prompt draft",
+      lastErrorCode: "rate_limited",
+      lastErrorMessage: "429 Too Many Requests",
+    });
+  });
+
   it("treats a stream without a done marker as an interrupted request", async () => {
     const body = [
       `data: ${JSON.stringify({

@@ -569,13 +569,13 @@ export function OutputPanel({
           onApplyToSessionContext={
             onAppendToSessionContext
               ? (label, content) => {
-                  onAppendToSessionContext(content);
-                  toast({
-                    title: `${label} added`,
-                    description:
-                      "That plan detail was appended to the session context.",
-                  });
-                }
+                onAppendToSessionContext(content);
+                toast({
+                  title: `${label} added`,
+                  description:
+                    "That plan detail was appended to the session context.",
+                });
+              }
               : undefined
           }
           onCopyText={(label, content) => {
