@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import type { CommunityPost } from "@/lib/community";
+import { estimateTokens } from "@/lib/community-utils";
 import { defaultConfig } from "@/lib/prompt-builder";
 import { CommunityPostCard } from "@/components/community/CommunityPostCard";
 
@@ -143,5 +144,27 @@ describe("CommunityPostCard action controls", () => {
     expect(screen.getByTestId("community-save-cta")).toBeInTheDocument();
     expect(screen.queryByTestId("community-share")).toBeNull();
     expect(screen.getByTestId("community-remix-cta")).toBeInTheDocument();
+  });
+
+  it("renders token estimate metadata without adding a tooltip button", () => {
+    const post = makePost({ enhancedPrompt: "Estimate this prompt body" });
+
+    render(
+      <MemoryRouter>
+        <CommunityPostCard
+          post={post}
+          authorName="Prompt Dev"
+          onCopyPrompt={vi.fn()}
+          onToggleVote={vi.fn()}
+          onCommentAdded={vi.fn()}
+          canVote={false}
+        />
+      </MemoryRouter>,
+    );
+
+    const tokenEstimate = screen.getByTitle("Estimated token count (~1.35x word count)");
+    expect(tokenEstimate.tagName).toBe("SPAN");
+    expect(tokenEstimate).toHaveTextContent(`${estimateTokens(post.enhancedPrompt)}t`);
+    expect(screen.queryByRole("button", { name: /Estimated token count/i })).toBeNull();
   });
 });

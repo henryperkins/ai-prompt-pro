@@ -2,6 +2,7 @@ import ts from "typescript";
 
 export const FORBIDDEN_DS_ENTRYPOINT_IMPORTS = [
   "@/components/base/input/label",
+  "@/components/base/tooltip/tooltip",
   "@/components/base/textarea/textarea",
   "@/components/base/checkbox/checkbox",
   "@/components/base/avatar/avatar",

@@ -1,1 +1,2 @@
-export { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/base/primitives/tooltip";
+export { Tooltip, TooltipTrigger } from "@/components/base/tooltip/tooltip";
+export { TooltipContent, TooltipProvider } from "@/components/base/primitives/tooltip";

@@ -9,6 +9,7 @@ describe("check-no-duplicate-ds-entrypoints", () => {
     const checker = await loadChecker();
     const source = `
       import { Label } from "@/components/base/input/label";
+      import { Tooltip } from "@/components/base/tooltip/tooltip";
       import { TextArea } from "@/components/base/textarea/textarea";
       import { Checkbox } from "@/components/base/checkbox/checkbox";
       import { Avatar } from "@/components/base/avatar/avatar";
@@ -22,6 +23,7 @@ describe("check-no-duplicate-ds-entrypoints", () => {
     const violations = checker.collectForbiddenDesignSystemEntrypointUsages(source, "fixture.tsx");
     expect(violations.map((item) => item.specifier)).toEqual([
       "@/components/base/input/label",
+      "@/components/base/tooltip/tooltip",
       "@/components/base/textarea/textarea",
       "@/components/base/checkbox/checkbox",
       "@/components/base/avatar/avatar",
@@ -37,6 +39,7 @@ describe("check-no-duplicate-ds-entrypoints", () => {
     const checker = await loadChecker();
     const source = `
       import { Label } from "@/components/base/label";
+      import { Tooltip, TooltipTrigger } from "@/components/base/tooltip";
       import { TextArea } from "@/components/base/textarea";
       import { Checkbox } from "@/components/base/checkbox";
       import { Avatar } from "@/components/base/avatar";

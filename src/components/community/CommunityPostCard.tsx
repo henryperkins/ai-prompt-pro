@@ -8,7 +8,6 @@ import { Badge } from "@/components/base/badges/badges";
 import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/card";
 import { Avatar } from "@/components/base/avatar";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/base/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -117,6 +116,7 @@ function CommunityPostCardComponent({
   const [commentsOpen, setCommentsOpen] = useState(false);
   const promptBody = (post.enhancedPrompt || post.starterPrompt || "").trim();
   const tokenEstimate = useMemo(() => estimateTokens(promptBody), [promptBody]);
+  const tokenEstimateDescription = `Estimated token count: ${tokenEstimate} tokens. Approximate, based on 1.35x word count.`;
   const ratingAverage = post.ratingAverage ?? 0;
   const ratingCount = post.ratingCount ?? 0;
   const ratingSummaryAriaLabel = `Average rating ${ratingAverage.toFixed(1)} from ${ratingCount} rating${ratingCount === 1 ? "" : "s"}`;
@@ -293,19 +293,14 @@ function CommunityPostCardComponent({
 
         <div className="type-meta flex flex-wrap items-center justify-between gap-2.5 border-t border-border/65 pt-3 text-foreground/80">
           <div className="flex flex-wrap items-center gap-3">
-            <TooltipProvider delayDuration={150}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="type-numeric inline-flex items-center gap-1 font-mono">
-                    <Database className="h-3.5 w-3.5" />
-                    {tokenEstimate}t
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="top">
-                  Estimated token count (~1.35x word count)
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <span
+              title="Estimated token count (~1.35x word count)"
+              className="type-numeric inline-flex items-center gap-1 font-mono text-inherit"
+            >
+              <Database aria-hidden="true" className="h-3.5 w-3.5" />
+              <span aria-hidden="true">{tokenEstimate}t</span>
+              <span className="sr-only">{tokenEstimateDescription}</span>
+            </span>
             <span className="type-numeric inline-flex items-center gap-1">
               <GitBranch className="h-3.5 w-3.5" />
               {post.remixCount}

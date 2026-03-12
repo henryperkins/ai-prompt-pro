@@ -100,7 +100,15 @@ type TooltipTriggerProps = AriaButtonProps;
 
 export const TooltipTrigger = ({ children, className, ...buttonProps }: TooltipTriggerProps) => {
     return (
-        <AriaButton {...buttonProps} className={(values) => cx("h-max w-max outline-hidden", typeof className === "function" ? className(values) : className)}>
+        <AriaButton
+            {...buttonProps}
+            className={(values) =>
+                cx(
+                    "inline-flex h-max w-max items-center justify-center rounded-sm outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                    typeof className === "function" ? className(values) : className,
+                )
+            }
+        >
             {children}
         </AriaButton>
     );

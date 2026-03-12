@@ -1,7 +1,7 @@
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import { Question as HelpCircle } from "@phosphor-icons/react";
 import { Label as PrimitiveLabel } from "@/components/base/primitives/label";
-import { Tooltip, TooltipTrigger } from "@/components/base/tooltip/tooltip";
+import { Tooltip, TooltipTrigger } from "@/components/base/tooltip";
 import { cx } from "@/lib/utils/cx";
 
 export interface LabelProps extends ComponentPropsWithoutRef<typeof PrimitiveLabel> {

@@ -30,8 +30,9 @@ Primary source files:
 Public surface contract:
 
 - `src/components/base/*` is the stable public design-system facade for app and feature code.
-- Some public entrypoints are fully DS-owned implementations (`buttons/button`, `input/input`, `select/select`, `avatar`, `checkbox`, `textarea`).
-- Some public entrypoints remain intentional bridge wrappers over legacy primitives (`card`, `drawer`, `table`, `tabs`, `tooltip`, `scroll-area`, and similar facades).
+- Public DS-owned entrypoints include `buttons/button`, `input/input`, `select/select`, `avatar`, `checkbox`, `textarea`, and `tooltip`.
+- Public hybrid entrypoints include `label`, `form`, `button-group`, and `progress-indicators/*`.
+- Some public entrypoints remain intentional bridge wrappers over legacy primitives (`card`, `drawer`, `table`, `tabs`, `scroll-area`, and similar facades).
 - Feature and product code should import the facade either way and never reach into `src/components/base/primitives/*` unless working on design-system internals.
 
 Legacy note:
@@ -45,6 +46,7 @@ Legacy note:
 Phase 3 status (completed February 22, 2026):
 
 - Canonical component APIs for shared primitives are `@/components/base/buttons/button`, `@/components/base/input/input`, `@/components/base/badges/badges`, and `@/components/base/select/select`.
+- Canonical public tooltip import is `@/components/base/tooltip`; importing `@/components/base/tooltip/tooltip` is deprecated outside design-system bridge internals.
 - App and feature code import from public `@/components/base/*` entrypoints; `@/components/base/primitives/*` is reserved for design-system internals only.
 - The canonical class-merging helper is `cx` from `@/lib/utils/cx`; `cn` in `@/lib/utils` is a deprecated compatibility alias.
 - The canonical initials helper is `getInitials` from `@/lib/utils/get-initials`.
@@ -68,6 +70,9 @@ Canonical public imports:
 - Badge: `@/components/base/badges/badges`
 - Avatar: `@/components/base/avatar`
 - Checkbox: `@/components/base/checkbox`
+- Tooltip: `@/components/base/tooltip`
+- Label: `@/components/base/label`
+- Form: `@/components/base/form/form`
 - Dialog: `@/components/base/dialog`
 - Drawer: `@/components/base/drawer`
 - Table: `@/components/base/table`
@@ -82,6 +87,7 @@ Use this, not that:
 | Public DS contract | `@/components/base/*` facade (DS-owned or bridge-backed) | Importing implementation details directly from `primitives/*` |
 | Avatar | `@/components/base/avatar` | `@/components/base/avatar/avatar` |
 | Checkbox | `@/components/base/checkbox` | `@/components/base/checkbox/checkbox` |
+| Tooltip | `@/components/base/tooltip` | `@/components/base/tooltip/tooltip` in app/feature code |
 | Textarea | `TextArea` from `@/components/base/textarea` | Deprecated `Textarea` from `@/components/base/textarea`, or `TextArea` from `@/components/base/textarea/textarea` |
 | Class merge helper | `cx` from `@/lib/utils/cx` | `cn` from `@/lib/utils` |
 | Theme preference values | `"default"` / `"midnight"` | `"light"` / `"dark"` in new logic or UX copy |
