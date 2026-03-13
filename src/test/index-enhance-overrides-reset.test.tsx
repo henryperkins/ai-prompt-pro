@@ -99,14 +99,21 @@ vi.mock("@/components/OutputPanel", () => ({
   OutputPanel: ({
     onEnhance,
     activeVariant,
+    onResetEnhancementPreferences,
   }: {
     onEnhance: () => void;
     activeVariant?: string;
+    onResetEnhancementPreferences?: () => void;
   }) => (
     <div>
       <button type="button" onClick={onEnhance}>
         Enhance
       </button>
+      {onResetEnhancementPreferences ? (
+        <button type="button" onClick={onResetEnhancementPreferences}>
+          Reset enhancement preferences
+        </button>
+      ) : null}
       <div data-testid="active-variant">{activeVariant ?? "original"}</div>
     </div>
   ),

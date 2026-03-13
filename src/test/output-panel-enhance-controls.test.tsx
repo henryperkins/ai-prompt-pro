@@ -209,4 +209,25 @@ describe("OutputPanel enhance controls", () => {
     expect(screen.getByRole("group", { name: "Ambiguity" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Hide settings" })).toBeInTheDocument();
   });
+
+  it("keeps reset enhancement preferences inside the enhancement settings surface", () => {
+    const onResetPreferences = vi.fn();
+
+    renderPanel({
+      enhanceControlsMode: "compact",
+      canResetEnhancementPreferences: true,
+      onResetEnhancementPreferences: onResetPreferences,
+      preferredAcceptedFormat: "Markdown",
+    });
+
+    expect(
+      screen.getByTestId("enhancement-preferences-reset-row"),
+    ).toHaveTextContent("Most accepted structure: Markdown");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Reset enhancement preferences" }),
+    );
+
+    expect(onResetPreferences).toHaveBeenCalledTimes(1);
+  });
 });

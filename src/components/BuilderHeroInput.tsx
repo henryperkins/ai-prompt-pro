@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/card";
 import { TextArea } from "@/components/base/textarea";
@@ -45,7 +45,10 @@ export function BuilderHeroInput({
 }: BuilderHeroInputProps) {
   const promptInputId = "builder-phase1-hero-prompt";
   const promptInputMetaId = "builder-phase1-hero-prompt-meta";
+  const recoveryActionsId = "builder-hero-recovery-actions";
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [recoveryActionsOpen, setRecoveryActionsOpen] = useState(false);
+  const hasRecoveryActions = Boolean(onResetAll || value);
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -53,6 +56,11 @@ export function BuilderHeroInput({
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight}px`;
   }, [value]);
+
+  useEffect(() => {
+    if (hasRecoveryActions) return;
+    setRecoveryActionsOpen(false);
+  }, [hasRecoveryActions]);
 
   return (
     <Card className="border-border/70 bg-card/80 p-3 sm:p-4">
@@ -77,33 +85,66 @@ export function BuilderHeroInput({
               )}
             </span>
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            {onResetAll && (
+          {hasRecoveryActions ? (
+            <div className="flex flex-col items-end gap-2">
               <Button
                 type="button"
                 variant="tertiary"
                 size="sm"
-                onClick={onResetAll}
-                aria-label="Reset all builder fields"
+                onClick={() => setRecoveryActionsOpen((current) => !current)}
+                aria-expanded={recoveryActionsOpen}
+                aria-controls={recoveryActionsId}
                 className="interactive-chip h-11 gap-1 px-3 text-sm sm:h-10 sm:px-2.5 sm:text-sm"
+                data-testid="builder-hero-recovery-toggle"
               >
-                Reset all settings
+                Draft actions
               </Button>
-            )}
-            {value && (
-              <Button
-                type="button"
-                variant="tertiary"
-                size="sm"
-                onClick={onClear}
-                aria-label="Clear prompt text"
-                className="interactive-chip h-11 gap-1 px-3 text-sm sm:h-10 sm:px-2.5 sm:text-sm"
-              >
-                <RotateCcw className="w-3 h-3" />
-                Clear prompt
-              </Button>
-            )}
-          </div>
+              {recoveryActionsOpen ? (
+                <div
+                  id={recoveryActionsId}
+                  className="w-full rounded-xl border border-border/70 bg-background/70 p-3 text-left sm:max-w-sm"
+                  data-testid="builder-hero-recovery-actions"
+                >
+                  <p className="text-xs text-muted-foreground">
+                    Clear the draft or reset the builder when you need a clean starting point.
+                  </p>
+                  <div className="mt-3 flex flex-wrap justify-end gap-2">
+                    {value ? (
+                      <Button
+                        type="button"
+                        variant="tertiary"
+                        size="sm"
+                        onClick={() => {
+                          setRecoveryActionsOpen(false);
+                          onClear();
+                        }}
+                        aria-label="Clear prompt text"
+                        className="h-11 gap-1 px-3 text-sm sm:h-10 sm:px-2.5 sm:text-sm"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        Clear prompt
+                      </Button>
+                    ) : null}
+                    {onResetAll ? (
+                      <Button
+                        type="button"
+                        variant="link"
+                        tone="destructive"
+                        size="sm"
+                        onClick={() => {
+                          setRecoveryActionsOpen(false);
+                          onResetAll();
+                        }}
+                        aria-label="Reset all builder fields"
+                      >
+                        Reset all settings
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         <TextArea

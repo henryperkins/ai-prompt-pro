@@ -95,6 +95,9 @@ interface OutputPanelProps {
   ambiguityMode?: AmbiguityMode;
   onAmbiguityModeChange?: (mode: AmbiguityMode) => void;
   enhanceControlsMode?: "full" | "compact";
+  canResetEnhancementPreferences?: boolean;
+  onResetEnhancementPreferences?: () => void;
+  preferredAcceptedFormat?: string | null;
   enhancementSettingsSummary?: string;
   onEditEnhancementSettings?: () => void;
   onApplyToBuilder?: (updates: ApplyToBuilderUpdate) => void;
@@ -182,6 +185,9 @@ export function OutputPanel({
   ambiguityMode = "infer_conservatively",
   onAmbiguityModeChange,
   enhanceControlsMode = "full",
+  canResetEnhancementPreferences = false,
+  onResetEnhancementPreferences,
+  preferredAcceptedFormat,
   enhancementSettingsSummary,
   onEditEnhancementSettings,
   onApplyToBuilder,
@@ -605,6 +611,9 @@ export function OutputPanel({
           enhancePhase={enhancePhase}
           enhanceLabel={enhanceLabel}
           mode="compact"
+          canResetPreferences={canResetEnhancementPreferences}
+          onResetPreferences={onResetEnhancementPreferences}
+          preferredAcceptedFormat={preferredAcceptedFormat}
         />
       )}
 
@@ -842,6 +851,9 @@ export function OutputPanel({
           enhancePhase={enhancePhase}
           enhanceLabel={enhanceLabel}
           mode={enhanceControlsMode}
+          canResetPreferences={canResetEnhancementPreferences}
+          onResetPreferences={onResetEnhancementPreferences}
+          preferredAcceptedFormat={preferredAcceptedFormat}
         />
       )}
     </div>

@@ -18,6 +18,9 @@ const mocks = vi.hoisted(() => ({
   loadProfilesByIds: vi.fn(),
   loadPostsByIds: vi.fn(),
   loadMyVotes: vi.fn(),
+  loadMyRatings: vi.fn(),
+  loadFollowingUserIds: vi.fn(),
+  loadBlockedUserIds: vi.fn(),
   toggleVote: vi.fn(),
 }));
 
@@ -33,6 +36,20 @@ vi.mock("@/hooks/use-toast", () => ({
   useToast: () => ({ toast: mocks.toast }),
 }));
 
+vi.mock("@/hooks/useCommunityMobileTelemetry", () => ({
+  useCommunityMobileTelemetry: () => ({
+    trackFirstMeaningfulAction: vi.fn(),
+    trackInteraction: vi.fn(),
+  }),
+}));
+
+vi.mock("@/hooks/useNewPostsIndicator", () => ({
+  useNewPostsIndicator: () => ({
+    newCount: 0,
+    dismiss: vi.fn(),
+  }),
+}));
+
 vi.mock("@/lib/community", async () => {
   const actual = await vi.importActual<typeof import("@/lib/community")>("@/lib/community");
   return {
@@ -41,9 +58,18 @@ vi.mock("@/lib/community", async () => {
     loadProfilesByIds: (...args: unknown[]) => mocks.loadProfilesByIds(...args),
     loadPostsByIds: (...args: unknown[]) => mocks.loadPostsByIds(...args),
     loadMyVotes: (...args: unknown[]) => mocks.loadMyVotes(...args),
+    loadMyRatings: (...args: unknown[]) => mocks.loadMyRatings(...args),
+    loadFollowingUserIds: (...args: unknown[]) => mocks.loadFollowingUserIds(...args),
     toggleVote: (...args: unknown[]) => mocks.toggleVote(...args),
   };
 });
+
+vi.mock("@/lib/community-moderation", () => ({
+  blockCommunityUser: vi.fn().mockResolvedValue(undefined),
+  loadBlockedUserIds: (...args: unknown[]) => mocks.loadBlockedUserIds(...args),
+  submitCommunityReport: vi.fn().mockResolvedValue(undefined),
+  unblockCommunityUser: vi.fn().mockResolvedValue(undefined),
+}));
 
 vi.mock("@/components/community/CommunityComments", () => ({
   CommunityComments: ({ postId }: { postId: string }) => (
@@ -137,6 +163,9 @@ describe("community mobile UX", () => {
     mocks.loadProfilesByIds.mockResolvedValue([createProfile({ id: post.authorId })]);
     mocks.loadPostsByIds.mockResolvedValue([]);
     mocks.loadMyVotes.mockResolvedValue({});
+    mocks.loadMyRatings.mockResolvedValue({});
+    mocks.loadFollowingUserIds.mockResolvedValue([]);
+    mocks.loadBlockedUserIds.mockResolvedValue([]);
     mocks.toggleVote.mockResolvedValue({ active: true, rowId: "vote-1" });
   });
 

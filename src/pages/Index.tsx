@@ -388,7 +388,8 @@ function isEnhanceDebugEnabled(): boolean {
   try {
     return window.localStorage.getItem(DEBUG_ENHANCE_EVENTS_KEY) === "1";
   } catch {
-  return false;
+    return false;
+  }
 }
 
 function hasEnhancementProfileData(profile: ReturnType<typeof loadEnhancementProfile>): boolean {
@@ -405,7 +406,6 @@ function hasEnhancementProfileData(profile: ReturnType<typeof loadEnhancementPro
     Object.keys(profile.formatCounts).length > 0 ||
     Object.keys(profile.structuredApplyCounts).length > 0
   );
-}
 }
 
 function hasFieldOwnershipValue(
@@ -2310,6 +2310,33 @@ const Index = () => {
   const desktopEnhanceControlsMode = hasCurrentEnhancedOutput
     ? "full"
     : "compact";
+  const showCompactDesktopReadiness = !hasCurrentEnhancedOutput;
+  const builderScoreAxes = useMemo(
+    () =>
+      ([
+        {
+          label: "Clarity",
+          value: score.clarity,
+          tip: "How specific and detailed your task description is",
+        },
+        {
+          label: "Context",
+          value: score.context,
+          tip: "Background info, role, sources, and structured data",
+        },
+        {
+          label: "Specificity",
+          value: score.specificity,
+          tip: "Output format, length, examples, and constraints",
+        },
+        {
+          label: "Structure",
+          value: score.structure,
+          tip: "Role, tone, complexity, and formatting choices",
+        },
+      ] as const),
+    [score.clarity, score.context, score.specificity, score.structure],
+  );
   const refineSuggestions = useMemo(() => {
     const suggestions: Array<{
       id: BuilderSection;
@@ -2350,6 +2377,16 @@ const Index = () => {
   const showRefineSuggestions =
     Boolean(enhancedPrompt.trim()) && refineSuggestions.length > 0;
   const hasAiOwnedFields = hasFieldOwnershipValue(fieldOwnership, "ai");
+  const canResetAllBuilder =
+    builderSignature !== DEFAULT_BUILDER_SIGNATURE || intentOverride !== null;
+  const hasLearnedEnhancementProfile = hasEnhancementProfileData(
+    enhancementProfileSnapshot,
+  );
+  const canResetEnhancementPreferences =
+    enhancementDepth !== DEFAULT_ENHANCEMENT_DEPTH ||
+    rewriteStrictness !== DEFAULT_REWRITE_STRICTNESS ||
+    ambiguityMode !== DEFAULT_AMBIGUITY_MODE ||
+    hasLearnedEnhancementProfile;
 
   useEffect(() => {
     if (hasTrackedFirstInput.current) return;
@@ -2703,12 +2740,12 @@ const Index = () => {
   const handleResetEnhancementPreferences = useCallback(() => {
     resetEnhancementProfile();
     setEnhancementProfileSnapshot(loadEnhancementProfile());
-    setEnhancementDepth("guided");
-    setRewriteStrictness("balanced");
-    setAmbiguityMode("infer_conservatively");
-    setUserPreference("enhancementDepth", "guided");
-    setUserPreference("rewriteStrictness", "balanced");
-    setUserPreference("ambiguityMode", "infer_conservatively");
+    setEnhancementDepth(DEFAULT_ENHANCEMENT_DEPTH);
+    setRewriteStrictness(DEFAULT_REWRITE_STRICTNESS);
+    setAmbiguityMode(DEFAULT_AMBIGUITY_MODE);
+    setUserPreference("enhancementDepth", DEFAULT_ENHANCEMENT_DEPTH);
+    setUserPreference("rewriteStrictness", DEFAULT_REWRITE_STRICTNESS);
+    setUserPreference("ambiguityMode", DEFAULT_AMBIGUITY_MODE);
     toast({
       title: "Enhancement preferences reset",
       description:
@@ -2817,7 +2854,7 @@ const Index = () => {
             value={config.originalPrompt}
             onChange={(value) => updateConfig({ originalPrompt: value })}
             onClear={handleClearPrompt}
-            onResetAll={handleResetAll}
+            onResetAll={canResetAllBuilder ? handleResetAll : undefined}
             phase3Enabled
             suggestionChips={suggestionChips}
             isInferringSuggestions={isInferringSuggestions}
@@ -2926,37 +2963,15 @@ const Index = () => {
             </>
           )}
 
-          <Card className="border-border/70 bg-card/80 p-3">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-foreground">
-                  Enhancement preferences
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Reset learned defaults for enhancement depth, strictness, ambiguity handling, and accepted-format history.
-                </p>
-                {preferredAcceptedFormat && (
-                  <p className="text-xs text-muted-foreground">
-                    Most accepted structure: {preferredAcceptedFormat}
-                  </p>
-                )}
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                onClick={handleResetEnhancementPreferences}
-              >
-                Reset enhancement preferences
-              </Button>
-            </div>
-          </Card>
         </div>
 
         {/* Right: Output — inline on desktop, drawer on mobile */}
         {!isMobile && (
           <div className="min-w-0 space-y-3 lg:sticky lg:top-20 lg:self-start">
-            <Card className="pf-panel mb-3 border-border/70 bg-card/80 p-3">
+            <Card
+              className="pf-panel mb-3 border-border/70 bg-card/80 p-3"
+              data-testid="builder-readiness-card"
+            >
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-medium text-foreground">
@@ -2986,36 +3001,107 @@ const Index = () => {
                   </Badge>
                 </div>
               </div>
-              <div className="mt-3 rounded-2xl border border-pf-parchment/10 bg-pf-coal/20 p-2">
-                <PFQualityGauge
-                  value={score.total}
-                  size={128}
-                  showLabel={false}
-                />
-              </div>
-              <div className="mt-3 space-y-1.5">
-                {([
-                  { label: "Clarity", value: score.clarity, tip: "How specific and detailed your task description is" },
-                  { label: "Context", value: score.context, tip: "Background info, role, sources, and structured data" },
-                  { label: "Specificity", value: score.specificity, tip: "Output format, length, examples, and constraints" },
-                  { label: "Structure", value: score.structure, tip: "Role, tone, complexity, and formatting choices" },
-                ] as const).map((axis) => (
-                  <div key={axis.label} className="space-y-0.5">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground" title={axis.tip}>
-                        {axis.label}
-                      </span>
-                      <span className="font-medium text-foreground">{axis.value}/25</span>
-                    </div>
-                    <div className="h-1 rounded-full bg-muted/50 overflow-hidden">
+              {showCompactDesktopReadiness ? (
+                <>
+                  <div
+                    className="mt-3 grid grid-cols-2 gap-2"
+                    data-testid="builder-readiness-summary-grid"
+                  >
+                    {builderScoreAxes.map((axis) => (
                       <div
-                        className="h-full rounded-full bg-primary transition-all duration-300"
-                        style={{ width: `${Math.round((axis.value / 25) * 100)}%` }}
-                      />
-                    </div>
+                        key={axis.label}
+                        className="rounded-lg border border-border/60 bg-background/60 px-2.5 py-2"
+                        title={axis.tip}
+                      >
+                        <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                          {axis.label}
+                        </p>
+                        <p className="mt-1 text-sm font-medium text-foreground">
+                          {axis.value}/25
+                        </p>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                  <details
+                    className="group mt-3"
+                    data-testid="builder-readiness-breakdown-disclosure"
+                  >
+                    <summary className="flex cursor-pointer items-center gap-2 rounded-lg border border-border/60 bg-background/50 px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-background/70 [&::-webkit-details-marker]:hidden">
+                      <CaretRight className="h-3 w-3 transition-transform group-open:rotate-90" />
+                      View breakdown
+                    </summary>
+                    <div
+                      className="mt-3 space-y-3"
+                      data-testid="builder-readiness-breakdown"
+                    >
+                      <div className="rounded-2xl border border-pf-parchment/10 bg-pf-coal/20 p-2">
+                        <PFQualityGauge
+                          value={score.total}
+                          size={112}
+                          showLabel={false}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        {builderScoreAxes.map((axis) => (
+                          <div key={axis.label} className="space-y-0.5">
+                            <div className="flex justify-between text-xs">
+                              <span
+                                className="text-muted-foreground"
+                                title={axis.tip}
+                              >
+                                {axis.label}
+                              </span>
+                              <span className="font-medium text-foreground">
+                                {axis.value}/25
+                              </span>
+                            </div>
+                            <div className="h-1 overflow-hidden rounded-full bg-muted/50">
+                              <div
+                                className="h-full rounded-full bg-primary transition-all duration-300"
+                                style={{
+                                  width: `${Math.round((axis.value / 25) * 100)}%`,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </details>
+                </>
+              ) : (
+                <>
+                  <div className="mt-3 rounded-2xl border border-pf-parchment/10 bg-pf-coal/20 p-2">
+                    <PFQualityGauge
+                      value={score.total}
+                      size={128}
+                      showLabel={false}
+                    />
+                  </div>
+                  <div className="mt-3 space-y-1.5">
+                    {builderScoreAxes.map((axis) => (
+                      <div key={axis.label} className="space-y-0.5">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-muted-foreground" title={axis.tip}>
+                            {axis.label}
+                          </span>
+                          <span className="font-medium text-foreground">
+                            {axis.value}/25
+                          </span>
+                        </div>
+                        <div className="h-1 overflow-hidden rounded-full bg-muted/50">
+                          <div
+                            className="h-full rounded-full bg-primary transition-all duration-300"
+                            style={{
+                              width: `${Math.round((axis.value / 25) * 100)}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </Card>
             <OutputPanel
               builtPrompt={builtPrompt}
@@ -3048,6 +3134,13 @@ const Index = () => {
               ambiguityMode={ambiguityMode}
               onAmbiguityModeChange={handleAmbiguityModeChange}
               enhanceControlsMode={desktopEnhanceControlsMode}
+              canResetEnhancementPreferences={canResetEnhancementPreferences}
+              onResetEnhancementPreferences={
+                canResetEnhancementPreferences
+                  ? handleResetEnhancementPreferences
+                  : undefined
+              }
+              preferredAcceptedFormat={preferredAcceptedFormat}
               onApplyToBuilder={handleApplyToBuilder}
               onAppendClarificationBlockToPrompt={handleAppendClarificationBlockToPrompt}
               onAppendToSessionContext={
@@ -3233,6 +3326,13 @@ const Index = () => {
           onEnhancementDepthChange={handleEnhancementDepthChange}
           onRewriteStrictnessChange={handleRewriteStrictnessChange}
           onAmbiguityModeChange={handleAmbiguityModeChange}
+          canResetPreferences={canResetEnhancementPreferences}
+          onResetPreferences={
+            canResetEnhancementPreferences
+              ? handleResetEnhancementPreferences
+              : undefined
+          }
+          preferredAcceptedFormat={preferredAcceptedFormat}
           showCodexSession={canManageCodexSession}
           codexSessionSummary={sessionDrawerSummary}
           onOpenCodexSession={handleOpenSessionDrawerFromMobileSettings}

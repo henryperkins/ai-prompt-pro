@@ -144,6 +144,52 @@ export function EnhancementSettingsSummaryCard({
   );
 }
 
+interface EnhancementPreferencesResetRowProps {
+  preferredAcceptedFormat?: string | null;
+  onResetPreferences?: () => void;
+  className?: string;
+}
+
+export function EnhancementPreferencesResetRow({
+  preferredAcceptedFormat,
+  onResetPreferences,
+  className,
+}: EnhancementPreferencesResetRowProps) {
+  if (!preferredAcceptedFormat && !onResetPreferences) return null;
+
+  return (
+    <div
+      className={cx(
+        "flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between",
+        className,
+      )}
+      data-testid="enhancement-preferences-reset-row"
+    >
+      <div className="space-y-1">
+        {preferredAcceptedFormat ? (
+          <p className="text-xs text-muted-foreground">
+            Most accepted structure: {preferredAcceptedFormat}
+          </p>
+        ) : null}
+        <p className="text-xs text-muted-foreground">
+          Reset learned enhancement defaults if the next run stops matching your workflow.
+        </p>
+      </div>
+      {onResetPreferences ? (
+        <Button
+          type="button"
+          variant="link"
+          tone="destructive"
+          size="sm"
+          onClick={onResetPreferences}
+        >
+          Reset enhancement preferences
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
 interface SharedEnhancementControlsProps {
   webSearchEnabled: boolean;
   onWebSearchToggle?: (enabled: boolean) => void;
@@ -299,6 +345,9 @@ interface OutputPanelEnhanceControlsProps extends SharedEnhancementControlsProps
   enhancePhase: EnhancePhase;
   enhanceLabel: string;
   mode?: "full" | "compact";
+  preferredAcceptedFormat?: string | null;
+  canResetPreferences?: boolean;
+  onResetPreferences?: () => void;
 }
 
 export function OutputPanelEnhanceControls({
@@ -316,6 +365,9 @@ export function OutputPanelEnhanceControls({
   enhancePhase,
   enhanceLabel,
   mode = "full",
+  preferredAcceptedFormat,
+  canResetPreferences = false,
+  onResetPreferences,
 }: OutputPanelEnhanceControlsProps) {
   const [isSettingsExpanded, setIsSettingsExpanded] = useState(false);
   const canEditSettings = Boolean(
@@ -350,19 +402,29 @@ export function OutputPanelEnhanceControls({
           actionControlsId={compactSettingsEditorId}
           actionTestId="output-panel-enhancement-settings-toggle"
         >
-          {isSettingsExpanded ? (
-            <div id={compactSettingsEditorId}>
-              <EnhancementControlGroups
-                webSearchEnabled={webSearchEnabled}
-                onWebSearchToggle={onWebSearchToggle}
-                isEnhancing={isEnhancing}
-                enhancementDepth={enhancementDepth}
-                rewriteStrictness={rewriteStrictness}
-                ambiguityMode={ambiguityMode}
-                onEnhancementDepthChange={onEnhancementDepthChange}
-                onRewriteStrictnessChange={onRewriteStrictnessChange}
-                onAmbiguityModeChange={onAmbiguityModeChange}
-                layout="stacked"
+          {isSettingsExpanded || canResetPreferences || preferredAcceptedFormat ? (
+            <div className="space-y-3">
+              {isSettingsExpanded ? (
+                <div id={compactSettingsEditorId}>
+                  <EnhancementControlGroups
+                    webSearchEnabled={webSearchEnabled}
+                    onWebSearchToggle={onWebSearchToggle}
+                    isEnhancing={isEnhancing}
+                    enhancementDepth={enhancementDepth}
+                    rewriteStrictness={rewriteStrictness}
+                    ambiguityMode={ambiguityMode}
+                    onEnhancementDepthChange={onEnhancementDepthChange}
+                    onRewriteStrictnessChange={onRewriteStrictnessChange}
+                    onAmbiguityModeChange={onAmbiguityModeChange}
+                    layout="stacked"
+                  />
+                </div>
+              ) : null}
+              <EnhancementPreferencesResetRow
+                preferredAcceptedFormat={preferredAcceptedFormat}
+                onResetPreferences={
+                  canResetPreferences ? onResetPreferences : undefined
+                }
               />
             </div>
           ) : null}
@@ -399,6 +461,13 @@ export function OutputPanelEnhanceControls({
         enhancePhase={enhancePhase}
         enhanceLabel={enhanceLabel}
       />
+      {(canResetPreferences || preferredAcceptedFormat) && (
+        <EnhancementPreferencesResetRow
+          preferredAcceptedFormat={preferredAcceptedFormat}
+          onResetPreferences={canResetPreferences ? onResetPreferences : undefined}
+          className="px-1 pt-1"
+        />
+      )}
     </div>
   );
 }

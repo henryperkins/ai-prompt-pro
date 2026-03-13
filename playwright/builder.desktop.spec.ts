@@ -159,6 +159,11 @@ test("keeps the desktop output rail preview-first at common review widths", asyn
     );
 
     await expect(page.getByText("Builder readiness", { exact: true })).toBeVisible();
+    await expect(page.getByTestId("builder-readiness-summary-grid")).toBeVisible();
+    await expect(
+      page.getByTestId("builder-readiness-breakdown-disclosure"),
+    ).not.toHaveAttribute("open", "");
+    await expect(page.getByTestId("builder-readiness-breakdown")).toBeHidden();
     await expect(page.getByTestId("output-panel-state-banner")).toBeVisible();
     await expect(page.getByTestId("output-panel-preview-card")).toBeVisible();
     await expect(
@@ -232,6 +237,8 @@ test("keeps the desktop output rail preview-first at common review widths", asyn
 
     await page.getByRole("button", { name: "Edit settings" }).click();
     await expect(page.getByRole("group", { name: "Depth" })).toBeVisible();
+    await page.getByText("View breakdown").click();
+    await expect(page.getByTestId("builder-readiness-breakdown")).toBeVisible();
   }
 
   const baselinePath = testInfo.outputPath("builder-desktop-baseline.json");

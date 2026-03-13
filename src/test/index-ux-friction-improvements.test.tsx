@@ -30,6 +30,7 @@ vi.mock("@/components/BuilderHeroInput", () => ({
   BuilderHeroInput: ({ onResetAll }: { onResetAll?: () => void }) => (
     <div>
       <div>Redesign Hero Input</div>
+      <div data-testid="has-reset-all-prop">{String(Boolean(onResetAll))}</div>
       <button type="button" onClick={() => onResetAll?.()}>
         Reset all
       </button>
@@ -173,6 +174,7 @@ describe("Index UX friction improvements", () => {
     expect(
       screen.getByText("Readiness signal for the current draft before enhancement."),
     ).toBeInTheDocument();
+    expect(screen.getByTestId("has-reset-all-prop")).toHaveTextContent("true");
   }, 10_000);
 
   it("computes preview source from builder fields once the builder already has detail input", async () => {
@@ -212,5 +214,19 @@ describe("Index UX friction improvements", () => {
     await renderIndex();
 
     expect(screen.queryByText("Start in 3 steps")).not.toBeInTheDocument();
+  });
+
+  it("hides the global reset affordance before the builder diverges from defaults", async () => {
+    mocks.usePromptBuilder.mockReturnValue(
+      buildPromptBuilderState({
+        originalPrompt: "",
+        role: "",
+        builtPrompt: "",
+      }),
+    );
+
+    await renderIndex();
+
+    expect(screen.getByTestId("has-reset-all-prop")).toHaveTextContent("false");
   });
 });

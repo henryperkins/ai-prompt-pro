@@ -6,7 +6,10 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/base/drawer";
-import { EnhancementControlGroups } from "@/components/OutputPanelEnhanceControls";
+import {
+  EnhancementControlGroups,
+  EnhancementPreferencesResetRow,
+} from "@/components/OutputPanelEnhanceControls";
 import { getEnhancementSettingsSummary } from "@/lib/enhancement-settings";
 import type {
   AmbiguityMode,
@@ -26,6 +29,9 @@ interface MobileEnhancementSettingsSheetProps {
   onEnhancementDepthChange: (depth: EnhancementDepth) => void;
   onRewriteStrictnessChange: (strictness: RewriteStrictness) => void;
   onAmbiguityModeChange: (mode: AmbiguityMode) => void;
+  canResetPreferences?: boolean;
+  onResetPreferences?: () => void;
+  preferredAcceptedFormat?: string | null;
   showCodexSession?: boolean;
   codexSessionSummary?: string;
   onOpenCodexSession?: () => void;
@@ -43,6 +49,9 @@ export function MobileEnhancementSettingsSheet({
   onEnhancementDepthChange,
   onRewriteStrictnessChange,
   onAmbiguityModeChange,
+  canResetPreferences = false,
+  onResetPreferences,
+  preferredAcceptedFormat,
   showCodexSession = false,
   codexSessionSummary,
   onOpenCodexSession,
@@ -119,6 +128,15 @@ export function MobileEnhancementSettingsSheet({
             These controls change the next enhancement request without moving the
             main Enhance action out of the sticky bar.
           </p>
+
+          {(canResetPreferences || preferredAcceptedFormat) && (
+            <div className="rounded-xl border border-border/70 bg-card/50 px-3 py-2">
+              <EnhancementPreferencesResetRow
+                preferredAcceptedFormat={preferredAcceptedFormat}
+                onResetPreferences={canResetPreferences ? onResetPreferences : undefined}
+              />
+            </div>
+          )}
 
           <Button
             type="button"

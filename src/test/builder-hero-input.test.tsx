@@ -77,4 +77,54 @@ describe("BuilderHeroInput", () => {
 
     expect(onApplySuggestion).toHaveBeenCalledWith(longSuggestionChips[0]);
   });
+
+  it("tucks clear and reset actions behind a draft-actions disclosure", () => {
+    const onClear = vi.fn();
+    const onResetAll = vi.fn();
+
+    render(
+      <BuilderHeroInput
+        value="Rewrite these product notes into a launch brief."
+        onChange={() => undefined}
+        onClear={onClear}
+        onResetAll={onResetAll}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Clear prompt text" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Reset all builder fields" }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Draft actions" }));
+
+    expect(
+      screen.getByTestId("builder-hero-recovery-actions"),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear prompt text" }));
+    expect(onClear).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Draft actions" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Reset all builder fields" }),
+    );
+    expect(onResetAll).toHaveBeenCalledTimes(1);
+  });
+
+  it("omits the recovery disclosure when the draft is pristine", () => {
+    render(
+      <BuilderHeroInput
+        value=""
+        onChange={() => undefined}
+        onClear={() => undefined}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Draft actions" }),
+    ).not.toBeInTheDocument();
+  });
 });
