@@ -30,12 +30,38 @@ describe("check-no-literal-colors AST scanner", () => {
     expect(violations[0]?.value).toBe("#D5D7DA");
   });
 
+  it("detects raw Tailwind palette-scale utilities", async () => {
+    const { collectLiteralColorUsages } = await loadChecker();
+    const source = `
+      export const className = "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+    `;
+
+    const violations = collectLiteralColorUsages(source, "fixture.tsx");
+    expect(violations.map((item) => item.value)).toEqual([
+      "border-emerald-500/30",
+      "bg-emerald-500/10",
+      "text-emerald-700",
+      "dark:text-emerald-300",
+    ]);
+  });
+
   it("ignores var-based color functions and non-color hashes", async () => {
     const { collectLiteralColorUsages } = await loadChecker();
     const source = `
       export const className = "text-[rgba(var(--pf-parchment-rgb)/0.95)]";
       export const ring = "hsl(var(--ring))";
       export const label = "PR #482";
+    `;
+
+    const violations = collectLiteralColorUsages(source, "fixture.tsx");
+    expect(violations).toHaveLength(0);
+  });
+
+  it("ignores semantic design-system color utilities and enum-like values", async () => {
+    const { collectLiteralColorUsages } = await loadChecker();
+    const source = `
+      export const className = "border-border bg-success-primary text-fg-success-primary dark:text-foreground";
+      export const tone = "blue-light";
     `;
 
     const violations = collectLiteralColorUsages(source, "fixture.tsx");

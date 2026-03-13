@@ -197,6 +197,12 @@ export function OutputPanel({
   const [saveDialogShareIntent, setSaveDialogShareIntent] = useState(false);
   const [compareDialogOpen, setCompareDialogOpen] = useState(false);
   const [internalActiveVariant, setInternalActiveVariant] = useState<EnhancementVariant>("original");
+  const [isRunProgressOpen, setIsRunProgressOpen] = useState(
+    () =>
+      enhancePhase === "starting" ||
+      enhancePhase === "streaming" ||
+      enhancePhase === "settling",
+  );
 
   const { toast } = useToast();
   const isMobile = useIsMobile();
@@ -381,6 +387,17 @@ export function OutputPanel({
       setCompareDialogOpen(false);
     }
   }, [canShowCompare, compareDialogOpen]);
+
+  useEffect(() => {
+    if (isTransientPhase) {
+      setIsRunProgressOpen(true);
+      return;
+    }
+
+    if (!hasRunProgress) {
+      setIsRunProgressOpen(false);
+    }
+  }, [hasRunProgress, isTransientPhase]);
 
   const diff = useMemo(() => {
     if (!compareDialogOpen || !canShowCompare) return null;
@@ -677,7 +694,8 @@ export function OutputPanel({
         <OutputPanelDetailsAccordion
           title="Run progress"
           summary={runProgressSummary || "Workflow and search activity"}
-          defaultOpen={isTransientPhase}
+          open={isRunProgressOpen}
+          onOpenChange={setIsRunProgressOpen}
           testId="output-panel-details-run-progress"
         >
           {webSearchActivity && webSearchActivity.phase !== "idle" ? (

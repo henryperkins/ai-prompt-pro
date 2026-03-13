@@ -2,6 +2,8 @@ import ts from "typescript";
 
 const COLOR_FUNCTION_PATTERN = /\b(?:rgb|rgba|hsl|hsla)\(\s*(?!var\()[^)]+\)/gi;
 const HEX_COLOR_PATTERN = /#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b/g;
+const RAW_TAILWIND_PALETTE_UTILITY_PATTERN =
+  /\b(?:[a-z0-9_-]+:)*(?:accent|bg|border|caret|decoration|fill|from|outline|ring|shadow|stroke|text|to|via)-(?:(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(?:50|100|200|300|400|500|600|700|800|900|950))(?:\/(?:\d{1,3}|\[[^\]]+\]))?\b/gi;
 
 function resolveScriptKind(filePath) {
   if (filePath.endsWith(".tsx")) {
@@ -66,9 +68,25 @@ function collectHexMatches(text, node, sourceFile, filePath, kind, violations) {
   HEX_COLOR_PATTERN.lastIndex = 0;
 }
 
+function collectPaletteUtilityMatches(text, node, sourceFile, filePath, kind, violations) {
+  let match;
+  while ((match = RAW_TAILWIND_PALETTE_UTILITY_PATTERN.exec(text)) !== null) {
+    const offset = node.getStart(sourceFile) + 1 + match.index;
+    const { line } = sourceFile.getLineAndCharacterOfPosition(offset);
+    violations.push({
+      filePath,
+      line: line + 1,
+      kind,
+      value: match[0],
+    });
+  }
+  RAW_TAILWIND_PALETTE_UTILITY_PATTERN.lastIndex = 0;
+}
+
 function collectTextViolations(text, node, sourceFile, filePath, kind, violations) {
   collectFunctionMatches(text, node, sourceFile, filePath, kind, violations);
   collectHexMatches(text, node, sourceFile, filePath, kind, violations);
+  collectPaletteUtilityMatches(text, node, sourceFile, filePath, kind, violations);
 }
 
 export function collectLiteralColorUsages(sourceText, filePath) {

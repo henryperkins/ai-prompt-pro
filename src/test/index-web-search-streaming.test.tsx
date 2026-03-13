@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { defaultConfig } from "@/lib/prompt-builder";
@@ -104,6 +104,9 @@ vi.mock("@/components/BuilderSourcesAdvanced", () => ({
 
 vi.mock("@/components/OutputPanel", () => ({
   OutputPanel: ({
+    builtPrompt,
+    enhancedPrompt,
+    previewSource,
     onEnhance,
     onWebSearchToggle,
     onAppendToSessionContext,
@@ -112,6 +115,9 @@ vi.mock("@/components/OutputPanel", () => ({
     reasoningSummary,
     enhanceWorkflow,
   }: {
+    builtPrompt?: string;
+    enhancedPrompt?: string;
+    previewSource?: string;
     onEnhance: () => void;
     onWebSearchToggle?: (enabled: boolean) => void;
     onAppendToSessionContext?: (content: string) => void;
@@ -122,7 +128,7 @@ vi.mock("@/components/OutputPanel", () => ({
       query?: string | null;
     };
     reasoningSummary?: string;
-    enhanceWorkflow?: Array<{ label?: string; status?: string }>;
+    enhanceWorkflow?: Array<{ label?: string; status?: string; detail?: string }>;
   }) => (
     <div>
       <button type="button" onClick={() => onWebSearchToggle?.(true)}>
@@ -143,6 +149,9 @@ vi.mock("@/components/OutputPanel", () => ({
       <button type="button" onClick={onEnhance}>
         enhance
       </button>
+      <div data-testid="built-prompt">{builtPrompt || ""}</div>
+      <div data-testid="enhanced-prompt">{enhancedPrompt || ""}</div>
+      <div data-testid="preview-source">{previewSource || ""}</div>
       <div data-testid="web-sources">{(webSearchSources || []).join("|")}</div>
       <div data-testid="web-search-phase">{webSearchActivity?.phase || "idle"}</div>
       <div data-testid="web-search-count">{String(webSearchActivity?.searchCount || 0)}</div>
@@ -151,6 +160,11 @@ vi.mock("@/components/OutputPanel", () => ({
       <div data-testid="workflow-steps">
         {(enhanceWorkflow || [])
           .map((step) => `${step.label || ""}:${step.status || ""}`)
+          .join("|")}
+      </div>
+      <div data-testid="workflow-details">
+        {(enhanceWorkflow || [])
+          .map((step) => `${step.label || ""}:${step.detail || ""}`)
           .join("|")}
       </div>
     </div>
@@ -393,10 +407,8 @@ describe("Index web search streaming", () => {
     mocks.streamEnhance.mockImplementation(
       ({
         onEvent,
-        onDone,
       }: {
         onEvent?: (event: EnhanceStreamEvent) => void;
-        onDone?: () => void;
       }) => {
         onEvent?.({
           eventType: "enhance/workflow",
@@ -436,7 +448,6 @@ describe("Index web search streaming", () => {
             },
           },
         });
-        onDone?.();
       },
     );
 
@@ -449,6 +460,110 @@ describe("Index web search streaming", () => {
         "Analyze request:completed|Generate enhanced prompt:running",
       );
     });
+  });
+
+  it("keeps the draft in preview while routing live assistant text into workflow", async () => {
+    let streamHandlers:
+      | {
+        onEvent?: (event: EnhanceStreamEvent) => void;
+        onDone?: () => void;
+      }
+      | undefined;
+
+    mocks.streamEnhance.mockImplementation(
+      (handlers: {
+        onEvent?: (event: EnhanceStreamEvent) => void;
+        onDone?: () => void;
+      }) => {
+        streamHandlers = handlers;
+      },
+    );
+
+    await renderIndex();
+
+    fireEvent.click(screen.getByRole("button", { name: "enhance" }));
+
+    await waitFor(() => {
+      expect(mocks.streamEnhance).toHaveBeenCalledTimes(1);
+    });
+
+    act(() => {
+      streamHandlers?.onEvent?.({
+        eventType: "item.updated",
+        responseType: "response.output_item.updated",
+        threadId: "thread_1",
+        turnId: "turn_1",
+        itemId: "item_agent_live_1",
+        itemType: "agent_message",
+        payload: {
+          item: {
+            id: "item_agent_live_1",
+            type: "agent_message",
+            text: "I am drafting a stronger version of your prompt.",
+          },
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("preview-source")).toHaveTextContent(
+        "prompt_text",
+      );
+    });
+    expect(screen.getByTestId("built-prompt")).toHaveTextContent(
+      "Built launch prompt",
+    );
+    expect(screen.getByTestId("enhanced-prompt")).toHaveTextContent("");
+    expect(screen.getByTestId("workflow-details")).toHaveTextContent(
+      "Generate enhanced prompt:I am drafting a stronger version of your prompt.",
+    );
+
+    act(() => {
+      streamHandlers?.onEvent?.({
+        eventType: "item.completed",
+        responseType: "response.output_text.done",
+        threadId: "thread_1",
+        turnId: "turn_1",
+        itemId: "item_agent_live_1",
+        itemType: "agent_message",
+        payload: {
+          event: "item.completed",
+          type: "response.output_text.done",
+          item_id: "item_agent_live_1",
+          item_type: "agent_message",
+          item: {
+            id: "item_agent_live_1",
+            type: "agent_message",
+            text: "Enhanced launch prompt.",
+          },
+        },
+      });
+      streamHandlers?.onEvent?.({
+        eventType: "enhance/metadata",
+        responseType: "enhance.metadata",
+        threadId: "thread_1",
+        turnId: "turn_1",
+        itemId: null,
+        itemType: null,
+        payload: {
+          event: "enhance/metadata",
+          type: "enhance.metadata",
+          payload: {
+            enhanced_prompt: "Enhanced launch prompt.",
+          },
+        },
+      });
+      streamHandlers?.onDone?.();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("preview-source")).toHaveTextContent(
+        "enhanced",
+      );
+    });
+    expect(screen.getByTestId("enhanced-prompt")).toHaveTextContent(
+      "Enhanced launch prompt.",
+    );
   });
 
   it("extracts enhanced_prompt from fenced streamed JSON without metadata", async () => {

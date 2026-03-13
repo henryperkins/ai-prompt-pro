@@ -145,6 +145,7 @@ const ENHANCE_THREAD_OPTIONS_BASE: Omit<
 const DEBUG_ENHANCE_EVENTS_KEY = "promptforge:debug-enhance-events";
 const DEBUG_ENHANCE_EVENTS_MAX = 200;
 const DEBUG_ENHANCE_PAYLOAD_PREVIEW_CHARS = 1200;
+const LIVE_GENERATE_PROMPT_DETAIL_MAX_CHARS = 240;
 const ENHANCED_PROMPT_SOURCES_SEPARATOR = /\n---\n\s*Sources:\s*\n/i;
 const ENHANCED_PROMPT_JSON_ARTIFACT_PATTERN = /"enhanced_prompt"\s*:/i;
 const ENHANCED_PROMPT_CODE_FENCE_PATTERN = /```(?:json)?\s*([\s\S]*?)```/i;
@@ -263,6 +264,21 @@ function extractEnhancedPromptFromJsonArtifact(text: string): string | null {
   } catch {
     return null;
   }
+}
+
+function formatLiveGeneratePromptWorkflowDetail(text: string): string {
+  const normalized = splitEnhancedPromptAndSources(
+    extractEnhancedPromptFromJsonArtifact(text) ?? text,
+  ).promptText
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!normalized) return "";
+  if (normalized.length <= LIVE_GENERATE_PROMPT_DETAIL_MAX_CHARS) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, LIVE_GENERATE_PROMPT_DETAIL_MAX_CHARS - 3).trimEnd()}...`;
 }
 
 function splitEnhancedPromptAndSources(input: string): {
@@ -1144,6 +1160,11 @@ const Index = () => {
     return "";
   }, [activeEnhancementVariant, enhanceMetadata]);
 
+  const isEnhanceRunInFlight =
+    isEnhancing ||
+    enhancePhase === "starting" ||
+    enhancePhase === "streaming" ||
+    enhancePhase === "settling";
   const selectedEnhancedPrompt = selectedVariantPrompt || enhancedPrompt;
   const hasVisibleEnhancedOutput = selectedEnhancedPrompt.trim().length > 0;
   const latestEnhancementOutputBuilderSignature =
@@ -1162,6 +1183,7 @@ const Index = () => {
     webSearchSources.length > 0,
   );
   const hasCurrentEnhancedOutput = Boolean(
+    !isEnhanceRunInFlight &&
     hasVisibleEnhancedOutput &&
     latestEnhancementOutputBuilderSignature &&
     latestEnhancementOutputBuilderSignature === builderSignature,
@@ -1176,7 +1198,10 @@ const Index = () => {
       webSearchSources.length > 0),
   );
   const isEnhancementStale = Boolean(
-    hasEnhancedHistory && hasVisibleEnhancedOutput && !hasCurrentEnhancedOutput,
+    !isEnhanceRunInFlight &&
+    hasEnhancedHistory &&
+    hasVisibleEnhancedOutput &&
+    !hasCurrentEnhancedOutput,
   );
   const currentEnhancedPrompt = hasCurrentEnhancedOutput
     ? selectedEnhancedPrompt
@@ -1500,6 +1525,55 @@ const Index = () => {
           activeEnhancementBuilderSignatureRef.current ?? builderSignature,
         );
       };
+      const updateLiveGeneratePromptWorkflow = (text: string) => {
+        const detail = formatLiveGeneratePromptWorkflowDetail(text);
+        if (!detail) return;
+
+        markCurrentEnhancementArtifacts();
+        setEnhanceWorkflow((previous) => {
+          const existing = previous.find((step) => step.stepId === "generate_prompt");
+          if (
+            existing &&
+            existing.status !== "pending" &&
+            existing.status !== "running"
+          ) {
+            return previous;
+          }
+
+          return upsertEnhanceWorkflowStep(previous, {
+            stepId: "generate_prompt",
+            order: existing?.order ?? 40,
+            label: existing?.label ?? "Generate enhanced prompt",
+            status: "running",
+            detail,
+          });
+        });
+      };
+      const settleGeneratePromptWorkflow = (
+        status: "completed" | "failed",
+        detail?: string,
+      ) => {
+        markCurrentEnhancementArtifacts();
+        setEnhanceWorkflow((previous) => {
+          const existing = previous.find((step) => step.stepId === "generate_prompt");
+          if (
+            existing &&
+            existing.status !== "pending" &&
+            existing.status !== "running"
+          ) {
+            return previous;
+          }
+
+          const normalizedDetail = detail?.trim() || existing?.detail;
+          return upsertEnhanceWorkflowStep(previous, {
+            stepId: "generate_prompt",
+            order: existing?.order ?? 40,
+            label: existing?.label ?? "Generate enhanced prompt",
+            status,
+            detail: normalizedDetail,
+          });
+        });
+      };
       const applyEnhancedOutput = (
         nextOutput: string,
         clearSourcesWhenMissing = false,
@@ -1554,6 +1628,7 @@ const Index = () => {
           hasReceivedDelta = true;
           accumulated += text;
           applyEnhancedOutput(accumulated);
+          updateLiveGeneratePromptWorkflow(accumulated);
         },
         onEvent: (event) => {
           if (streamToken !== enhanceStreamToken.current) return;
@@ -1586,6 +1661,7 @@ const Index = () => {
             accumulated = outputUpdate.text;
             hasReceivedDelta = accumulated.length > 0;
             applyEnhancedOutput(accumulated);
+            updateLiveGeneratePromptWorkflow(accumulated);
           }
 
           const workflowStep = parseEnhanceWorkflowStep(event.payload);
@@ -1698,6 +1774,10 @@ const Index = () => {
           enhanceStartedAt.current = null;
           setWebSearchActivity(IDLE_WEB_SEARCH_ACTIVITY);
           if (!finalPromptText) {
+            settleGeneratePromptWorkflow(
+              "failed",
+              "Enhancement completed without returning a prompt.",
+            );
             activeEnhancementBuilderSignatureRef.current = null;
             trackBuilderEvent("builder_enhance_completed", {
               success: false,
@@ -1718,6 +1798,10 @@ const Index = () => {
           }
           setLastSuccessfulEnhancementBuilderSignature(
             activeEnhancementBuilderSignatureRef.current ?? builderSignature,
+          );
+          settleGeneratePromptWorkflow(
+            "completed",
+            formatLiveGeneratePromptWorkflowDetail(finalPromptText),
           );
           activeEnhancementBuilderSignatureRef.current = null;
           trackBuilderEvent("builder_enhance_completed", {
@@ -1764,6 +1848,7 @@ const Index = () => {
 
           activeEnhancementBuilderSignatureRef.current = null;
           const errorMessage = error.message;
+          settleGeneratePromptWorkflow("failed", errorMessage);
           const startedAt = enhanceStartedAt.current;
           const durationMs = startedAt
             ? Math.max(Date.now() - startedAt, 0)

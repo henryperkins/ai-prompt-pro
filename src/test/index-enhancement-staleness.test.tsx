@@ -434,11 +434,9 @@ describe("Index enhancement staleness", () => {
     await act(async () => {});
 
     expect(screen.getByTestId("preview-source-prop")).toHaveTextContent(
-      "enhanced",
+      "prompt_text",
     );
-    expect(screen.getByTestId("has-current-enhanced-prop")).toHaveTextContent(
-      "true",
-    );
+    expect(screen.getByTestId("has-current-enhanced-prop")).toHaveTextContent("false");
 
     // Advance past the settling→done timer (260ms)
     await act(async () => {

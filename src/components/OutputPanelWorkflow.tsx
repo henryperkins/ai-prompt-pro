@@ -1,3 +1,4 @@
+import { Badge } from "@/components/base/badges/badges";
 import { Card } from "@/components/base/card";
 import { cx } from "@/lib/utils/cx";
 import type { EnhanceWorkflowStep } from "@/lib/enhance-workflow";
@@ -13,6 +14,29 @@ interface OutputPanelWorkflowProps {
   isEnhancing?: boolean;
 }
 
+function getStatusBadgeTone(step: EnhanceWorkflowStep) {
+  if (step.status === "running") {
+    return "brand";
+  }
+  if (step.status === "completed") {
+    return "success";
+  }
+  if (step.status === "failed") {
+    return "error";
+  }
+  return "default";
+}
+
+function getStatusBadgeClassName(step: EnhanceWorkflowStep) {
+  if (step.status === "completed") {
+    return "bg-success-primary text-fg-success-primary ring-fg-success-primary/30";
+  }
+  if (step.status === "skipped" || step.status === "pending") {
+    return "bg-muted/50 text-muted-foreground ring-border/60";
+  }
+  return undefined;
+}
+
 function renderStatusBadge(step: EnhanceWorkflowStep) {
   const statusLabel = step.status === "running"
     ? "Running"
@@ -24,42 +48,33 @@ function renderStatusBadge(step: EnhanceWorkflowStep) {
           ? "Failed"
           : "Pending";
 
-  const badgeClasses = step.status === "running"
-    ? "border-primary/30 bg-primary/10 text-primary"
-    : step.status === "completed"
-      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-      : step.status === "failed"
-        ? "border-destructive/30 bg-destructive/10 text-destructive"
-        : "border-border/60 bg-muted/50 text-muted-foreground";
-
   return (
-    <span
-      className={cx(
-        "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium",
-        badgeClasses,
-      )}
+    <Badge
+      size="sm"
+      tone={getStatusBadgeTone(step)}
+      className={getStatusBadgeClassName(step)}
     >
       {statusLabel}
-    </span>
+    </Badge>
   );
 }
 
 function renderStatusIcon(step: EnhanceWorkflowStep) {
   if (step.status === "running") {
-    return <CircleNotch className="h-4 w-4 animate-spin text-primary" aria-hidden="true" />;
+    return <CircleNotch className="size-4 animate-spin text-primary" aria-hidden="true" />;
   }
   if (step.status === "completed") {
     return (
       <CheckCircle
-        className="h-4 w-4 text-emerald-700 dark:text-emerald-300"
+        className="size-4 text-fg-success-primary"
         aria-hidden="true"
       />
     );
   }
   if (step.status === "failed") {
-    return <WarningCircle className="h-4 w-4 text-destructive" aria-hidden="true" />;
+    return <WarningCircle className="size-4 text-destructive" aria-hidden="true" />;
   }
-  return <MinusCircle className="h-4 w-4 text-muted-foreground" aria-hidden="true" />;
+  return <MinusCircle className="size-4 text-muted-foreground" aria-hidden="true" />;
 }
 
 export function OutputPanelWorkflow({
@@ -80,16 +95,13 @@ export function OutputPanelWorkflow({
             How the enhancement was assembled.
           </p>
         </div>
-        <span
-          className={cx(
-            "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium",
-            isEnhancing
-              ? "border-primary/30 bg-primary/10 text-primary"
-              : "border-border/60 bg-muted/50 text-muted-foreground",
-          )}
+        <Badge
+          size="sm"
+          tone={isEnhancing ? "brand" : "default"}
+          className={!isEnhancing ? "bg-muted/50 text-muted-foreground ring-border/60" : undefined}
         >
           {isEnhancing ? "Live" : "Captured"}
-        </span>
+        </Badge>
       </div>
 
       <ol className="mt-3 space-y-2" aria-label="Enhancement workflow steps">

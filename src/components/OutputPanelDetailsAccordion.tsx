@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useState } from "react";
 import { Card } from "@/components/base/card";
 import { cx } from "@/lib/utils/cx";
 import { CaretRight } from "@phosphor-icons/react";
@@ -6,7 +6,9 @@ import { CaretRight } from "@phosphor-icons/react";
 interface OutputPanelDetailsAccordionProps {
   title: string;
   summary?: string;
+  open?: boolean;
   defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
   children: ReactNode;
   testId: string;
 }
@@ -14,29 +16,33 @@ interface OutputPanelDetailsAccordionProps {
 export function OutputPanelDetailsAccordion({
   title,
   summary,
+  open,
   defaultOpen = false,
+  onOpenChange,
   children,
   testId,
 }: OutputPanelDetailsAccordionProps) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [internalOpen, setInternalOpen] = useState(defaultOpen);
+  const isControlled = open !== undefined;
+  const isOpen = isControlled ? open : internalOpen;
 
-  useEffect(() => {
-    if (defaultOpen) {
-      setIsOpen(true);
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!isControlled) {
+      setInternalOpen(nextOpen);
     }
-  }, [defaultOpen]);
+    onOpenChange?.(nextOpen);
+  };
 
   return (
     <Card className="overflow-hidden border-border/60 bg-card/70 p-0" data-testid={testId}>
-      <div className="group"
-      >
+      <div className="group">
         <button
           type="button"
           aria-controls={`${testId}-content`}
           aria-expanded={isOpen}
           className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-3 [&::-webkit-details-marker]:hidden"
           data-testid={`${testId}-trigger`}
-          onClick={() => setIsOpen((current) => !current)}
+          onClick={() => handleOpenChange(!isOpen)}
         >
           <div className="min-w-0">
             <p className="text-sm font-medium text-foreground">{title}</p>

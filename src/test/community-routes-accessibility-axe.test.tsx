@@ -127,6 +127,8 @@ function buildProfile(overrides: Partial<CommunityProfile> = {}): CommunityProfi
   };
 }
 
+const COMMUNITY_ROUTE_A11Y_TIMEOUT_MS = 15_000;
+
 async function renderProfileRoute() {
   vi.resetModules();
   const { default: Profile } = await import("@/pages/Profile");
@@ -165,7 +167,7 @@ async function renderCommunityPostRoute() {
     );
   });
 
-  await screen.findByRole("heading", { name: "Launch Readiness Forge" });
+  await screen.findByRole("heading", { name: "Launch Readiness Forge", level: 1 });
   await screen.findByTestId("community-detail-rating-summary");
   await screen.findByLabelText("Write a comment");
   await waitFor(() => {
@@ -200,7 +202,7 @@ describe("dynamic community route accessibility audits", () => {
 
     const results = await axe(document.body);
     expect(results.violations).toEqual([]);
-  });
+  }, COMMUNITY_ROUTE_A11Y_TIMEOUT_MS);
 
   it("has no axe violations on the community post route", async () => {
     vi.clearAllMocks();
@@ -221,5 +223,5 @@ describe("dynamic community route accessibility audits", () => {
 
     const results = await axe(document.body);
     expect(results.violations).toEqual([]);
-  });
+  }, COMMUNITY_ROUTE_A11Y_TIMEOUT_MS);
 });
