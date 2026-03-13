@@ -24,26 +24,24 @@ Assets to review:
   - output/playwright/current-builder-mobile-390-2026-03-13.png
   - output/playwright/builder-mobile-settings.png
 - Mobile (390x844):
-  - screenshots/mobile/home.png
-  - screenshots/mobile/community.png
-  - screenshots/mobile/community-post-detail.png
-  - screenshots/mobile/library.png
-  - screenshots/mobile/history.png
-  - screenshots/mobile/notfound.png
+  - output/playwright/design-ux-review-2026-03-13/mobile/home.png
+  - output/playwright/design-ux-review-2026-03-13/mobile/community.png
+  - output/playwright/design-ux-review-2026-03-13/mobile/community-post-detail.png
+  - output/playwright/design-ux-review-2026-03-13/mobile/library.png
+  - output/playwright/design-ux-review-2026-03-13/mobile/history.png
+  - output/playwright/design-ux-review-2026-03-13/mobile/notfound.png
 - Desktop (1440x900):
-  - screenshots/desktop/home.png
-  - screenshots/desktop/community.png
-  - screenshots/desktop/community-post-detail.png
-  - screenshots/desktop/library.png
-  - screenshots/desktop/history.png
-  - screenshots/desktop/notfound.png
+  - output/playwright/design-ux-review-2026-03-13/desktop/home.png
+  - output/playwright/design-ux-review-2026-03-13/desktop/community.png
+  - output/playwright/design-ux-review-2026-03-13/desktop/community-post-detail.png
+  - output/playwright/design-ux-review-2026-03-13/desktop/library.png
+  - output/playwright/design-ux-review-2026-03-13/desktop/history.png
+  - output/playwright/design-ux-review-2026-03-13/desktop/notfound.png
 - Launch screenshots:
   - screenshots/launch-sprint/builder-desktop.png
   - screenshots/launch-sprint/library-desktop.png
   - screenshots/launch-sprint/builder-mobile-390.png
   - screenshots/launch-sprint/community-mobile-390.png
-- Additional:
-  - screenshots/desktop-home.png
 
 Required evaluation dimensions:
 1. Visual hierarchy and readability
@@ -87,7 +85,7 @@ Output format (strict):
 
 Review constraints:
 - Do not invent evidence. If uncertain, say “Not verifiable from provided assets.”
-- Treat `screenshots/launch-sprint/*` and `screenshots/desktop/home.png` as historical builder evidence unless the review explicitly compares old launch collateral to the current builder.
+- Treat `screenshots/launch-sprint/*` as historical builder evidence unless the review explicitly compares old launch collateral to the current builder.
 - Use the current builder vocabulary from `docs/builder-workflow-reference.md`: `Enhance prompt`, `Builder readiness`, `Prompt details`, `Context and sources`, `Enhancement settings`.
 - Prefer concrete recommendations over generic advice.
 - Keep the review implementation-aware so engineers can act on it immediately.
