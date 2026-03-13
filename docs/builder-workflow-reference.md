@@ -17,6 +17,10 @@ Use these artifacts as the current builder evidence set:
 - `output/playwright/current-builder-mobile-390-2026-03-13.png`
 - `output/playwright/builder-mobile-settings.png`
 
+Refresh command:
+
+- `npm run capture:design-review`
+
 ## Historical builder screenshots
 
 Do not treat these as the current builder baseline unless you are explicitly

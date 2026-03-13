@@ -19,7 +19,7 @@ Use this file as the starting point for repo documentation.
 
 ## Active planning docs
 
-- `docs/plans/2026-03-13-builder-review-findings-remediation.md` - umbrella implementation plan for the 2026-03-13 builder UX/design-system review covering vocabulary normalization, pre-run hierarchy, draft-state compression, control architecture, reset demotion, mobile glanceability, accessibility hardening, degraded-service handling, and artifact refresh.
+- `docs/plans/2026-03-13-builder-review-findings-remediation.md` - implementation plan and execution log for the 2026-03-13 builder UX/design-system review covering vocabulary normalization, pre-run hierarchy, draft-state compression, control architecture, reset demotion, mobile glanceability, accessibility hardening, degraded-service handling, and the scripted review-artifact refresh flow.
 
 ## Campaign and launch docs
 

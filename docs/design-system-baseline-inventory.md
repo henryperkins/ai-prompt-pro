@@ -8,7 +8,7 @@ Product screens are `src/pages/*.tsx` route-level files.
 
 | Component | Canonical import | Pages using canonical import | Page count |
 | --- | --- | --- | --- |
-| Button | `@/components/base/buttons/button` | `src/pages/Community.tsx`, `src/pages/CommunityPost.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx`, `src/pages/Profile.tsx`, `src/pages/SupportInbox.tsx` | 7 |
+| Button | `@/components/base/buttons/button` | `src/pages/Community.tsx`, `src/pages/CommunityPost.tsx`, `src/pages/History.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx`, `src/pages/Profile.tsx`, `src/pages/SupportInbox.tsx` | 8 |
 | Input | `@/components/base/input/input` | `src/pages/Community.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx` | 3 |
 | Textarea | `@/components/base/textarea` | _none_ | 0 |
 | Label | `@/components/base/label` | _none_ | 0 |
@@ -24,7 +24,7 @@ Product screens are `src/pages/*.tsx` route-level files.
 | Import specifier | Page count | Pages |
 | --- | --- | --- |
 | `@/components/base/card` | 10 | `src/pages/Community.tsx`, `src/pages/CommunityPost.tsx`, `src/pages/ComponentsShowcase.tsx`, `src/pages/History.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx`, `src/pages/Privacy.tsx`, _+2 more_ |
-| `@/components/base/buttons/button` | 7 | `src/pages/Community.tsx`, `src/pages/CommunityPost.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx`, `src/pages/Profile.tsx`, `src/pages/SupportInbox.tsx` |
+| `@/components/base/buttons/button` | 8 | `src/pages/Community.tsx`, `src/pages/CommunityPost.tsx`, `src/pages/History.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx`, `src/pages/Profile.tsx`, `src/pages/SupportInbox.tsx` |
 | `@/components/base/badges/badges` | 5 | `src/pages/ComponentsShowcase.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx`, `src/pages/SupportInbox.tsx` |
 | `@/components/base/state-card` | 4 | `src/pages/CommunityPost.tsx`, `src/pages/Library.tsx`, `src/pages/NotFound.tsx`, `src/pages/Profile.tsx` |
 | `@/components/base/input/input` | 3 | `src/pages/Community.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx` |
@@ -65,10 +65,10 @@ Scope: `src/**/*.ts(x)` excluding `src/styles/**` and `src/test/**`.
 | pf class | File count | Files |
 | --- | --- | --- |
 | `pf-card` | 14 | `src/components/PageShell.stories.tsx`, `src/components/community/CommunityFeed.tsx`, `src/components/community/CommunityPostCard.tsx`, `src/components/community/CommunityPostDetail.tsx`, `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFTemplateCard.tsx`, `src/pages/CommunityPost.tsx`, `src/pages/ComponentsShowcase.tsx`, _+6 more_ |
-| `pf-gilded-frame` | 12 | `src/components/PageShell.tsx`, `src/components/community/ProfileHero.tsx`, `src/pages/Community.tsx`, `src/pages/History.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/LibraryBulkEdit.tsx`, `src/pages/Presets.tsx`, _+4 more_ |
-| `pf-hero-surface` | 12 | `src/components/PageShell.stories.tsx`, `src/components/PageShell.tsx`, `src/components/community/ProfileHero.tsx`, `src/pages/Community.tsx`, `src/pages/History.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/LibraryBulkEdit.tsx`, _+4 more_ |
 | `pf-community-page` | 6 | `src/components/PageShell.stories.tsx`, `src/pages/Community.tsx`, `src/pages/CommunityPost.tsx`, `src/pages/Contact.tsx`, `src/pages/NotFound.tsx`, `src/pages/Profile.tsx` |
+| `pf-gilded-frame` | 4 | `src/components/PageShell.tsx`, `src/components/community/ProfileHero.tsx`, `src/pages/Index.tsx`, `src/pages/Profile.tsx` |
 | `pf-gold` | 4 | `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFTemplateCard.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx` |
+| `pf-hero-surface` | 4 | `src/components/PageShell.stories.tsx`, `src/components/PageShell.tsx`, `src/components/community/ProfileHero.tsx`, `src/pages/Index.tsx` |
 | `pf-panel` | 4 | `src/pages/Community.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx` |
 | `pf-parchment` | 4 | `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFTemplateCard.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx` |
 | `pf-text-display` | 4 | `src/components/PageShell.tsx`, `src/components/community/ProfileHero.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx` |
@@ -81,14 +81,17 @@ Scope: `src/**/*.ts(x)` excluding `src/styles/**` and `src/test/**`.
 | `pf-ember` | 2 | `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFTemplateCard.tsx` |
 | `pf-ember-rgb` | 2 | `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFQualityGauge.tsx` |
 | `pf-gold-rgb` | 2 | `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFQualityGauge.tsx` |
+| `pf-mobile-nav-occupied-height` | 2 | `src/components/PageShell.tsx`, `src/pages/Index.tsx` |
 | `pf-nav-button` | 2 | `src/components/Header.tsx`, `src/components/PageShell.tsx` |
 | `pf-rarity-legendary` | 2 | `src/components/fantasy/PFTemplateCard.tsx`, `src/lib/community-rarity.ts` |
+| `pf-builder-mobile-sticky-reserved-height` | 1 | `src/pages/Index.tsx` |
 | `pf-card--static` | 1 | `src/components/community/ProfileHero.tsx` |
 | `pf-coal-rgb` | 1 | `src/components/fantasy/PFQualityGauge.tsx` |
 | `pf-community-popover` | 1 | `src/pages/Community.tsx` |
 | `pf-community-toolbar` | 1 | `src/pages/Community.tsx` |
 | `pf-hero-dismissed` | 1 | `src/pages/Index.tsx` |
 | `pf-mobile-nav` | 1 | `src/components/BottomNav.tsx` |
+| `pf-mobile-nav-link-min-height` | 1 | `src/components/BottomNav.tsx` |
 | `pf-nav-header` | 1 | `src/components/Header.tsx` |
 | `pf-parchment-rgb` | 1 | `src/components/fantasy/PFQualityGauge.tsx` |
 | `pf-rarity-common` | 1 | `src/components/fantasy/PFTemplateCard.tsx` |

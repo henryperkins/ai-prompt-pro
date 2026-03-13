@@ -18,6 +18,9 @@ Current builder review baselines:
 - Builder mobile (390w): `output/playwright/current-builder-mobile-390-2026-03-13.png`
 - Builder mobile settings: `output/playwright/builder-mobile-settings.png`
 
+Refresh command:
+- `npm run capture:design-review`
+
 Historical launch-collateral screenshots:
 - Builder desktop: `screenshots/launch-sprint/builder-desktop.png`
 - Builder mobile (390w): `screenshots/launch-sprint/builder-mobile-390.png`
