@@ -359,3 +359,57 @@ test("builder desktop smart suggestions and detail summaries stay within layout 
     "Builder desktop interaction test should not leak unmocked auth/data requests.",
   ).toEqual([]);
 });
+
+test("shows one non-blocking degraded smart suggestion message on desktop", async ({
+  page,
+}) => {
+  const unexpectedFailures = trackUnexpectedNetworkFailures(page);
+  const fallbackMessage =
+    "Using local suggestions while AI suggestions reconnect. We'll retry automatically.";
+  let inferRequestCount = 0;
+
+  await page.unroute("**/infer-builder-fields");
+  await page.route("**/infer-builder-fields", async (route) => {
+    inferRequestCount += 1;
+    await fulfillJson(
+      route,
+      { error: "Inference service temporarily unavailable." },
+      503,
+    );
+  });
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/");
+
+  const promptInput = page.getByRole("textbox", {
+    name: /What should the model do\?|Your Prompt/i,
+  });
+  await expect(promptInput).toBeVisible();
+
+  await promptInput.fill(
+    "Rewrite these launch notes into a concise release plan with owners, milestones, and risks.",
+  );
+
+  const suggestionStatus = page.getByTestId("builder-suggestions-status");
+  await expect(suggestionStatus).toBeVisible();
+  await expect(suggestionStatus).toContainText(fallbackMessage);
+  await expect(page.getByText(fallbackMessage)).toHaveCount(1);
+  await expect(page.getByText("Smart suggestions", { exact: true })).toBeVisible();
+
+  await promptInput.fill(
+    "Rewrite these launch notes into a concise release plan with owners, milestones, risks, and rollback steps.",
+  );
+  await page.waitForTimeout(1_000);
+
+  expect(
+    inferRequestCount,
+    "Builder should back off remote retries instead of re-requesting suggestions on every edit.",
+  ).toBe(1);
+  await expect(promptInput).toHaveValue(
+    "Rewrite these launch notes into a concise release plan with owners, milestones, risks, and rollback steps.",
+  );
+  expect(
+    unexpectedFailures,
+    "Builder desktop degraded-suggestions test should not leak unmocked auth/data requests.",
+  ).toEqual([]);
+});

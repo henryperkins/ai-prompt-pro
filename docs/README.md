@@ -6,6 +6,7 @@ Use this file as the starting point for repo documentation.
 
 ## Active operational docs
 
+- `docs/builder-workflow-reference.md` - current builder workflow, vocabulary, and visual artifact reference for the shipped `/` route.
 - `docs/design-system.md` - canonical design-system and UI governance reference.
 - `docs/component-adoption.md` - canonical component import and adoption status guide.
 - `docs/design-system-baseline-inventory.md` - generated baseline inventory for DS refactor planning.
@@ -15,7 +16,6 @@ Use this file as the starting point for repo documentation.
 - `docs/typography-regression-checklist.md` - typography validation checks.
 - `docs/community-mobile-qa-checklist.md` - manual mobile QA checks.
 - `docs/community-mobile-social-backlog.md` - active backlog for mobile social UX.
-- `prompt-build-and-enhancement.md` - prompt build and enhancement architecture.
 
 ## Active planning docs
 

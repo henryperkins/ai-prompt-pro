@@ -25,6 +25,7 @@ vi.mock("@/hooks/use-mobile", () => ({
 
 vi.mock("@/lib/ai-client", () => ({
   inferBuilderFields: (...args: unknown[]) => mocks.inferBuilderFields(...args),
+  isAIClientError: () => false,
   streamEnhance: (...args: unknown[]) => mocks.streamEnhance(...args),
 }));
 

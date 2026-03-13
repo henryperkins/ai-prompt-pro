@@ -19,6 +19,7 @@ interface BuilderHeroInputProps {
   suggestionChips?: BuilderSuggestionChip[];
   isInferringSuggestions?: boolean;
   hasInferenceError?: boolean;
+  inferenceStatusMessage?: string | null;
   onApplySuggestion?: (chip: BuilderSuggestionChip) => void;
   onResetInferred?: () => void;
   canResetInferred?: boolean;
@@ -36,6 +37,7 @@ export function BuilderHeroInput({
   suggestionChips = [],
   isInferringSuggestions = false,
   hasInferenceError = false,
+  inferenceStatusMessage = null,
   onApplySuggestion,
   onResetInferred,
   canResetInferred = false,
@@ -49,6 +51,16 @@ export function BuilderHeroInput({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [recoveryActionsOpen, setRecoveryActionsOpen] = useState(false);
   const hasRecoveryActions = Boolean(onResetAll || value);
+  const suggestionStatusMessage = isInferringSuggestions
+    ? hasInferenceError
+      ? "Refreshing AI suggestions. Local suggestions remain available."
+      : "Generating suggestions..."
+    : inferenceStatusMessage;
+  const shouldShowSuggestionPanel =
+    phase3Enabled &&
+    (Boolean(suggestionStatusMessage) ||
+      suggestionChips.length > 0 ||
+      canResetInferred);
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -200,7 +212,7 @@ export function BuilderHeroInput({
             </div>
           )}
 
-        {phase3Enabled && (isInferringSuggestions || suggestionChips.length > 0 || canResetInferred) && (
+        {shouldShowSuggestionPanel && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-200 overflow-hidden rounded-md border border-dashed border-primary/40 bg-primary/5 px-3 py-2">
             <div className="flex items-center justify-between gap-2">
               <p className="flex items-center gap-1.5 text-sm font-medium text-primary">
@@ -220,10 +232,23 @@ export function BuilderHeroInput({
               )}
             </div>
             <div className="mt-2 space-y-2">
-              {isInferringSuggestions && (
-                <p className="flex items-center gap-1.5 text-sm text-foreground/85">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Generating suggestions...
+              {suggestionStatusMessage && (
+                <p
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true"
+                  data-testid="builder-suggestions-status"
+                  className={[
+                    "flex items-center gap-1.5 text-sm",
+                    hasInferenceError && !isInferringSuggestions
+                      ? "text-muted-foreground"
+                      : "text-foreground/85",
+                  ].join(" ")}
+                >
+                  {isInferringSuggestions && (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  )}
+                  {suggestionStatusMessage}
                 </p>
               )}
               {suggestionChips.length > 0 && (
@@ -252,12 +277,6 @@ export function BuilderHeroInput({
               )}
             </div>
           </div>
-        )}
-
-        {phase3Enabled && hasInferenceError && !isInferringSuggestions && suggestionChips.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            AI suggestions are temporarily unavailable.
-          </p>
         )}
       </div>
     </Card>

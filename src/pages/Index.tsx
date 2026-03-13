@@ -17,6 +17,7 @@ import { EnhancePrimaryButton } from "@/components/OutputPanelEnhanceControls";
 import { usePromptBuilder } from "@/hooks/usePromptBuilder";
 import {
   inferBuilderFields,
+  isAIClientError,
   streamEnhance,
   type AIClientError,
   type EnhanceThreadOptions,
@@ -153,6 +154,10 @@ const DEFAULT_BUILDER_SIGNATURE = buildPromptConfigSignature(defaultConfig);
 const DEFAULT_ENHANCEMENT_DEPTH: EnhancementDepth = "guided";
 const DEFAULT_REWRITE_STRICTNESS: RewriteStrictness = "balanced";
 const DEFAULT_AMBIGUITY_MODE: AmbiguityMode = "infer_conservatively";
+const BUILDER_INFERENCE_RETRY_BASE_MS = 10_000;
+const BUILDER_INFERENCE_RETRY_MAX_MS = 40_000;
+const BUILDER_INFERENCE_FALLBACK_MESSAGE =
+  "Using local suggestions while AI suggestions reconnect. We'll retry automatically.";
 
 type EnhanceStreamEvent = CodexStreamEventMeta & {
   payload: unknown;
@@ -787,6 +792,9 @@ const Index = () => {
   const hasTrackedZone2Opened = useRef(false);
   const hasTrackedZone3Opened = useRef(false);
   const suggestionLoadToken = useRef(0);
+  const builderInferenceRetryAt = useRef<number | null>(null);
+  const builderInferenceRetryTimer = useRef<number | null>(null);
+  const builderInferenceFailureCount = useRef(0);
   const enhanceStartedAt = useRef<number | null>(null);
   const enhancePending = useRef(false);
   const enhanceAbortController = useRef<AbortController | null>(null);
@@ -800,6 +808,11 @@ const Index = () => {
   >([]);
   const [isInferringSuggestions, setIsInferringSuggestions] = useState(false);
   const [hasInferenceError, setHasInferenceError] = useState(false);
+  const [inferenceStatusMessage, setInferenceStatusMessage] = useState<
+    string | null
+  >(null);
+  const [builderInferenceRetryNonce, setBuilderInferenceRetryNonce] =
+    useState(0);
   const [webSearchEnabled, setWebSearchEnabled] = useState(
     () => getUserPreferences().webSearchEnabled,
   );
@@ -832,6 +845,55 @@ const Index = () => {
   ] = useState<string | null>(null);
   const { toast } = useToast();
   const isMobile = useIsMobile();
+
+  const clearBuilderInferenceRetry = useCallback(() => {
+    if (builderInferenceRetryTimer.current !== null) {
+      window.clearTimeout(builderInferenceRetryTimer.current);
+      builderInferenceRetryTimer.current = null;
+    }
+    builderInferenceRetryAt.current = null;
+  }, []);
+
+  const resetBuilderInferenceRetry = useCallback(() => {
+    builderInferenceFailureCount.current = 0;
+    clearBuilderInferenceRetry();
+  }, [clearBuilderInferenceRetry]);
+
+  const scheduleBuilderInferenceRetry = useCallback(
+    (error: unknown) => {
+      const nextFailureCount = builderInferenceFailureCount.current + 1;
+      builderInferenceFailureCount.current = nextFailureCount;
+
+      const retryAfterMs =
+        isAIClientError(error) &&
+          typeof error.retryAfterMs === "number" &&
+          error.retryAfterMs > 0
+          ? error.retryAfterMs
+          : null;
+      const exponentialBackoffMs = Math.min(
+        BUILDER_INFERENCE_RETRY_BASE_MS *
+          2 ** Math.max(0, nextFailureCount - 1),
+        BUILDER_INFERENCE_RETRY_MAX_MS,
+      );
+      const retryDelayMs = Math.min(
+        retryAfterMs ?? exponentialBackoffMs,
+        BUILDER_INFERENCE_RETRY_MAX_MS,
+      );
+
+      clearBuilderInferenceRetry();
+      builderInferenceRetryAt.current = Date.now() + retryDelayMs;
+      builderInferenceRetryTimer.current = window.setTimeout(() => {
+        builderInferenceRetryAt.current = null;
+        builderInferenceRetryTimer.current = null;
+        setBuilderInferenceRetryNonce((current) => current + 1);
+      }, retryDelayMs);
+    },
+    [clearBuilderInferenceRetry],
+  );
+
+  useEffect(() => () => {
+    clearBuilderInferenceRetry();
+  }, [clearBuilderInferenceRetry]);
 
   const syncEnhancementProfile = useCallback(
     (action: Parameters<typeof recordEnhancementAction>[0]) => {
@@ -2506,8 +2568,25 @@ const Index = () => {
     const prompt = config.originalPrompt.trim();
     if (prompt.length < 24) {
       suggestionLoadToken.current += 1;
+      resetBuilderInferenceRetry();
       setSuggestionChips([]);
       setHasInferenceError(false);
+      setInferenceStatusMessage(null);
+      setIsInferringSuggestions(false);
+      return;
+    }
+
+    const requestContext = buildInferenceRequestContext({
+      config,
+      enhanceSession,
+      hasPresetOrRemix: Boolean(remixContext || presetId),
+    });
+    const localFallback = inferBuilderFieldsLocally(prompt, config, requestContext);
+    const retryAt = builderInferenceRetryAt.current;
+    if (typeof retryAt === "number" && retryAt > Date.now()) {
+      setSuggestionChips(localFallback.suggestionChips);
+      setHasInferenceError(true);
+      setInferenceStatusMessage(BUILDER_INFERENCE_FALLBACK_MESSAGE);
       setIsInferringSuggestions(false);
       return;
     }
@@ -2517,11 +2596,6 @@ const Index = () => {
     const timer = window.setTimeout(() => {
       void (async () => {
         setIsInferringSuggestions(true);
-        const requestContext = buildInferenceRequestContext({
-          config,
-          enhanceSession,
-          hasPresetOrRemix: Boolean(remixContext || presetId),
-        });
         const timeout = window.setTimeout(() => abortController.abort(), 12_000);
         try {
           const remote = await inferBuilderFields({
@@ -2555,19 +2629,17 @@ const Index = () => {
           if (normalized.suggestionChips.length > 0) {
             setSuggestionChips(normalized.suggestionChips);
           } else {
-            setSuggestionChips(
-              inferBuilderFieldsLocally(prompt, config, requestContext)
-                .suggestionChips,
-            );
+            setSuggestionChips(localFallback.suggestionChips);
           }
+          resetBuilderInferenceRetry();
           setHasInferenceError(false);
-        } catch {
+          setInferenceStatusMessage(null);
+        } catch (error) {
           if (token !== suggestionLoadToken.current) return;
-          setSuggestionChips(
-            inferBuilderFieldsLocally(prompt, config, requestContext)
-              .suggestionChips,
-          );
+          setSuggestionChips(localFallback.suggestionChips);
           setHasInferenceError(true);
+          setInferenceStatusMessage(BUILDER_INFERENCE_FALLBACK_MESSAGE);
+          scheduleBuilderInferenceRetry(error);
         } finally {
           window.clearTimeout(timeout);
           if (token === suggestionLoadToken.current) {
@@ -2584,10 +2656,13 @@ const Index = () => {
     };
   }, [
     config,
+    builderInferenceRetryNonce,
     enhanceSession,
     fieldOwnership,
     presetId,
+    resetBuilderInferenceRetry,
     remixContext,
+    scheduleBuilderInferenceRetry,
     updateConfig,
   ]);
 
@@ -2859,6 +2934,7 @@ const Index = () => {
             suggestionChips={suggestionChips}
             isInferringSuggestions={isInferringSuggestions}
             hasInferenceError={hasInferenceError}
+            inferenceStatusMessage={inferenceStatusMessage}
             onApplySuggestion={handleApplySuggestionChip}
             onResetInferred={handleResetInferredDetails}
             canResetInferred={hasAiOwnedFields}

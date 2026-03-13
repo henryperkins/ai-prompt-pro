@@ -18,6 +18,8 @@ vi.mock("@/hooks/use-mobile", () => ({
 }));
 
 vi.mock("@/lib/ai-client", () => ({
+  inferBuilderFields: vi.fn(),
+  isAIClientError: () => false,
   streamEnhance: vi.fn(),
 }));
 

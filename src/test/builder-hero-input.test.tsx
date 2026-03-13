@@ -127,4 +127,32 @@ describe("BuilderHeroInput", () => {
       screen.queryByRole("button", { name: "Draft actions" }),
     ).not.toBeInTheDocument();
   });
+
+  it("shows one non-blocking degraded suggestion status inside the smart suggestions panel", () => {
+    render(
+      <BuilderHeroInput
+        value="Compare two onboarding flows and note where users get stuck."
+        onChange={() => undefined}
+        onClear={() => undefined}
+        phase3Enabled
+        suggestionChips={longSuggestionChips}
+        hasInferenceError
+        inferenceStatusMessage="Using local suggestions while AI suggestions reconnect. We'll retry automatically."
+      />,
+    );
+
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent(
+      "Using local suggestions while AI suggestions reconnect. We'll retry automatically.",
+    );
+    expect(
+      screen.getAllByText(
+        "Using local suggestions while AI suggestions reconnect. We'll retry automatically.",
+      ),
+    ).toHaveLength(1);
+    expect(
+      screen.queryByText("AI suggestions are temporarily unavailable."),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Add evidence requirements")).toBeInTheDocument();
+  });
 });

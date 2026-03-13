@@ -27,6 +27,7 @@ vi.mock("@/lib/telemetry", () => ({
 vi.mock("@/lib/ai-client", () => ({
   streamEnhance: vi.fn(),
   inferBuilderFields: vi.fn(),
+  isAIClientError: () => false,
 }));
 
 vi.mock("@/components/PageShell", () => ({

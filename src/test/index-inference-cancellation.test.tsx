@@ -20,6 +20,8 @@ vi.mock("@/hooks/use-mobile", () => ({
 
 vi.mock("@/lib/ai-client", () => ({
   inferBuilderFields: (...args: unknown[]) => mocks.inferBuilderFields(...args),
+  isAIClientError: (error: unknown) =>
+    Boolean(error && typeof error === "object" && (error as { name?: string }).name === "AIClientError"),
   streamEnhance: (...args: unknown[]) => mocks.streamEnhance(...args),
 }));
 
@@ -32,10 +34,12 @@ vi.mock("@/components/BuilderHeroInput", () => ({
     value,
     onChange,
     suggestionChips = [],
+    inferenceStatusMessage,
   }: {
     value: string;
     onChange: (value: string) => void;
     suggestionChips?: Array<{ id: string; label: string }>;
+    inferenceStatusMessage?: string | null;
   }) => (
     <div>
       <label htmlFor="builder-hero-input">Redesign Hero Input</label>
@@ -44,6 +48,7 @@ vi.mock("@/components/BuilderHeroInput", () => ({
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />
+      {inferenceStatusMessage ? <p role="status">{inferenceStatusMessage}</p> : null}
       <div>
         {suggestionChips.map((chip) => (
           <span key={chip.id}>{chip.label}</span>
@@ -204,5 +209,82 @@ describe("Index suggestion inference cancellation", () => {
     });
 
     expect(screen.queryByText("Stale suggestion")).not.toBeInTheDocument();
+  }, 15_000);
+
+  it("falls back to local suggestions and backs off retries after inference failures", async () => {
+    vi.useFakeTimers();
+
+    mocks.inferBuilderFields
+      .mockRejectedValueOnce(new Error("service unavailable"))
+      .mockResolvedValueOnce({
+        inferredUpdates: {},
+        inferredFields: [],
+        suggestionChips: [
+          {
+            id: "remote-chip",
+            label: "Remote suggestion",
+            description: "Recovered after retry.",
+            action: {
+              type: "append_prompt",
+              text: "Add acceptance criteria.",
+            },
+          },
+        ],
+      });
+
+    await renderIndex();
+
+    const initialPrompt =
+      "Draft a detailed update in bullet points for executive stakeholders.";
+    const updatedPrompt = `${initialPrompt} Include risks and next steps.`;
+    const promptInput = screen.getByLabelText("Redesign Hero Input");
+
+    fireEvent.change(promptInput, {
+      target: { value: initialPrompt },
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    expect(mocks.inferBuilderFields).toHaveBeenCalledTimes(1);
+
+    expect(
+      screen.getByText(
+        "Using local suggestions while AI suggestions reconnect. We'll retry automatically.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByText(
+        "Using local suggestions while AI suggestions reconnect. We'll retry automatically.",
+      ),
+    ).toHaveLength(1);
+
+    fireEvent.change(promptInput, {
+      target: { value: updatedPrompt },
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+
+    expect(mocks.inferBuilderFields).toHaveBeenCalledTimes(1);
+    expect(promptInput).toHaveValue(updatedPrompt);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    expect(mocks.inferBuilderFields).toHaveBeenCalledTimes(2);
+    expect(screen.getByText("Remote suggestion")).toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "Using local suggestions while AI suggestions reconnect. We'll retry automatically.",
+      ),
+    ).not.toBeInTheDocument();
   }, 15_000);
 });

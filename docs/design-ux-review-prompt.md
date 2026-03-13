@@ -1,6 +1,6 @@
 # PromptForge Design and UX Review Prompt
 
-Last updated: 2026-02-26
+Last updated: 2026-03-13
 
 > Template: reusable prompt scaffold for design/UX audits. Replace sample context references when auditing a new scope.
 
@@ -14,10 +14,15 @@ Project context:
 - Product: PromptForge (prompt builder, library/history, community remix)
 - Primary users: developers and technical AI users
 - Design system reference: docs/design-system.md
+- Current builder workflow reference: docs/builder-workflow-reference.md
 - Route/flow context sample (archived): docs/reviews/ux-review-prioritized.md
 - Launch asset references: docs/launch-assets-pack.md
 
 Assets to review:
+- Current builder baselines:
+  - output/playwright/current-builder-desktop-2026-03-13.png
+  - output/playwright/current-builder-mobile-390-2026-03-13.png
+  - output/playwright/builder-mobile-settings.png
 - Mobile (390x844):
   - screenshots/mobile/home.png
   - screenshots/mobile/community.png
@@ -82,6 +87,8 @@ Output format (strict):
 
 Review constraints:
 - Do not invent evidence. If uncertain, say “Not verifiable from provided assets.”
+- Treat `screenshots/launch-sprint/*` and `screenshots/desktop/home.png` as historical builder evidence unless the review explicitly compares old launch collateral to the current builder.
+- Use the current builder vocabulary from `docs/builder-workflow-reference.md`: `Enhance prompt`, `Builder readiness`, `Prompt details`, `Context and sources`, `Enhancement settings`.
 - Prefer concrete recommendations over generic advice.
 - Keep the review implementation-aware so engineers can act on it immediately.
 - Be candid and critical; avoid praise unless supported by clear evidence.
