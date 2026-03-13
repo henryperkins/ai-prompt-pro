@@ -61,6 +61,11 @@ const CATEGORY_OPTIONS = [
 ];
 const FEED_PAGE_SIZE = 20;
 
+function readTagFilter(searchParams: URLSearchParams): string | null {
+  const value = searchParams.get("tag")?.trim().toLowerCase() ?? "";
+  return value || null;
+}
+
 interface CommunityReportTarget {
   targetType: "post" | "comment";
   postId: string;
@@ -96,6 +101,7 @@ const Community = () => {
   const [category, setCategory] = useState("all");
   const [queryInput, setQueryInput] = useState("");
   const [query, setQuery] = useState("");
+  const activeTag = isFollowingMode ? null : readTagFilter(searchParams);
   const activeSort: CommunitySort = isFollowingMode ? "new" : sort;
   const activeCategory = isFollowingMode ? "all" : category;
   const activeQuery = isFollowingMode ? "" : query;
@@ -109,9 +115,11 @@ const Community = () => {
   const [retryNonce, setRetryNonce] = useState(0);
   const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
   const [followingUserIds, setFollowingUserIds] = useState<Set<string>>(new Set());
+  const [relationshipsReady, setRelationshipsReady] = useState(false);
   const [reportTarget, setReportTarget] = useState<CommunityReportTarget | null>(null);
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const requestToken = useRef(0);
+  const relationshipRequestToken = useRef(0);
   const voteInFlightByPost = useRef<Set<string>>(new Set());
   const ratingInFlightByPost = useRef<Set<string>>(new Set());
   const { toast } = useToast();
@@ -153,39 +161,34 @@ const Community = () => {
   }, [isFollowingMode]);
 
   useEffect(() => {
+    const token = ++relationshipRequestToken.current;
+    setBlockedUserIds([]);
+    setFollowingUserIds(new Set());
+    setReportTarget(null);
+    setRelationshipsReady(!user?.id);
+
     if (!user?.id) {
-      setBlockedUserIds([]);
       return;
     }
 
-    let cancelled = false;
-    void loadBlockedUserIds()
-      .then((ids) => {
-        if (!cancelled) {
-          setBlockedUserIds(ids);
-        }
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          console.error("Failed to load blocked users:", error);
-        }
-      });
+    void Promise.allSettled([loadBlockedUserIds(), loadFollowingUserIds()])
+      .then(([blockedResult, followingResult]) => {
+        if (token !== relationshipRequestToken.current) return;
 
-    void loadFollowingUserIds()
-      .then((ids) => {
-        if (!cancelled) {
-          setFollowingUserIds(new Set(ids));
+        if (blockedResult.status === "fulfilled") {
+          setBlockedUserIds(blockedResult.value);
+        } else {
+          console.error("Failed to load blocked users:", blockedResult.reason);
         }
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          console.error("Failed to load following users:", error);
-        }
-      });
 
-    return () => {
-      cancelled = true;
-    };
+        if (followingResult.status === "fulfilled") {
+          setFollowingUserIds(new Set(followingResult.value));
+        } else {
+          console.error("Failed to load following users:", followingResult.reason);
+        }
+
+        setRelationshipsReady(true);
+      });
   }, [user?.id]);
 
   const hydrateFeedContext = useCallback(
@@ -243,6 +246,7 @@ const Community = () => {
           : await loadFeed({
               sort: activeSort,
               category: activeCategory,
+              tag: activeTag ?? undefined,
               search: activeQuery || undefined,
               limit: FEED_PAGE_SIZE,
               page: 0,
@@ -269,7 +273,7 @@ const Community = () => {
         }
       }
     })();
-  }, [activeCategory, activeQuery, activeSort, feedMode, user?.id, hydrateFeedContext, retryNonce]);
+  }, [activeCategory, activeQuery, activeSort, activeTag, feedMode, user?.id, hydrateFeedContext, retryNonce]);
 
   const handleLoadMore = useCallback(() => {
     if (loading || isLoadingMore || !hasMore) return;
@@ -284,6 +288,7 @@ const Community = () => {
           : await loadFeed({
               sort: activeSort,
               category: activeCategory,
+              tag: activeTag ?? undefined,
               search: activeQuery || undefined,
               limit: FEED_PAGE_SIZE,
               page: nextPage,
@@ -323,6 +328,7 @@ const Community = () => {
     page,
     activeSort,
     activeCategory,
+    activeTag,
     activeQuery,
     feedMode,
     posts,
@@ -529,20 +535,34 @@ const Community = () => {
   const handleTagClick = useCallback((tag: string) => {
     const normalizedTag = tag.trim();
     if (!normalizedTag) return;
-    if (isFollowingMode) {
-      setFeedMode("for_you");
-    }
-    setQueryInput(normalizedTag);
-    setQuery(normalizedTag);
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      next.delete("tab");
+      next.set("tag", normalizedTag.toLowerCase());
+      return next;
+    }, { replace: true });
     setIsSearchFocused(false);
     setMobileCategorySheetOpen(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [isFollowingMode, setFeedMode]);
+  }, [setSearchParams]);
 
-  const visiblePosts = useMemo(
-    () => posts.filter((post) => !blockedUserIds.includes(post.authorId)),
-    [blockedUserIds, posts],
+  const clearTagFilter = useCallback(() => {
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      next.delete("tag");
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const effectiveBlockedUserIds = useMemo(
+    () => (relationshipsReady ? blockedUserIds : []),
+    [blockedUserIds, relationshipsReady],
   );
+  const visiblePosts = useMemo(
+    () => posts.filter((post) => !effectiveBlockedUserIds.includes(post.authorId)),
+    [effectiveBlockedUserIds, posts],
+  );
+  const hiddenPostCount = posts.length - visiblePosts.length;
 
   const handleBlockUser = useCallback(async (targetUserId: string) => {
     if (!user) {
@@ -715,6 +735,24 @@ const Community = () => {
                       {selectedCategoryLabel}
                     </span>
                   </Button>
+                )}
+                {activeTag && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2" data-testid="community-active-tag">
+                    <span className="type-meta text-muted-foreground">Tag filter</span>
+                    <span className="type-chip inline-flex min-h-9 items-center rounded-full border border-primary/30 bg-primary/10 px-3 text-foreground">
+                      #{activeTag}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="tertiary"
+                      size="sm"
+                      className="type-button-label h-9 px-3"
+                      onClick={clearTagFilter}
+                      data-testid="community-clear-tag-filter"
+                    >
+                      Clear
+                    </Button>
+                  </div>
                 )}
               </div>
 
@@ -952,19 +990,21 @@ const Community = () => {
             onCommentThreadOpen={handleCommentThreadOpen}
             onSharePost={handleSharePost}
             onSaveToLibrary={handleSaveToLibrary}
-            followingUserIds={followingUserIds}
-            onToggleFollow={handleToggleFollow}
+            followingUserIds={relationshipsReady ? followingUserIds : undefined}
+            onToggleFollow={relationshipsReady ? handleToggleFollow : undefined}
             canVote={Boolean(user)}
             canRate={Boolean(user)}
             ratingByPost={ratingByPost}
             onRatePrompt={handleRatePrompt}
             currentUserId={user?.id ?? null}
-            blockedUserIds={blockedUserIds}
+            blockedUserIds={effectiveBlockedUserIds}
             onReportPost={handleReportPost}
             onReportComment={handleReportComment}
             onBlockUser={handleBlockUser}
             onUnblockUser={handleUnblockUser}
             onTagClick={handleTagClick}
+            rawPostCount={posts.length}
+            hiddenPostCount={hiddenPostCount}
             hasMore={hasMore}
             isLoadingMore={isLoadingMore}
             onLoadMore={handleLoadMore}

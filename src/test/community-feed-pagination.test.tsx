@@ -129,4 +129,56 @@ describe("CommunityFeed pagination controls", () => {
     expect(cards[1]).toHaveAttribute("data-selected", "false");
     expect(cards[1]).toHaveAttribute("data-deemphasized", "true");
   });
+
+  it("keeps a manual load-more action when the fetched page only contains blocked authors", () => {
+    const onLoadMore = vi.fn();
+
+    render(
+      <MemoryRouter>
+        <CommunityFeed
+          posts={[]}
+          loading={false}
+          authorById={{}}
+          parentTitleById={{}}
+          onCopyPrompt={vi.fn()}
+          onToggleVote={vi.fn()}
+          voteStateByPost={{} as Record<string, VoteState>}
+          onCommentAdded={vi.fn()}
+          canVote={false}
+          rawPostCount={1}
+          hiddenPostCount={1}
+          hasMore
+          onLoadMore={onLoadMore}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("community-blocked-results-state")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+
+    expect(onLoadMore).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses blocked-author copy instead of generic filter-empty copy when every fetched post is hidden", () => {
+    render(
+      <MemoryRouter>
+        <CommunityFeed
+          posts={[]}
+          loading={false}
+          authorById={{}}
+          parentTitleById={{}}
+          onCopyPrompt={vi.fn()}
+          onToggleVote={vi.fn()}
+          voteStateByPost={{} as Record<string, VoteState>}
+          onCommentAdded={vi.fn()}
+          canVote={false}
+          rawPostCount={2}
+          hiddenPostCount={2}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Posts from blocked authors are hidden")).toBeInTheDocument();
+    expect(screen.queryByText("No posts match these filters")).toBeNull();
+  });
 });

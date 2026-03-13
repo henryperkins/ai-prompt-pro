@@ -168,7 +168,7 @@ describe("Index mobile layout spacing", () => {
     await renderIndex();
 
     expect(screen.getByRole("status")).toHaveTextContent(
-      "Draft preview. The visible text comes from the current builder inputs.",
+      "Draft prompt. This preview reflects the current builder draft.",
     );
 
     fireEvent.click(screen.getByTestId("builder-mobile-preview-trigger"));

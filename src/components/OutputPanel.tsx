@@ -43,7 +43,10 @@ import { OutputPanelHeader } from "@/components/OutputPanelHeader";
 import { OutputPanelCompareDialog } from "@/components/OutputPanelCompareDialog";
 import { OutputPanelDetailsAccordion } from "@/components/OutputPanelDetailsAccordion";
 import { OutputPanelEnhancementSummary } from "@/components/OutputPanelEnhancementSummary";
-import { OutputPanelEnhanceControls } from "@/components/OutputPanelEnhanceControls";
+import {
+  EnhancementSettingsSummaryCard,
+  OutputPanelEnhanceControls,
+} from "@/components/OutputPanelEnhanceControls";
 import { OutputPanelStateBanner } from "@/components/OutputPanelStateBanner";
 import { OutputPanelWorkflow } from "@/components/OutputPanelWorkflow";
 import { EnhancementInspector, type ApplyToBuilderUpdate } from "@/components/EnhancementInspector";
@@ -91,6 +94,7 @@ interface OutputPanelProps {
   onRewriteStrictnessChange?: (strictness: RewriteStrictness) => void;
   ambiguityMode?: AmbiguityMode;
   onAmbiguityModeChange?: (mode: AmbiguityMode) => void;
+  enhanceControlsMode?: "full" | "compact";
   enhancementSettingsSummary?: string;
   onEditEnhancementSettings?: () => void;
   onApplyToBuilder?: (updates: ApplyToBuilderUpdate) => void;
@@ -177,6 +181,7 @@ export function OutputPanel({
   onRewriteStrictnessChange,
   ambiguityMode = "infer_conservatively",
   onAmbiguityModeChange,
+  enhanceControlsMode = "full",
   enhancementSettingsSummary,
   onEditEnhancementSettings,
   onApplyToBuilder,
@@ -222,11 +227,11 @@ export function OutputPanel({
   const effectivePreviewSource = previewSource ?? inferredPreviewSource;
   const previewSourceLabel =
     effectivePreviewSource === "enhanced"
-      ? "Enhanced output"
+      ? "Enhanced prompt"
       : effectivePreviewSource === "prompt_text"
-        ? "Prompt draft"
+        ? "Draft prompt"
         : effectivePreviewSource === "builder_fields"
-          ? "Built prompt"
+          ? "Draft prompt"
           : "No preview yet";
   const trimmedReasoningSummary = reasoningSummary.trim();
   const [displayedReasoningSummary, setDisplayedReasoningSummary] = useState(trimmedReasoningSummary);
@@ -521,6 +526,9 @@ export function OutputPanel({
         title={reviewState.title}
         description={reviewState.description}
         previewSourceLabel={previewSourceLabel}
+        showPreviewSourceLabel={
+          reviewState.stateKey !== "draft" && reviewState.stateKey !== "empty"
+        }
         statusLabel={isTransientPhase || isSettledEnhancedOutput ? statusLabel : null}
         nextAction={reviewState.nextAction}
         tone={reviewState.tone}
@@ -573,13 +581,32 @@ export function OutputPanel({
                   Your prompt preview appears here
                 </p>
                 <p className="max-w-xs text-xs text-muted-foreground">
-                  Start by describing what the model should do, then enhance to get a polished, structured prompt.
+                  Start by describing what the model should do, then use Enhance prompt to get a polished, structured version.
                 </p>
               </div>
             </div>
           )}
         </div>
       </Card>
+
+      {!hideEnhanceButton && enhanceControlsMode === "compact" && (
+        <OutputPanelEnhanceControls
+          webSearchEnabled={webSearchEnabled}
+          onWebSearchToggle={onWebSearchToggle}
+          isEnhancing={isEnhancing}
+          enhancementDepth={enhancementDepth}
+          rewriteStrictness={rewriteStrictness}
+          ambiguityMode={ambiguityMode}
+          onEnhancementDepthChange={onEnhancementDepthChange}
+          onRewriteStrictnessChange={onRewriteStrictnessChange}
+          onAmbiguityModeChange={onAmbiguityModeChange}
+          onEnhance={onEnhance}
+          builtPrompt={builtPrompt}
+          enhancePhase={enhancePhase}
+          enhanceLabel={enhanceLabel}
+          mode="compact"
+        />
+      )}
 
       {showUtilityActions ? (
         <OutputPanelHeader
@@ -638,37 +665,12 @@ export function OutputPanel({
 
       {hideEnhanceButton &&
         (enhancementSettingsSummary || onEditEnhancementSettings) && (
-          <div
-            className="rounded-xl border border-border/70 bg-muted/30 px-3 py-2"
-            data-testid="output-panel-enhancement-settings-summary"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="space-y-1">
-                <p className="ui-section-label text-muted-foreground">
-                  Enhancement settings
-                </p>
-                {enhancementSettingsSummary && (
-                  <p
-                    className="text-sm text-foreground"
-                    title={enhancementSettingsSummary}
-                  >
-                    {enhancementSettingsSummary}
-                  </p>
-                )}
-              </div>
-              {onEditEnhancementSettings && (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={onEditEnhancementSettings}
-                  data-testid="output-panel-edit-enhancement-settings"
-                >
-                  Edit settings
-                </Button>
-              )}
-            </div>
-          </div>
+          <EnhancementSettingsSummaryCard
+            summary={enhancementSettingsSummary || "No settings configured yet"}
+            webSearchEnabled={webSearchEnabled}
+            onAction={onEditEnhancementSettings}
+            actionTestId="output-panel-edit-enhancement-settings"
+          />
         )}
 
       {showClarificationActions && enhanceMetadata?.openQuestions && (
@@ -824,7 +826,7 @@ export function OutputPanel({
         </OutputPanelDetailsAccordion>
       ) : null}
 
-      {!hideEnhanceButton && (
+      {!hideEnhanceButton && enhanceControlsMode !== "compact" && (
         <OutputPanelEnhanceControls
           webSearchEnabled={webSearchEnabled}
           onWebSearchToggle={onWebSearchToggle}
@@ -839,6 +841,7 @@ export function OutputPanel({
           builtPrompt={builtPrompt}
           enhancePhase={enhancePhase}
           enhanceLabel={enhanceLabel}
+          mode={enhanceControlsMode}
         />
       )}
     </div>

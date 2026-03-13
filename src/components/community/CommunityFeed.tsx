@@ -42,6 +42,8 @@ interface CommunityFeedProps {
   featuredPostBadgeLabel?: string;
   suppressAutoFeatured?: boolean;
   selectedPostId?: string | null;
+  rawPostCount?: number;
+  hiddenPostCount?: number;
   hasMore?: boolean;
   isLoadingMore?: boolean;
   onLoadMore?: () => void;
@@ -100,12 +102,16 @@ export function CommunityFeed({
   featuredPostBadgeLabel,
   suppressAutoFeatured = false,
   selectedPostId,
+  rawPostCount,
+  hiddenPostCount = 0,
   hasMore = false,
   isLoadingMore = false,
   onLoadMore,
   onRetry,
 }: CommunityFeedProps) {
   const isMobile = useIsMobile();
+  const resolvedRawPostCount = rawPostCount ?? posts.length;
+  const showsBlockedOnlyPage = posts.length === 0 && hiddenPostCount > 0 && resolvedRawPostCount > 0;
   const autoFeaturedPostId = !suppressAutoFeatured && !isMobile ? posts[0]?.id ?? null : null;
   const activeFeaturedPostId = featuredPostId ?? autoFeaturedPostId;
   const activeSelectedPostId = selectedPostId ?? null;
@@ -252,6 +258,38 @@ export function CommunityFeed({
   }
 
   if (posts.length === 0) {
+    if (showsBlockedOnlyPage) {
+      return (
+        <Card
+          className="space-y-4 border-border/80 bg-muted/25 p-4 sm:p-5"
+          data-testid="community-blocked-results-state"
+        >
+          <div className="space-y-1">
+            <p className="ui-state-card-title text-foreground">Posts from blocked authors are hidden</p>
+            <p className="ui-state-card-body text-muted-foreground">
+              {hasMore
+                ? "This page only includes authors you blocked. Load more to keep browsing unblocked prompts."
+                : `${hiddenPostCount} post${hiddenPostCount === 1 ? "" : "s"} in this result set ${hiddenPostCount === 1 ? "is" : "are"} hidden because you blocked the author${hiddenPostCount === 1 ? "" : "s"}.`}
+            </p>
+          </div>
+          {hasMore && onLoadMore && (
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="type-button-label h-11 px-4 sm:h-10 sm:px-3"
+                onClick={onLoadMore}
+                disabled={isLoadingMore}
+              >
+                {isLoadingMore ? "Loading..." : "Load more"}
+              </Button>
+            </div>
+          )}
+        </Card>
+      );
+    }
+
     return (
       <StateCard
         variant="empty"

@@ -864,7 +864,7 @@ const Library = () => {
                 <StateCard
                   variant="empty"
                   title="No saved prompts yet"
-                  description="Create a prompt in Builder, run a quality pass, and save it here."
+                  description="Create a prompt in Builder, enhance the prompt, and save it here."
                   primaryAction={{ label: "Go to Builder", to: "/" }}
                 />
               </div>

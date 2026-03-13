@@ -157,12 +157,37 @@ describe("OutputPanel phase 2 save flow", () => {
       previewSource: "builder_fields",
     });
 
-    expect(screen.getByText("Draft preview")).toBeInTheDocument();
-    expect(screen.getByText("Source: Built prompt")).toBeInTheDocument();
+    expect(screen.getByText("Draft prompt")).toBeInTheDocument();
+    expect(screen.queryByText("Source: Draft prompt")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy draft" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "More" })).toBeInTheDocument();
     expect(screen.queryByText("Save and developer tools unlock once preview content is available.")).not.toBeInTheDocument();
+  });
+
+  it("places compact enhancement controls before review actions in the pre-run desktop state", () => {
+    renderPanel({
+      enhanceControlsMode: "compact",
+      enhancedPrompt: "",
+      hasEnhancedOnce: false,
+      previewSource: "builder_fields",
+      onWebSearchToggle: () => undefined,
+    });
+
+    const preview = screen.getByTestId("output-panel-preview-card");
+    const controls = screen.getByTestId("output-panel-enhance-controls-compact");
+    const actions = screen.getByTestId("output-panel-review-actions");
+
+    expect(
+      Boolean(preview.compareDocumentPosition(controls) & Node.DOCUMENT_POSITION_FOLLOWING),
+    ).toBe(true);
+    expect(
+      Boolean(controls.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING),
+    ).toBe(true);
+    expect(screen.queryByText("Depth:")).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId("output-panel-enhancement-settings-summary"),
+    ).toHaveTextContent("Structured rewrite · Balanced · Infer conservatively");
   });
 
   it("renders the banner, preview, and review actions before supporting details", () => {
@@ -220,8 +245,8 @@ describe("OutputPanel phase 2 save flow", () => {
       previewSource: "enhanced",
     });
 
-    expect(screen.getByText("Enhanced output ready")).toBeInTheDocument();
-    expect(screen.getByText("Source: Enhanced output")).toBeInTheDocument();
+    expect(screen.getByText("Enhanced prompt ready")).toBeInTheDocument();
+    expect(screen.getByText("Source: Enhanced prompt")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy current output" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "More" })).toBeInTheDocument();
@@ -235,13 +260,13 @@ describe("OutputPanel phase 2 save flow", () => {
       hasEnhancedOnce: false,
       previewSource: "builder_fields",
       staleEnhancementNotice:
-        "Builder changed since the last enhancement. Preview now shows the current draft. Re-run Enhance to refresh AI output.",
+        "Builder changed since the last enhancement. Preview now shows the current draft prompt. Re-run Enhance prompt to refresh the AI result.",
     });
 
     expect(screen.getByText("Builder changed after enhancement")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Builder changed since the last enhancement. Preview now shows the current draft. Re-run Enhance to refresh AI output.",
+        "Builder changed since the last enhancement. Preview now shows the current draft prompt. Re-run Enhance prompt to refresh the AI result.",
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy draft" })).toBeInTheDocument();
@@ -346,7 +371,7 @@ describe("OutputPanel phase 2 save flow", () => {
         enhancedPrompt=""
         hasEnhancedOnce={false}
         previewSource="builder_fields"
-        staleEnhancementNotice="Builder changed since the last enhancement. Preview now shows the current draft. Re-run Enhance to refresh AI output."
+        staleEnhancementNotice="Builder changed since the last enhancement. Preview now shows the current draft prompt. Re-run Enhance prompt to refresh the AI result."
       />,
     );
 
@@ -657,8 +682,8 @@ describe("OutputPanel phase 2 save flow", () => {
       isEnhancing: false,
     });
 
-    expect(screen.getByText("Enhanced output ready")).toBeInTheDocument();
-    expect(screen.getByText("Source: Enhanced output")).toBeInTheDocument();
+    expect(screen.getByText("Enhanced prompt ready")).toBeInTheDocument();
+    expect(screen.getByText("Source: Enhanced prompt")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy current output" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Show changes" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Too much changed" })).toBeInTheDocument();

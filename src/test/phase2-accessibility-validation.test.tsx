@@ -169,7 +169,7 @@ describe("Phase 2 accessibility and validation", () => {
 
     const liveRegion = screen.getByRole("status");
     expect(liveRegion).toHaveTextContent(
-      "Enhancing. The AI is actively rewriting the prompt. The visible output may still change.",
+      "Enhancing. The AI is actively rewriting the prompt. The visible prompt may still change.",
     );
 
     rerender(
@@ -188,7 +188,7 @@ describe("Phase 2 accessibility and validation", () => {
     );
 
     expect(liveRegion).toHaveTextContent(
-      "Enhanced output ready. The run is complete and the visible text is the settled AI result.",
+      "Enhanced prompt ready. The run is complete and the visible text is the settled AI-generated prompt.",
     );
   });
 

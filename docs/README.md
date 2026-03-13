@@ -1,6 +1,6 @@
 # Documentation Index
 
-Last updated: 2026-03-12
+Last updated: 2026-03-13
 
 Use this file as the starting point for repo documentation.
 
@@ -19,6 +19,7 @@ Use this file as the starting point for repo documentation.
 
 ## Active planning docs
 
+- `docs/plans/2026-03-13-builder-review-findings-remediation.md` - umbrella implementation plan for the 2026-03-13 builder UX/design-system review covering vocabulary normalization, pre-run hierarchy, draft-state compression, control architecture, reset demotion, mobile glanceability, accessibility hardening, degraded-service handling, and artifact refresh.
 - `docs/plans/2026-03-12-output-panel-review-state-regressions-remediation.md` - step-by-step remediation plan for the reviewed output-panel lifecycle regression, stale archived-detail contract drift, and missing post-settle enhancement coverage.
 - `docs/plans/2026-03-12-prompt-enhancer-in-progress-ui-remediation.md` - completed remediation record and validation log for the screenshot-driven enhancer UI/workflow review covering preview-first hierarchy, trust-state clarity, action gating, scoring semantics, and layout balance.
 - `docs/plans/2026-03-12-prompt-builder-enhancer-workflow-remediation.md` - completed remediation record and validation log for the prompt builder / enhancer workflow fixes across mobile session access, stale enhancement preview drift, guest session-state gating, and structured constraint round-tripping.

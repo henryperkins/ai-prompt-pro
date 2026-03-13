@@ -1,3 +1,4 @@
+import { useState, type ReactNode } from "react";
 import { Button } from "@/components/base/buttons/button";
 import { Switch } from "@/components/base/switch";
 import type { EnhancePhase } from "@/components/output-panel-types";
@@ -10,6 +11,7 @@ import {
   AMBIGUITY_MODE_OPTIONS,
   ENHANCEMENT_DEPTH_OPTIONS,
   REWRITE_STRICTNESS_OPTIONS,
+  getEnhancementSettingsSummary,
 } from "@/lib/enhancement-settings";
 import { cx } from "@/lib/utils/cx";
 import {
@@ -73,6 +75,71 @@ function EnhanceOptionGroup<T extends string>({
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+interface EnhancementSettingsSummaryCardProps {
+  summary: string;
+  webSearchEnabled?: boolean;
+  onAction?: () => void;
+  actionLabel?: string;
+  actionExpanded?: boolean;
+  actionControlsId?: string;
+  actionTestId?: string;
+  helperText?: string;
+  children?: ReactNode;
+}
+
+export function EnhancementSettingsSummaryCard({
+  summary,
+  webSearchEnabled,
+  onAction,
+  actionLabel = "Edit settings",
+  actionExpanded,
+  actionControlsId,
+  actionTestId,
+  helperText = "These settings apply to the next enhancement run.",
+  children,
+}: EnhancementSettingsSummaryCardProps) {
+  return (
+    <div
+      className="rounded-xl border border-border/70 bg-muted/30 px-3 py-3"
+      data-testid="output-panel-enhancement-settings-summary"
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 space-y-1">
+          <p className="ui-section-label text-muted-foreground">
+            Enhancement settings
+          </p>
+          <p className="text-sm text-foreground" title={summary}>
+            <span className="font-medium text-foreground/85">Next run:</span>{" "}
+            <span>{summary}</span>
+          </p>
+          {typeof webSearchEnabled === "boolean" ? (
+            <span className="inline-flex items-center rounded-full border border-border/70 bg-background/70 px-2 py-0.5 text-xs font-medium text-foreground/80">
+              Web lookup {webSearchEnabled ? "on" : "off"}
+            </span>
+          ) : null}
+          <p className="text-xs text-muted-foreground">{helperText}</p>
+        </div>
+        {onAction ? (
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={onAction}
+            aria-expanded={actionExpanded}
+            aria-controls={actionControlsId}
+            data-testid={actionTestId}
+          >
+            {actionLabel}
+          </Button>
+        ) : null}
+      </div>
+      {children ? (
+        <div className="mt-3 border-t border-border/60 pt-3">{children}</div>
+      ) : null}
     </div>
   );
 }
@@ -231,6 +298,7 @@ interface OutputPanelEnhanceControlsProps extends SharedEnhancementControlsProps
   builtPrompt: string;
   enhancePhase: EnhancePhase;
   enhanceLabel: string;
+  mode?: "full" | "compact";
 }
 
 export function OutputPanelEnhanceControls({
@@ -247,7 +315,70 @@ export function OutputPanelEnhanceControls({
   builtPrompt,
   enhancePhase,
   enhanceLabel,
+  mode = "full",
 }: OutputPanelEnhanceControlsProps) {
+  const [isSettingsExpanded, setIsSettingsExpanded] = useState(false);
+  const canEditSettings = Boolean(
+    onWebSearchToggle ||
+      onEnhancementDepthChange ||
+      onRewriteStrictnessChange ||
+      onAmbiguityModeChange,
+  );
+  const summary = getEnhancementSettingsSummary({
+    enhancementDepth,
+    rewriteStrictness,
+    ambiguityMode,
+  });
+  const compactSettingsEditorId = "output-panel-enhancement-settings-editor";
+
+  if (mode === "compact") {
+    return (
+      <div
+        className="flex flex-col gap-2"
+        data-testid="output-panel-enhance-controls-compact"
+      >
+        <EnhancementSettingsSummaryCard
+          summary={summary}
+          webSearchEnabled={webSearchEnabled}
+          onAction={
+            canEditSettings
+              ? () => setIsSettingsExpanded((current) => !current)
+              : undefined
+          }
+          actionLabel={isSettingsExpanded ? "Hide settings" : "Edit settings"}
+          actionExpanded={isSettingsExpanded}
+          actionControlsId={compactSettingsEditorId}
+          actionTestId="output-panel-enhancement-settings-toggle"
+        >
+          {isSettingsExpanded ? (
+            <div id={compactSettingsEditorId}>
+              <EnhancementControlGroups
+                webSearchEnabled={webSearchEnabled}
+                onWebSearchToggle={onWebSearchToggle}
+                isEnhancing={isEnhancing}
+                enhancementDepth={enhancementDepth}
+                rewriteStrictness={rewriteStrictness}
+                ambiguityMode={ambiguityMode}
+                onEnhancementDepthChange={onEnhancementDepthChange}
+                onRewriteStrictnessChange={onRewriteStrictnessChange}
+                onAmbiguityModeChange={onAmbiguityModeChange}
+                layout="stacked"
+              />
+            </div>
+          ) : null}
+        </EnhancementSettingsSummaryCard>
+
+        <EnhancePrimaryButton
+          isEnhancing={isEnhancing}
+          onEnhance={onEnhance}
+          builtPrompt={builtPrompt}
+          enhancePhase={enhancePhase}
+          enhanceLabel={enhanceLabel}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-2">
       <EnhancementControlGroups

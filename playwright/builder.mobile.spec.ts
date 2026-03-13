@@ -257,13 +257,13 @@ test("lets mobile users change enhancement settings before running enhance", asy
   await page.getByTestId("builder-mobile-preview-trigger").click();
 
   const previewDialog = page.getByRole("dialog", {
-    name: /Built Prompt|Enhanced Prompt|Preview/i,
+    name: /Draft prompt|Enhanced prompt|No preview yet/i,
   });
   await expect(previewDialog).toBeVisible();
   await expect(
     previewDialog
       .getByTestId("output-panel-state-banner")
-      .getByText("Draft preview", { exact: true }),
+      .getByText("Draft prompt", { exact: true }),
   ).toBeVisible();
   await expect(previewDialog.getByRole("button", { name: "Copy draft" })).toBeVisible();
   await expect(
@@ -376,7 +376,7 @@ test("keeps Builder developer tools menu fully within mobile viewport", async ({
     await page.getByTestId("builder-mobile-preview-trigger").click();
 
     const previewDialog = page.getByRole("dialog", {
-      name: /Built Prompt|Enhanced Prompt|Preview/i,
+      name: /Draft prompt|Enhanced prompt|No preview yet/i,
     });
     await expect(previewDialog).toBeVisible();
 

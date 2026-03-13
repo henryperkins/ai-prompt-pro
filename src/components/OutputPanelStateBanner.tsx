@@ -10,6 +10,7 @@ interface OutputPanelStateBannerProps {
   title: string;
   description: string;
   previewSourceLabel: string;
+  showPreviewSourceLabel?: boolean;
   statusLabel?: string | null;
   nextAction?: string;
   tone?: OutputPanelReviewStateTone;
@@ -20,6 +21,7 @@ export function OutputPanelStateBanner({
   title,
   description,
   previewSourceLabel,
+  showPreviewSourceLabel = true,
   statusLabel,
   nextAction,
   tone = "info",
@@ -41,9 +43,11 @@ export function OutputPanelStateBanner({
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <span className="inline-flex items-center rounded-full border border-border/70 bg-background/70 px-2 py-0.5 text-xs font-medium text-foreground/80">
-            Source: {previewSourceLabel}
-          </span>
+          {showPreviewSourceLabel ? (
+            <span className="inline-flex items-center rounded-full border border-border/70 bg-background/70 px-2 py-0.5 text-xs font-medium text-foreground/80">
+              Source: {previewSourceLabel}
+            </span>
+          ) : null}
           {statusLabel ? (
             <span className="inline-flex items-center rounded-full border border-border/70 bg-background/70 px-2 py-0.5 text-xs font-medium text-foreground/80">
               Status: {statusLabel}

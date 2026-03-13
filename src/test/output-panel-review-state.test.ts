@@ -20,8 +20,9 @@ describe("getOutputPanelReviewState", () => {
     });
     expect(state.stateKey).toBe("draft");
     expect(state.tone).toBe("info");
-    expect(state.title).toBe("Draft preview");
-    expect(state.nextAction).toContain("Copy the draft");
+    expect(state.title).toBe("Draft prompt");
+    expect(state.description).toBe("This preview reflects the current builder draft.");
+    expect(state.nextAction).toContain("Copy it as-is");
   });
 
   it("returns enhancing when the run is in flight (starting)", () => {
@@ -65,9 +66,9 @@ describe("getOutputPanelReviewState", () => {
     });
     expect(state.stateKey).toBe("ready");
     expect(state.tone).toBe("success");
-    expect(state.title).toBe("Enhanced output ready");
-    expect(state.nextAction).toContain("Review the output");
-    expect(state.assistiveStatus).toContain("Enhanced output ready");
+    expect(state.title).toBe("Enhanced prompt ready");
+    expect(state.nextAction).toContain("Review the prompt");
+    expect(state.assistiveStatus).toContain("Enhanced prompt ready");
   });
 
   it("returns ready when enhanced output is visible and phase has returned to idle", () => {
@@ -79,8 +80,8 @@ describe("getOutputPanelReviewState", () => {
     });
     expect(state.stateKey).toBe("ready");
     expect(state.tone).toBe("success");
-    expect(state.title).toBe("Enhanced output ready");
-    expect(state.nextAction).toContain("Review the output");
+    expect(state.title).toBe("Enhanced prompt ready");
+    expect(state.nextAction).toContain("Review the prompt");
   });
 
   it("returns stale when staleEnhancementNotice is present regardless of other state", () => {
@@ -95,7 +96,7 @@ describe("getOutputPanelReviewState", () => {
     expect(state.tone).toBe("warning");
     expect(state.title).toBe("Builder changed after enhancement");
     expect(state.description).toBe("Builder changed since the last enhancement.");
-    expect(state.nextAction).toContain("Re-run Enhance");
+    expect(state.nextAction).toContain("Re-run Enhance prompt");
   });
 
   it("returns stale even with idle phase and enhanced source when notice is set", () => {
@@ -119,6 +120,15 @@ describe("getOutputPanelReviewState", () => {
     });
     expect(state.stateKey).toBe("draft");
     expect(state.tone).toBe("info");
+  });
+
+  it("keeps the empty state next action concise", () => {
+    const state = getOutputPanelReviewState({
+      previewSource: "empty",
+      hasPreviewContent: false,
+    });
+
+    expect(state.nextAction).toBe("Add a task or context first.");
   });
 
   it("treats isEnhancing as in-flight even when phase is idle", () => {

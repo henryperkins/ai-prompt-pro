@@ -170,4 +170,43 @@ describe("OutputPanel enhance controls", () => {
 
     expect(onEditEnhancementSettings).toHaveBeenCalledTimes(1);
   });
+
+  it("compresses pre-run controls into a summary until settings are expanded", () => {
+    renderPanel({
+      enhanceControlsMode: "compact",
+      webSearchEnabled: true,
+      onWebSearchToggle: vi.fn(),
+    });
+
+    expect(
+      screen.getByTestId("output-panel-enhancement-settings-summary"),
+    ).toHaveTextContent(
+      "Structured rewrite · Balanced · Infer conservatively",
+    );
+    expect(
+      screen.getByTestId("output-panel-enhancement-settings-summary"),
+    ).toHaveTextContent("Web lookup on");
+    expect(screen.queryByText("Depth:")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit settings" })).toBeInTheDocument();
+  });
+
+  it("reveals the full settings editor when compact controls are expanded", async () => {
+    renderPanel({
+      enhanceControlsMode: "compact",
+      onWebSearchToggle: vi.fn(),
+    });
+
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Edit settings" }),
+      );
+    });
+
+    expect(screen.getByRole("group", { name: "Depth" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("group", { name: "Strictness" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Ambiguity" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Hide settings" })).toBeInTheDocument();
+  });
 });

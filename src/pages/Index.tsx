@@ -149,6 +149,10 @@ const LIVE_GENERATE_PROMPT_DETAIL_MAX_CHARS = 240;
 const ENHANCED_PROMPT_SOURCES_SEPARATOR = /\n---\n\s*Sources:\s*\n/i;
 const ENHANCED_PROMPT_JSON_ARTIFACT_PATTERN = /"enhanced_prompt"\s*:/i;
 const ENHANCED_PROMPT_CODE_FENCE_PATTERN = /```(?:json)?\s*([\s\S]*?)```/i;
+const DEFAULT_BUILDER_SIGNATURE = buildPromptConfigSignature(defaultConfig);
+const DEFAULT_ENHANCEMENT_DEPTH: EnhancementDepth = "guided";
+const DEFAULT_REWRITE_STRICTNESS: RewriteStrictness = "balanced";
+const DEFAULT_AMBIGUITY_MODE: AmbiguityMode = "infer_conservatively";
 
 type EnhanceStreamEvent = CodexStreamEventMeta & {
   payload: unknown;
@@ -384,8 +388,24 @@ function isEnhanceDebugEnabled(): boolean {
   try {
     return window.localStorage.getItem(DEBUG_ENHANCE_EVENTS_KEY) === "1";
   } catch {
-    return false;
-  }
+  return false;
+}
+
+function hasEnhancementProfileData(profile: ReturnType<typeof loadEnhancementProfile>): boolean {
+  return (
+    profile.totalEnhancements > 0 ||
+    profile.acceptCount > 0 ||
+    profile.rerunCount > 0 ||
+    Object.keys(profile.depthCounts).length > 0 ||
+    Object.keys(profile.strictnessCounts).length > 0 ||
+    Object.keys(profile.ambiguityModeCounts).length > 0 ||
+    Object.keys(profile.variantCounts).length > 0 ||
+    Object.keys(profile.intentOverrideCounts).length > 0 ||
+    Object.keys(profile.assumptionEditCounts).length > 0 ||
+    Object.keys(profile.formatCounts).length > 0 ||
+    Object.keys(profile.structuredApplyCounts).length > 0
+  );
+}
 }
 
 function hasFieldOwnershipValue(
@@ -1223,7 +1243,7 @@ const Index = () => {
     ? activeEnhancementVariant
     : "original";
   const staleEnhancementNotice = isEnhancementStale
-    ? "Builder changed since the last enhancement. Preview now shows the current draft. Re-run Enhance to refresh AI output."
+    ? "Builder changed since the last enhancement. Preview now shows the current draft prompt. Re-run Enhance prompt to refresh the AI result."
     : null;
 
   // Archived artifacts from the last settled enhancement, available for
@@ -2148,7 +2168,7 @@ const Index = () => {
     setUserPreference("ambiguityMode", mode);
   }, []);
 
-  // Keyboard shortcut: Ctrl+Enter to enhance
+  // Keyboard shortcut: Ctrl+Enter to enhance prompt
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
@@ -2260,7 +2280,7 @@ const Index = () => {
   const mobilePreviewText = useMemo(() => {
     const trimmed = currentPreviewPrompt.trim();
     if (!trimmed) {
-      return "Preview updates as you build.";
+      return "Start writing to generate a draft prompt.";
     }
     return trimmed
       .split(/\r?\n/)
@@ -2270,10 +2290,10 @@ const Index = () => {
       .join(" ");
   }, [currentPreviewPrompt]);
   const mobilePreviewLabel = hasCurrentEnhancedOutput
-    ? "Enhanced output"
+    ? "Enhanced prompt"
     : currentPreviewPrompt.trim()
-      ? "Built prompt"
-      : "Live preview";
+      ? "Draft prompt"
+      : "No preview yet";
   const mobileEnhancementSummary = useMemo(
     () =>
       getEnhancementSettingsSummary({
@@ -2287,6 +2307,9 @@ const Index = () => {
     setDrawerOpen(false);
     setMobileEnhancementSettingsOpen(true);
   }, []);
+  const desktopEnhanceControlsMode = hasCurrentEnhancedOutput
+    ? "full"
+    : "compact";
   const refineSuggestions = useMemo(() => {
     const suggestions: Array<{
       id: BuilderSection;
@@ -3024,6 +3047,7 @@ const Index = () => {
               onRewriteStrictnessChange={handleRewriteStrictnessChange}
               ambiguityMode={ambiguityMode}
               onAmbiguityModeChange={handleAmbiguityModeChange}
+              enhanceControlsMode={desktopEnhanceControlsMode}
               onApplyToBuilder={handleApplyToBuilder}
               onAppendClarificationBlockToPrompt={handleAppendClarificationBlockToPrompt}
               onAppendToSessionContext={
@@ -3122,7 +3146,7 @@ const Index = () => {
               <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded border border-border font-mono">
                 Ctrl+Enter
               </kbd>{" "}
-              to enhance
+              to enhance prompt
             </p>
           </div>
         )}
@@ -3222,10 +3246,10 @@ const Index = () => {
             <DrawerHeader>
               <DrawerTitle>
                 {hasCurrentEnhancedOutput
-                  ? "Enhanced Prompt"
+                  ? "Enhanced prompt"
                   : builtPrompt
-                    ? "Built Prompt"
-                    : "Preview"}
+                    ? "Draft prompt"
+                    : "No preview yet"}
               </DrawerTitle>
               <DrawerDescription className="sr-only">
                 Review, copy, and save your current prompt output.
@@ -3247,6 +3271,7 @@ const Index = () => {
                 canSharePrompt={canSharePrompt}
                 previewSource={previewSource}
                 hasEnhancedOnce={hasCurrentEnhancedOutput}
+                webSearchEnabled={webSearchEnabled}
                 enhanceIdleLabel={primaryCtaLabel}
                 enhanceMetadata={currentEnhanceMetadata}
                 activeVariant={effectiveActiveEnhancementVariant}

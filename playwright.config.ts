@@ -1,11 +1,12 @@
 import { defineConfig } from "@playwright/test";
 
 const PLAYWRIGHT_SERVER_HOST = process.env.PLAYWRIGHT_HOST || "127.0.0.1";
-const PLAYWRIGHT_SERVER_PORT = process.env.PLAYWRIGHT_PORT || "4173";
+const PLAYWRIGHT_SERVER_PORT = process.env.PLAYWRIGHT_PORT || "4217";
 const PLAYWRIGHT_DEV_SERVER_URL = `http://${PLAYWRIGHT_SERVER_HOST}:${PLAYWRIGHT_SERVER_PORT}`;
 const PLAYWRIGHT_BASE_URL =
   process.env.PLAYWRIGHT_BASE_URL?.trim() || PLAYWRIGHT_DEV_SERVER_URL;
 const USE_EXTERNAL_BASE_URL = Boolean(process.env.PLAYWRIGHT_BASE_URL?.trim());
+const REUSE_EXISTING_SERVER = process.env.PLAYWRIGHT_REUSE_EXISTING_SERVER === "1";
 const PLAYWRIGHT_NEON_DATA_API_URL = "https://neon.test/neondb/rest/v1";
 const PLAYWRIGHT_NEON_AUTH_URL = "https://neon.test/neondb/auth";
 const PLAYWRIGHT_AGENT_SERVICE_URL = "https://agent.test";
@@ -44,7 +45,7 @@ export default defineConfig({
           + `VITE_AGENT_SERVICE_URL=${PLAYWRIGHT_AGENT_SERVICE_URL} `
           + `npm run dev -- --host ${PLAYWRIGHT_SERVER_HOST} --port ${PLAYWRIGHT_SERVER_PORT}`,
         url: PLAYWRIGHT_DEV_SERVER_URL,
-        reuseExistingServer: !process.env.CI,
+        reuseExistingServer: REUSE_EXISTING_SERVER,
         timeout: 120_000,
       },
     ],

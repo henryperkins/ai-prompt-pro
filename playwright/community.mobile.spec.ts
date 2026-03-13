@@ -249,6 +249,13 @@ function parseInValues(input: string | null): string[] {
     .filter(Boolean);
 }
 
+function parseContainsTagValue(input: string | null): string | null {
+  if (!input) return null;
+  const decoded = decodeURIComponent(input);
+  const match = decoded.match(/^cs\.\{"?([^",}]+)"?\}$/i);
+  return match?.[1]?.trim().toLowerCase() ?? null;
+}
+
 function applyPostFilters(url: URL, rows: CommunityPostRow[]): CommunityPostRow[] {
   const idEq = parseEqValue(url.searchParams.get("id"));
   if (idEq) {
@@ -270,6 +277,11 @@ function applyPostFilters(url: URL, rows: CommunityPostRow[]): CommunityPostRow[
   let filtered = rows;
   if (category) {
     filtered = filtered.filter((row) => row.category === category);
+  }
+
+  const tag = parseContainsTagValue(url.searchParams.get("tags"));
+  if (tag) {
+    filtered = filtered.filter((row) => row.tags.map((value) => value.toLowerCase()).includes(tag));
   }
 
   const searchExpr = decodeURIComponent(url.searchParams.get("or") || "");
@@ -330,6 +342,7 @@ const COMMENTS_DRAWER_CONTROL_SELECTOR = [
   "[data-testid='community-quick-reply-chip']",
   "[data-testid='community-comment-submit']",
 ].join(", ");
+const PROMPTFORGE_APP_SELECTOR = "[data-app='promptforge']";
 
 async function installCommunityMocks(page: Page, options: CommunityMockOptions = {}): Promise<void> {
   const authenticated = Boolean(options.authenticated);
@@ -600,6 +613,8 @@ async function installCommunityMocks(page: Page, options: CommunityMockOptions =
 }
 
 async function waitForCommunityRouteReady(page: Page, route: string, authenticated = false): Promise<void> {
+  await expect(page.locator(PROMPTFORGE_APP_SELECTOR)).toHaveCount(1);
+
   if (route === "/community") {
     await expect(page.getByRole("heading", { name: "Community Remix Feed" })).toBeVisible();
     await expect(page.getByTestId("community-filter-trigger")).toBeVisible();
@@ -971,6 +986,7 @@ test("runs mobile smoke flow for feed, filter, post open, and comments", async (
   await page.setViewportSize({ width: 390, height: 844 });
 
   await page.goto("/community");
+  await expect(page.locator(PROMPTFORGE_APP_SELECTOR)).toHaveCount(1);
   await expect(page.getByRole("heading", { name: "Community Remix Feed" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open Backend migration helper" })).toBeVisible();
 
@@ -1002,10 +1018,12 @@ test("runs authenticated mobile smoke flow for profile, rating, and signed-in co
   await page.setViewportSize({ width: 390, height: 844 });
 
   await page.goto("/profile/author-1");
+  await expect(page.locator(PROMPTFORGE_APP_SELECTOR)).toHaveCount(1);
   await expect(page.getByRole("heading", { name: "Alex Backend" })).toBeVisible();
   await expect(page.getByTestId("profile-follow-button")).toBeVisible();
 
   await page.goto("/community");
+  await expect(page.locator(PROMPTFORGE_APP_SELECTOR)).toHaveCount(1);
   await expect(page.getByTestId("community-card-follow").first()).toBeVisible();
   await page.getByTestId("community-comment-toggle").first().click();
   await expect(page.getByTestId("community-comments-sheet")).toBeVisible();
@@ -1026,6 +1044,7 @@ test("opens comment sheet on notification deep link", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
 
   await page.goto(`/community/${FEED_POSTS[0]?.id}?source=notification&openComments=1`);
+  await expect(page.locator(PROMPTFORGE_APP_SELECTOR)).toHaveCount(1);
   await expect(page.getByText("Backend migration helper")).toBeVisible();
   await expect(page.getByTestId("community-comments-sheet")).toBeVisible();
   await expect(page.getByText("Use transactions for reliability.")).toBeVisible();
@@ -1044,6 +1063,7 @@ test("supports mobile community in dark mode", async ({ page }) => {
   });
 
   await page.goto("/community");
+  await expect(page.locator(PROMPTFORGE_APP_SELECTOR)).toHaveCount(1);
   await expect(page.getByRole("heading", { name: "Community Remix Feed" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open Backend migration helper" })).toBeVisible();
 
@@ -1064,6 +1084,7 @@ test("respects reduced-motion mode on community mobile surfaces", async ({ page 
   await page.emulateMedia({ reducedMotion: "reduce" });
 
   await page.goto("/community");
+  await expect(page.locator(PROMPTFORGE_APP_SELECTOR)).toHaveCount(1);
   await expect(page.getByRole("heading", { name: "Community Remix Feed" })).toBeVisible();
 
   const reducedMotionMetrics = await page.evaluate(() => {

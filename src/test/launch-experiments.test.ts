@@ -30,7 +30,8 @@ describe("launch experiments", () => {
   it("returns copy text for each variant", () => {
     expect(getHeroCopyVariant("control").headline).toMatch(/rough ideas/i);
     expect(getHeroCopyVariant("speed").headline).toMatch(/faster/i);
+    expect(getHeroCopyVariant("speed").subhead).toMatch(/enhance the prompt/i);
     expect(getPrimaryCtaVariantLabel("control")).toMatch(/enhance/i);
-    expect(getPrimaryCtaVariantLabel("quality_pass")).toBe("Run quality pass");
+    expect(getPrimaryCtaVariantLabel("quality_pass")).toBe("Enhance prompt");
   });
 });

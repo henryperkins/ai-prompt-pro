@@ -54,13 +54,16 @@ vi.mock("@/components/OutputPanel", () => ({
   OutputPanel: ({
     previewSource,
     hasEnhancedOnce,
+    enhanceControlsMode,
   }: {
     previewSource?: string;
     hasEnhancedOnce?: boolean;
+    enhanceControlsMode?: string;
   }) => (
     <div>
       <div data-testid="preview-source-prop">{previewSource || "none"}</div>
       <div data-testid="has-enhanced-once-prop">{String(Boolean(hasEnhancedOnce))}</div>
+      <div data-testid="enhance-controls-mode-prop">{enhanceControlsMode || "full"}</div>
     </div>
   ),
 }));
@@ -178,6 +181,7 @@ describe("Index UX friction improvements", () => {
     expect(screen.queryByText("Start in 3 steps")).not.toBeInTheDocument();
     expect(screen.getByTestId("preview-source-prop")).toHaveTextContent("builder_fields");
     expect(screen.getByTestId("has-enhanced-once-prop")).toHaveTextContent("false");
+    expect(screen.getByTestId("enhance-controls-mode-prop")).toHaveTextContent("compact");
   });
 
   it("prefers builder_fields preview source when prompt text and builder details both contribute", async () => {
@@ -193,6 +197,7 @@ describe("Index UX friction improvements", () => {
 
     expect(screen.getByTestId("preview-source-prop")).toHaveTextContent("builder_fields");
     expect(screen.getByTestId("has-enhanced-once-prop")).toHaveTextContent("false");
+    expect(screen.getByTestId("enhance-controls-mode-prop")).toHaveTextContent("compact");
   });
 
   it("retires the onboarding card after the user starts writing", async () => {

@@ -6,23 +6,23 @@ describe("OutputPanelStateBanner", () => {
   it("renders title, description, source label, and nextAction", () => {
     render(
       <OutputPanelStateBanner
-        title="Draft preview"
-        description="The visible text comes from the current builder inputs."
-        previewSourceLabel="Built prompt"
-        nextAction="Copy the draft as-is, or run Enhance to compare an AI rewrite."
+        title="Draft prompt"
+        description="The visible text reflects your current builder inputs."
+        previewSourceLabel="Draft prompt"
+        nextAction="Copy the draft prompt as-is, or use Enhance prompt to compare an AI rewrite."
         tone="info"
         stateKey="draft"
       />,
     );
 
-    expect(screen.getByText("Draft preview")).toBeInTheDocument();
+    expect(screen.getByText("Draft prompt")).toBeInTheDocument();
     expect(
-      screen.getByText("The visible text comes from the current builder inputs."),
+      screen.getByText("The visible text reflects your current builder inputs."),
     ).toBeInTheDocument();
-    expect(screen.getByText("Source: Built prompt")).toBeInTheDocument();
+    expect(screen.getByText("Source: Draft prompt")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Copy the draft as-is, or run Enhance to compare an AI rewrite.",
+        "Copy the draft prompt as-is, or use Enhance prompt to compare an AI rewrite.",
       ),
     ).toBeInTheDocument();
   });
@@ -32,7 +32,7 @@ describe("OutputPanelStateBanner", () => {
       <OutputPanelStateBanner
         title="Builder changed after enhancement"
         description="Re-run Enhance."
-        previewSourceLabel="Built prompt"
+        previewSourceLabel="Draft prompt"
         tone="warning"
         stateKey="stale"
       />,
@@ -47,7 +47,7 @@ describe("OutputPanelStateBanner", () => {
       <OutputPanelStateBanner
         title="Builder changed after enhancement"
         description="Re-run Enhance."
-        previewSourceLabel="Built prompt"
+        previewSourceLabel="Draft prompt"
         tone="warning"
         stateKey="stale"
       />,
@@ -61,9 +61,9 @@ describe("OutputPanelStateBanner", () => {
   it("applies success tone classes for ready state", () => {
     render(
       <OutputPanelStateBanner
-        title="Enhanced output ready"
+        title="Enhanced prompt ready"
         description="The run is complete."
-        previewSourceLabel="Enhanced output"
+        previewSourceLabel="Enhanced prompt"
         tone="success"
         stateKey="ready"
       />,
@@ -77,9 +77,9 @@ describe("OutputPanelStateBanner", () => {
   it("applies info tone classes by default", () => {
     render(
       <OutputPanelStateBanner
-        title="Draft preview"
+        title="Draft prompt"
         description="Current inputs."
-        previewSourceLabel="Built prompt"
+        previewSourceLabel="Draft prompt"
         stateKey="draft"
       />,
     );
@@ -94,7 +94,7 @@ describe("OutputPanelStateBanner", () => {
       <OutputPanelStateBanner
         title="Enhancing"
         description="AI is rewriting."
-        previewSourceLabel="Enhanced output"
+        previewSourceLabel="Enhanced prompt"
         statusLabel="Streaming"
         tone="info"
         stateKey="enhancing"
@@ -107,15 +107,29 @@ describe("OutputPanelStateBanner", () => {
   it("omits statusLabel chip when null", () => {
     render(
       <OutputPanelStateBanner
-        title="Draft preview"
+        title="Draft prompt"
         description="Current inputs."
-        previewSourceLabel="Built prompt"
+        previewSourceLabel="Draft prompt"
         statusLabel={null}
         stateKey="draft"
       />,
     );
 
     expect(screen.queryByText(/Status:/)).not.toBeInTheDocument();
+  });
+
+  it("can hide the preview source chip in compact pre-run states", () => {
+    render(
+      <OutputPanelStateBanner
+        title="Draft prompt"
+        description="Current inputs."
+        previewSourceLabel="Draft prompt"
+        showPreviewSourceLabel={false}
+        stateKey="draft"
+      />,
+    );
+
+    expect(screen.queryByText("Source: Draft prompt")).not.toBeInTheDocument();
   });
 
   it("omits nextAction paragraph when not provided", () => {

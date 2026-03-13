@@ -88,7 +88,7 @@ export function getHeroCopyVariant(variant: HeroCopyVariant): { headline: string
     return {
       headline: "Ship quality prompts faster with grounded context",
       subhead:
-        "Start from rough intent, run a quality pass, and remix proven prompts without rewriting from scratch.",
+        "Start from rough intent, enhance the prompt, and remix proven prompts without rewriting from scratch.",
     };
   }
 
@@ -99,6 +99,6 @@ export function getHeroCopyVariant(variant: HeroCopyVariant): { headline: string
 }
 
 export function getPrimaryCtaVariantLabel(variant: PrimaryCtaVariant): string {
-  if (variant === "quality_pass") return "Run quality pass";
+  if (variant === "quality_pass") return brandCopy.hero.primaryCta;
   return brandCopy.hero.primaryCta;
 }

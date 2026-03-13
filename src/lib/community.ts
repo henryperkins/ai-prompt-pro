@@ -116,6 +116,7 @@ export interface ListMyPromptsInput {
 export interface LoadFeedInput {
   sort?: CommunitySort;
   category?: string;
+  tag?: string;
   search?: string;
   cursor?: string;
   page?: number;
@@ -668,9 +669,10 @@ export async function unsharePrompt(savedPromptId: string): Promise<boolean> {
 
 export async function loadFeed(input: LoadFeedInput = {}): Promise<CommunityPost[]> {
   ensureCommunityBackend("Community feed");
-  const { sort = "new", category, search, cursor, page = 0, limit = 25 } = input;
+  const { sort = "new", category, tag, search, cursor, page = 0, limit = 25 } = input;
   const normalizedLimit = Math.min(Math.max(limit, 1), 100);
   const normalizedPage = Math.max(page, 0);
+  const normalizedTag = tag?.trim().toLowerCase();
 
   try {
     const { data, error } = await runCommunityPostsSelect((selectColumns) => {
@@ -682,6 +684,10 @@ export async function loadFeed(input: LoadFeedInput = {}): Promise<CommunityPost
 
       if (category && category !== "all") {
         builder = builder.eq("category", category);
+      }
+
+      if (normalizedTag) {
+        builder = builder.contains("tags", [normalizedTag]);
       }
 
       if (search?.trim()) {

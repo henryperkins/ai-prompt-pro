@@ -35,43 +35,45 @@ function withRouteFallback(element: ReactNode, fallback: ReactNode) {
 }
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <BrowserRouter>
-        <ThemeProvider>
-          <Toaster />
-          <Sonner />
-          <Routes>
-            <Route path="/" element={withRouteFallback(<Index />, <BuilderRouteFallback />)} />
-            <Route path="/community" element={withRouteFallback(<Community />, <CommunityRouteFallback />)} />
-            <Route
-              path="/community/:postId"
-              element={withRouteFallback(<CommunityPost />, <CommunityRouteFallback />)}
-            />
-            <Route path="/feed" element={withRouteFallback(<Feed />, <CommunityRouteFallback />)} />
-            <Route path="/profile/:userId" element={withRouteFallback(<Profile />, <CommunityRouteFallback />)} />
-            <Route path="/library" element={withRouteFallback(<Library />, <LibraryRouteFallback />)} />
-            <Route
-              path="/library/bulk-edit"
-              element={withRouteFallback(<LibraryBulkEdit />, <LibraryRouteFallback />)}
-            />
-            <Route path="/presets" element={withRouteFallback(<Presets />, <BuilderRouteFallback />)} />
-            <Route path="/history" element={withRouteFallback(<History />, <GenericRouteFallback />)} />
-            <Route path="/privacy" element={withRouteFallback(<Privacy />, <GenericRouteFallback />)} />
-            <Route path="/terms" element={withRouteFallback(<Terms />, <GenericRouteFallback />)} />
-            <Route path="/contact" element={withRouteFallback(<Contact />, <GenericRouteFallback />)} />
-            <Route path="/support/inbox" element={withRouteFallback(<SupportInbox />, <GenericRouteFallback />)} />
-            <Route
-              path="/components-showcase"
-              element={withRouteFallback(<ComponentsShowcase />, <GenericRouteFallback />)}
-            />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={withRouteFallback(<NotFound />, <GenericRouteFallback />)} />
-          </Routes>
-        </ThemeProvider>
-      </BrowserRouter>
-    </AuthProvider>
-  </QueryClientProvider>
+  <div data-app="promptforge">
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <BrowserRouter>
+          <ThemeProvider>
+            <Toaster />
+            <Sonner />
+            <Routes>
+              <Route path="/" element={withRouteFallback(<Index />, <BuilderRouteFallback />)} />
+              <Route path="/community" element={withRouteFallback(<Community />, <CommunityRouteFallback />)} />
+              <Route
+                path="/community/:postId"
+                element={withRouteFallback(<CommunityPost />, <CommunityRouteFallback />)}
+              />
+              <Route path="/feed" element={withRouteFallback(<Feed />, <CommunityRouteFallback />)} />
+              <Route path="/profile/:userId" element={withRouteFallback(<Profile />, <CommunityRouteFallback />)} />
+              <Route path="/library" element={withRouteFallback(<Library />, <LibraryRouteFallback />)} />
+              <Route
+                path="/library/bulk-edit"
+                element={withRouteFallback(<LibraryBulkEdit />, <LibraryRouteFallback />)}
+              />
+              <Route path="/presets" element={withRouteFallback(<Presets />, <BuilderRouteFallback />)} />
+              <Route path="/history" element={withRouteFallback(<History />, <GenericRouteFallback />)} />
+              <Route path="/privacy" element={withRouteFallback(<Privacy />, <GenericRouteFallback />)} />
+              <Route path="/terms" element={withRouteFallback(<Terms />, <GenericRouteFallback />)} />
+              <Route path="/contact" element={withRouteFallback(<Contact />, <GenericRouteFallback />)} />
+              <Route path="/support/inbox" element={withRouteFallback(<SupportInbox />, <GenericRouteFallback />)} />
+              <Route
+                path="/components-showcase"
+                element={withRouteFallback(<ComponentsShowcase />, <GenericRouteFallback />)}
+              />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={withRouteFallback(<NotFound />, <GenericRouteFallback />)} />
+            </Routes>
+          </ThemeProvider>
+        </BrowserRouter>
+      </AuthProvider>
+    </QueryClientProvider>
+  </div>
 );
 
 export default App;

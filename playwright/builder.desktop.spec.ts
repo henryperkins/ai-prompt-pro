@@ -132,6 +132,7 @@ type BuilderDesktopMetric = {
   hasHorizontalOverflow: boolean;
   bannerTop: number;
   previewTop: number;
+  compactControlsTop: number;
   actionsTop: number;
   reviewActionsWrapped: boolean;
 };
@@ -160,11 +161,18 @@ test("keeps the desktop output rail preview-first at common review widths", asyn
     await expect(page.getByText("Builder readiness", { exact: true })).toBeVisible();
     await expect(page.getByTestId("output-panel-state-banner")).toBeVisible();
     await expect(page.getByTestId("output-panel-preview-card")).toBeVisible();
+    await expect(
+      page.getByTestId("output-panel-enhancement-settings-summary"),
+    ).toBeVisible();
     await expect(page.getByTestId("output-panel-review-actions")).toBeVisible();
     await expect(page.getByRole("button", { name: "Copy draft" })).toBeVisible();
     await expect(
       page.getByTestId("builder-suggestion-chip-append-evidence"),
     ).toBeVisible();
+    await expect(
+      page.getByText("Structured rewrite · Balanced · Infer conservatively"),
+    ).toBeVisible();
+    await expect(page.getByRole("group", { name: "Depth" })).toHaveCount(0);
 
     const metrics = await page.evaluate(() => {
       const banner = document.querySelector<HTMLElement>(
@@ -173,11 +181,14 @@ test("keeps the desktop output rail preview-first at common review widths", asyn
       const preview = document.querySelector<HTMLElement>(
         "[data-testid='output-panel-preview-card']",
       );
+      const compactControls = document.querySelector<HTMLElement>(
+        "[data-testid='output-panel-enhance-controls-compact']",
+      );
       const actions = document.querySelector<HTMLElement>(
         "[data-testid='output-panel-review-actions']",
       );
 
-      if (!banner || !preview || !actions) {
+      if (!banner || !preview || !compactControls || !actions) {
         return null;
       }
 
@@ -188,6 +199,9 @@ test("keeps the desktop output rail preview-first at common review widths", asyn
           document.documentElement.scrollWidth > window.innerWidth,
         bannerTop: Math.round(banner.getBoundingClientRect().top),
         previewTop: Math.round(preview.getBoundingClientRect().top),
+        compactControlsTop: Math.round(
+          compactControls.getBoundingClientRect().top,
+        ),
         actionsTop: Math.round(actionsRect.top),
         reviewActionsWrapped: Math.round(actionsRect.height) > 120,
       };
@@ -196,7 +210,14 @@ test("keeps the desktop output rail preview-first at common review widths", asyn
     expect(metrics, `${viewport.width}x${viewport.height} should expose the desktop review surfaces`).not.toBeNull();
     expect(metrics!.hasHorizontalOverflow, `${viewport.width}x${viewport.height} should not overflow horizontally`).toBeFalsy();
     expect(metrics!.bannerTop, `${viewport.width}x${viewport.height} banner should precede preview`).toBeLessThan(metrics!.previewTop);
-    expect(metrics!.previewTop, `${viewport.width}x${viewport.height} preview should precede actions`).toBeLessThan(metrics!.actionsTop);
+    expect(
+      metrics!.previewTop,
+      `${viewport.width}x${viewport.height} preview should precede compact enhancement controls`,
+    ).toBeLessThan(metrics!.compactControlsTop);
+    expect(
+      metrics!.compactControlsTop,
+      `${viewport.width}x${viewport.height} compact enhancement controls should precede review actions`,
+    ).toBeLessThan(metrics!.actionsTop);
     expect(metrics!.reviewActionsWrapped, `${viewport.width}x${viewport.height} action row should stay compact`).toBeFalsy();
 
     baseline.push({
@@ -208,6 +229,9 @@ test("keeps the desktop output rail preview-first at common review widths", asyn
       path: testInfo.outputPath(`builder-desktop-${viewport.width}x${viewport.height}.png`),
       fullPage: true,
     });
+
+    await page.getByRole("button", { name: "Edit settings" }).click();
+    await expect(page.getByRole("group", { name: "Depth" })).toBeVisible();
   }
 
   const baselinePath = testInfo.outputPath("builder-desktop-baseline.json");
