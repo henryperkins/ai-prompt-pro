@@ -266,6 +266,43 @@ describe("community mobile UX", () => {
     expect(screen.getByTestId("community-comments-detail-post-1")).toBeInTheDocument();
   });
 
+  it("groups detail action buttons into responsive mobile action rows", async () => {
+    const { CommunityPostDetail } = await importCardAndDetail();
+    const post = createPost({ id: "detail-post-actions" });
+
+    render(
+      <MemoryRouter future={memoryRouterFuture}>
+        <CommunityPostDetail
+          post={post}
+          authorName="Prompt Dev"
+          parentPost={null}
+          remixes={[]}
+          authorById={{}}
+          onCopyPrompt={vi.fn()}
+          onToggleVote={vi.fn()}
+          onCommentAdded={vi.fn()}
+          onCommentThreadOpen={vi.fn()}
+          canVote
+          canSaveToLibrary
+          onSaveToLibrary={vi.fn()}
+          canModerate
+          onReportPost={vi.fn()}
+          onBlockUser={vi.fn()}
+          onUnblockUser={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    const actionGroup = screen.getByTestId("community-detail-primary-actions");
+    expect(actionGroup).toHaveClass("grid", "grid-cols-1");
+    expect(actionGroup.className).toContain("min-[420px]:grid-cols-2");
+
+    expect(within(actionGroup).getByTestId("community-detail-remix-cta")).toBeVisible();
+    expect(within(actionGroup).getByTestId("community-detail-save-cta")).toBeVisible();
+    expect(within(actionGroup).queryByTestId("community-detail-moderation-trigger")).not.toBeInTheDocument();
+    expect(screen.getByTestId("community-detail-moderation-trigger")).toBeVisible();
+  });
+
   it("auto-opens comments drawer on notification entry for CommunityPostDetail", async () => {
     const { CommunityPostDetail } = await importCardAndDetail();
     const post = createPost({ id: "detail-post-notification" });

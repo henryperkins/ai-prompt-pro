@@ -366,6 +366,11 @@ describe("Index enhancement variant persistence", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Use shorter" })).toBeInTheDocument();
     });
+    await waitFor(() => {
+      expect(screen.getByTestId("current-prompt-text")).toHaveTextContent(
+        "Enhanced original prompt",
+      );
+    });
 
     // Mark output as used without switching variant
     fireEvent.click(screen.getByRole("button", { name: "Save prompt" }));

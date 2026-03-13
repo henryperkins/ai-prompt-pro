@@ -182,39 +182,17 @@ export function CommunityPostDetail({
   return (
     <div className="space-y-5">
       <Card className={cx("pf-card space-y-5 border-border/80 bg-card/85 p-4 sm:p-5", getCommunityPostRarityClass(post))}>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <Avatar size="md" src={authorAvatarUrl ?? undefined} alt={authorName} initials={getInitials(authorName)} />
-            <div className="min-w-0">
-              <Link to={`/profile/${post.authorId}`} className="type-author type-link-inline type-wrap-inline text-foreground">
-                {authorName}
-              </Link>
-              <p className="type-timestamp text-muted-foreground">{createdAgo}</p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-start justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <Avatar size="md" src={authorAvatarUrl ?? undefined} alt={authorName} initials={getInitials(authorName)} />
+              <div className="min-w-0">
+                <Link to={`/profile/${post.authorId}`} className="type-author type-link-inline type-wrap-inline text-foreground">
+                  {authorName}
+                </Link>
+                <p className="type-timestamp text-muted-foreground">{createdAgo}</p>
+              </div>
             </div>
-          </div>
-          <div className="flex w-full flex-wrap items-center gap-2 rounded-lg border border-border/65 bg-background/55 p-2 sm:w-auto sm:justify-end">
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              className="type-button-label utility-action-button h-11 w-full min-w-[110px] justify-center px-4 sm:h-9 sm:w-auto sm:px-3"
-              onClick={() => navigate(`/?remix=${post.id}`)}
-              data-testid="community-detail-remix-cta"
-            >
-              Remix
-            </Button>
-            <Button
-              type="button"
-              variant="tertiary"
-              size="sm"
-              className="type-button-label h-11 w-full gap-1.5 px-4 sm:h-9 sm:w-auto sm:px-3"
-              disabled={!canSaveToLibrary}
-              onClick={() => onSaveToLibrary(post.id)}
-              data-testid="community-detail-save-cta"
-            >
-              <BookmarkPlus className="h-3.5 w-3.5" />
-              Save to Library
-            </Button>
             {canModerate && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -224,6 +202,7 @@ export function CommunityPostDetail({
                     size="sm"
                     className="h-11 w-11 shrink-0 sm:h-10 sm:w-10"
                     aria-label="Open moderation actions"
+                    data-testid="community-detail-moderation-trigger"
                   >
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
@@ -262,6 +241,34 @@ export function CommunityPostDetail({
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+          </div>
+
+          <div
+            className="grid w-full grid-cols-1 gap-2 rounded-lg border border-border/65 bg-background/55 p-2 min-[420px]:grid-cols-2 sm:w-auto sm:min-w-[18rem]"
+            data-testid="community-detail-primary-actions"
+          >
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              className="type-button-label utility-action-button h-11 w-full min-w-0 justify-center px-4 sm:h-9 sm:min-w-[8.5rem] sm:px-3"
+              onClick={() => navigate(`/?remix=${post.id}`)}
+              data-testid="community-detail-remix-cta"
+            >
+              Remix
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="type-button-label h-11 w-full min-w-0 justify-center px-4 sm:h-9 sm:min-w-[9.5rem] sm:px-3"
+              disabled={!canSaveToLibrary}
+              onClick={() => onSaveToLibrary(post.id)}
+              data-testid="community-detail-save-cta"
+            >
+              <BookmarkPlus className="h-3.5 w-3.5" />
+              Save to Library
+            </Button>
           </div>
         </div>
 
