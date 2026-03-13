@@ -12,7 +12,6 @@ import {
   CaretRight as ChevronRight,
   Database,
   GearSix as Settings2,
-  Globe,
   Stack as Layers3,
 } from "@phosphor-icons/react";
 import type {
@@ -31,9 +30,6 @@ interface BuilderSourcesAdvancedProps {
   onUpdateRag: (updates: Partial<RagParameters>) => void;
   onUpdateProjectNotes: (notes: string) => void;
   onToggleDelimiters: (value: boolean) => void;
-  webSearchEnabled?: boolean;
-  onToggleWebSearch?: (value: boolean) => void;
-  isEnhancing?: boolean;
 }
 
 export function BuilderSourcesAdvanced({
@@ -45,19 +41,42 @@ export function BuilderSourcesAdvanced({
   onUpdateRag,
   onUpdateProjectNotes,
   onToggleDelimiters,
-  webSearchEnabled = false,
-  onToggleWebSearch,
-  isEnhancing = false,
 }: BuilderSourcesAdvancedProps) {
   const sourceCount = contextConfig.sources.length;
+  const hasProjectNotes = Boolean(contextConfig.projectNotes.trim());
   const hasAdvancedConfig =
     contextConfig.databaseConnections.length > 0 ||
     contextConfig.rag.enabled ||
-    !contextConfig.useDelimiters ||
-    webSearchEnabled;
+    !contextConfig.useDelimiters;
 
   const [advancedVisibility, setAdvancedVisibility] = useState<"auto" | "shown" | "hidden">("auto");
   const showAdvanced = advancedVisibility === "auto" ? hasAdvancedConfig : advancedVisibility === "shown";
+  const advancedSummaryParts: string[] = [];
+  if (contextConfig.databaseConnections.length > 0) {
+    advancedSummaryParts.push(
+      `${contextConfig.databaseConnections.length} integration${
+        contextConfig.databaseConnections.length === 1 ? "" : "s"
+      }`,
+    );
+  }
+  if (contextConfig.rag.enabled) {
+    advancedSummaryParts.push("RAG enabled");
+  }
+  if (!contextConfig.useDelimiters) {
+    advancedSummaryParts.push("custom parsing");
+  }
+  const collapsedSummaryParts: string[] = [];
+  if (sourceCount > 0) {
+    collapsedSummaryParts.push(
+      `${sourceCount} source${sourceCount === 1 ? "" : "s"}`,
+    );
+  }
+  if (hasProjectNotes) {
+    collapsedSummaryParts.push("project notes");
+  }
+  if (advancedSummaryParts.length > 0) {
+    collapsedSummaryParts.push(advancedSummaryParts.join(", "));
+  }
 
   const handleAddSource = (source: ContextSource) => {
     onUpdateSources([...contextConfig.sources, source]);
@@ -76,14 +95,16 @@ export function BuilderSourcesAdvanced({
           onClick={() => onOpenChange(!isOpen)}
           aria-expanded={isOpen}
           aria-controls="builder-zone-3-content"
-          aria-label="Add sources or advanced settings"
+          aria-label="Context and sources"
         >
           <div>
             <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
               <Layers3 className="h-4 w-4 text-muted-foreground" />
-              Add sources or advanced settings
+              Context and sources
             </p>
-            <p className="text-sm text-muted-foreground" aria-hidden="true">Optional references and integrations.</p>
+            <p className="text-sm text-muted-foreground" aria-hidden="true">
+              Add references and notes that should shape the current draft prompt.
+            </p>
           </div>
           <div className="flex items-center gap-2">
             {sourceCount > 0 && (
@@ -95,8 +116,20 @@ export function BuilderSourcesAdvanced({
           </div>
         </button>
 
+        {!isOpen && (
+          <p className="line-clamp-2 text-sm text-muted-foreground">
+            {collapsedSummaryParts.length > 0
+              ? collapsedSummaryParts.join(", ")
+              : "No sources, notes, or advanced context configured yet."}
+          </p>
+        )}
+
         {isOpen && (
           <div id="builder-zone-3-content" className="space-y-4 border-t border-border pt-3">
+            <p className="text-sm text-muted-foreground">
+              These controls add context to the current draft. Enhancement settings such as web lookup and rewrite behavior live in the preview rail.
+            </p>
+
             <ContextSourceChips
               sources={contextConfig.sources}
               onAdd={handleAddSource}
@@ -107,8 +140,10 @@ export function BuilderSourcesAdvanced({
 
             <div className="flex items-center justify-between border-t border-border pt-3">
               <div>
-                <p className="text-sm font-medium text-foreground">Show advanced integrations</p>
-                <p className="text-sm text-muted-foreground">Database + RAG and delimiter controls.</p>
+                <p className="text-sm font-medium text-foreground">Advanced integrations</p>
+                <p className="text-sm text-muted-foreground">
+                  Database, RAG, and parsing controls for the draft context.
+                </p>
               </div>
               <Button
                 type="button"
@@ -128,7 +163,10 @@ export function BuilderSourcesAdvanced({
             </div>
 
             {showAdvanced && (
-              <div className="space-y-4 rounded-lg border border-border/80 bg-background/60 p-3">
+              <div
+                className="space-y-4 rounded-lg border border-border/80 bg-background/60 p-3"
+                data-testid="builder-context-advanced-section"
+              >
                 <div className="flex items-center justify-between">
                   <Label className="flex items-center gap-1.5 text-sm font-medium text-foreground sm:text-base">
                     <Database className="h-3.5 w-3.5 text-muted-foreground" />
@@ -145,34 +183,18 @@ export function BuilderSourcesAdvanced({
 
                 <div className="flex items-center justify-between border-t border-border pt-3">
                   <div>
-                    <Label className="text-sm font-medium text-foreground sm:text-base">Wrap context in XML-style tags</Label>
-                    <p className="text-sm text-muted-foreground">Wrap context blocks in tags for stricter parsing.</p>
+                    <Label className="text-sm font-medium text-foreground sm:text-base">
+                      Context parsing
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Wrap context blocks in XML-style tags inside the draft prompt.
+                    </p>
                   </div>
                   <Switch
                     checked={contextConfig.useDelimiters}
                     onCheckedChange={onToggleDelimiters}
                   />
                 </div>
-
-                {onToggleWebSearch && (
-                  <div className="flex items-center justify-between border-t border-border pt-3">
-                    <div>
-                      <Label className="flex items-center gap-1.5 text-sm font-medium text-foreground sm:text-base">
-                        <Globe className="h-3.5 w-3.5 text-muted-foreground" />
-                        Use web lookup during enhancement
-                      </Label>
-                      <p className="text-sm text-muted-foreground">
-                        Let enhance fetch current references from the web.
-                      </p>
-                    </div>
-                    <Switch
-                      checked={webSearchEnabled}
-                      onCheckedChange={onToggleWebSearch}
-                      disabled={isEnhancing}
-                      aria-label="Enable web search during enhancement"
-                    />
-                  </div>
-                )}
               </div>
             )}
           </div>

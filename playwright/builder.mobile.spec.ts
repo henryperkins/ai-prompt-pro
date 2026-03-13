@@ -336,7 +336,7 @@ test("keeps adjust details progressive on mobile", async ({ page }) => {
 
   await page.getByRole("button", { name: "Show advanced controls" }).click();
 
-  const adjustDetails = page.getByRole("button", { name: "Adjust details" });
+  const adjustDetails = page.getByRole("button", { name: "Prompt details" });
   const roleGroup = page.getByRole("button", { name: "Role and voice" });
   const outputGroup = page.getByRole("button", { name: "Output shape" });
 

@@ -99,7 +99,7 @@ export function EnhancementSettingsSummaryCard({
   actionExpanded,
   actionControlsId,
   actionTestId,
-  helperText = "These settings apply to the next enhancement run.",
+  helperText = "These settings apply to the next enhancement run and do not change the draft content directly.",
   children,
 }: EnhancementSettingsSummaryCardProps) {
   return (

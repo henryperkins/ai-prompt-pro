@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { defaultConfig } from "@/lib/prompt-builder";
@@ -31,18 +31,11 @@ vi.mock("@/components/BuilderHeroInput", () => ({
 }));
 
 vi.mock("@/components/BuilderAdjustDetails", () => ({
-  BuilderAdjustDetails: () => <div>Redesign Adjust Details</div>,
+  BuilderAdjustDetails: () => <div>Redesign Prompt Details</div>,
 }));
 
 vi.mock("@/components/BuilderSourcesAdvanced", () => ({
-  BuilderSourcesAdvanced: ({ onToggleWebSearch }: { onToggleWebSearch?: (value: boolean) => void }) => (
-    <div>
-      <div>Redesign Sources Advanced</div>
-      <button type="button" onClick={() => onToggleWebSearch?.(true)}>
-        Toggle web lookup
-      </button>
-    </div>
-  ),
+  BuilderSourcesAdvanced: () => <div>Redesign Context And Sources</div>,
 }));
 
 
@@ -134,11 +127,11 @@ describe("Index redesign phase 1 gating", () => {
 
     expect(screen.getByText("Redesign Hero Input")).toBeInTheDocument();
     expect(screen.getByText("Start in 3 steps")).toBeInTheDocument();
-    expect(screen.queryByText("Redesign Adjust Details")).not.toBeInTheDocument();
-    expect(screen.queryByText("Redesign Sources Advanced")).not.toBeInTheDocument();
+    expect(screen.queryByText("Redesign Prompt Details")).not.toBeInTheDocument();
+    expect(screen.queryByText("Redesign Context And Sources")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Show advanced controls" }));
-    expect(screen.getByText("Redesign Adjust Details")).toBeInTheDocument();
-    expect(screen.getByText("Redesign Sources Advanced")).toBeInTheDocument();
+    expect(screen.getByText("Redesign Prompt Details")).toBeInTheDocument();
+    expect(screen.getByText("Redesign Context And Sources")).toBeInTheDocument();
     expect(screen.queryByText("Start in 3 steps")).not.toBeInTheDocument();
 
     expect(screen.queryByText("Legacy PromptInput")).not.toBeInTheDocument();
@@ -159,7 +152,7 @@ describe("Index redesign phase 1 gating", () => {
     expect(screen.getByRole("link", { name: "Version History" })).toHaveAttribute("href", "/history");
   });
 
-  it("passes web lookup toggle through advanced sources zone", async () => {
+  it("keeps enhancement-only controls out of the left-column authoring zones", async () => {
     await renderIndex();
 
     expect(screen.getByTestId("output-web-search-state")).toHaveTextContent("false");
@@ -168,10 +161,9 @@ describe("Index redesign phase 1 gating", () => {
     if (revealAdvancedButton) {
       fireEvent.click(revealAdvancedButton);
     }
-    fireEvent.click(screen.getByRole("button", { name: "Toggle web lookup" }));
 
-    await waitFor(() => {
-      expect(screen.getByTestId("output-web-search-state")).toHaveTextContent("true");
-    });
+    expect(screen.getByText("Redesign Context And Sources")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Toggle web lookup" })).not.toBeInTheDocument();
+    expect(screen.getByTestId("output-web-search-state")).toHaveTextContent("false");
   });
 });

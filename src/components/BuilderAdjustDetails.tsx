@@ -219,15 +219,15 @@ export function BuilderAdjustDetails({
           onClick={() => onOpenChange(!isOpen)}
           aria-expanded={isOpen}
           aria-controls="builder-zone-2-content"
-          aria-label="Adjust details"
+          aria-label="Prompt details"
         >
           <div>
             <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
               <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
-              Adjust details
+              Prompt details
             </p>
             <p className="text-sm text-muted-foreground" aria-hidden="true">
-              Role, style, format, and constraints.
+              These controls shape the current draft prompt: role, style, format, and constraints.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -299,7 +299,7 @@ export function BuilderAdjustDetails({
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-foreground">
-                    AI persona{aiTag("role")}
+                    Role{aiTag("role")}
                   </Label>
                   <Select
                     selectedKey={config.role || undefined}

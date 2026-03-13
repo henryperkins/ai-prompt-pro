@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { BuilderAdjustDetails } from "@/components/BuilderAdjustDetails";
+import { BuilderSourcesAdvanced } from "@/components/BuilderSourcesAdvanced";
 import { ContextQualityMeter } from "@/components/ContextQualityMeter";
 import { OutputPanel } from "@/components/OutputPanel";
 import { toConstraintInputId } from "@/lib/builder-tabs";
@@ -35,8 +36,8 @@ describe("Phase 2 accessibility and validation", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Adjust details" })).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByRole("button", { name: "Adjust details" })).toHaveAttribute("aria-controls", "builder-zone-2-content");
+    expect(screen.getByRole("button", { name: "Prompt details" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: "Prompt details" })).toHaveAttribute("aria-controls", "builder-zone-2-content");
     expect(screen.getByRole("button", { name: "Role and voice" })).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("button", { name: "Output shape" })).toHaveAttribute("aria-expanded", "false");
     expect(screen.getByRole("button", { name: "Constraints" })).toHaveAttribute("aria-expanded", "false");
@@ -100,7 +101,7 @@ describe("Phase 2 accessibility and validation", () => {
       />,
     );
 
-    const trigger = screen.getByRole("button", { name: "Adjust details" });
+    const trigger = screen.getByRole("button", { name: "Prompt details" });
     const summary = screen.getByText(/Casual tone/);
 
     expect(trigger).toHaveAttribute("aria-expanded", "false");
@@ -110,6 +111,35 @@ describe("Phase 2 accessibility and validation", () => {
     expect(summary).toHaveTextContent("1 constraint");
     expect(summary).toHaveTextContent("has examples");
     expect(summary).toHaveTextContent("(AI-suggested)");
+  });
+
+  it("keeps context authoring separate from enhancement settings", () => {
+    render(
+      <BuilderSourcesAdvanced
+        contextConfig={defaultContextConfig}
+        isOpen
+        onOpenChange={() => undefined}
+        onUpdateSources={() => undefined}
+        onUpdateDatabaseConnections={() => undefined}
+        onUpdateRag={() => undefined}
+        onUpdateProjectNotes={() => undefined}
+        onToggleDelimiters={() => undefined}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Context and sources" }),
+    ).toHaveAttribute("aria-expanded", "true");
+    expect(
+      screen.getByText(
+        "These controls add context to the current draft. Enhancement settings such as web lookup and rewrite behavior live in the preview rail.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("switch", {
+        name: "Enable web search during enhancement",
+      }),
+    ).not.toBeInTheDocument();
   });
 
   it("truncates long selected roles in the collapsed header and removes the duplicate open-state summary", () => {

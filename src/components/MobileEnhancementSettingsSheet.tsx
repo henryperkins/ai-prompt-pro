@@ -125,8 +125,9 @@ export function MobileEnhancementSettingsSheet({
           )}
 
           <p className="rounded-xl border border-border/70 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-            These controls change the next enhancement request without moving the
-            main Enhance action out of the sticky bar.
+            These controls change the next enhancement request. They do not
+            edit the current draft directly, and the main Enhance action stays
+            in the sticky bar.
           </p>
 
           {(canResetPreferences || preferredAcceptedFormat) && (

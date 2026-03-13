@@ -284,7 +284,7 @@ test("builder desktop smart suggestions and detail summaries stay within layout 
     await showAdvancedControls.click();
   }
 
-  const adjustDetails = page.getByRole("button", { name: "Adjust details" });
+  const adjustDetails = page.getByRole("button", { name: "Prompt details" });
   await expect(adjustDetails).toBeVisible();
   await adjustDetails.click();
 

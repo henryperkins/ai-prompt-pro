@@ -2921,7 +2921,7 @@ const Index = () => {
                     Need more control?
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Reveal advanced settings when you are ready to refine.
+                    Reveal prompt details and context controls when you are ready to refine the draft.
                   </p>
                 </div>
                 <Button
@@ -2956,9 +2956,6 @@ const Index = () => {
                 onUpdateRag={updateRagParameters}
                 onUpdateProjectNotes={updateProjectNotes}
                 onToggleDelimiters={toggleDelimiters}
-                webSearchEnabled={webSearchEnabled}
-                onToggleWebSearch={handleWebSearchToggle}
-                isEnhancing={isEnhancing}
               />
             </>
           )}
@@ -3013,7 +3010,7 @@ const Index = () => {
                         className="rounded-lg border border-border/60 bg-background/60 px-2.5 py-2"
                         title={axis.tip}
                       >
-                        <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                        <p className="text-xs font-medium type-label-caps text-muted-foreground">
                           {axis.label}
                         </p>
                         <p className="mt-1 text-sm font-medium text-foreground">
