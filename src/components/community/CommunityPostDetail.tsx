@@ -56,6 +56,7 @@ interface CommunityPostDetailProps {
   canModerate?: boolean;
   canBlockAuthor?: boolean;
   isAuthorBlocked?: boolean;
+  blockFilterReady?: boolean;
   blockedUserIds?: string[];
   onReportPost?: (post: CommunityPost) => void;
   onReportComment?: (commentId: string, userId: string, postId: string) => void;
@@ -153,6 +154,7 @@ export function CommunityPostDetail({
   canModerate = false,
   canBlockAuthor = true,
   isAuthorBlocked = false,
+  blockFilterReady = true,
   blockedUserIds = [],
   onReportPost,
   onReportComment,
@@ -502,6 +504,7 @@ export function CommunityPostDetail({
           postId={post.id}
           totalCount={post.commentCount}
           onCommentAdded={onCommentAdded}
+          blockFilterReady={blockFilterReady}
           blockedUserIds={blockedUserIds}
           onReportComment={onReportComment}
           onBlockUser={onBlockUser}
@@ -528,6 +531,7 @@ export function CommunityPostDetail({
                 totalCount={post.commentCount}
                 onCommentAdded={onCommentAdded}
                 autoFocusComposer
+                blockFilterReady={blockFilterReady}
                 blockedUserIds={blockedUserIds}
                 onReportComment={onReportComment}
                 onBlockUser={onBlockUser}

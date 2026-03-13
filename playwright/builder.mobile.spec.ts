@@ -269,6 +269,14 @@ test("lets mobile users change enhancement settings before running enhance", asy
   await expect(
     page.getByTestId("output-panel-enhancement-settings-summary"),
   ).toContainText("Expert prompt · Preserve wording · Ask me");
+  await expect(
+    page.getByTestId("enhancement-preferences-reset-row"),
+  ).toHaveCount(0);
+
+  await previewDialog.getByRole("button", { name: "Edit settings" }).click();
+  await expect(
+    page.getByTestId("enhancement-preferences-reset-row"),
+  ).toBeVisible();
 });
 
 test("lets signed-in mobile users open the Codex session drawer from settings and keep carry-forward edits", async ({

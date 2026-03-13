@@ -16,6 +16,8 @@ interface CommunityFeedProps {
   loading: boolean;
   errorMessage?: string | null;
   errorType?: CommunityErrorKind;
+  blockFilterReady?: boolean;
+  followStateReady?: boolean;
   authorById: Record<string, CommunityProfile>;
   parentTitleById: Record<string, string>;
   onCopyPrompt: (post: CommunityPost) => void;
@@ -76,6 +78,8 @@ export function CommunityFeed({
   loading,
   errorMessage,
   errorType = "unknown",
+  blockFilterReady = true,
+  followStateReady = true,
   authorById,
   parentTitleById,
   onCopyPrompt,
@@ -144,6 +148,7 @@ export function CommunityFeed({
             onSharePost={onSharePost}
             onSaveToLibrary={onSaveToLibrary}
             followingUserIds={followingUserIds}
+            followStateReady={followStateReady}
             currentUserId={currentUserId}
             onToggleFollow={onToggleFollow}
             canVote={canVote}
@@ -153,6 +158,7 @@ export function CommunityFeed({
             canModerate={Boolean(currentUserId)}
             canBlockAuthor={currentUserId !== post.authorId}
             isAuthorBlocked={blockedUserIds.includes(post.authorId)}
+            blockFilterReady={blockFilterReady}
             blockedUserIds={blockedUserIds}
             onReportPost={onReportPost}
             onReportComment={onReportComment}
@@ -177,12 +183,14 @@ export function CommunityFeed({
       onSharePost,
       onSaveToLibrary,
       followingUserIds,
+      followStateReady,
       onToggleFollow,
       canVote,
       canRate,
       ratingByPost,
       onRatePrompt,
       currentUserId,
+      blockFilterReady,
       blockedUserIds,
       onReportPost,
       onReportComment,
@@ -254,6 +262,20 @@ export function CommunityFeed({
           secondaryAction={secondaryAction}
         />
       </div>
+    );
+  }
+
+  if (!blockFilterReady) {
+    return (
+      <Card
+        className="space-y-2.5 border-border/80 bg-muted/25 p-4 sm:p-5"
+        data-testid="community-block-filter-loading-state"
+      >
+        <p className="ui-state-card-title text-foreground">Loading content protections</p>
+        <p className="ui-state-card-body text-muted-foreground">
+          We&apos;re checking your blocked-user list before showing community posts.
+        </p>
+      </Card>
     );
   }
 

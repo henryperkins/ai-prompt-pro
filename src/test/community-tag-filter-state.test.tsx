@@ -131,10 +131,19 @@ describe("Community tag filter state", () => {
     vi.unstubAllGlobals();
   });
 
-  it("uses an explicit tag filter instead of rewriting the search query", async () => {
+  it("clears any existing text search before applying a tag filter", async () => {
     await renderCommunity();
 
     await screen.findByText("Release checklist");
+    fireEvent.change(screen.getByRole("textbox", { name: "Search community posts" }), {
+      target: { value: "launch" },
+    });
+
+    await waitFor(() => {
+      const searchCall = mocks.loadFeed.mock.calls.at(-1)?.[0] as { search?: string };
+      expect(searchCall?.search).toBe("launch");
+    });
+
     fireEvent.click(screen.getByRole("button", { name: "Filter by tag ops" }));
 
     await waitFor(() => {
@@ -144,14 +153,38 @@ describe("Community tag filter state", () => {
     const filteredCall = mocks.loadFeed.mock.calls.at(-1)?.[0] as { search?: string; tag?: string };
     expect(filteredCall?.tag).toBe("ops");
     expect(filteredCall?.search).toBeUndefined();
+    expect(screen.getByRole("textbox", { name: "Search community posts" })).toHaveValue("");
     expect(screen.getByTestId("community-active-tag")).toHaveTextContent("#ops");
+  }, 15_000);
+
+  it("does not restore a hidden search term after the tag filter is cleared", async () => {
+    await renderCommunity();
+
+    await screen.findByText("Release checklist");
+    fireEvent.change(screen.getByRole("textbox", { name: "Search community posts" }), {
+      target: { value: "launch" },
+    });
+
+    await waitFor(() => {
+      const searchCall = mocks.loadFeed.mock.calls.at(-1)?.[0] as { search?: string };
+      expect(searchCall?.search).toBe("launch");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Filter by tag ops" }));
+    await waitFor(() => {
+      const filteredCall = mocks.loadFeed.mock.calls.at(-1)?.[0] as { search?: string; tag?: string };
+      expect(filteredCall?.tag).toBe("ops");
+      expect(filteredCall?.search).toBeUndefined();
+    });
 
     fireEvent.click(screen.getByTestId("community-clear-tag-filter"));
 
     await waitFor(() => {
-      const clearedCall = mocks.loadFeed.mock.calls.at(-1)?.[0] as { tag?: string };
+      const clearedCall = mocks.loadFeed.mock.calls.at(-1)?.[0] as { search?: string; tag?: string };
       expect(clearedCall?.tag).toBeUndefined();
+      expect(clearedCall?.search).toBeUndefined();
       expect(screen.queryByTestId("community-active-tag")).toBeNull();
+      expect(screen.getByRole("textbox", { name: "Search community posts" })).toHaveValue("");
     });
   }, 15_000);
 });

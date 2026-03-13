@@ -60,10 +60,22 @@ const CATEGORY_OPTIONS = [
   ...PROMPT_CATEGORY_OPTIONS,
 ];
 const FEED_PAGE_SIZE = 20;
+type RelationshipLoadStatus = "idle" | "loading" | "ready" | "error";
 
 function readTagFilter(searchParams: URLSearchParams): string | null {
   const value = searchParams.get("tag")?.trim().toLowerCase() ?? "";
   return value || null;
+}
+
+function readInputValue(
+  value:
+    | string
+    | { currentTarget?: { value?: string | null }; target?: { value?: string | null } }
+    | null
+    | undefined,
+): string {
+  if (typeof value === "string") return value;
+  return value?.currentTarget?.value ?? value?.target?.value ?? "";
 }
 
 interface CommunityReportTarget {
@@ -115,7 +127,10 @@ const Community = () => {
   const [retryNonce, setRetryNonce] = useState(0);
   const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
   const [followingUserIds, setFollowingUserIds] = useState<Set<string>>(new Set());
-  const [relationshipsReady, setRelationshipsReady] = useState(false);
+  const [blockedUsersStatus, setBlockedUsersStatus] = useState<RelationshipLoadStatus>("idle");
+  const [followingUsersStatus, setFollowingUsersStatus] = useState<RelationshipLoadStatus>("idle");
+  const [hasResolvedBlockedUsersOnce, setHasResolvedBlockedUsersOnce] = useState(false);
+  const [hasResolvedFollowingUsersOnce, setHasResolvedFollowingUsersOnce] = useState(false);
   const [reportTarget, setReportTarget] = useState<CommunityReportTarget | null>(null);
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const requestToken = useRef(0);
@@ -162,33 +177,48 @@ const Community = () => {
 
   useEffect(() => {
     const token = ++relationshipRequestToken.current;
-    setBlockedUserIds([]);
-    setFollowingUserIds(new Set());
     setReportTarget(null);
-    setRelationshipsReady(!user?.id);
 
     if (!user?.id) {
+      setBlockedUserIds([]);
+      setFollowingUserIds(new Set());
+      setBlockedUsersStatus("idle");
+      setFollowingUsersStatus("idle");
+      setHasResolvedBlockedUsersOnce(false);
+      setHasResolvedFollowingUsersOnce(false);
       return;
     }
 
-    void Promise.allSettled([loadBlockedUserIds(), loadFollowingUserIds()])
-      .then(([blockedResult, followingResult]) => {
+    setBlockedUsersStatus("loading");
+    setFollowingUsersStatus("loading");
+
+    void (async () => {
+      try {
+        const nextBlockedUserIds = await loadBlockedUserIds();
         if (token !== relationshipRequestToken.current) return;
+        setBlockedUserIds(nextBlockedUserIds);
+        setBlockedUsersStatus("ready");
+        setHasResolvedBlockedUsersOnce(true);
+      } catch (error) {
+        if (token !== relationshipRequestToken.current) return;
+        console.error("Failed to load blocked users:", error);
+        setBlockedUsersStatus("error");
+      }
+    })();
 
-        if (blockedResult.status === "fulfilled") {
-          setBlockedUserIds(blockedResult.value);
-        } else {
-          console.error("Failed to load blocked users:", blockedResult.reason);
-        }
-
-        if (followingResult.status === "fulfilled") {
-          setFollowingUserIds(new Set(followingResult.value));
-        } else {
-          console.error("Failed to load following users:", followingResult.reason);
-        }
-
-        setRelationshipsReady(true);
-      });
+    void (async () => {
+      try {
+        const nextFollowingUserIds = await loadFollowingUserIds();
+        if (token !== relationshipRequestToken.current) return;
+        setFollowingUserIds(new Set(nextFollowingUserIds));
+        setFollowingUsersStatus("ready");
+        setHasResolvedFollowingUsersOnce(true);
+      } catch (error) {
+        if (token !== relationshipRequestToken.current) return;
+        console.error("Failed to load following users:", error);
+        setFollowingUsersStatus("error");
+      }
+    })();
   }, [user?.id]);
 
   const hydrateFeedContext = useCallback(
@@ -412,6 +442,8 @@ const Community = () => {
         } else {
           await followCommunityUser(targetUserId);
         }
+        setFollowingUsersStatus("ready");
+        setHasResolvedFollowingUsersOnce(true);
       } catch {
         // Revert
         setFollowingUserIds((prev) => {
@@ -535,6 +567,8 @@ const Community = () => {
   const handleTagClick = useCallback((tag: string) => {
     const normalizedTag = tag.trim();
     if (!normalizedTag) return;
+    setQueryInput("");
+    setQuery("");
     setSearchParams((previous) => {
       const next = new URLSearchParams(previous);
       next.delete("tab");
@@ -547,6 +581,8 @@ const Community = () => {
   }, [setSearchParams]);
 
   const clearTagFilter = useCallback(() => {
+    setQueryInput("");
+    setQuery("");
     setSearchParams((previous) => {
       const next = new URLSearchParams(previous);
       next.delete("tag");
@@ -554,15 +590,22 @@ const Community = () => {
     }, { replace: true });
   }, [setSearchParams]);
 
+  const blockFilterReady =
+    !user?.id || blockedUsersStatus === "ready" || hasResolvedBlockedUsersOnce;
+  const followStateReady =
+    Boolean(user?.id) && (followingUsersStatus === "ready" || hasResolvedFollowingUsersOnce);
   const effectiveBlockedUserIds = useMemo(
-    () => (relationshipsReady ? blockedUserIds : []),
-    [blockedUserIds, relationshipsReady],
+    () => (blockFilterReady ? blockedUserIds : []),
+    [blockFilterReady, blockedUserIds],
   );
   const visiblePosts = useMemo(
-    () => posts.filter((post) => !effectiveBlockedUserIds.includes(post.authorId)),
-    [effectiveBlockedUserIds, posts],
+    () =>
+      blockFilterReady
+        ? posts.filter((post) => !effectiveBlockedUserIds.includes(post.authorId))
+        : [],
+    [blockFilterReady, effectiveBlockedUserIds, posts],
   );
-  const hiddenPostCount = posts.length - visiblePosts.length;
+  const hiddenPostCount = blockFilterReady ? posts.length - visiblePosts.length : 0;
 
   const handleBlockUser = useCallback(async (targetUserId: string) => {
     if (!user) {
@@ -578,6 +621,8 @@ const Community = () => {
       setBlockedUserIds((previous) => (
         previous.includes(targetUserId) ? previous : [...previous, targetUserId]
       ));
+      setBlockedUsersStatus("ready");
+      setHasResolvedBlockedUsersOnce(true);
       toast({
         title: "User blocked",
         description: "Posts and comments from this user are now hidden.",
@@ -600,6 +645,8 @@ const Community = () => {
     try {
       await unblockCommunityUser(targetUserId);
       setBlockedUserIds((previous) => previous.filter((id) => id !== targetUserId));
+      setBlockedUsersStatus("ready");
+      setHasResolvedBlockedUsersOnce(true);
       toast({ title: "User unblocked" });
     } catch (error) {
       toast({
@@ -695,7 +742,7 @@ const Community = () => {
                   <InputBase
                     id="community-feed-search"
                     value={queryInput}
-                    onChange={setQueryInput}
+                    onChange={(value) => setQueryInput(readInputValue(value))}
                     onFocus={() => {
                       if (!mobileEnhancementsEnabled) setIsSearchFocused(true);
                     }}
@@ -981,6 +1028,8 @@ const Community = () => {
             loading={loading}
             errorMessage={errorState?.message}
             errorType={errorState?.kind}
+            blockFilterReady={blockFilterReady}
+            followStateReady={followStateReady}
             authorById={authorById}
             parentTitleById={parentTitleById}
             onCopyPrompt={handleCopyPrompt}
@@ -990,8 +1039,8 @@ const Community = () => {
             onCommentThreadOpen={handleCommentThreadOpen}
             onSharePost={handleSharePost}
             onSaveToLibrary={handleSaveToLibrary}
-            followingUserIds={relationshipsReady ? followingUserIds : undefined}
-            onToggleFollow={relationshipsReady ? handleToggleFollow : undefined}
+            followingUserIds={followStateReady ? followingUserIds : undefined}
+            onToggleFollow={followStateReady ? handleToggleFollow : undefined}
             canVote={Boolean(user)}
             canRate={Boolean(user)}
             ratingByPost={ratingByPost}

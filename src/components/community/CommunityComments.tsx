@@ -44,6 +44,7 @@ interface CommunityCommentsProps {
   compact?: boolean;
   autoFocusComposer?: boolean;
   onCommentAdded?: (postId: string) => void;
+  blockFilterReady?: boolean;
   blockedUserIds?: string[];
   onReportComment?: (commentId: string, userId: string, postId: string) => void;
   onBlockUser?: (userId: string) => void;
@@ -58,6 +59,7 @@ export function CommunityComments({
   compact = false,
   autoFocusComposer = false,
   onCommentAdded,
+  blockFilterReady = true,
   blockedUserIds = [],
   onReportComment,
   onBlockUser,
@@ -186,10 +188,15 @@ export function CommunityComments({
 
   const blockedSet = useMemo(() => new Set(blockedUserIds), [blockedUserIds]);
   const visibleCommentItems = useMemo(
-    () => commentItems.filter((item) => !blockedSet.has(item.comment.userId)),
-    [blockedSet, commentItems],
+    () =>
+      blockFilterReady
+        ? commentItems.filter((item) => !blockedSet.has(item.comment.userId))
+        : [],
+    [blockFilterReady, blockedSet, commentItems],
   );
-  const hiddenCommentCount = commentItems.length - visibleCommentItems.length;
+  const hiddenCommentCount = blockFilterReady
+    ? commentItems.length - visibleCommentItems.length
+    : 0;
   const shouldVirtualize = !compact && visibleCommentItems.length >= COMMENTS_VIRTUALIZATION_THRESHOLD;
   const commentVirtualizer = useVirtualizer({
     count: shouldVirtualize ? visibleCommentItems.length : 0,
@@ -298,7 +305,19 @@ export function CommunityComments({
         </div>
       )}
 
-      {!loading && comments.length === 0 && (
+      {!loading && !blockFilterReady && (
+        <div
+          className="rounded-lg border border-border/60 bg-background/60 px-3 py-4"
+          data-testid="community-comments-protection-loading"
+        >
+          <p className="type-post-title text-foreground">Loading comment protections</p>
+          <p className="type-help mt-1 text-muted-foreground">
+            We&apos;re checking your blocked-user list before showing this thread.
+          </p>
+        </div>
+      )}
+
+      {!loading && blockFilterReady && comments.length === 0 && (
         <div className="rounded-lg border border-border/60 bg-background/60 px-3 py-5 text-center">
           <span className="mx-auto inline-flex h-9 w-9 items-center justify-center rounded-full border border-border/60 bg-background/80 text-muted-foreground">
             <MessageCircle className="h-4 w-4" />
@@ -308,13 +327,13 @@ export function CommunityComments({
         </div>
       )}
 
-      {!loading && hiddenCommentCount > 0 && (
+      {!loading && blockFilterReady && hiddenCommentCount > 0 && (
         <p className="type-help text-muted-foreground">
           {hiddenCommentCount} comment{hiddenCommentCount === 1 ? "" : "s"} hidden from blocked users.
         </p>
       )}
 
-      {!loading && visibleCommentItems.length > 0 && (
+      {!loading && blockFilterReady && visibleCommentItems.length > 0 && (
         <>
           {shouldVirtualize ? (
             <div

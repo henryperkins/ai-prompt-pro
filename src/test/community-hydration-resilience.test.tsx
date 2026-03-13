@@ -75,6 +75,13 @@ vi.mock("@/lib/community", () => ({
   remixToLibrary: (...args: unknown[]) => mocks.remixToLibrary(...args),
 }));
 
+vi.mock("@/lib/community-moderation", () => ({
+  blockCommunityUser: vi.fn().mockResolvedValue(undefined),
+  loadBlockedUserIds: vi.fn().mockResolvedValue([]),
+  submitCommunityReport: vi.fn().mockResolvedValue(undefined),
+  unblockCommunityUser: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("@/components/community/CommunityFeed", () => ({
   CommunityFeed: ({
     posts,

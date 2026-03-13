@@ -210,7 +210,7 @@ describe("OutputPanel enhance controls", () => {
     expect(screen.getByRole("button", { name: "Hide settings" })).toBeInTheDocument();
   });
 
-  it("keeps reset enhancement preferences inside the enhancement settings surface", () => {
+  it("keeps reset enhancement preferences hidden until compact settings are expanded", async () => {
     const onResetPreferences = vi.fn();
 
     renderPanel({
@@ -218,6 +218,16 @@ describe("OutputPanel enhance controls", () => {
       canResetEnhancementPreferences: true,
       onResetEnhancementPreferences: onResetPreferences,
       preferredAcceptedFormat: "Markdown",
+    });
+
+    expect(
+      screen.queryByTestId("enhancement-preferences-reset-row"),
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Edit settings" }),
+      );
     });
 
     expect(

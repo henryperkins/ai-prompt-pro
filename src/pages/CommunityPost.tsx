@@ -48,6 +48,8 @@ interface CommunityReportTarget {
   reportedUserId: string | null;
 }
 
+type RelationshipLoadStatus = "idle" | "loading" | "ready" | "error";
+
 const CommunityPost = () => {
   const { postId } = useParams<{ postId: string }>();
   const [searchParams] = useSearchParams();
@@ -76,25 +78,33 @@ const CommunityPost = () => {
   const [errorState, setErrorState] = useState<CommunityErrorState | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
   const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
+  const [blockedUsersStatus, setBlockedUsersStatus] = useState<RelationshipLoadStatus>("idle");
+  const [hasResolvedBlockedUsersOnce, setHasResolvedBlockedUsersOnce] = useState(false);
   const [reportTarget, setReportTarget] = useState<CommunityReportTarget | null>(null);
   const [reportSubmitting, setReportSubmitting] = useState(false);
 
   useEffect(() => {
     if (!user?.id) {
       setBlockedUserIds([]);
+      setBlockedUsersStatus("idle");
+      setHasResolvedBlockedUsersOnce(false);
       return;
     }
 
     let cancelled = false;
+    setBlockedUsersStatus("loading");
     void loadBlockedUserIds()
       .then((ids) => {
         if (!cancelled) {
           setBlockedUserIds(ids);
+          setBlockedUsersStatus("ready");
+          setHasResolvedBlockedUsersOnce(true);
         }
       })
       .catch((error) => {
         if (!cancelled) {
           console.error("Failed to load blocked users:", error);
+          setBlockedUsersStatus("error");
         }
       });
 
@@ -370,6 +380,8 @@ const CommunityPost = () => {
       setBlockedUserIds((previous) => (
         previous.includes(targetUserId) ? previous : [...previous, targetUserId]
       ));
+      setBlockedUsersStatus("ready");
+      setHasResolvedBlockedUsersOnce(true);
       toast({ title: "User blocked", description: "Posts and comments from this user are hidden." });
     } catch (error) {
       toast({
@@ -389,6 +401,8 @@ const CommunityPost = () => {
     try {
       await unblockCommunityUser(targetUserId);
       setBlockedUserIds((previous) => previous.filter((id) => id !== targetUserId));
+      setBlockedUsersStatus("ready");
+      setHasResolvedBlockedUsersOnce(true);
       toast({ title: "User unblocked" });
     } catch (error) {
       toast({
@@ -427,6 +441,8 @@ const CommunityPost = () => {
 
   const postAuthor = post ? authorById[post.authorId] : null;
   const postAuthorName = postAuthor?.displayName || "Community member";
+  const blockFilterReady =
+    !user?.id || blockedUsersStatus === "ready" || hasResolvedBlockedUsersOnce;
   const postAuthorBlocked = post ? blockedUserIds.includes(post.authorId) : false;
   const handleRetry = useCallback(() => {
     setRetryNonce((prev) => prev + 1);
@@ -495,7 +511,16 @@ const CommunityPost = () => {
           />
         )}
 
-        {!loading && !errorState && post && !postAuthorBlocked && (
+        {!loading && !errorState && post && !blockFilterReady && (
+          <StateCard
+            variant="empty"
+            title="Loading content protections"
+            description="We’re checking your blocked-user list before showing this post."
+            primaryAction={{ label: "Return to community feed", to: "/community" }}
+          />
+        )}
+
+        {!loading && !errorState && post && blockFilterReady && !postAuthorBlocked && (
           <CommunityPostDetail
             post={post}
             authorName={postAuthorName}
@@ -518,6 +543,7 @@ const CommunityPost = () => {
             canModerate={Boolean(user)}
             canBlockAuthor={Boolean(user?.id && user.id !== post.authorId)}
             isAuthorBlocked={blockedUserIds.includes(post.authorId)}
+            blockFilterReady={blockFilterReady}
             blockedUserIds={blockedUserIds}
             onReportPost={handleReportPost}
             onReportComment={handleReportComment}

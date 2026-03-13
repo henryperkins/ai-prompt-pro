@@ -112,6 +112,17 @@ function createProfile(overrides: Partial<CommunityProfile> = {}): CommunityProf
   };
 }
 
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
+  });
+
+  return { promise, resolve, reject };
+}
+
 async function renderCommunity(initialEntries = ["/community"]) {
   vi.resetModules();
   const { default: Community } = await import("@/pages/Community");
@@ -154,39 +165,11 @@ describe("Community relationship state resets", () => {
     mocks.loadMyRatings.mockResolvedValue({});
   });
 
-  it("clears stale following state when the authenticated user changes", async () => {
-    mocks.loadBlockedUserIds.mockResolvedValueOnce([]);
-    mocks.loadBlockedUserIds.mockResolvedValueOnce([]);
-    mocks.loadFollowingUserIds.mockResolvedValueOnce(["author-1"]);
-    mocks.loadFollowingUserIds.mockRejectedValueOnce(new Error("follow lookup failed"));
+  it("keeps blocked posts hidden while blocked-user data reloads and after that reload fails", async () => {
+    const blockedReload = createDeferred<string[]>();
 
-    const { Community, rerender } = await renderCommunity();
-
-    await screen.findByText("Relationship state post");
-    await waitFor(() => {
-      expect(screen.getByTestId("community-card-follow")).toHaveTextContent("Following");
-    });
-
-    mocks.user = { id: "viewer-2" };
-    rerender(
-      <MemoryRouter initialEntries={["/community"]}>
-        <Community />
-      </MemoryRouter>,
-    );
-
-    await waitFor(() => {
-      expect(screen.queryByTestId("community-card-follow")).toBeNull();
-    });
-    await waitFor(() => {
-      expect(screen.getByTestId("community-card-follow")).toHaveTextContent("Follow");
-    });
-
-    expect(mocks.loadFollowingUserIds).toHaveBeenCalledTimes(2);
-  });
-
-  it("drops stale blocked-user state when the next user relationship load fails", async () => {
     mocks.loadBlockedUserIds.mockResolvedValueOnce(["author-1"]);
-    mocks.loadBlockedUserIds.mockRejectedValueOnce(new Error("blocked lookup failed"));
+    mocks.loadBlockedUserIds.mockImplementationOnce(() => blockedReload.promise);
     mocks.loadFollowingUserIds.mockResolvedValueOnce([]);
     mocks.loadFollowingUserIds.mockResolvedValueOnce([]);
 
@@ -204,8 +187,54 @@ describe("Community relationship state resets", () => {
     );
 
     await waitFor(() => {
-      expect(screen.queryByTestId("community-blocked-results-state")).toBeNull();
+      expect(screen.getByTestId("community-blocked-results-state")).toBeInTheDocument();
+      expect(screen.queryByText("Relationship state post")).not.toBeInTheDocument();
+    });
+
+    await act(async () => {
+      blockedReload.reject(new Error("blocked lookup failed"));
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("community-blocked-results-state")).toBeInTheDocument();
+      expect(screen.queryByText("Relationship state post")).not.toBeInTheDocument();
+    });
+
+    expect(mocks.loadBlockedUserIds).toHaveBeenCalledTimes(2);
+  }, 15_000);
+
+  it("renders follow controls from ready follow data even while blocked-user loading is still pending", async () => {
+    const blockedReload = createDeferred<string[]>();
+
+    mocks.loadBlockedUserIds.mockResolvedValueOnce([]);
+    mocks.loadBlockedUserIds.mockImplementationOnce(() => blockedReload.promise);
+    mocks.loadFollowingUserIds.mockResolvedValueOnce(["author-1"]);
+    mocks.loadFollowingUserIds.mockResolvedValueOnce([]);
+
+    const { Community, rerender } = await renderCommunity();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("community-card-follow")).toHaveTextContent("Following");
+    });
+
+    mocks.user = { id: "viewer-2" };
+    rerender(
+      <MemoryRouter initialEntries={["/community"]}>
+        <Community />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
       expect(screen.getByText("Relationship state post")).toBeInTheDocument();
+      expect(screen.getByTestId("community-card-follow")).toHaveTextContent("Follow");
+    });
+
+    expect(screen.queryByTestId("community-block-filter-loading-state")).toBeNull();
+
+    await act(async () => {
+      blockedReload.resolve([]);
+      await Promise.resolve();
     });
   });
 });

@@ -5,29 +5,22 @@ Last updated: 2026-03-13
 > Status: Active by default.
 
 ## Scope
-Two launch-window experiments are configured:
+One launch-window experiment is configured:
 - Hero copy A/B
-- Primary CTA assignment A/B
 
 ## Runtime Behavior
-Launch assignments always run for the hero copy and primary CTA experiments.
+Launch assignments always run for the hero copy experiment.
 
 Assignments are session-sticky and can be overridden with URL params:
 - `exp_hero=a|b|control|speed`
-- `exp_cta=a|b|control|quality_pass`
 
 ## Variants
 Hero copy:
 - A (`control`): Turn rough ideas into quality prompts with context
 - B (`speed`): Ship quality prompts faster with grounded context
 
-Primary CTA:
-- A (`control`): Enhance prompt
-- B (`quality_pass`): Enhance prompt
-
-The `quality_pass` assignment key is preserved for compatibility with existing
-session/query overrides, but the user-facing CTA label is now normalized to
-`Enhance prompt`.
+Primary CTA copy is now fixed to `Enhance prompt`. There is no active CTA
+experiment assignment.
 
 ## Success Metrics
 Primary metric:

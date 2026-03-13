@@ -402,30 +402,30 @@ export function OutputPanelEnhanceControls({
           actionControlsId={compactSettingsEditorId}
           actionTestId="output-panel-enhancement-settings-toggle"
         >
-          {isSettingsExpanded || canResetPreferences || preferredAcceptedFormat ? (
+          {isSettingsExpanded ? (
             <div className="space-y-3">
-              {isSettingsExpanded ? (
-                <div id={compactSettingsEditorId}>
-                  <EnhancementControlGroups
-                    webSearchEnabled={webSearchEnabled}
-                    onWebSearchToggle={onWebSearchToggle}
-                    isEnhancing={isEnhancing}
-                    enhancementDepth={enhancementDepth}
-                    rewriteStrictness={rewriteStrictness}
-                    ambiguityMode={ambiguityMode}
-                    onEnhancementDepthChange={onEnhancementDepthChange}
-                    onRewriteStrictnessChange={onRewriteStrictnessChange}
-                    onAmbiguityModeChange={onAmbiguityModeChange}
-                    layout="stacked"
-                  />
-                </div>
-              ) : null}
-              <EnhancementPreferencesResetRow
-                preferredAcceptedFormat={preferredAcceptedFormat}
-                onResetPreferences={
-                  canResetPreferences ? onResetPreferences : undefined
-                }
-              />
+              <div id={compactSettingsEditorId}>
+                <EnhancementControlGroups
+                  webSearchEnabled={webSearchEnabled}
+                  onWebSearchToggle={onWebSearchToggle}
+                  isEnhancing={isEnhancing}
+                  enhancementDepth={enhancementDepth}
+                  rewriteStrictness={rewriteStrictness}
+                  ambiguityMode={ambiguityMode}
+                  onEnhancementDepthChange={onEnhancementDepthChange}
+                  onRewriteStrictnessChange={onRewriteStrictnessChange}
+                  onAmbiguityModeChange={onAmbiguityModeChange}
+                  layout="stacked"
+                />
+              </div>
+              {(canResetPreferences || preferredAcceptedFormat) && (
+                <EnhancementPreferencesResetRow
+                  preferredAcceptedFormat={preferredAcceptedFormat}
+                  onResetPreferences={
+                    canResetPreferences ? onResetPreferences : undefined
+                  }
+                />
+              )}
             </div>
           ) : null}
         </EnhancementSettingsSummaryCard>

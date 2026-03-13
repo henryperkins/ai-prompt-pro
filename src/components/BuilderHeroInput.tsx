@@ -51,15 +51,24 @@ export function BuilderHeroInput({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [recoveryActionsOpen, setRecoveryActionsOpen] = useState(false);
   const hasRecoveryActions = Boolean(onResetAll || value);
+  const hasSuggestionChips = suggestionChips.length > 0;
+  const recoveryHelperMessage =
+    value && onResetAll
+      ? "Clear the draft or reset the builder when you need a clean starting point."
+      : value
+        ? "Clear the current draft when you want to start over."
+        : "Reset the builder settings when you want to return to the baseline setup.";
   const suggestionStatusMessage = isInferringSuggestions
     ? hasInferenceError
-      ? "Refreshing AI suggestions. Local suggestions remain available."
+      ? hasSuggestionChips
+        ? "Refreshing AI suggestions. Local suggestions remain available."
+        : "Refreshing AI suggestions..."
       : "Generating suggestions..."
     : inferenceStatusMessage;
   const shouldShowSuggestionPanel =
     phase3Enabled &&
     (Boolean(suggestionStatusMessage) ||
-      suggestionChips.length > 0 ||
+      hasSuggestionChips ||
       canResetInferred);
 
   useEffect(() => {
@@ -117,9 +126,7 @@ export function BuilderHeroInput({
                   className="w-full rounded-xl border border-border/70 bg-background/70 p-3 text-left sm:max-w-sm"
                   data-testid="builder-hero-recovery-actions"
                 >
-                  <p className="text-xs text-muted-foreground">
-                    Clear the draft or reset the builder when you need a clean starting point.
-                  </p>
+                  <p className="text-xs text-muted-foreground">{recoveryHelperMessage}</p>
                   <div className="mt-3 flex flex-wrap justify-end gap-2">
                     {value ? (
                       <Button
@@ -251,7 +258,7 @@ export function BuilderHeroInput({
                   {suggestionStatusMessage}
                 </p>
               )}
-              {suggestionChips.length > 0 && (
+              {hasSuggestionChips && (
                 <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                   {suggestionChips.map((chip) => (
                     <button

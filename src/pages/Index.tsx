@@ -111,7 +111,6 @@ import { brandCopy } from "@/lib/brand-copy";
 import {
   getHeroCopyVariant,
   getLaunchExperimentAssignments,
-  getPrimaryCtaVariantLabel,
 } from "@/lib/launch-experiments";
 import {
   Drawer,
@@ -157,7 +156,9 @@ const DEFAULT_AMBIGUITY_MODE: AmbiguityMode = "infer_conservatively";
 const BUILDER_INFERENCE_RETRY_BASE_MS = 10_000;
 const BUILDER_INFERENCE_RETRY_MAX_MS = 40_000;
 const BUILDER_INFERENCE_FALLBACK_MESSAGE =
-  "Using local suggestions while AI suggestions reconnect. We'll retry automatically.";
+  "Local suggestions remain available while AI retries automatically.";
+const BUILDER_INFERENCE_RETRYING_MESSAGE =
+  "AI suggestions are unavailable right now. Retrying automatically.";
 
 type EnhanceStreamEvent = CodexStreamEventMeta & {
   payload: unknown;
@@ -173,6 +174,14 @@ type EnhanceDebugEventSnapshot = {
   itemType: string | null;
   payloadPreview: string;
 };
+
+function getBuilderInferenceFallbackMessage(
+  hasLocalFallbackSuggestions: boolean,
+): string {
+  return hasLocalFallbackSuggestions
+    ? BUILDER_INFERENCE_FALLBACK_MESSAGE
+    : BUILDER_INFERENCE_RETRYING_MESSAGE;
+}
 
 function isReasoningSummaryEvent(
   meta: EnhanceStreamEvent,
@@ -967,15 +976,11 @@ const Index = () => {
 
   const launchAssignments = useMemo(() => getLaunchExperimentAssignments(), []);
   const heroCopyVariant = launchAssignments.heroCopy;
-  const primaryCtaVariant = launchAssignments.primaryCta;
   const heroCopy = useMemo(
     () => getHeroCopyVariant(heroCopyVariant),
     [heroCopyVariant],
   );
-  const primaryCtaLabel = useMemo(
-    () => getPrimaryCtaVariantLabel(primaryCtaVariant),
-    [primaryCtaVariant],
-  );
+  const primaryCtaLabel = brandCopy.hero.primaryCta;
 
   const tipsWithOwnership = useMemo(
     () => scorePrompt(config, fieldOwnership).tips,
@@ -1024,9 +1029,8 @@ const Index = () => {
       hasRemixParam: Boolean(remixId),
       hasPresetParam: Boolean(presetId),
       heroCopyExperimentEnabled: true,
-      primaryCtaExperimentEnabled: true,
+      primaryCtaExperimentEnabled: false,
       heroCopyVariant,
-      primaryCtaVariant,
     });
   }, [
     isMobile,
@@ -1034,7 +1038,6 @@ const Index = () => {
     remixId,
     presetId,
     heroCopyVariant,
-    primaryCtaVariant,
   ]);
 
   useEffect(() => {
@@ -2582,11 +2585,14 @@ const Index = () => {
       hasPresetOrRemix: Boolean(remixContext || presetId),
     });
     const localFallback = inferBuilderFieldsLocally(prompt, config, requestContext);
+    const hasLocalFallbackSuggestions = localFallback.suggestionChips.length > 0;
     const retryAt = builderInferenceRetryAt.current;
     if (typeof retryAt === "number" && retryAt > Date.now()) {
       setSuggestionChips(localFallback.suggestionChips);
       setHasInferenceError(true);
-      setInferenceStatusMessage(BUILDER_INFERENCE_FALLBACK_MESSAGE);
+      setInferenceStatusMessage(
+        getBuilderInferenceFallbackMessage(hasLocalFallbackSuggestions),
+      );
       setIsInferringSuggestions(false);
       return;
     }
@@ -2638,7 +2644,9 @@ const Index = () => {
           if (token !== suggestionLoadToken.current) return;
           setSuggestionChips(localFallback.suggestionChips);
           setHasInferenceError(true);
-          setInferenceStatusMessage(BUILDER_INFERENCE_FALLBACK_MESSAGE);
+          setInferenceStatusMessage(
+            getBuilderInferenceFallbackMessage(hasLocalFallbackSuggestions),
+          );
           scheduleBuilderInferenceRetry(error);
         } finally {
           window.clearTimeout(timeout);

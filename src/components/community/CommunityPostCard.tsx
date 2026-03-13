@@ -53,6 +53,7 @@ interface CommunityPostCardProps {
   onSharePost?: (post: CommunityPost) => void;
   onSaveToLibrary?: (postId: string) => void;
   followingUserIds?: Set<string>;
+  followStateReady?: boolean;
   currentUserId?: string | null;
   onToggleFollow?: (userId: string, isFollowing: boolean) => void;
   canVote: boolean;
@@ -62,6 +63,7 @@ interface CommunityPostCardProps {
   canModerate?: boolean;
   canBlockAuthor?: boolean;
   isAuthorBlocked?: boolean;
+  blockFilterReady?: boolean;
   blockedUserIds?: string[];
   onReportPost?: (post: CommunityPost) => void;
   onReportComment?: (commentId: string, userId: string, postId: string) => void;
@@ -89,6 +91,7 @@ function CommunityPostCardComponent({
   onSharePost,
   onSaveToLibrary,
   followingUserIds,
+  followStateReady = true,
   currentUserId,
   onToggleFollow,
   canVote,
@@ -98,6 +101,7 @@ function CommunityPostCardComponent({
   canModerate = false,
   canBlockAuthor = true,
   isAuthorBlocked = false,
+  blockFilterReady = true,
   blockedUserIds = [],
   onReportPost,
   onReportComment,
@@ -152,7 +156,7 @@ function CommunityPostCardComponent({
                 <Link to={`/profile/${post.authorId}`} className="type-author type-link-inline type-wrap-inline text-foreground">
                   {authorName}
                 </Link>
-                {onToggleFollow && currentUserId && post.authorId !== currentUserId && (
+                {followStateReady && onToggleFollow && currentUserId && post.authorId !== currentUserId && (
                   <Button
                     type="button"
                     size="sm"
@@ -445,6 +449,7 @@ function CommunityPostCardComponent({
             totalCount={post.commentCount}
             compact
             onCommentAdded={onCommentAdded}
+            blockFilterReady={blockFilterReady}
             blockedUserIds={blockedUserIds}
             onReportComment={onReportComment}
             onBlockUser={onBlockUser}
@@ -470,6 +475,7 @@ function CommunityPostCardComponent({
                   totalCount={post.commentCount}
                   onCommentAdded={onCommentAdded}
                   autoFocusComposer
+                  blockFilterReady={blockFilterReady}
                   blockedUserIds={blockedUserIds}
                   onReportComment={onReportComment}
                   onBlockUser={onBlockUser}
@@ -511,6 +517,7 @@ function arePropsEqual(previous: CommunityPostCardProps, next: CommunityPostCard
     previous.onSharePost === next.onSharePost &&
     previous.onSaveToLibrary === next.onSaveToLibrary &&
     previous.followingUserIds === next.followingUserIds &&
+    previous.followStateReady === next.followStateReady &&
     previous.currentUserId === next.currentUserId &&
     previous.onToggleFollow === next.onToggleFollow &&
     previous.canVote === next.canVote &&
@@ -526,6 +533,7 @@ function arePropsEqual(previous: CommunityPostCardProps, next: CommunityPostCard
     previous.onUnblockUser === next.onUnblockUser &&
     previous.onTagClick === next.onTagClick &&
     previous.featuredBadgeLabel === next.featuredBadgeLabel &&
+    previous.blockFilterReady === next.blockFilterReady &&
     previous.blockedUserIds === next.blockedUserIds &&
     areVoteStatesEqual(previous.voteState, next.voteState)
   );

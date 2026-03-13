@@ -137,22 +137,42 @@ describe("BuilderHeroInput", () => {
         phase3Enabled
         suggestionChips={longSuggestionChips}
         hasInferenceError
-        inferenceStatusMessage="Using local suggestions while AI suggestions reconnect. We'll retry automatically."
+        inferenceStatusMessage="Local suggestions remain available while AI retries automatically."
       />,
     );
 
     const status = screen.getByRole("status");
     expect(status).toHaveTextContent(
-      "Using local suggestions while AI suggestions reconnect. We'll retry automatically.",
+      "Local suggestions remain available while AI retries automatically.",
     );
     expect(
       screen.getAllByText(
-        "Using local suggestions while AI suggestions reconnect. We'll retry automatically.",
+        "Local suggestions remain available while AI retries automatically.",
       ),
     ).toHaveLength(1);
     expect(
       screen.queryByText("AI suggestions are temporarily unavailable."),
     ).not.toBeInTheDocument();
     expect(screen.getByText("Add evidence requirements")).toBeInTheDocument();
+  });
+
+  it("uses neutral retry copy when no local suggestion chips are available", () => {
+    render(
+      <BuilderHeroInput
+        value="Tighten this prompt into a concise analysis brief."
+        onChange={() => undefined}
+        onClear={() => undefined}
+        phase3Enabled
+        suggestionChips={[]}
+        isInferringSuggestions
+        hasInferenceError
+        inferenceStatusMessage="AI suggestions are unavailable right now. Retrying automatically."
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Refreshing AI suggestions...",
+    );
+    expect(screen.queryByText("Local suggestions remain available while AI retries automatically.")).not.toBeInTheDocument();
   });
 });
