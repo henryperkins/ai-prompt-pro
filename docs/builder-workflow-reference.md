@@ -48,8 +48,7 @@ doing a before/after comparison against older collateral:
 
 1. Write in the same hero field
 2. Use the sticky bar for `Builder readiness`, `Enhance prompt`, the preview
-   trigger (`No preview yet`, `Draft prompt`, or `Enhanced prompt`), and
-   `Settings`
+   trigger (`Preview`, `Draft`, or `Enhanced`), and `Settings`
 3. Open the `Enhancement settings` sheet for AI preferences and signed-in
    Codex session access
 4. Open the preview drawer to review, copy, and save the current output

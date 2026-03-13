@@ -989,10 +989,14 @@ test("runs mobile smoke flow for feed, filter, post open, and comments", async (
   await expect(page.locator(PROMPTFORGE_APP_SELECTOR)).toHaveCount(1);
   await expect(page.getByRole("heading", { name: "Community Remix Feed" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open Backend migration helper" })).toBeVisible();
+  await expect(
+    page.locator("[title='Estimated token count (~1.35x word count)']"),
+  ).toHaveCount(0);
 
   const filterTrigger = page.getByTestId("community-filter-trigger");
   await filterTrigger.click();
   await expect(page.getByTestId("community-filter-sheet")).toBeVisible();
+  await expect(page.getByTestId("community-filter-sort-option").first()).toBeVisible();
 
   await page.getByRole("button", { name: /^Backend/ }).click();
   await expect(page.getByTestId("community-filter-sheet")).toBeHidden();

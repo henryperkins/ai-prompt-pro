@@ -58,8 +58,9 @@ export function VersionHistoryContent({
         <StateCard
           variant="empty"
           title="No saved versions yet"
-          description="Save a prompt to create restorable versions in this history panel."
+          description="Save a prompt in Builder to create restorable versions here, or open Presets when you want a fresh scaffold."
           primaryAction={{ label: "Go to Builder", to: "/" }}
+          secondaryAction={{ label: "Open Presets", to: "/presets" }}
         />
       ) : (
         versions.map((version) => (

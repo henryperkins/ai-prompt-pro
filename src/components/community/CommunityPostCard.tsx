@@ -129,6 +129,28 @@ function CommunityPostCardComponent({
     return post.tags.slice(0, isMobile ? mobileMax : desktopMax);
   }, [isDeemphasized, isMobile, isSelected, post.tags]);
   const postPath = `/community/${post.id}`;
+  const remixCountBadge = (
+    <span className="type-numeric inline-flex items-center gap-1 rounded-full border border-border/70 bg-background/70 px-2.5 py-1.5">
+      <GitBranch className="h-3.5 w-3.5" />
+      {post.remixCount}
+    </span>
+  );
+  const ratingSummaryBadge = (
+    <span
+      aria-label={ratingSummaryAriaLabel}
+      data-testid="community-card-rating-summary"
+      className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/70 px-2.5 py-1.5"
+    >
+      <Star
+        className={cx(
+          "h-3.5 w-3.5",
+          ratingCount > 0 ? "fill-primary text-primary" : "text-muted-foreground",
+        )}
+      />
+      <span className="type-numeric">{ratingAverage.toFixed(1)}</span>
+      <span className="type-numeric text-muted-foreground/80">({ratingCount})</span>
+    </span>
+  );
 
   return (
     <Card
@@ -295,153 +317,264 @@ function CommunityPostCardComponent({
           </div>
         )}
 
-        <div className="type-meta flex flex-wrap items-center justify-between gap-2.5 border-t border-border/65 pt-3 text-foreground/80">
-          <div className="flex flex-wrap items-center gap-3">
-            <span
-              className="type-numeric inline-flex items-center gap-1 font-mono"
-              title="Estimated token count (~1.35x word count)"
+        {isMobile ? (
+          <>
+            <div
+              className="flex flex-wrap items-center justify-end gap-2 border-t border-border/65 pt-3"
+              data-testid="community-card-primary-actions"
             >
-              <Database className="h-3.5 w-3.5" />
-              {tokenEstimate}t
-            </span>
-            <span className="type-numeric inline-flex items-center gap-1">
-              <GitBranch className="h-3.5 w-3.5" />
-              {post.remixCount}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            {onSaveToLibrary && (
+              {onSaveToLibrary && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="type-button-label utility-action-button"
+                  onClick={() => onSaveToLibrary(post.id)}
+                  data-testid="community-save-cta"
+                >
+                  <BookmarkPlus className="h-3.5 w-3.5" />
+                  Save
+                </Button>
+              )}
               <Button
                 type="button"
-                variant="secondary"
+                variant="primary"
                 size="sm"
-                className="type-button-label utility-action-button"
-                onClick={() => onSaveToLibrary(post.id)}
-                data-testid="community-save-cta"
+                className="type-button-label utility-action-button min-w-[84px]"
+                onClick={() => navigate(`/?remix=${post.id}`)}
+                data-testid="community-remix-cta"
               >
-                <BookmarkPlus className="h-3.5 w-3.5" />
-                Save
+                Remix
               </Button>
-            )}
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              className="type-button-label utility-action-button min-w-[84px]"
-              onClick={() => navigate(`/?remix=${post.id}`)}
-              data-testid="community-remix-cta"
-            >
-              Remix
-            </Button>
-            {(onSharePost || onCopyPrompt) && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="tertiary"
-                    size="sm"
-                    className="type-button-label utility-action-button h-11 w-11 p-0 sm:h-10 sm:w-10"
-                    aria-label="More actions"
-                    data-testid="community-card-overflow"
-                  >
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {onSharePost && (
+              {(onSharePost || onCopyPrompt) && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="tertiary"
+                      size="sm"
+                      className="type-button-label utility-action-button h-11 w-11 p-0"
+                      aria-label="More actions"
+                      data-testid="community-card-overflow"
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {onSharePost && (
+                      <DropdownMenuItem
+                        onSelect={(event) => {
+                          event.preventDefault();
+                          onSharePost(post);
+                        }}
+                      >
+                        <Share2 className="mr-2 h-4 w-4" />
+                        Share post
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem
                       onSelect={(event) => {
                         event.preventDefault();
-                        onSharePost(post);
+                        onCopyPrompt(post);
                       }}
                     >
-                      <Share2 className="mr-2 h-4 w-4" />
-                      Share post
+                      <Copy className="mr-2 h-4 w-4" />
+                      Copy prompt
                     </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem
-                    onSelect={(event) => {
-                      event.preventDefault();
-                      onCopyPrompt(post);
-                    }}
-                  >
-                    <Copy className="mr-2 h-4 w-4" />
-                    Copy prompt
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
-        </div>
-
-        <div
-          className={cx(
-            "type-meta gap-2.5 text-foreground/80",
-            isMobile ? "flex flex-wrap items-center" : "flex flex-wrap items-center",
-          )}
-        >
-          <Button
-            type="button"
-            size="sm"
-            variant={voteState?.upvote ? "primary" : "secondary"}
-            className="type-button-label interactive-chip h-11 min-w-11 gap-1.5 px-3 sm:h-9 sm:min-w-9 sm:gap-1 sm:px-2.5"
-            disabled={!canVote}
-            onClick={() => onToggleVote(post.id, "upvote")}
-            data-testid="community-vote-upvote"
-          >
-            <ArrowUp className="h-3.5 w-3.5" />
-            <span className="type-numeric">{post.upvoteCount}</span>
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant={voteState?.verified ? "primary" : "secondary"}
-            className="type-button-label interactive-chip h-11 min-w-11 gap-1.5 px-3 sm:h-9 sm:min-w-9 sm:gap-1 sm:px-2.5"
-            disabled={!canVote}
-            onClick={() => onToggleVote(post.id, "verified")}
-            data-testid="community-vote-verified"
-          >
-            <CheckCircle2 className="h-3.5 w-3.5" />
-            <span className="type-numeric">{post.verifiedCount}</span>
-          </Button>
-          <Button
-            type="button"
-            variant="tertiary"
-            size="sm"
-            className="type-button-label interactive-chip h-11 min-w-11 gap-1.5 px-3 sm:h-9 sm:min-w-9 sm:px-2.5"
-            aria-label={post.commentCount > 0 ? `Comments ${post.commentCount}` : "Comments"}
-            onClick={() => {
-              if (useMobileCommentsDrawer) {
-                setCommentsOpen(true);
-                onCommentThreadOpen?.(post.id);
-                return;
-              }
-              setCommentsOpen((prev) => !prev);
-            }}
-            data-testid="community-comment-toggle"
-          >
-            <MessageCircle className="h-3.5 w-3.5" />
-            {post.commentCount > 0 && (
-              <span className="type-numeric">{post.commentCount}</span>
-            )}
-          </Button>
-        </div>
-
-        <div className="type-meta flex flex-wrap items-center gap-2 text-foreground/80">
-          <span
-            aria-label={ratingSummaryAriaLabel}
-            className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/70 px-2.5 py-1.5"
-          >
-            <Star
-              className={cx(
-                "h-3.5 w-3.5",
-                ratingCount > 0 ? "fill-primary text-primary" : "text-muted-foreground",
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
-            />
-            <span className="type-numeric">{ratingAverage.toFixed(1)}</span>
-            <span className="type-numeric text-muted-foreground/80">({ratingCount})</span>
-          </span>
-        </div>
+            </div>
+
+            <div
+              className="type-meta flex flex-wrap items-center gap-2.5 text-foreground/80"
+              data-testid="community-card-engagement-row"
+            >
+              {remixCountBadge}
+              {ratingSummaryBadge}
+              <Button
+                type="button"
+                size="sm"
+                variant={voteState?.upvote ? "primary" : "secondary"}
+                className="type-button-label interactive-chip h-11 min-w-11 gap-1.5 px-3 sm:h-9 sm:min-w-9 sm:gap-1 sm:px-2.5"
+                disabled={!canVote}
+                onClick={() => onToggleVote(post.id, "upvote")}
+                data-testid="community-vote-upvote"
+              >
+                <ArrowUp className="h-3.5 w-3.5" />
+                <span className="type-numeric">{post.upvoteCount}</span>
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={voteState?.verified ? "primary" : "secondary"}
+                className="type-button-label interactive-chip h-11 min-w-11 gap-1.5 px-3 sm:h-9 sm:min-w-9 sm:gap-1 sm:px-2.5"
+                disabled={!canVote}
+                onClick={() => onToggleVote(post.id, "verified")}
+                data-testid="community-vote-verified"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                <span className="type-numeric">{post.verifiedCount}</span>
+              </Button>
+              <Button
+                type="button"
+                variant="tertiary"
+                size="sm"
+                className="type-button-label interactive-chip h-11 min-w-11 gap-1.5 px-3 sm:h-9 sm:min-w-9 sm:px-2.5"
+                aria-label={post.commentCount > 0 ? `Comments ${post.commentCount}` : "Comments"}
+                onClick={() => {
+                  if (useMobileCommentsDrawer) {
+                    setCommentsOpen(true);
+                    onCommentThreadOpen?.(post.id);
+                    return;
+                  }
+                  setCommentsOpen((prev) => !prev);
+                }}
+                data-testid="community-comment-toggle"
+              >
+                <MessageCircle className="h-3.5 w-3.5" />
+                {post.commentCount > 0 && (
+                  <span className="type-numeric">{post.commentCount}</span>
+                )}
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="type-meta flex flex-wrap items-center justify-between gap-2.5 border-t border-border/65 pt-3 text-foreground/80">
+              <div className="flex flex-wrap items-center gap-3">
+                <span
+                  className="type-numeric inline-flex items-center gap-1 font-mono"
+                  title="Estimated token count (~1.35x word count)"
+                >
+                  <Database className="h-3.5 w-3.5" />
+                  {tokenEstimate}t
+                </span>
+                <span className="type-numeric inline-flex items-center gap-1">
+                  <GitBranch className="h-3.5 w-3.5" />
+                  {post.remixCount}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                {onSaveToLibrary && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="type-button-label utility-action-button"
+                    onClick={() => onSaveToLibrary(post.id)}
+                    data-testid="community-save-cta"
+                  >
+                    <BookmarkPlus className="h-3.5 w-3.5" />
+                    Save
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  className="type-button-label utility-action-button min-w-[84px]"
+                  onClick={() => navigate(`/?remix=${post.id}`)}
+                  data-testid="community-remix-cta"
+                >
+                  Remix
+                </Button>
+                {(onSharePost || onCopyPrompt) && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="tertiary"
+                        size="sm"
+                        className="type-button-label utility-action-button h-11 w-11 p-0 sm:h-10 sm:w-10"
+                        aria-label="More actions"
+                        data-testid="community-card-overflow"
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {onSharePost && (
+                        <DropdownMenuItem
+                          onSelect={(event) => {
+                            event.preventDefault();
+                            onSharePost(post);
+                          }}
+                        >
+                          <Share2 className="mr-2 h-4 w-4" />
+                          Share post
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem
+                        onSelect={(event) => {
+                          event.preventDefault();
+                          onCopyPrompt(post);
+                        }}
+                      >
+                        <Copy className="mr-2 h-4 w-4" />
+                        Copy prompt
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
+            </div>
+
+            <div className="type-meta flex flex-wrap items-center gap-2.5 text-foreground/80">
+              <Button
+                type="button"
+                size="sm"
+                variant={voteState?.upvote ? "primary" : "secondary"}
+                className="type-button-label interactive-chip h-11 min-w-11 gap-1.5 px-3 sm:h-9 sm:min-w-9 sm:gap-1 sm:px-2.5"
+                disabled={!canVote}
+                onClick={() => onToggleVote(post.id, "upvote")}
+                data-testid="community-vote-upvote"
+              >
+                <ArrowUp className="h-3.5 w-3.5" />
+                <span className="type-numeric">{post.upvoteCount}</span>
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={voteState?.verified ? "primary" : "secondary"}
+                className="type-button-label interactive-chip h-11 min-w-11 gap-1.5 px-3 sm:h-9 sm:min-w-9 sm:gap-1 sm:px-2.5"
+                disabled={!canVote}
+                onClick={() => onToggleVote(post.id, "verified")}
+                data-testid="community-vote-verified"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                <span className="type-numeric">{post.verifiedCount}</span>
+              </Button>
+              <Button
+                type="button"
+                variant="tertiary"
+                size="sm"
+                className="type-button-label interactive-chip h-11 min-w-11 gap-1.5 px-3 sm:h-9 sm:min-w-9 sm:px-2.5"
+                aria-label={post.commentCount > 0 ? `Comments ${post.commentCount}` : "Comments"}
+                onClick={() => {
+                  if (useMobileCommentsDrawer) {
+                    setCommentsOpen(true);
+                    onCommentThreadOpen?.(post.id);
+                    return;
+                  }
+                  setCommentsOpen((prev) => !prev);
+                }}
+                data-testid="community-comment-toggle"
+              >
+                <MessageCircle className="h-3.5 w-3.5" />
+                {post.commentCount > 0 && (
+                  <span className="type-numeric">{post.commentCount}</span>
+                )}
+              </Button>
+            </div>
+          </>
+        )}
+
+        {!isMobile && (
+          <div className="type-meta flex flex-wrap items-center gap-2 text-foreground/80">
+            {ratingSummaryBadge}
+          </div>
+        )}
 
         {!useMobileCommentsDrawer && commentsOpen && (
           <CommunityComments

@@ -47,6 +47,9 @@
   --pf-slow: 360ms;
 
   --pf-sticky-header-height: 3rem;
+  --pf-mobile-nav-link-min-height: 3.5rem;
+  --pf-mobile-nav-occupied-height: calc(4.375rem + env(safe-area-inset-bottom));
+  --pf-builder-mobile-sticky-reserved-height: 5.5rem;
 
   --pf-font-display: Cinzel, "Trajan Pro", "Times New Roman", serif;
   --pf-font-body: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
@@ -138,14 +141,59 @@
   text-shadow: 0 1px 10px rgba(0, 0, 0, 0.45);
 }
 
+.page-hero {
+  margin-bottom: 1rem;
+  padding: 1rem;
+}
+
+.page-hero[data-page-hero-pattern="collection"] {
+  max-width: 100%;
+}
+
+.page-hero[data-page-hero-pattern="utility"] {
+  max-width: 42rem;
+  margin-inline: auto;
+}
+
+.page-hero[data-page-hero-pattern="collection"] .page-hero-title {
+  max-width: 18ch;
+  margin-inline: auto;
+  font-size: clamp(1.5rem, 3vw, 1.95rem);
+  line-height: 1.1;
+}
+
+.page-hero[data-page-hero-pattern="utility"] .page-hero-title {
+  max-width: 16ch;
+  margin-inline: auto;
+  font-size: clamp(1.35rem, 2.4vw, 1.75rem);
+  line-height: 1.15;
+}
+
 .pf-hero-surface .page-hero-title {
   color: rgba(var(--pf-parchment-rgb) / 0.97);
   text-shadow: 0 3px 14px rgba(0, 0, 0, 0.52);
 }
 
+.page-hero[data-page-hero-pattern="collection"] .page-hero-subtitle {
+  max-width: 42rem;
+  font-size: clamp(0.95rem, 1.3vw, 1rem);
+  line-height: 1.55;
+}
+
+.page-hero[data-page-hero-pattern="utility"] .page-hero-subtitle {
+  max-width: 34rem;
+  font-size: clamp(0.9rem, 1.15vw, 0.98rem);
+  line-height: 1.5;
+}
+
 .pf-hero-surface .page-hero-subtitle {
   color: rgba(var(--pf-parchment-rgb) / 0.92);
   text-shadow: 0 1px 10px rgba(0, 0, 0, 0.46);
+}
+
+.page-hero-support {
+  display: flex;
+  justify-content: center;
 }
 
 .pf-panel {
@@ -522,10 +570,26 @@
     border-radius: var(--pf-radius-md);
   }
 
+  .page-hero {
+    padding: 1rem;
+  }
+
   .pf-hero-surface .page-hero-title,
   .pf-hero-surface .page-hero-subtitle {
     max-width: 26ch;
     margin-inline: auto;
+  }
+}
+
+@media (min-width: 640px) {
+  .page-hero {
+    margin-bottom: 1.5rem;
+    padding: 1.5rem;
+  }
+
+  .page-hero[data-page-hero-pattern="utility"] {
+    padding-top: 1.25rem;
+    padding-bottom: 1.25rem;
   }
 }
 

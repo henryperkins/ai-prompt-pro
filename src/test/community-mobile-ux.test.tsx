@@ -178,14 +178,19 @@ describe("community mobile UX", () => {
 
     const sheet = await screen.findByTestId("community-filter-sheet");
     expect(sheet).toBeVisible();
-    expect(screen.getByText("Choose a community category to filter visible prompts.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Choose a category and sort order for the visible prompts."),
+    ).toBeInTheDocument();
+    expect(
+      within(sheet).getAllByTestId("community-filter-sort-option").length,
+    ).toBeGreaterThan(0);
 
     fireEvent.click(within(sheet).getByRole("button", { name: /^Backend/ }));
 
     await waitFor(() => {
       expect(screen.getByTestId("community-filter-sheet")).toHaveAttribute("data-state", "closed");
     });
-    expect(trigger).toHaveTextContent("Backend");
+    expect(trigger).toHaveTextContent("Backend · Newest");
 
     await waitFor(() => {
       expect(mocks.loadFeed).toHaveBeenCalledWith(
@@ -233,6 +238,35 @@ describe("community mobile UX", () => {
     expect(commentsSheet).toBeVisible();
     expect(screen.getByText("Read and add comments for this prompt.")).toBeInTheDocument();
     expect(screen.getByTestId("community-comments-card-post-1")).toBeInTheDocument();
+  });
+
+  it("keeps mobile feed cards remix-first and hides low-value token metadata", async () => {
+    const { CommunityPostCard } = await importCardAndDetail();
+    const post = createPost({ id: "card-post-density" });
+
+    render(
+      <MemoryRouter future={memoryRouterFuture}>
+        <CommunityPostCard
+          post={post}
+          authorName="Prompt Dev"
+          onCopyPrompt={vi.fn()}
+          onToggleVote={vi.fn()}
+          onCommentAdded={vi.fn()}
+          onSharePost={vi.fn()}
+          onSaveToLibrary={vi.fn()}
+          canVote
+        />
+      </MemoryRouter>,
+    );
+
+    const primaryActions = screen.getByTestId("community-card-primary-actions");
+    const engagementRow = screen.getByTestId("community-card-engagement-row");
+
+    expect(
+      Boolean(primaryActions.compareDocumentPosition(engagementRow) & Node.DOCUMENT_POSITION_FOLLOWING),
+    ).toBe(true);
+    expect(within(primaryActions).getByTestId("community-remix-cta")).toBeVisible();
+    expect(screen.queryByTitle("Estimated token count (~1.35x word count)")).not.toBeInTheDocument();
   });
 
   it("opens comments drawer from CommunityPostDetail on mobile", async () => {
@@ -301,6 +335,43 @@ describe("community mobile UX", () => {
     expect(within(actionGroup).getByTestId("community-detail-save-cta")).toBeVisible();
     expect(within(actionGroup).queryByTestId("community-detail-moderation-trigger")).not.toBeInTheDocument();
     expect(screen.getByTestId("community-detail-moderation-trigger")).toBeVisible();
+  });
+
+  it("keeps mobile detail participation actions ahead of secondary stats", async () => {
+    const { CommunityPostDetail } = await importCardAndDetail();
+    const post = createPost({ id: "detail-post-participation" });
+
+    render(
+      <MemoryRouter future={memoryRouterFuture}>
+        <CommunityPostDetail
+          post={post}
+          authorName="Prompt Dev"
+          parentPost={null}
+          remixes={[]}
+          authorById={{}}
+          onCopyPrompt={vi.fn()}
+          onToggleVote={vi.fn()}
+          onCommentAdded={vi.fn()}
+          onCommentThreadOpen={vi.fn()}
+          canVote
+          canSaveToLibrary
+          onSaveToLibrary={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    const participationActions = screen.getByTestId("community-detail-participation-actions");
+    const participationStats = screen.getByTestId("community-detail-participation-stats");
+
+    expect(
+      Boolean(participationActions.compareDocumentPosition(participationStats) & Node.DOCUMENT_POSITION_FOLLOWING),
+    ).toBe(true);
+    expect(
+      within(participationActions).getByTestId("community-comments-thread-trigger"),
+    ).toBeVisible();
+    expect(
+      within(participationStats).getByTestId("community-detail-rating-summary"),
+    ).toBeVisible();
   });
 
   it("auto-opens comments drawer on notification entry for CommunityPostDetail", async () => {

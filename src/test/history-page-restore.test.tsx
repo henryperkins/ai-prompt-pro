@@ -8,6 +8,14 @@ const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
   toast: vi.fn(),
   queueRestoredVersionPrompt: vi.fn(),
+  versions: [
+    {
+      id: "v1",
+      name: "Version 1",
+      prompt: "Prompt body",
+      timestamp: 1_720_000_000_000,
+    },
+  ],
 }));
 
 vi.mock("react-router-dom", async () => {
@@ -24,14 +32,7 @@ vi.mock("@/hooks/use-toast", () => ({
 
 vi.mock("@/hooks/usePromptBuilder", () => ({
   usePromptBuilder: () => ({
-    versions: [
-      {
-        id: "v1",
-        name: "Version 1",
-        prompt: "Prompt body",
-        timestamp: 1_720_000_000_000,
-      },
-    ],
+    versions: mocks.versions,
   }),
 }));
 
@@ -46,6 +47,28 @@ vi.mock("@/lib/history-restore", () => ({
 describe("History restore behavior", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.versions = [
+      {
+        id: "v1",
+        name: "Version 1",
+        prompt: "Prompt body",
+        timestamp: 1_720_000_000_000,
+      },
+    ];
+  });
+
+  it("shows builder and presets recovery actions when versions exist", () => {
+    render(
+      <ThemeProvider>
+        <MemoryRouter>
+          <History />
+        </MemoryRouter>
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByRole("heading", { name: "Version History" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open Builder" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Open Presets" })).toHaveAttribute("href", "/presets");
   });
 
   it("shows an error and does not navigate when restore queueing fails", () => {
@@ -89,5 +112,21 @@ describe("History restore behavior", () => {
         title: "Version ready",
       }),
     );
+  });
+
+  it("offers presets as a fallback when no saved versions exist", () => {
+    mocks.versions = [];
+
+    render(
+      <ThemeProvider>
+        <MemoryRouter>
+          <History />
+        </MemoryRouter>
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByText("No saved versions yet")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Go to Builder" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Open Presets" })).toHaveAttribute("href", "/presets");
   });
 });

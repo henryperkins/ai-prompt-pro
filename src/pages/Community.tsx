@@ -149,6 +149,9 @@ const Community = () => {
   const categoryPanelId = "community-search-categories";
   const selectedCategoryLabel =
     CATEGORY_OPTIONS.find((option) => option.value === category)?.label ?? "All";
+  const selectedSortLabel =
+    SORT_OPTIONS.find((option) => option.value === sort)?.label ?? "Newest";
+  const mobileFilterSummary = `${selectedCategoryLabel} · ${selectedSortLabel}`;
   const showAuthDiscoveryState = !user && !loading && posts.length === 0 && errorState?.kind === "auth";
   const communitySubtitle = showAuthDiscoveryState
     ? isFollowingMode
@@ -724,7 +727,6 @@ const Community = () => {
           eyebrow={brandCopy.brandLine}
           title="Community Remix Feed"
           subtitle={communitySubtitle}
-          className="pf-gilded-frame pf-hero-surface"
         />
 
         {!showAuthDiscoveryState && (
@@ -777,9 +779,9 @@ const Community = () => {
                     }}
                     data-testid="community-filter-trigger"
                   >
-                    <span>Filter</span>
+                    <span>Filters</span>
                     <span className="type-meta type-wrap-safe max-w-[65%] text-right text-muted-foreground">
-                      {selectedCategoryLabel}
+                      {mobileFilterSummary}
                     </span>
                   </Button>
                 )}
@@ -846,7 +848,7 @@ const Community = () => {
               )}
             </div>
 
-            <div className="mb-5 space-y-4">
+            <div className="mb-5 space-y-3 sm:space-y-4">
               <fieldset className="space-y-2">
                 <legend className="type-meta mb-1 font-semibold uppercase tracking-wider text-foreground/85">
                   Feed
@@ -886,35 +888,37 @@ const Community = () => {
                 )}
               </fieldset>
 
-              <fieldset className="space-y-2">
-                <legend className="type-meta mb-1 font-semibold uppercase tracking-wider text-foreground/85">
-                  Sort
-                </legend>
-                <div className="pf-community-toolbar grid grid-cols-2 gap-2 sm:flex sm:rounded-lg sm:bg-muted sm:p-1">
-                  {SORT_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      disabled={isFollowingMode}
-                      onClick={() => {
-                        setSort(option.value);
-                        trackFirstMeaningfulAction("sort_changed", { sort: option.value });
-                      }}
-                      aria-pressed={sort === option.value}
-                      data-testid="community-sort-button"
-                      className={cx(
-                        "type-tab-label h-11 rounded-lg px-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 sm:h-11 sm:flex-1 sm:px-2.5",
-                        isFollowingMode && "cursor-not-allowed opacity-60",
-                        sort === option.value
-                          ? "border border-primary/35 bg-primary/12 text-foreground shadow-sm"
-                          : "bg-muted/75 text-muted-foreground hover:bg-background/65 hover:text-foreground sm:bg-transparent",
-                      )}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </fieldset>
+              {!mobileEnhancementsEnabled && (
+                <fieldset className="space-y-2">
+                  <legend className="type-meta mb-1 font-semibold uppercase tracking-wider text-foreground/85">
+                    Sort
+                  </legend>
+                  <div className="pf-community-toolbar grid grid-cols-2 gap-2 sm:flex sm:rounded-lg sm:bg-muted sm:p-1">
+                    {SORT_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        disabled={isFollowingMode}
+                        onClick={() => {
+                          setSort(option.value);
+                          trackFirstMeaningfulAction("sort_changed", { sort: option.value });
+                        }}
+                        aria-pressed={sort === option.value}
+                        data-testid="community-sort-button"
+                        className={cx(
+                          "type-tab-label h-11 rounded-lg px-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 sm:h-11 sm:flex-1 sm:px-2.5",
+                          isFollowingMode && "cursor-not-allowed opacity-60",
+                          sort === option.value
+                            ? "border border-primary/35 bg-primary/12 text-foreground shadow-sm"
+                            : "bg-muted/75 text-muted-foreground hover:bg-background/65 hover:text-foreground sm:bg-transparent",
+                        )}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+              )}
             </div>
           </>
         )}
@@ -962,42 +966,80 @@ const Community = () => {
               data-testid="community-filter-sheet"
             >
               <DrawerHeader className="pb-1">
-                <DrawerTitle className="type-post-title">Filter Categories</DrawerTitle>
+                <DrawerTitle className="type-post-title">Feed filters</DrawerTitle>
                 <DrawerDescription className="sr-only">
-                  Choose a community category to filter visible prompts.
+                  Choose a category and sort order for the visible prompts.
                 </DrawerDescription>
               </DrawerHeader>
               <div className="px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-                <p className="type-help mb-2 text-muted-foreground">
-                  Current: <span className="font-medium text-foreground">{selectedCategoryLabel}</span>
+                <p className="type-help mb-3 text-muted-foreground">
+                  Current: <span className="font-medium text-foreground">{mobileFilterSummary}</span>
                 </p>
                 <ScrollArea className="max-h-[52vh] pr-2">
-                  <div className="space-y-1.5 pb-1">
-                    {CATEGORY_OPTIONS.map((option) => {
-                      const isSelected = category === option.value;
-                      return (
-                        <button
-                          key={option.value}
-                          type="button"
-                          className={cx(
-                            "type-tab-label flex h-11 w-full items-center justify-between rounded-md border px-3 text-left",
-                            isSelected
-                              ? "border-primary/35 bg-primary/10 text-foreground"
-                              : "border-border/70 bg-background text-foreground",
-                          )}
-                          onClick={() => {
-                            trackFirstMeaningfulAction("filter_selected", { category: option.value });
-                            setCategory(option.value);
-                            setMobileCategorySheetOpen(false);
-                          }}
-                        >
-                          <span>{option.label}</span>
-                          <span className="type-meta text-muted-foreground">
-                            {isSelected ? "Selected" : "Filter"}
-                          </span>
-                        </button>
-                      );
-                    })}
+                  <div className="space-y-4 pb-1">
+                    <section className="space-y-1.5">
+                      <p className="type-reply-label type-label-caps text-muted-foreground">
+                        Category
+                      </p>
+                      {CATEGORY_OPTIONS.map((option) => {
+                        const isSelected = category === option.value;
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            className={cx(
+                              "type-tab-label flex h-11 w-full items-center justify-between rounded-md border px-3 text-left",
+                              isSelected
+                                ? "border-primary/35 bg-primary/10 text-foreground"
+                                : "border-border/70 bg-background text-foreground",
+                            )}
+                            onClick={() => {
+                              trackFirstMeaningfulAction("filter_selected", { category: option.value });
+                              setCategory(option.value);
+                              setMobileCategorySheetOpen(false);
+                            }}
+                          >
+                            <span>{option.label}</span>
+                            <span className="type-meta text-muted-foreground">
+                              {isSelected ? "Selected" : "Filter"}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </section>
+
+                    <section className="space-y-1.5">
+                      <p className="type-reply-label type-label-caps text-muted-foreground">
+                        Sort
+                      </p>
+                      {SORT_OPTIONS.map((option) => {
+                        const isSelected = sort === option.value;
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            data-testid="community-filter-sort-option"
+                            aria-pressed={isSelected}
+                            className={cx(
+                              "type-tab-label flex h-11 w-full items-center justify-between rounded-md border px-3 text-left",
+                              isSelected
+                                ? "border-primary/35 bg-primary/10 text-foreground"
+                                : "border-border/70 bg-background text-foreground",
+                            )}
+                            onClick={() => {
+                              setSort(option.value);
+                              trackFirstMeaningfulAction("sort_changed", { sort: option.value });
+                              setMobileCategorySheetOpen(false);
+                            }}
+                          >
+                            <span>{option.label}</span>
+                            <span className="type-meta text-muted-foreground">
+                              {isSelected ? "Selected" : "Sort"}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </section>
                   </div>
                 </ScrollArea>
               </div>

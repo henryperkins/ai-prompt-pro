@@ -1,16 +1,14 @@
 import { Link } from "react-router-dom";
 import { PageHero, PageShell } from "@/components/PageShell";
 import { Card } from "@/components/base/card";
-import { brandCopy } from "@/lib/brand-copy";
 
 const Privacy = () => {
   return (
     <PageShell>
       <PageHero
-        eyebrow={brandCopy.brandLine}
+        pattern="utility"
         title="Privacy Policy"
         subtitle="How PromptForge handles account, usage, and community data."
-        className="pf-gilded-frame pf-hero-surface"
       />
 
       <div className="mx-auto max-w-3xl space-y-4">

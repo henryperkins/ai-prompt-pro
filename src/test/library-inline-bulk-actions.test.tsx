@@ -141,6 +141,36 @@ describe("Library inline bulk actions", () => {
     expect(screen.getByText("Release checklist")).toBeInTheDocument();
   });
 
+  it("clears stale bulk selection state when the library is empty", async () => {
+    window.sessionStorage.setItem("library-selection-ids", "[\"prompt-1\"]");
+    mocks.usePromptBuilder.mockReturnValue({
+      templateSummaries: [],
+      isSignedIn: true,
+      deleteSavedTemplate: vi.fn(),
+      deleteSavedTemplates: vi.fn().mockResolvedValue([]),
+      shareSavedPrompt: vi.fn(),
+      unshareSavedPrompt: vi.fn(),
+      unshareSavedPrompts: vi.fn().mockResolvedValue([]),
+    });
+
+    const { default: Library } = await import("@/pages/Library");
+    render(
+      <ThemeProvider>
+        <MemoryRouter>
+          <Library />
+        </MemoryRouter>
+      </ThemeProvider>,
+    );
+
+    await waitFor(() => {
+      expect(window.sessionStorage.getItem("library-selection-ids")).toBeNull();
+    });
+
+    expect(screen.getByText("Save your first prompt build")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Selected only" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Select all filtered prompts")).not.toBeInTheDocument();
+  });
+
   it("keeps compatibility by redirecting bulk-edit route to library", async () => {
     const { default: LibraryBulkEdit } = await import("@/pages/LibraryBulkEdit");
     render(

@@ -125,9 +125,9 @@ const SupportInbox = () => {
   return (
     <PageShell>
       <PageHero
+        pattern="utility"
         title="Support Inbox"
         subtitle="Review and triage contact form submissions."
-        className="pf-gilded-frame pf-hero-surface"
       />
 
       {access === "loading" && (

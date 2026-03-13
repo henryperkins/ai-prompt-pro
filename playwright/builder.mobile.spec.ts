@@ -212,7 +212,7 @@ test("captures Builder mobile sticky-bar ergonomics at 360-430px widths", async 
     expect(
       metric.stickyBarHeightPx,
       `width ${metric.width} sticky bar should stay compact enough to preserve builder space`,
-    ).toBeLessThanOrEqual(136);
+    ).toBeLessThanOrEqual(104);
     expect(
       metric.stickyOverlapWithBottomNavPx,
       `width ${metric.width} has sticky controls overlapping bottom navigation`,

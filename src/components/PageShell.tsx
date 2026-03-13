@@ -16,7 +16,7 @@ export function PageShell({ children, mainClassName }: PageShellProps) {
 
   return (
     <div
-      className="pf-shell-backdrop flex min-h-screen flex-col bg-background pb-[calc(4.375rem+env(safe-area-inset-bottom))] sm:pb-0"
+      className="pf-shell-backdrop flex min-h-screen flex-col bg-background pb-[var(--pf-mobile-nav-occupied-height)] sm:pb-0"
       data-testid="page-shell"
     >
       <Header theme={theme} onToggleTheme={toggleTheme} />
@@ -59,32 +59,61 @@ interface PageHeroProps {
   subtitle?: string;
   eyebrow?: string;
   className?: string;
+  pattern?: "collection" | "utility";
+  wordmark?: "auto" | "always" | "never";
+  children?: ReactNode;
 }
 
-export function PageHero({ title, subtitle, eyebrow, className }: PageHeroProps) {
+const PAGE_HERO_PATTERN_DEFAULTS = {
+  collection: {
+    showWordmark: true,
+  },
+  utility: {
+    showWordmark: false,
+  },
+} as const;
+
+export function PageHero({
+  title,
+  subtitle,
+  eyebrow,
+  className,
+  pattern = "collection",
+  wordmark = "auto",
+  children,
+}: PageHeroProps) {
+  const resolvedShowWordmark = wordmark === "always"
+    || (wordmark !== "never" && PAGE_HERO_PATTERN_DEFAULTS[pattern].showWordmark);
+
   return (
     <div
       className={cx(
-        "pf-gilded-frame pf-hero-surface mb-4 px-4 py-4 text-center sm:mb-6 sm:px-6 sm:py-6",
+        "page-hero pf-gilded-frame pf-hero-surface text-center",
         className
       )}
+      data-page-hero-pattern={pattern}
+      data-page-hero-wordmark={resolvedShowWordmark ? "shown" : "hidden"}
+      data-testid="page-hero"
     >
-      <div className="mb-2 flex items-center justify-center">
-        <img
-          src="/pf/promptforge-wordmark.png"
-          alt=""
-          decoding="async"
-          className="h-8 w-auto object-contain sm:h-9"
-          aria-hidden="true"
-        />
-      </div>
+      {resolvedShowWordmark ? (
+        <div className="page-hero-wordmark mb-2 flex items-center justify-center" data-testid="page-hero-wordmark">
+          <img
+            src="/pf/promptforge-wordmark.png"
+            alt=""
+            decoding="async"
+            className="h-8 w-auto object-contain sm:h-9"
+            aria-hidden="true"
+          />
+        </div>
+      ) : null}
       {eyebrow && <p className="ui-section-label text-primary">{eyebrow}</p>}
-      <h1 className="page-hero-title type-screen-title pf-text-display text-xl font-bold text-foreground sm:text-3xl">{title}</h1>
+      <h1 className="page-hero-title type-screen-title pf-text-display font-bold text-foreground">{title}</h1>
       {subtitle && (
-        <p className="page-hero-subtitle type-screen-subtitle mx-auto mt-1.5 max-w-2xl text-sm text-muted-foreground sm:text-base">
+        <p className="page-hero-subtitle type-screen-subtitle mx-auto mt-1.5 text-muted-foreground">
           {subtitle}
         </p>
       )}
+      {children ? <div className="page-hero-support mt-3">{children}</div> : null}
     </div>
   );
 }

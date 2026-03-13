@@ -156,7 +156,7 @@ const DEFAULT_AMBIGUITY_MODE: AmbiguityMode = "infer_conservatively";
 const BUILDER_INFERENCE_RETRY_BASE_MS = 10_000;
 const BUILDER_INFERENCE_RETRY_MAX_MS = 40_000;
 const BUILDER_INFERENCE_FALLBACK_MESSAGE =
-  "Local suggestions remain available while AI retries automatically.";
+  "Using local suggestions while AI suggestions reconnect. We'll retry automatically.";
 const BUILDER_INFERENCE_RETRYING_MESSAGE =
   "AI suggestions are unavailable right now. Retrying automatically.";
 
@@ -2359,6 +2359,12 @@ const Index = () => {
     : currentPreviewPrompt.trim()
       ? "Draft prompt"
       : "No preview yet";
+  const mobilePreviewActionLabel = hasCurrentEnhancedOutput
+    ? "Enhanced"
+    : currentPreviewPrompt.trim()
+      ? "Draft"
+      : "Preview";
+  const mobilePreviewTitle = `${mobilePreviewLabel}. ${mobilePreviewText}`;
   const mobileEnhancementSummary = useMemo(
     () =>
       getEnhancementSettingsSummary({
@@ -3329,15 +3335,14 @@ const Index = () => {
       {/* Mobile: sticky bottom bar */}
       {isMobile && (
         <div
-          className="fixed inset-x-0 bottom-[calc(4.375rem+env(safe-area-inset-bottom)+1px)] z-30 border-t border-border bg-card/95 px-3 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:bottom-0"
+          className="fixed inset-x-0 bottom-[calc(var(--pf-mobile-nav-occupied-height)+1px)] z-30 border-t border-border bg-card/95 px-3 py-2 backdrop-blur-sm sm:bottom-0"
           data-testid="builder-mobile-sticky-bar"
         >
-          {/* Row 1: Score + Enhance (primary actions) */}
           <div className="flex items-center gap-2">
             <Badge
               variant="pill"
               tone={score.total >= 75 ? "brand" : "default"}
-              className="relative h-11 min-w-16 justify-center overflow-hidden rounded-md px-2 text-sm font-semibold"
+              className="relative h-11 min-w-16 shrink-0 justify-center overflow-hidden rounded-md px-2 text-sm font-semibold"
               aria-label={builderQualityLabel}
               title={builderQualityLabel}
             >
@@ -3360,35 +3365,33 @@ const Index = () => {
               className="h-11 min-w-0 flex-1"
               dataTestId="builder-mobile-enhance-button"
             />
-          </div>
-
-          {/* Row 2: Preview trigger + Settings */}
-          <div className="mt-2 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setDrawerOpen(true)}
-              className="interactive-chip flex-1 min-h-11 rounded-lg border border-border/80 bg-background/70 px-3 py-1.5 text-left"
-              aria-label="Open output preview"
-              data-testid="builder-mobile-preview-trigger"
-            >
-              <div className="type-label-caps flex items-center gap-1.5 text-2xs font-medium text-foreground/85">
-                <Eye className="h-3.5 w-3.5" />
-                {mobilePreviewLabel}
-              </div>
-              <p className="mt-0.5 truncate text-2xs leading-4 text-muted-foreground">
-                {mobilePreviewText}
-              </p>
-            </button>
             <Button
               type="button"
               variant="secondary"
               size="sm"
-              className="h-11 shrink-0 gap-1.5 px-3 text-sm"
+              onClick={() => setDrawerOpen(true)}
+              className="h-11 min-w-[4.75rem] shrink-0 gap-1.5 px-2.5 text-xs"
+              aria-label={`Open output preview. ${mobilePreviewLabel}.`}
+              title={mobilePreviewTitle}
+              data-testid="builder-mobile-preview-trigger"
+            >
+              <Eye className="h-3.5 w-3.5 shrink-0" />
+              <span className="type-label-caps text-2xs leading-none">
+                {mobilePreviewActionLabel}
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="h-11 w-11 shrink-0 px-0"
               onClick={() => setMobileEnhancementSettingsOpen(true)}
+              aria-label="Open enhancement settings"
+              title="Enhancement settings"
               data-testid="builder-mobile-settings-trigger"
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />
-              Settings
+              <span className="sr-only">Settings</span>
             </Button>
           </div>
         </div>
@@ -3504,7 +3507,7 @@ const Index = () => {
       />
 
       {/* Add bottom padding on mobile for sticky bar */}
-      {isMobile && <div className="h-32 sm:h-28" />}
+      {isMobile && <div className="h-[var(--pf-builder-mobile-sticky-reserved-height)] sm:h-28" />}
     </PageShell>
   );
 };

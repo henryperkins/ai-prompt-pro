@@ -165,6 +165,7 @@ const Library = () => {
     () => selectedIds.map((id) => promptById.get(id)).filter(Boolean),
     [promptById, selectedIds],
   );
+  const hasSavedPrompts = templateSummaries.length > 0;
   const selectedCount = selectedIds.length;
   const allFilteredSelected = filteredSaved.length > 0 && filteredSaved.every((prompt) => selectedSet.has(prompt.id));
   const hasActiveFilters = Boolean(normalizedQuery) || activeCategory !== "all" || showSelectedOnly;
@@ -207,6 +208,16 @@ const Library = () => {
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (hasSavedPrompts) return;
+    if (selectedIds.length > 0) {
+      applySelection([]);
+    }
+    if (showSelectedOnly) {
+      setShowSelectedOnly(false);
+    }
+  }, [applySelection, hasSavedPrompts, selectedIds.length, showSelectedOnly]);
 
   const togglePromptSelection = useCallback(
     (id: string, checked: boolean) => {
@@ -661,7 +672,6 @@ const Library = () => {
         eyebrow={brandCopy.brandLine}
         title="Prompt Library"
         subtitle="Track quality, context sources, and remix history for every saved prompt."
-        className="pf-gilded-frame pf-hero-surface"
       />
 
       {featuredPrompts.length > 0 && (
@@ -710,221 +720,222 @@ const Library = () => {
       )}
 
       <div className="ui-density space-y-4" data-density="comfortable">
-        <Card className="border-border/80 bg-card/85 p-3 sm:p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-1">
-              <p className="ui-section-label text-primary">Quality + context + remix</p>
-              <p className="text-sm text-muted-foreground">
-                Keep your saved prompts production-ready without changing baseline templates.
-              </p>
-            </div>
-            <Button variant="secondary" size="sm" className="h-11 gap-1 text-sm sm:h-9 sm:text-sm" onClick={() => navigate("/")}>
-              <Sparkles className="h-3.5 w-3.5" />
-              Open Builder
-            </Button>
-          </div>
-        </Card>
+        {hasSavedPrompts ? (
+          <>
+            <Card className="border-border/80 bg-card/85 p-3 sm:p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-1">
+                  <p className="ui-section-label text-primary">Quality + context + remix</p>
+                  <p className="text-sm text-muted-foreground">
+                    Keep your saved prompts production-ready without changing baseline templates.
+                  </p>
+                </div>
+                <Button variant="secondary" size="sm" className="h-11 gap-1 text-sm sm:h-9 sm:text-sm" onClick={() => navigate("/")}>
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Open Builder
+                </Button>
+              </div>
+            </Card>
 
-        <Card className="border-border/80 bg-card/85 p-3 sm:p-4">
-          <div className="grid grid-cols-1 gap-2 border-b border-border/60 pb-3 sm:grid-cols-[1fr_auto_auto] sm:items-center">
-            <div className="relative">
-              <label htmlFor="library-page-search" className="sr-only">
-                Search saved prompts
-              </label>
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                id="library-page-search"
-                value={query}
-                onChange={setQuery}
-                placeholder="Search by name, tag, context, or remix note"
-                wrapperClassName="h-11 bg-background sm:h-10"
-                inputClassName="pl-8"
-              />
-            </div>
-
-            <Select
-              selectedKey={activeCategory}
-              onSelectionChange={(value) => {
-                if (value !== null) {
-                  setActiveCategory(String(value));
-                }
-              }}
-              className="min-w-35 capitalize"
-              aria-label="Filter category"
-              size="md"
-            >
-              {categories.map((category) => (
-                <Select.Item key={category} id={category} className="capitalize">
-                  {category}
-                </Select.Item>
-              ))}
-            </Select>
-
-            <div className="flex items-center gap-1.5">
-              <ArrowDownUp className="h-3.5 w-3.5 text-muted-foreground" />
-              <Select
-                selectedKey={sortBy}
-                onSelectionChange={(value) => {
-                  if (value !== null) {
-                    setSortBy(String(value) as SavedPromptSort);
-                  }
-                }}
-                className="min-w-34.5"
-                aria-label="Sort saved prompts"
-                size="md"
-              >
-                <Select.Item id="recent">Most Recent</Select.Item>
-                <Select.Item id="name">Name (A-Z)</Select.Item>
-                <Select.Item id="revision">Revision (High)</Select.Item>
-              </Select>
-            </div>
-          </div>
-
-          <div className="mt-3 space-y-3">
-            <div className="rounded-md border border-primary/20 bg-primary/5 p-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Checkbox
-                    isSelected={allFilteredSelected}
-                    onChange={() => toggleSelectAllFiltered(!allFilteredSelected)}
-                    aria-label="Select all filtered prompts"
+            <Card className="border-border/80 bg-card/85 p-3 sm:p-4">
+              <div className="grid grid-cols-1 gap-2 border-b border-border/60 pb-3 sm:grid-cols-[1fr_auto_auto] sm:items-center">
+                <div className="relative">
+                  <label htmlFor="library-page-search" className="sr-only">
+                    Search saved prompts
+                  </label>
+                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="library-page-search"
+                    value={query}
+                    onChange={setQuery}
+                    placeholder="Search by name, tag, context, or remix note"
+                    wrapperClassName="h-11 bg-background sm:h-10"
+                    inputClassName="pl-8"
                   />
-                  <span>{selectedCount} selected</span>
-                  <Badge variant="modern" className="text-xs">
-                    {visibleSaved.length} shown
-                  </Badge>
-                  {showSelectedOnly && (
-                    <Badge variant="modern" className="border border-border bg-background text-foreground text-xs">
-                      Selected only
-                    </Badge>
-                  )}
                 </div>
-                <div className="flex flex-wrap items-center justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    className="h-11 text-sm sm:h-9 sm:text-sm"
-                    disabled={selectedCount === 0 && !showSelectedOnly}
-                    onClick={() => setShowSelectedOnly((prev) => !prev)}
-                  >
-                    Selected only
-                  </Button>
-                  {selectedCount > 0 && (
-                    <>
-                      <Button
-                        type="button"
-                        variant="primary"
-                        size="sm"
-                        className="h-11 text-sm sm:h-9 sm:text-sm"
-                        onClick={handleLoadFirstSelected}
-                      >
-                        Load first
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="h-11 text-sm sm:h-9 sm:text-sm"
-                        disabled={isBulkUnsharing}
-                        onClick={() => void handleBulkSetPrivate()}
-                      >
-                        {isBulkUnsharing ? "Setting private..." : "Set private"}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="h-11 border-destructive/40 text-sm text-destructive hover:text-destructive sm:h-9 sm:text-sm"
-                        disabled={isBulkDeleting}
-                        onClick={() => void handleBulkDelete()}
-                      >
-                        {isBulkDeleting ? "Deleting..." : "Delete selected"}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="tertiary"
-                        size="sm"
-                        className="h-11 text-sm sm:h-9 sm:text-sm"
-                        onClick={() => {
-                          applySelection([]);
-                          setShowSelectedOnly(false);
-                        }}
-                      >
-                        Clear
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
 
-            {templateSummaries.length === 0 && (
-              <div className="mb-6">
-                <StateCard
-                  variant="empty"
-                  title="No saved prompts yet"
-                  description="Create a prompt in Builder, enhance the prompt, and save it here."
-                  primaryAction={{ label: "Go to Builder", to: "/" }}
-                />
-              </div>
-            )}
-
-            {templateSummaries.length > 0 && visibleSaved.length === 0 && (
-              <div className="mb-6">
-                <StateCard
-                  variant="empty"
-                  title={showSelectedOnly ? "No selected prompts in this view." : "No prompts match this filter."}
-                  description={
-                    showSelectedOnly
-                      ? "Select prompts, or switch off Selected only to browse everything."
-                      : "Try a different search term, category, or context keyword."
-                  }
-                  primaryAction={
-                    hasActiveFilters
-                      ? { label: "Reset filters", onClick: resetFilters }
-                      : { label: "Go to Builder", to: "/" }
-                  }
-                  secondaryAction={{ label: "Go to Builder", to: "/" }}
-                />
-              </div>
-            )}
-
-            {shouldVirtualize ? (
-              <div
-                ref={listScrollRef}
-                className="max-h-[72vh] overflow-y-auto pr-1"
-                data-testid="library-virtualized-list"
-              >
-                <div
-                  className="relative w-full"
-                  style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
+                <Select
+                  selectedKey={activeCategory}
+                  onSelectionChange={(value) => {
+                    if (value !== null) {
+                      setActiveCategory(String(value));
+                    }
+                  }}
+                  className="min-w-35 capitalize"
+                  aria-label="Filter category"
+                  size="md"
                 >
-                  {rowVirtualizer.getVirtualItems().map((virtualItem) => {
-                    const prompt = visibleSaved[virtualItem.index];
-                    if (!prompt) return null;
+                  {categories.map((category) => (
+                    <Select.Item key={category} id={category} className="capitalize">
+                      {category}
+                    </Select.Item>
+                  ))}
+                </Select>
 
-                    return (
-                      <div
-                        key={prompt.id}
-                        data-index={virtualItem.index}
-                        ref={rowVirtualizer.measureElement}
-                        className="absolute left-0 top-0 w-full pb-2"
-                        style={{ transform: `translateY(${virtualItem.start}px)` }}
-                      >
-                        {renderPromptCard(prompt)}
-                      </div>
-                    );
-                  })}
+                <div className="flex items-center gap-1.5">
+                  <ArrowDownUp className="h-3.5 w-3.5 text-muted-foreground" />
+                  <Select
+                    selectedKey={sortBy}
+                    onSelectionChange={(value) => {
+                      if (value !== null) {
+                        setSortBy(String(value) as SavedPromptSort);
+                      }
+                    }}
+                    className="min-w-34.5"
+                    aria-label="Sort saved prompts"
+                    size="md"
+                  >
+                    <Select.Item id="recent">Most Recent</Select.Item>
+                    <Select.Item id="name">Name (A-Z)</Select.Item>
+                    <Select.Item id="revision">Revision (High)</Select.Item>
+                  </Select>
                 </div>
               </div>
-            ) : (
-              <div className="space-y-2">
-                {visibleSaved.map((prompt) => renderPromptCard(prompt))}
+
+              <div className="mt-3 space-y-3">
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Checkbox
+                        isSelected={allFilteredSelected}
+                        onChange={() => toggleSelectAllFiltered(!allFilteredSelected)}
+                        aria-label="Select all filtered prompts"
+                      />
+                      <span>{selectedCount} selected</span>
+                      <Badge variant="modern" className="text-xs">
+                        {visibleSaved.length} shown
+                      </Badge>
+                      {showSelectedOnly && (
+                        <Badge variant="modern" className="border border-border bg-background text-foreground text-xs">
+                          Selected only
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="h-11 text-sm sm:h-9 sm:text-sm"
+                        disabled={selectedCount === 0 && !showSelectedOnly}
+                        onClick={() => setShowSelectedOnly((prev) => !prev)}
+                      >
+                        Selected only
+                      </Button>
+                      {selectedCount > 0 && (
+                        <>
+                          <Button
+                            type="button"
+                            variant="primary"
+                            size="sm"
+                            className="h-11 text-sm sm:h-9 sm:text-sm"
+                            onClick={handleLoadFirstSelected}
+                          >
+                            Load first
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            className="h-11 text-sm sm:h-9 sm:text-sm"
+                            disabled={isBulkUnsharing}
+                            onClick={() => void handleBulkSetPrivate()}
+                          >
+                            {isBulkUnsharing ? "Setting private..." : "Set private"}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            className="h-11 border-destructive/40 text-sm text-destructive hover:text-destructive sm:h-9 sm:text-sm"
+                            disabled={isBulkDeleting}
+                            onClick={() => void handleBulkDelete()}
+                          >
+                            {isBulkDeleting ? "Deleting..." : "Delete selected"}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="tertiary"
+                            size="sm"
+                            className="h-11 text-sm sm:h-9 sm:text-sm"
+                            onClick={() => {
+                              applySelection([]);
+                              setShowSelectedOnly(false);
+                            }}
+                          >
+                            Clear
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {visibleSaved.length === 0 && (
+                  <div className="mb-6">
+                    <StateCard
+                      variant="empty"
+                      title={showSelectedOnly ? "No selected prompts in this view." : "No prompts match this filter."}
+                      description={
+                        showSelectedOnly
+                          ? "Select prompts, or switch off Selected only to browse everything."
+                          : "Try a different search term, category, or context keyword."
+                      }
+                      primaryAction={
+                        hasActiveFilters
+                          ? { label: "Reset filters", onClick: resetFilters }
+                          : { label: "Go to Builder", to: "/" }
+                      }
+                      secondaryAction={{ label: "Go to Builder", to: "/" }}
+                    />
+                  </div>
+                )}
+
+                {shouldVirtualize ? (
+                  <div
+                    ref={listScrollRef}
+                    className="max-h-[72vh] overflow-y-auto pr-1"
+                    data-testid="library-virtualized-list"
+                  >
+                    <div
+                      className="relative w-full"
+                      style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
+                    >
+                      {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+                        const prompt = visibleSaved[virtualItem.index];
+                        if (!prompt) return null;
+
+                        return (
+                          <div
+                            key={prompt.id}
+                            data-index={virtualItem.index}
+                            ref={rowVirtualizer.measureElement}
+                            className="absolute left-0 top-0 w-full pb-2"
+                            style={{ transform: `translateY(${virtualItem.start}px)` }}
+                          >
+                            {renderPromptCard(prompt)}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {visibleSaved.map((prompt) => renderPromptCard(prompt))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </Card>
+            </Card>
+          </>
+        ) : (
+          <StateCard
+            variant="empty"
+            className="border-border/80 bg-card/85"
+            title="Save your first prompt build"
+            description="Build a prompt, run Enhance prompt, and save the result here to track quality, context, and remix history in one place."
+            primaryAction={{ label: "Open Builder", to: "/" }}
+          />
+        )}
       </div>
     </PageShell>
   );

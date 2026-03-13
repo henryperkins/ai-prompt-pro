@@ -19,6 +19,7 @@ import {
   rankPresetTemplates,
   splitPresetSections,
 } from "@/lib/preset-catalog";
+import { brandCopy } from "@/lib/brand-copy";
 import { trackBuilderEvent } from "@/lib/telemetry";
 import { getUserPreferences, setUserPreference } from "@/lib/user-preferences";
 import { cx } from "@/lib/utils/cx";
@@ -221,9 +222,9 @@ const Presets = () => {
   return (
     <PageShell>
       <PageHero
+        eyebrow={brandCopy.brandLine}
         title="Presets"
         subtitle="Starter templates that auto-populate the builder. Pick one and start enhancing."
-        className="pf-gilded-frame pf-hero-surface"
       />
 
       <div className="mx-auto max-w-4xl space-y-5">

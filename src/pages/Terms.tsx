@@ -1,16 +1,14 @@
 import { Link } from "react-router-dom";
 import { PageHero, PageShell } from "@/components/PageShell";
 import { Card } from "@/components/base/card";
-import { brandCopy } from "@/lib/brand-copy";
 
 const Terms = () => {
   return (
     <PageShell>
       <PageHero
-        eyebrow={brandCopy.brandLine}
+        pattern="utility"
         title="Terms of Use"
         subtitle="Basic rules for using PromptForge and community features."
-        className="pf-gilded-frame pf-hero-surface"
       />
 
       <div className="mx-auto max-w-3xl space-y-4">

@@ -87,7 +87,7 @@ interface EnhancementSettingsSummaryCardProps {
   actionExpanded?: boolean;
   actionControlsId?: string;
   actionTestId?: string;
-  helperText?: string;
+  helperText?: string | null;
   children?: ReactNode;
 }
 
@@ -116,12 +116,14 @@ export function EnhancementSettingsSummaryCard({
             <span className="font-medium text-foreground/85">Next run:</span>{" "}
             <span>{summary}</span>
           </p>
-          {typeof webSearchEnabled === "boolean" ? (
+          {webSearchEnabled ? (
             <span className="inline-flex items-center rounded-full border border-border/70 bg-background/70 px-2 py-0.5 text-xs font-medium text-foreground/80">
               Web lookup {webSearchEnabled ? "on" : "off"}
             </span>
           ) : null}
-          <p className="text-xs text-muted-foreground">{helperText}</p>
+          {helperText ? (
+            <p className="text-xs text-muted-foreground">{helperText}</p>
+          ) : null}
         </div>
         {onAction ? (
           <Button
@@ -389,6 +391,14 @@ export function OutputPanelEnhanceControls({
         className="flex flex-col gap-2"
         data-testid="output-panel-enhance-controls-compact"
       >
+        <EnhancePrimaryButton
+          isEnhancing={isEnhancing}
+          onEnhance={onEnhance}
+          builtPrompt={builtPrompt}
+          enhancePhase={enhancePhase}
+          enhanceLabel={enhanceLabel}
+        />
+
         <EnhancementSettingsSummaryCard
           summary={summary}
           webSearchEnabled={webSearchEnabled}
@@ -401,6 +411,7 @@ export function OutputPanelEnhanceControls({
           actionExpanded={isSettingsExpanded}
           actionControlsId={compactSettingsEditorId}
           actionTestId="output-panel-enhancement-settings-toggle"
+          helperText={isSettingsExpanded ? "These settings apply to the next enhancement run." : null}
         >
           {isSettingsExpanded ? (
             <div className="space-y-3">
@@ -429,14 +440,6 @@ export function OutputPanelEnhanceControls({
             </div>
           ) : null}
         </EnhancementSettingsSummaryCard>
-
-        <EnhancePrimaryButton
-          isEnhancing={isEnhancing}
-          onEnhance={onEnhance}
-          builtPrompt={builtPrompt}
-          enhancePhase={enhancePhase}
-          enhanceLabel={enhanceLabel}
-        />
       </div>
     );
   }

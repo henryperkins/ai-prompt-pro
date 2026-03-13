@@ -133,11 +133,13 @@ describe("Index mobile layout spacing", () => {
 
     const stickyBar = screen.getByTestId("builder-mobile-sticky-bar");
 
-    expect(stickyBar.className).toContain("bottom-[calc(4.375rem+env(safe-area-inset-bottom)+1px)]");
+    expect(stickyBar.className).toContain("bottom-[calc(var(--pf-mobile-nav-occupied-height)+1px)]");
     expect(stickyBar.className).toContain("sm:bottom-0");
 
     const spacer = Array.from(document.querySelectorAll("div")).find(
-      (node) => node.className.includes("h-32") && node.className.includes("sm:h-28"),
+      (node) =>
+        node.className.includes("h-[var(--pf-builder-mobile-sticky-reserved-height)]") &&
+        node.className.includes("sm:h-28"),
     );
     expect(spacer).toBeTruthy();
   }, 10_000);

@@ -15,7 +15,7 @@ Project context:
 - Primary users: developers and technical AI users
 - Design system reference: docs/design-system.md
 - Current builder workflow reference: docs/builder-workflow-reference.md
-- Route/flow context sample (archived): docs/reviews/ux-review-prioritized.md
+- Route/flow context sample (archived, historical context only): docs/reviews/ux-review-prioritized.md
 - Launch asset references: docs/launch-assets-pack.md
 
 Assets to review:
@@ -85,8 +85,11 @@ Output format (strict):
 
 Review constraints:
 - Do not invent evidence. If uncertain, say “Not verifiable from provided assets.”
+- Treat `docs/reviews/ux-review-prioritized.md` as historical context only. Do not carry forward its conclusions unless they are re-verified in the current screenshots/docs listed above.
 - Treat `screenshots/launch-sprint/*` as historical builder evidence unless the review explicitly compares old launch collateral to the current builder.
+- When current builder baselines conflict with archived docs or launch screenshots, prefer `docs/builder-workflow-reference.md` plus `output/playwright/current-builder-*`.
 - Use the current builder vocabulary from `docs/builder-workflow-reference.md`: `Enhance prompt`, `Builder readiness`, `Prompt details`, `Context and sources`, `Enhancement settings`.
+- If a claim depends on interaction behavior, timing, keyboard focus movement, touch-target measurement, or any state transition not visible in the provided assets, label it as a risk/hypothesis or say “Not verifiable from provided assets.”
 - Prefer concrete recommendations over generic advice.
 - Keep the review implementation-aware so engineers can act on it immediately.
 - Be candid and critical; avoid praise unless supported by clear evidence.

@@ -386,48 +386,18 @@ export function CommunityPostDetail({
           />
         </div>
 
-        <div className="space-y-2.5 rounded-lg border border-border/65 bg-background/45 p-2.5 sm:p-3">
-          <p className="type-reply-label type-label-caps text-muted-foreground">Engagement</p>
-          <div className="type-meta flex flex-wrap items-center gap-2 text-muted-foreground">
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-border/65 bg-background/70 p-1">
-              <Button
-                type="button"
-                size="sm"
-                variant={voteState?.upvote ? "primary" : "secondary"}
-                className="type-button-label interactive-chip h-11 min-w-11 gap-1.5 px-3 sm:h-9 sm:min-w-9 sm:gap-1 sm:px-2.5"
-                disabled={!canVote}
-                onClick={() => onToggleVote(post.id, "upvote")}
-                data-testid="community-vote-upvote"
-              >
-                <ArrowUp className="h-3.5 w-3.5" />
-                <span className="type-numeric">{post.upvoteCount}</span>
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={voteState?.verified ? "primary" : "secondary"}
-                className="type-button-label interactive-chip h-11 min-w-11 gap-1.5 px-3 sm:h-9 sm:min-w-9 sm:gap-1 sm:px-2.5"
-                disabled={!canVote}
-                onClick={() => onToggleVote(post.id, "verified")}
-                data-testid="community-vote-verified"
-              >
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                <span className="type-numeric">{post.verifiedCount}</span>
-              </Button>
-            </div>
-
-            <span className="type-numeric inline-flex items-center gap-1.5 rounded-full border border-border/65 bg-background/65 px-2.5 py-1">
-              <GitBranch className="h-3.5 w-3.5" />
-              <span className="type-meta text-foreground/90">Remixes</span>
-              {post.remixCount}
-            </span>
-
+        <div className="space-y-3 rounded-lg border border-border/65 bg-background/45 p-2.5 sm:p-3">
+          <p className="type-reply-label type-label-caps text-muted-foreground">Participate</p>
+          <div
+            className="flex flex-col gap-2.5"
+            data-testid="community-detail-participation-actions"
+          >
             {useMobileCommentsDrawer ? (
               <Button
                 type="button"
                 size="sm"
                 variant="primary"
-                className="type-button-label h-11 gap-1.5 rounded-full px-3 sm:h-9 sm:px-2.5"
+                className="type-button-label h-11 w-full justify-center gap-1.5 px-3 sm:h-9 sm:w-auto sm:px-2.5"
                 aria-label={`Comments ${post.commentCount}`}
                 onClick={() => {
                   setCommentsOpen(true);
@@ -445,7 +415,76 @@ export function CommunityPostDetail({
                   {post.commentCount}
                 </Badge>
               </Button>
-            ) : (
+            ) : null}
+
+            <div className="type-meta flex flex-wrap items-center gap-2 text-muted-foreground">
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-border/65 bg-background/70 p-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={voteState?.upvote ? "primary" : "secondary"}
+                  className="type-button-label interactive-chip h-11 min-w-11 gap-1.5 px-3 sm:h-9 sm:min-w-9 sm:gap-1 sm:px-2.5"
+                  disabled={!canVote}
+                  onClick={() => onToggleVote(post.id, "upvote")}
+                  data-testid="community-vote-upvote"
+                >
+                  <ArrowUp className="h-3.5 w-3.5" />
+                  <span className="type-numeric">{post.upvoteCount}</span>
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={voteState?.verified ? "primary" : "secondary"}
+                  className="type-button-label interactive-chip h-11 min-w-11 gap-1.5 px-3 sm:h-9 sm:min-w-9 sm:gap-1 sm:px-2.5"
+                  disabled={!canVote}
+                  onClick={() => onToggleVote(post.id, "verified")}
+                  data-testid="community-vote-verified"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <span className="type-numeric">{post.verifiedCount}</span>
+                </Button>
+              </div>
+
+              {canRate && onRatePrompt && (
+                <div className="inline-flex items-center gap-0.5 rounded-full border border-border/65 bg-background/65 p-0.5 sm:ml-auto">
+                  {[1, 2, 3, 4, 5].map((value) => {
+                    const isActive = (ratingValue ?? 0) >= value;
+                    return (
+                      <Button
+                        key={`${post.id}-detail-rate-${value}`}
+                        type="button"
+                        variant="tertiary"
+                        size="sm"
+                        className="h-11 w-11 rounded-full p-0 sm:h-10 sm:w-10"
+                        aria-label={`Rate ${value} star${value === 1 ? "" : "s"}`}
+                        onClick={() => onRatePrompt(post.id, ratingValue === value ? null : value)}
+                        data-testid={`community-detail-rating-star-${value}`}
+                      >
+                        <Star
+                          className={cx(
+                            "h-5 w-5 transition-colors sm:h-4 sm:w-4",
+                            isActive ? "fill-primary text-primary" : "text-muted-foreground",
+                          )}
+                        />
+                      </Button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div
+            className="type-meta flex flex-wrap items-center gap-2 text-muted-foreground"
+            data-testid="community-detail-participation-stats"
+          >
+            <span className="type-numeric inline-flex items-center gap-1.5 rounded-full border border-border/65 bg-background/65 px-2.5 py-1">
+              <GitBranch className="h-3.5 w-3.5" />
+              <span className="type-meta text-foreground/90">Remixes</span>
+              {post.remixCount}
+            </span>
+
+            {!useMobileCommentsDrawer && (
               <span className="type-numeric inline-flex items-center gap-1.5 rounded-full border border-border/65 bg-background/65 px-2.5 py-1">
                 <MessageCircle className="h-3.5 w-3.5" />
                 <span className="type-meta text-foreground/90">Comments</span>
@@ -468,33 +507,6 @@ export function CommunityPostDetail({
               {ratingAverage.toFixed(1)}
               <span className="text-muted-foreground/80">({ratingCount})</span>
             </span>
-
-            {canRate && onRatePrompt && (
-              <div className="inline-flex items-center gap-0.5 rounded-full border border-border/65 bg-background/65 p-0.5 sm:ml-auto">
-                {[1, 2, 3, 4, 5].map((value) => {
-                  const isActive = (ratingValue ?? 0) >= value;
-                  return (
-                    <Button
-                      key={`${post.id}-detail-rate-${value}`}
-                      type="button"
-                      variant="tertiary"
-                      size="sm"
-                      className="h-11 w-11 rounded-full p-0 sm:h-10 sm:w-10"
-                      aria-label={`Rate ${value} star${value === 1 ? "" : "s"}`}
-                      onClick={() => onRatePrompt(post.id, ratingValue === value ? null : value)}
-                      data-testid={`community-detail-rating-star-${value}`}
-                    >
-                      <Star
-                        className={cx(
-                          "h-5 w-5 transition-colors sm:h-4 sm:w-4",
-                          isActive ? "fill-primary text-primary" : "text-muted-foreground",
-                        )}
-                      />
-                    </Button>
-                  );
-                })}
-              </div>
-            )}
           </div>
         </div>
       </Card>

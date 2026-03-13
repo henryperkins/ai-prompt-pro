@@ -25,6 +25,19 @@ const longSuggestionChips: BuilderSuggestionChip[] = [
   },
 ];
 
+const overflowSuggestionChips: BuilderSuggestionChip[] = [
+  ...longSuggestionChips,
+  {
+    id: "append-rollout-checklist",
+    label: "Add rollout checklist",
+    description: "Include launch, monitor, and rollback checkpoints.",
+    action: {
+      type: "append_prompt",
+      text: "\nRollout checklist: [launch steps, monitoring checks, rollback trigger]",
+    },
+  },
+];
+
 describe("BuilderHeroInput", () => {
   it("renders long smart suggestions as wrap-safe action tiles", () => {
     render(
@@ -76,6 +89,31 @@ describe("BuilderHeroInput", () => {
     );
 
     expect(onApplySuggestion).toHaveBeenCalledWith(longSuggestionChips[0]);
+  });
+
+  it("shows a compact suggestion subset until the user asks for more", () => {
+    render(
+      <BuilderHeroInput
+        value="Compare these migration plans and recommend the safer rollout path."
+        onChange={() => undefined}
+        onClear={() => undefined}
+        phase3Enabled
+        suggestionChips={overflowSuggestionChips}
+      />,
+    );
+
+    expect(screen.getByText("Add evidence requirements")).toBeInTheDocument();
+    expect(screen.getByText("Add comparison framework")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Add rollout checklist"),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("builder-suggestion-chip-toggle"));
+
+    expect(screen.getByText("Add rollout checklist")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Show fewer suggestions" }),
+    ).toBeInTheDocument();
   });
 
   it("tucks clear and reset actions behind a draft-actions disclosure", () => {
@@ -137,17 +175,17 @@ describe("BuilderHeroInput", () => {
         phase3Enabled
         suggestionChips={longSuggestionChips}
         hasInferenceError
-        inferenceStatusMessage="Local suggestions remain available while AI retries automatically."
+        inferenceStatusMessage="Using local suggestions while AI suggestions reconnect. We'll retry automatically."
       />,
     );
 
     const status = screen.getByRole("status");
     expect(status).toHaveTextContent(
-      "Local suggestions remain available while AI retries automatically.",
+      "Using local suggestions while AI suggestions reconnect. We'll retry automatically.",
     );
     expect(
       screen.getAllByText(
-        "Local suggestions remain available while AI retries automatically.",
+        "Using local suggestions while AI suggestions reconnect. We'll retry automatically.",
       ),
     ).toHaveLength(1);
     expect(
@@ -173,6 +211,6 @@ describe("BuilderHeroInput", () => {
     expect(screen.getByRole("status")).toHaveTextContent(
       "Refreshing AI suggestions...",
     );
-    expect(screen.queryByText("Local suggestions remain available while AI retries automatically.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Using local suggestions while AI suggestions reconnect. We'll retry automatically.")).not.toBeInTheDocument();
   });
 });

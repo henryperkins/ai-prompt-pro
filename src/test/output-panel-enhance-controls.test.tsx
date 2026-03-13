@@ -190,6 +190,23 @@ describe("OutputPanel enhance controls", () => {
     expect(screen.getByRole("button", { name: "Edit settings" })).toBeInTheDocument();
   });
 
+  it("keeps the primary enhance action ahead of the compact settings summary", () => {
+    renderPanel({
+      enhanceControlsMode: "compact",
+      onWebSearchToggle: vi.fn(),
+    });
+
+    const enhanceButton = screen.getByRole("button", { name: "Enhance with AI" });
+    const summary = screen.getByTestId("output-panel-enhancement-settings-summary");
+
+    expect(
+      Boolean(enhanceButton.compareDocumentPosition(summary) & Node.DOCUMENT_POSITION_FOLLOWING),
+    ).toBe(true);
+    expect(
+      screen.queryByText("These settings apply to the next enhancement run."),
+    ).not.toBeInTheDocument();
+  });
+
   it("reveals the full settings editor when compact controls are expanded", async () => {
     renderPanel({
       enhanceControlsMode: "compact",

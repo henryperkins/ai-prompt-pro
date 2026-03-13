@@ -115,7 +115,7 @@ const ComponentsShowcase = () => {
                 <p className="ui-section-label text-primary">Review contract</p>
                 <h3 className="mt-1 text-sm font-semibold text-foreground">Keep these wrappers in sync</h3>
                 <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
-                  <li>PageShell and PageHero define the PromptForge chrome, wordmark, and gilded hero surface.</li>
+                  <li>PageShell and PageHero define the PromptForge chrome, collection wordmark behavior, and gilded hero surface.</li>
                   <li>ProfileHero owns community rarity styling, parchment contrast, and stat-card density.</li>
                   <li>Storybook stories for both wrappers should move with any `pf-*` token or shell change.</li>
                 </ul>

@@ -113,3 +113,27 @@ export const MidnightCommunityChrome: Story = {
     </ShellStoryFrame>
   ),
 };
+
+export const UtilityRecoveryChrome: Story = {
+  render: () => (
+    <ShellStoryFrame>
+      <PageShell mainClassName="flex min-h-[70vh] items-center justify-center py-10">
+        <div className="w-full max-w-2xl space-y-4">
+          <PageHero
+            pattern="utility"
+            eyebrow="Utility Route"
+            title="Focused recovery state"
+            subtitle="Use the utility hero for legal, support, redirect, and not-found pages that need a clear next step without the full collection wordmark treatment."
+          />
+          <div className="pf-card rounded-xl border border-border/70 bg-background/60 p-5">
+            <p className="ui-section-label text-primary">Pattern intent</p>
+            <h2 className="mt-1 text-lg font-semibold text-foreground">Keep the route calm</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Pair the quieter utility hero with one primary recovery action and one softer alternate path.
+            </p>
+          </div>
+        </div>
+      </PageShell>
+    </ShellStoryFrame>
+  ),
+};

@@ -251,12 +251,12 @@ describe("Index suggestion inference cancellation", () => {
 
     expect(
       screen.getByText(
-        "Local suggestions remain available while AI retries automatically.",
+        "Using local suggestions while AI suggestions reconnect. We'll retry automatically.",
       ),
     ).toBeInTheDocument();
     expect(
       screen.getAllByText(
-        "Local suggestions remain available while AI retries automatically.",
+        "Using local suggestions while AI suggestions reconnect. We'll retry automatically.",
       ),
     ).toHaveLength(1);
 
@@ -283,7 +283,7 @@ describe("Index suggestion inference cancellation", () => {
     expect(screen.getByText("Remote suggestion")).toBeInTheDocument();
     expect(
       screen.queryByText(
-        "Local suggestions remain available while AI retries automatically.",
+        "Using local suggestions while AI suggestions reconnect. We'll retry automatically.",
       ),
     ).not.toBeInTheDocument();
   }, 15_000);

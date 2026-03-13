@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/base/buttons/button";
 import { Card } from "@/components/base/card";
 import { TextArea } from "@/components/base/textarea";
+import { useIsMobile } from "@/hooks/use-mobile";
 import type { BuilderSuggestionChip } from "@/lib/builder-inference";
 import {
   INTENT_ROUTES,
@@ -49,9 +50,19 @@ export function BuilderHeroInput({
   const promptInputMetaId = "builder-phase1-hero-prompt-meta";
   const recoveryActionsId = "builder-hero-recovery-actions";
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const isMobile = useIsMobile();
   const [recoveryActionsOpen, setRecoveryActionsOpen] = useState(false);
+  const [showAllSuggestionChips, setShowAllSuggestionChips] = useState(false);
   const hasRecoveryActions = Boolean(onResetAll || value);
   const hasSuggestionChips = suggestionChips.length > 0;
+  const collapsedSuggestionChipCount = isMobile ? 1 : 2;
+  const visibleSuggestionChips = showAllSuggestionChips
+    ? suggestionChips
+    : suggestionChips.slice(0, collapsedSuggestionChipCount);
+  const hiddenSuggestionChipCount = Math.max(
+    0,
+    suggestionChips.length - visibleSuggestionChips.length,
+  );
   const recoveryHelperMessage =
     value && onResetAll
       ? "Clear the draft or reset the builder when you need a clean starting point."
@@ -82,6 +93,10 @@ export function BuilderHeroInput({
     if (hasRecoveryActions) return;
     setRecoveryActionsOpen(false);
   }, [hasRecoveryActions]);
+
+  useEffect(() => {
+    setShowAllSuggestionChips(false);
+  }, [collapsedSuggestionChipCount, suggestionChips]);
 
   return (
     <Card className="border-border/70 bg-card/80 p-3 sm:p-4">
@@ -259,27 +274,47 @@ export function BuilderHeroInput({
                 </p>
               )}
               {hasSuggestionChips && (
-                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                  {suggestionChips.map((chip) => (
-                    <button
-                      key={chip.id}
-                      type="button"
-                      data-testid={`builder-suggestion-chip-${chip.id}`}
-                      className="interactive-card min-h-18 w-full min-w-0 rounded-lg border border-border/70 bg-background/80 px-3 py-2 text-left shadow-xs transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:w-[220px] sm:flex-none"
-                      onClick={() => onApplySuggestion?.(chip)}
-                    >
-                      <span className="flex min-w-0 flex-col gap-1">
-                        <span className="type-wrap-safe line-clamp-2 block min-w-0 text-sm font-medium text-foreground">
-                          {chip.label}
-                        </span>
-                        {chip.description && (
-                          <span className="type-wrap-safe line-clamp-2 block min-w-0 text-xs leading-5 text-muted-foreground">
-                            {chip.description}
+                <div className="space-y-2">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                    {visibleSuggestionChips.map((chip) => (
+                      <button
+                        key={chip.id}
+                        type="button"
+                        data-testid={`builder-suggestion-chip-${chip.id}`}
+                        className="interactive-card min-h-18 w-full min-w-0 rounded-lg border border-border/70 bg-background/80 px-3 py-2 text-left shadow-xs transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:w-[220px] sm:flex-none"
+                        onClick={() => onApplySuggestion?.(chip)}
+                      >
+                        <span className="flex min-w-0 flex-col gap-1">
+                          <span className="type-wrap-safe line-clamp-2 block min-w-0 text-sm font-medium text-foreground">
+                            {chip.label}
                           </span>
-                        )}
-                      </span>
-                    </button>
-                  ))}
+                          {chip.description && (
+                            <span className="type-wrap-safe line-clamp-2 block min-w-0 text-xs leading-5 text-muted-foreground">
+                              {chip.description}
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  {suggestionChips.length > collapsedSuggestionChipCount && (
+                    <div className="flex justify-end">
+                      <Button
+                        type="button"
+                        variant="tertiary"
+                        size="sm"
+                        className="h-10 px-2.5 text-sm"
+                        onClick={() =>
+                          setShowAllSuggestionChips((current) => !current)
+                        }
+                        data-testid="builder-suggestion-chip-toggle"
+                      >
+                        {showAllSuggestionChips
+                          ? "Show fewer suggestions"
+                          : `Show ${hiddenSuggestionChipCount} more`}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
