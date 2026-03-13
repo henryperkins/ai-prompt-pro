@@ -35,6 +35,7 @@
     "swa:deploy": "swa deploy --env production",
     "test": "vitest run",
     "test:unit": "vitest run --exclude 'src/test/rls-community-*.test.ts'",
+    "test:desktop": "playwright test playwright/builder.desktop.spec.ts",
     "test:mobile": "playwright test",
     "test:mobile:headed": "playwright test --headed",
     "test:rls": "dotenv -- vitest run src/test/rls-community-*.test.ts",

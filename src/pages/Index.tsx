@@ -104,6 +104,7 @@ import {
   buildClarificationBlock,
 } from "@/lib/enhance-ambiguity";
 import { getEnhancementSettingsSummary } from "@/lib/enhancement-settings";
+import { getOutputPanelReviewState } from "@/lib/output-panel-review-state";
 import { buildTextEditMetrics } from "@/lib/text-diff";
 import { brandCopy } from "@/lib/brand-copy";
 import {
@@ -1200,6 +1201,13 @@ const Index = () => {
     ? "Builder changed since the last enhancement. Preview now shows the current draft. Re-run Enhance to refresh AI output."
     : null;
 
+  // Archived artifacts from the last settled enhancement, available for
+  // secondary disclosures when the builder has diverged (stale state).
+  const archivedEnhanceMetadata = isEnhancementStale ? enhanceMetadata : null;
+  const archivedReasoningSummary = isEnhancementStale ? reasoningSummary : "";
+  const archivedEnhanceWorkflow = isEnhancementStale ? enhanceWorkflow : [];
+  const archivedWebSearchSources = isEnhancementStale ? webSearchSources : [];
+
   useEffect(() => {
     if (isEnhancing) return;
     if (!selectedEnhancedPrompt.trim()) return;
@@ -2072,7 +2080,7 @@ const Index = () => {
   const hasEnhancementQualityScore = Boolean(
     currentEnhanceMetadata?.qualityScore,
   );
-  const builderQualityLabel = `Builder quality score ${score.total} out of 100`;
+  const builderQualityLabel = `Builder readiness score ${score.total} out of 100`;
   const selectedRole = config.customRole || config.role;
   const handleSaveVersion = useCallback(() => {
     saveVersion(undefined, currentPreviewPrompt);
@@ -2097,12 +2105,12 @@ const Index = () => {
   const hasOriginalPromptInput = config.originalPrompt.trim().length > 0;
   const hasBuilderDrivenInput = hasBuilderFieldInput(config);
   const builderQualityHint = hasEnhancementQualityScore
-    ? "Draft-only score. The AI estimate for the enhanced output appears below."
+    ? "Readiness signal for the current draft. The enhancer self-check now lives inside Enhancement details."
     : isEnhancementStale
-      ? "Draft-only score. Builder changes made the last enhancement stale. Re-run Enhance to refresh the AI output."
+      ? "Readiness signal for the current draft. Builder changes made the last enhancement stale."
       : hasCurrentEnhancedOutput
-        ? "Draft-only score. This gauge still reflects the builder draft."
-        : "Draft-only score before enhancement.";
+        ? "Readiness signal for the current draft while you review the enhanced result."
+        : "Readiness signal for the current draft before enhancement.";
   const hasDetailSelections = Boolean(
     selectedRole ||
     config.format.length ||
@@ -2153,16 +2161,17 @@ const Index = () => {
     : enhancePhase === "done"
       ? "Enhanced"
       : primaryCtaLabel;
+  const mobileReviewState = getOutputPanelReviewState({
+    enhancePhase,
+    isEnhancing,
+    previewSource,
+    hasPreviewContent: currentPreviewPrompt.trim().length > 0,
+    staleEnhancementNotice,
+  });
   const enhanceLiveMessage =
-    enhancePhase === "starting"
-      ? "Enhancement started."
-      : enhancePhase === "streaming"
-        ? "Enhancement in progress."
-        : enhancePhase === "settling"
-          ? "Enhancement finalizing."
-          : enhancePhase === "done"
-            ? "Enhancement complete."
-            : "";
+    mobileReviewState.stateKey === "empty"
+      ? ""
+      : mobileReviewState.assistiveStatus;
   const mobilePreviewText = useMemo(() => {
     const trimmed = currentPreviewPrompt.trim();
     if (!trimmed) {
@@ -2843,7 +2852,7 @@ const Index = () => {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-medium text-foreground">
-                    Builder quality signal
+                    Builder readiness
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {builderQualityHint}
@@ -2940,6 +2949,10 @@ const Index = () => {
               onEditableListSaved={handleEditableListSaved}
               onApplyEditableListToPrompt={handleApplyEditableListToPrompt}
               staleEnhancementNotice={staleEnhancementNotice}
+              archivedEnhanceMetadata={archivedEnhanceMetadata}
+              archivedReasoningSummary={archivedReasoningSummary}
+              archivedEnhanceWorkflow={archivedEnhanceWorkflow}
+              archivedWebSearchSources={archivedWebSearchSources}
               remixContext={
                 remixContext
                   ? {
@@ -3004,40 +3017,6 @@ const Index = () => {
                     )}
                   </div>
                 </Card>
-                <Card className="pf-panel border-border/70 bg-card/80 p-3">
-                  <p className="text-sm font-medium text-foreground">
-                    Next best action
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {!hasCurrentEnhancedOutput
-                      ? isEnhancementStale
-                        ? "Builder changed since the last enhancement. Preview now shows the current draft. Re-run Enhance to refresh AI output."
-                        : canSharePrompt
-                          ? `Preview is ready to copy, save, or share. ${primaryCtaLabel} to compare changes and get AI refinement suggestions.`
-                          : `Preview is ready to copy or save. Sign in to share, or ${primaryCtaLabel} to compare changes and get AI refinement suggestions.`
-                      : (refineSuggestions[0]?.description ??
-                        "Use Improve this result suggestions to keep iterating.")}
-                  </p>
-                </Card>
-                {currentWebSearchSources.length > 0 && (
-                  <Card className="pf-panel border-border/70 bg-card/80 p-3">
-                    <p className="text-sm font-medium text-foreground">
-                      Recent web sources
-                    </p>
-                    <ul className="mt-2 space-y-1">
-                      {currentWebSearchSources
-                        .slice(0, 3)
-                        .map((source, index) => (
-                          <li
-                            key={`${source}-${index}`}
-                            className="text-xs text-muted-foreground line-clamp-2 break-all"
-                          >
-                            {source}
-                          </li>
-                        ))}
-                    </ul>
-                  </Card>
-                )}
                 <Card className="pf-panel border-border/70 bg-card/80 p-3">
                   <p className="text-sm font-medium text-foreground">History</p>
                   <p className="mt-1 text-xs text-muted-foreground">
@@ -3200,6 +3179,11 @@ const Index = () => {
                 enhancementSettingsSummary={mobileEnhancementSummary}
                 onEditEnhancementSettings={handleEditMobileEnhancementSettings}
                 staleEnhancementNotice={staleEnhancementNotice}
+                archivedEnhanceMetadata={archivedEnhanceMetadata}
+                archivedReasoningSummary={archivedReasoningSummary}
+                archivedEnhanceWorkflow={archivedEnhanceWorkflow}
+                archivedWebSearchSources={archivedWebSearchSources}
+                announceStatus={false}
                 // Enhancement depth/strictness/ambiguity controls omitted — hideEnhanceButton hides the section they render in
                 hideEnhanceButton
                 remixContext={

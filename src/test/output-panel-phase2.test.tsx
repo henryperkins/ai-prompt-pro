@@ -73,6 +73,12 @@ async function openMenu(buttonName: "Save" | "More") {
   });
 }
 
+async function openDetailsAccordion(testId: string) {
+  await act(async () => {
+    fireEvent.click(screen.getByTestId(`${testId}-trigger`));
+  });
+}
+
 afterEach(() => {
   setWindowWidth(1024);
 });
@@ -151,11 +157,43 @@ describe("OutputPanel phase 2 save flow", () => {
       previewSource: "builder_fields",
     });
 
+    expect(screen.getByText("Draft preview")).toBeInTheDocument();
     expect(screen.getByText("Source: Built prompt")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Copy preview" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy draft" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "More" })).toBeInTheDocument();
     expect(screen.queryByText("Save and developer tools unlock once preview content is available.")).not.toBeInTheDocument();
+  });
+
+  it("renders the banner, preview, and review actions before supporting details", () => {
+    renderPanel({
+      enhanceWorkflow: [
+        {
+          stepId: "draft",
+          order: 10,
+          label: "Analyze request",
+          status: "completed",
+          detail: "Draft analysis complete.",
+        },
+      ],
+      reasoningSummary: "## Plan\n\n- Summarized reasoning content.",
+    });
+
+    const banner = screen.getByTestId("output-panel-state-banner");
+    const preview = screen.getByTestId("output-panel-preview-card");
+    const actions = screen.getByTestId("output-panel-review-actions");
+    const details = screen.getByTestId("output-panel-details-run-progress");
+
+    expect(
+      Boolean(banner.compareDocumentPosition(preview) & Node.DOCUMENT_POSITION_FOLLOWING),
+    ).toBe(true);
+    expect(
+      Boolean(preview.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING),
+    ).toBe(true);
+    expect(
+      Boolean(actions.compareDocumentPosition(details) & Node.DOCUMENT_POSITION_FOLLOWING),
+    ).toBe(true);
+    expect(screen.queryByRole("heading", { name: "Plan" })).not.toBeInTheDocument();
   });
 
   it("keeps utility actions locked when preview is empty", () => {
@@ -178,11 +216,13 @@ describe("OutputPanel phase 2 save flow", () => {
     renderPanel({
       enhancedPrompt: "Improved launch plan",
       hasEnhancedOnce: true,
+      enhancePhase: "done",
       previewSource: "enhanced",
     });
 
+    expect(screen.getByText("Enhanced output ready")).toBeInTheDocument();
     expect(screen.getByText("Source: Enhanced output")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Copy" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy current output" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "More" })).toBeInTheDocument();
   });
@@ -191,16 +231,20 @@ describe("OutputPanel phase 2 save flow", () => {
     renderPanel({
       builtPrompt: "Updated launch plan draft",
       enhancedPrompt: "",
+      enhancePhase: "done",
       hasEnhancedOnce: false,
       previewSource: "builder_fields",
       staleEnhancementNotice:
         "Builder changed since the last enhancement. Preview now shows the current draft. Re-run Enhance to refresh AI output.",
     });
 
+    expect(screen.getByText("Builder changed after enhancement")).toBeInTheDocument();
     expect(
-      screen.getByTestId("output-panel-stale-enhancement-notice"),
-    ).toHaveTextContent("Builder changed since the last enhancement.");
-    expect(screen.getByRole("button", { name: "Copy preview" })).toBeInTheDocument();
+      screen.getByText(
+        "Builder changed since the last enhancement. Preview now shows the current draft. Re-run Enhance to refresh AI output.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy draft" })).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Too much changed" }),
     ).not.toBeInTheDocument();
@@ -214,7 +258,7 @@ describe("OutputPanel phase 2 save flow", () => {
       previewSource: "builder_fields",
     });
 
-    await clickElement(screen.getByRole("button", { name: "Copy preview" }));
+    await clickElement(screen.getByRole("button", { name: "Copy draft" }));
 
     expect(mocks.trackBuilderEvent).toHaveBeenCalledWith("builder_copy_pre_enhance", {
       previewSource: "builder_fields",
@@ -244,6 +288,7 @@ describe("OutputPanel phase 2 save flow", () => {
   it("shows compare inline and groups dev tools in submenu", async () => {
     renderPanel({
       enhancedPrompt: "Improved launch plan",
+      enhancePhase: "done",
     });
 
     expect(screen.getByRole("button", { name: "Show changes" })).toBeInTheDocument();
@@ -254,18 +299,96 @@ describe("OutputPanel phase 2 save flow", () => {
     expect(await screen.findByRole("menuitem", { name: "Developer tools" })).toBeInTheDocument();
   });
 
+  it("closes an open compare dialog when the review state becomes transient or stale", async () => {
+    const baseProps: Parameters<typeof OutputPanel>[0] = {
+      builtPrompt: "Draft launch plan",
+      enhancedPrompt: "Improved launch plan",
+      isEnhancing: false,
+      onEnhance: () => undefined,
+      onSaveVersion: () => undefined,
+      onSavePrompt: async () => true,
+      onSaveAndSharePrompt: async () => true,
+      canSavePrompt: true,
+      canSharePrompt: true,
+      hasEnhancedOnce: true,
+      enhancePhase: "done",
+      previewSource: "enhanced",
+    };
+
+    const { rerender } = render(<OutputPanel {...baseProps} />);
+
+    await clickElement(screen.getByRole("button", { name: "Show changes" }));
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByText("Before vs After")).toBeInTheDocument();
+
+    rerender(
+      <OutputPanel
+        {...baseProps}
+        isEnhancing
+        enhancePhase="streaming"
+      />,
+    );
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Show changes" })).not.toBeInTheDocument();
+
+    rerender(<OutputPanel {...baseProps} />);
+
+    await clickElement(screen.getByRole("button", { name: "Show changes" }));
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    rerender(
+      <OutputPanel
+        {...baseProps}
+        builtPrompt="Updated launch plan draft"
+        enhancedPrompt=""
+        hasEnhancedOnce={false}
+        previewSource="builder_fields"
+        staleEnhancementNotice="Builder changed since the last enhancement. Preview now shows the current draft. Re-run Enhance to refresh AI output."
+      />,
+    );
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Show changes" })).not.toBeInTheDocument();
+  });
+
+  it("phase-gates compare and utility actions while enhancement is still in flight", () => {
+    renderPanel({
+      builtPrompt: "Draft launch plan",
+      enhancedPrompt: "Streaming launch plan",
+      hasEnhancedOnce: true,
+      isEnhancing: true,
+      enhancePhase: "streaming",
+      previewSource: "enhanced",
+    });
+
+    expect(screen.getByText("Enhancing")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy current output" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Show changes" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Too much changed" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "More" })).toBeDisabled();
+  });
+
   it("uses wrap-safe header layout classes for crowded desktop enhancement actions", () => {
     renderPanel({
       enhancedPrompt: "Improved launch plan",
       hasEnhancedOnce: true,
+      enhancePhase: "done",
     });
 
-    const headerMetaGroup = screen
-      .getByText("✨ Enhanced Prompt")
-      .parentElement;
-    const headerActionGroup = screen.getByRole("button", { name: "Copy" }).parentElement;
+    const reviewActions = screen.getByTestId("output-panel-review-actions");
+    const headerActionGroup = screen.getByRole("button", { name: "Copy current output" }).parentElement;
 
-    expect(headerMetaGroup).toHaveClass("min-w-0", "flex-1", "flex-wrap");
+    expect(reviewActions.firstElementChild).toHaveClass(
+      "flex",
+      "min-w-0",
+      "flex-wrap",
+      "items-center",
+      "justify-between",
+    );
     expect(headerActionGroup).toHaveClass("min-w-0", "flex-wrap");
     expect(screen.getByRole("button", { name: "Show changes" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Too much changed" })).toBeInTheDocument();
@@ -278,6 +401,7 @@ describe("OutputPanel phase 2 save flow", () => {
     renderPanel({
       enhancedPrompt: "Improved launch plan",
       hasEnhancedOnce: true,
+      enhancePhase: "done",
     });
 
     await openMenu("More");
@@ -327,6 +451,7 @@ describe("OutputPanel phase 2 save flow", () => {
     renderPanel({
       enhancedPrompt: "Improved launch plan",
       hasEnhancedOnce: true,
+      enhancePhase: "done",
     });
 
     await openMenu("More");
@@ -380,6 +505,7 @@ describe("OutputPanel phase 2 save flow", () => {
       builtPrompt: "Original launch plan",
       enhancedPrompt: "Completely rewritten launch strategy with a different structure",
       hasEnhancedOnce: true,
+      enhancePhase: "done",
     });
 
     await clickElement(
@@ -436,6 +562,8 @@ describe("OutputPanel phase 2 save flow", () => {
       ],
     });
 
+    fireEvent.click(screen.getByTestId("output-panel-details-sources-trigger"));
+
     const safe = screen.getByRole("link", { name: "Release notes" });
     expect(safe).toHaveAttribute("href", "https://example.com/changelog");
 
@@ -445,10 +573,12 @@ describe("OutputPanel phase 2 save flow", () => {
     expect(screen.getByText("[Unsafe](javascript:alert(1))")).toBeInTheDocument();
   });
 
-  it("renders reasoning summary markdown once when provided", () => {
+  it("renders reasoning summary markdown once when provided", async () => {
     renderPanel({
       reasoningSummary: "## Plan\n\n- Summarized reasoning content.",
     });
+
+    await openDetailsAccordion("output-panel-details-run-progress");
 
     expect(screen.getByRole("heading", { name: "Plan" })).toBeInTheDocument();
     expect(screen.getByText("Summarized reasoning content.")).toBeInTheDocument();
@@ -477,7 +607,7 @@ describe("OutputPanel phase 2 save flow", () => {
     expect(scrollContainer).toHaveClass("overflow-auto", "p-4");
   });
 
-  it("fades reasoning summary out before removing it", () => {
+  it("fades reasoning summary out before removing it", async () => {
     vi.useFakeTimers();
 
     const baseProps: Parameters<typeof OutputPanel>[0] = {
@@ -494,6 +624,8 @@ describe("OutputPanel phase 2 save flow", () => {
     };
 
     const { rerender } = render(<OutputPanel {...baseProps} />);
+
+    await openDetailsAccordion("output-panel-details-run-progress");
 
     expect(screen.getByText("Fade this summary slowly.")).toBeInTheDocument();
 
@@ -514,5 +646,74 @@ describe("OutputPanel phase 2 save flow", () => {
 
     expect(screen.queryByText("Fade this summary slowly.")).not.toBeInTheDocument();
     vi.useRealTimers();
+  });
+
+  it("retains settled enhanced output semantics after phase returns to idle", () => {
+    renderPanel({
+      enhancedPrompt: "Improved launch plan",
+      hasEnhancedOnce: true,
+      enhancePhase: "idle",
+      previewSource: "enhanced",
+      isEnhancing: false,
+    });
+
+    expect(screen.getByText("Enhanced output ready")).toBeInTheDocument();
+    expect(screen.getByText("Source: Enhanced output")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy current output" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show changes" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Too much changed" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "More" })).toBeEnabled();
+  });
+
+  it("shows archived detail sections in stale state when archived props are provided", () => {
+    renderPanel({
+      builtPrompt: "Updated draft",
+      enhancedPrompt: "",
+      hasEnhancedOnce: false,
+      enhancePhase: "idle",
+      previewSource: "builder_fields",
+      staleEnhancementNotice:
+        "Builder changed since the last enhancement.",
+      archivedEnhanceMetadata: {
+        enhancedPrompt: "Old enhanced output",
+        detectedContext: {
+          intent: ["code generation"],
+          domain: ["software"],
+          complexity: 3,
+        },
+        enhancementsMade: ["Added structure"],
+        qualityScore: { overall: 7.5 },
+      },
+      archivedReasoningSummary: "Archived reasoning.",
+      archivedEnhanceWorkflow: [
+        {
+          stepId: "draft",
+          order: 10,
+          label: "Analyze request",
+          status: "completed",
+          detail: "Done.",
+        },
+      ],
+      archivedWebSearchSources: ["[Docs](https://example.com/docs)"],
+    } as Partial<Parameters<typeof OutputPanel>[0]>);
+
+    expect(screen.getByText("Builder changed after enhancement")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy draft" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Show changes" })).not.toBeInTheDocument();
+
+    // Archived detail disclosures should be present
+    expect(screen.getByTestId("output-panel-details-run-progress")).toBeInTheDocument();
+    expect(screen.getByTestId("output-panel-details-enhancer-findings")).toBeInTheDocument();
+    expect(screen.getByTestId("output-panel-details-sources")).toBeInTheDocument();
+
+    // Verify stale-specific labels
+    expect(screen.getByText("Last enhancement details")).toBeInTheDocument();
+    expect(screen.getByText("Archived sources")).toBeInTheDocument();
+
+    // Open the run-progress accordion and verify archived workflow step content
+    fireEvent.click(screen.getByTestId("output-panel-details-run-progress-trigger"));
+    expect(screen.getByText("Analyze request")).toBeInTheDocument();
+    expect(screen.getByText("Archived reasoning summary")).toBeInTheDocument();
   });
 });

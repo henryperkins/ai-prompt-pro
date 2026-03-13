@@ -65,15 +65,23 @@ function renderPanel(
   );
 }
 
+async function openEnhancerFindings() {
+  await act(async () => {
+    fireEvent.click(
+      screen.getByTestId("output-panel-details-enhancer-findings-trigger"),
+    );
+  });
+}
+
 describe("OutputPanel enhancement metadata", () => {
   it("renders the AI quality score as a distinct post-enhance metric", () => {
     renderPanel({ enhanceMetadata: BASE_METADATA });
 
-    expect(screen.getByText("Enhanced quality (AI)")).toBeInTheDocument();
+    expect(screen.getByText("Enhancer self-check")).toBeInTheDocument();
     expect(screen.getByText("7.3/10")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "AI-reported estimate for the current enhanced output, separate from the builder score.",
+        "AI estimate for the generated output only. Keep it separate from builder readiness.",
       ),
     ).toBeInTheDocument();
   });
@@ -234,7 +242,7 @@ describe("OutputPanel enhancement metadata", () => {
     expect(screen.queryByText("What changed:")).not.toBeInTheDocument();
   });
 
-  it("gracefully handles metadata with missing optional fields", () => {
+  it("gracefully handles metadata with missing optional fields", async () => {
     const minimal: EnhanceMetadata = {
       enhancedPrompt: "Enhanced prompt",
       detectedContext: {
@@ -247,6 +255,8 @@ describe("OutputPanel enhancement metadata", () => {
     };
 
     renderPanel({ enhanceMetadata: minimal });
+
+    await openEnhancerFindings();
 
     expect(screen.getByText("Detected:")).toBeInTheDocument();
     expect(screen.getByText("creative")).toBeInTheDocument();
@@ -270,11 +280,9 @@ describe("OutputPanel enhancement metadata", () => {
 
     expect(screen.getByText("Clarification needed")).toBeInTheDocument();
     expect(
-      screen.getAllByText("Who is the target audience?").length,
-    ).toBeGreaterThanOrEqual(1);
-    expect(
-      screen.getByText("2 clarification question(s) are shown above the prompt."),
+      screen.getByText("2 clarification questions are waiting in Enhancement details."),
     ).toBeInTheDocument();
+    expect(screen.getAllByText("Who is the target audience?").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByRole("button", { name: "Edit" }).length).toBeGreaterThan(0);
   });
 

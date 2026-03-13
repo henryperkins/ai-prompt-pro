@@ -19,6 +19,8 @@ Use this file as the starting point for repo documentation.
 
 ## Active planning docs
 
+- `docs/plans/2026-03-12-output-panel-review-state-regressions-remediation.md` - step-by-step remediation plan for the reviewed output-panel lifecycle regression, stale archived-detail contract drift, and missing post-settle enhancement coverage.
+- `docs/plans/2026-03-12-prompt-enhancer-in-progress-ui-remediation.md` - completed remediation record and validation log for the screenshot-driven enhancer UI/workflow review covering preview-first hierarchy, trust-state clarity, action gating, scoring semantics, and layout balance.
 - `docs/plans/2026-03-12-prompt-builder-enhancer-workflow-remediation.md` - completed remediation record and validation log for the prompt builder / enhancer workflow fixes across mobile session access, stale enhancement preview drift, guest session-state gating, and structured constraint round-tripping.
 - `docs/plans/2026-03-12-enhance-retry-regression-remediation.md` - step-by-step remediation plan for the reviewed ai-client retry-state surfacing, HTTP rate-limit hint propagation, and docs drift gaps in the current transport diff.
 - `docs/plans/2026-03-12-agent-service-hardening-remediation.md` - step-by-step remediation plan for the remaining agent-service operational, security, and maintainability gaps.

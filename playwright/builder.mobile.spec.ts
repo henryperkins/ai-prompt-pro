@@ -261,6 +261,12 @@ test("lets mobile users change enhancement settings before running enhance", asy
   });
   await expect(previewDialog).toBeVisible();
   await expect(
+    previewDialog
+      .getByTestId("output-panel-state-banner")
+      .getByText("Draft preview", { exact: true }),
+  ).toBeVisible();
+  await expect(previewDialog.getByRole("button", { name: "Copy draft" })).toBeVisible();
+  await expect(
     page.getByTestId("output-panel-enhancement-settings-summary"),
   ).toContainText("Expert prompt · Preserve wording · Ask me");
 });

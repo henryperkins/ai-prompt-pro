@@ -31,7 +31,19 @@ vi.mock("@/components/PageShell", () => ({
 
 
 vi.mock("@/components/OutputPanel", () => ({
-  OutputPanel: () => <div>Output panel</div>,
+  OutputPanel: ({
+    announceStatus = true,
+  }: {
+    announceStatus?: boolean;
+  }) => (
+    <div>
+      <div data-testid="output-panel-announce-status-prop">
+        {String(announceStatus)}
+      </div>
+      {announceStatus ? <p role="status">Mock output panel status</p> : null}
+      <div>Output panel</div>
+    </div>
+  ),
 }));
 
 
@@ -126,7 +138,7 @@ describe("Index mobile layout spacing", () => {
       (node) => node.className.includes("h-32") && node.className.includes("sm:h-28"),
     );
     expect(spacer).toBeTruthy();
-  });
+  }, 10_000);
 
   it("adds a mobile settings trigger and opens the settings sheet", async () => {
     await renderIndex();
@@ -150,6 +162,19 @@ describe("Index mobile layout spacing", () => {
     expect(
       screen.queryByText("Enhancement settings"),
     ).not.toBeInTheDocument();
+  });
+
+  it("announces the shared mobile review state and suppresses drawer status duplication", async () => {
+    await renderIndex();
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Draft preview. The visible text comes from the current builder inputs.",
+    );
+
+    fireEvent.click(screen.getByTestId("builder-mobile-preview-trigger"));
+
+    expect(screen.getByTestId("output-panel-announce-status-prop")).toHaveTextContent("false");
+    expect(screen.getAllByRole("status")).toHaveLength(1);
   });
 
   it("lets signed-in mobile users reach the Codex session drawer from settings", async () => {

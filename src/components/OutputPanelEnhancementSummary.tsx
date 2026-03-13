@@ -23,6 +23,10 @@ interface OutputPanelEnhancementSummaryProps {
   activeVariant: EnhancementVariant;
   onVariantChange: (variant: EnhancementVariant) => void;
   collapseOpenQuestions?: boolean;
+  showQualityScore?: boolean;
+  showVariants?: boolean;
+  qualityHeading?: string;
+  qualityDescription?: string;
 }
 
 export function OutputPanelEnhancementSummary({
@@ -30,17 +34,22 @@ export function OutputPanelEnhancementSummary({
   activeVariant,
   onVariantChange,
   collapseOpenQuestions,
+  showQualityScore = true,
+  showVariants = true,
+  qualityHeading = "Enhancer self-check",
+  qualityDescription =
+    "AI estimate for the generated output only. Keep it separate from builder readiness.",
 }: OutputPanelEnhancementSummaryProps) {
   const ctx = metadata.detectedContext;
   const modeLabel = formatModeLabel(ctx?.mode);
-  const hasQualityScore = Boolean(metadata.qualityScore);
+  const hasQualityScore = showQualityScore && Boolean(metadata.qualityScore);
   const hasDetected = Boolean(ctx && (ctx.intent.length > 0 || ctx.domain.length > 0));
   const hasChanges = Boolean(
     metadata.enhancementsMade && metadata.enhancementsMade.length > 0,
   );
   const hasMissing = Boolean(metadata.missingParts && metadata.missingParts.length > 0);
   const hasSuggestions = Boolean(metadata.suggestions && metadata.suggestions.length > 0);
-  const hasVariants = Boolean(
+  const hasVariants = showVariants && Boolean(
     metadata.alternativeVersions &&
       (metadata.alternativeVersions.shorter ||
         metadata.alternativeVersions.more_detailed),
@@ -66,16 +75,19 @@ export function OutputPanelEnhancementSummary({
   }
 
   return (
-    <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5 space-y-2 text-sm">
+    <div
+      className="space-y-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5 text-sm"
+      data-testid="output-panel-enhancement-summary"
+    >
       {hasQualityScore && metadata.qualityScore && (
         <div className="rounded-lg border border-border/50 bg-background/60 px-2.5 py-2">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-xs font-medium text-muted-foreground">
-                Enhanced quality (AI)
+                {qualityHeading}
               </p>
               <p className="mt-0.5 text-xs text-foreground/80">
-                AI-reported estimate for the current enhanced output, separate from the builder score.
+                {qualityDescription}
               </p>
             </div>
             <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">

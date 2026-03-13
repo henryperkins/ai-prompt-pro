@@ -17,6 +17,7 @@ import {
   UI_STATUS_SURFACE_CLASSES,
   UI_STATUS_TEXT_CLASSES,
 } from "@/lib/ui-status";
+import { getOutputPanelReviewState } from "@/lib/output-panel-review-state";
 import { cx } from "@/lib/utils/cx";
 import { normalizeHttpUrl } from "@/lib/url-utils";
 import { WebSearchActivityIndicator } from "@/components/WebSearchActivityIndicator";
@@ -40,8 +41,10 @@ import type {
 } from "@/components/output-panel-types";
 import { OutputPanelHeader } from "@/components/OutputPanelHeader";
 import { OutputPanelCompareDialog } from "@/components/OutputPanelCompareDialog";
+import { OutputPanelDetailsAccordion } from "@/components/OutputPanelDetailsAccordion";
 import { OutputPanelEnhancementSummary } from "@/components/OutputPanelEnhancementSummary";
 import { OutputPanelEnhanceControls } from "@/components/OutputPanelEnhanceControls";
+import { OutputPanelStateBanner } from "@/components/OutputPanelStateBanner";
 import { OutputPanelWorkflow } from "@/components/OutputPanelWorkflow";
 import { EnhancementInspector, type ApplyToBuilderUpdate } from "@/components/EnhancementInspector";
 import { EnhancementClarificationCard } from "@/components/EnhancementClarificationCard";
@@ -99,8 +102,14 @@ interface OutputPanelProps {
     items: string[],
   ) => void;
   staleEnhancementNotice?: string | null;
+  /** Archived artifacts from the last settled enhancement, available in stale state only. */
+  archivedEnhanceMetadata?: EnhanceMetadata | null;
+  archivedReasoningSummary?: string;
+  archivedEnhanceWorkflow?: EnhanceWorkflowStep[];
+  archivedWebSearchSources?: string[];
   /** When false, the structured inspector and apply-to-builder actions are hidden. */
   showStructuredInspector?: boolean;
+  announceStatus?: boolean;
 }
 
 export type { ApplyToBuilderUpdate };
@@ -176,7 +185,12 @@ export function OutputPanel({
   onEditableListSaved,
   onApplyEditableListToPrompt,
   staleEnhancementNotice,
+  archivedEnhanceMetadata,
+  archivedReasoningSummary = "",
+  archivedEnhanceWorkflow = [],
+  archivedWebSearchSources = [],
   showStructuredInspector = true,
+  announceStatus = true,
 }: OutputPanelProps) {
   const [copied, setCopied] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -237,6 +251,11 @@ export function OutputPanel({
     return () => window.clearTimeout(fadeTimer);
   }, [displayedReasoningSummary, trimmedReasoningSummary]);
 
+  const isTransientPhase =
+    enhancePhase === "starting" ||
+    enhancePhase === "streaming" ||
+    enhancePhase === "settling";
+  const isRunInFlight = isEnhancing || isTransientPhase;
   const isStreamingVisual = enhancePhase === "starting" || enhancePhase === "streaming";
   const isSettledVisual = enhancePhase === "settling" || enhancePhase === "done";
   const statusLabel =
@@ -258,41 +277,115 @@ export function OutputPanel({
     : enhancePhase === "done"
       ? "Enhanced"
       : enhanceIdleLabel;
-  const enhanceAssistiveStatus =
-    enhancePhase === "starting"
-      ? "Enhancement started."
-      : enhancePhase === "streaming"
-        ? "Enhancement in progress."
-        : enhancePhase === "settling"
-          ? "Enhancement finalizing."
-          : enhancePhase === "done"
-            ? "Enhancement complete."
-            : "";
+  const hasPreviewContent = displayPrompt.trim().length > 0;
+  const isStalePreview = Boolean(staleEnhancementNotice?.trim());
+  // Gate on visible artifact + in-flight status, not enhancePhase alone.
+  // This survives the done→idle timer so settled enhanced output keeps
+  // ready semantics (compare, save, variants) after the phase returns to idle.
+  const isSettledEnhancedOutput =
+    !isRunInFlight &&
+    effectivePreviewSource === "enhanced" &&
+    hasPreviewContent &&
+    !isStalePreview;
   const hasCompare = Boolean(
     builtPrompt.trim() && displayPrompt.trim() && builtPrompt.trim() !== displayPrompt.trim()
   );
-  const hasPreviewContent = displayPrompt.trim().length > 0;
-  const showUtilityActions = hasEnhancedOnce || hasPreviewContent;
-  const canUseSaveMenu = canSavePrompt || canSharePrompt || hasPreviewContent;
+  const canShowCompare = hasCompare && isSettledEnhancedOutput;
+  const canShowTooMuchChanged = canShowCompare && hasEnhancedOnce;
+  const copyLabel =
+    isTransientPhase || isSettledEnhancedOutput
+      ? "Copy current output"
+      : "Copy draft";
+  const showUtilityActions = hasPreviewContent;
+  const canUseSaveMenu =
+    !isTransientPhase && (canSavePrompt || canSharePrompt || hasPreviewContent);
+  const canUseMoreMenu = !isTransientPhase && showUtilityActions;
   const editMetrics = useMemo(
     () => buildTextEditMetrics(builtPrompt, displayPrompt),
     [builtPrompt, displayPrompt],
   );
+  // Clarification actions only apply to the current (non-archived) enhancement.
   const showClarificationActions = shouldShowClarificationCard(
     enhanceMetadata,
     ambiguityMode,
   );
+
+  // In stale state, fall back to archived artifacts for secondary disclosures.
+  // Primary preview/actions always use current (non-archived) values.
+  const detailMetadata = enhanceMetadata ?? (isStalePreview ? (archivedEnhanceMetadata ?? null) : null);
+  const detailWorkflow = enhanceWorkflow.length > 0
+    ? enhanceWorkflow
+    : isStalePreview ? archivedEnhanceWorkflow : [];
+  const detailReasoningSummary = displayedReasoningSummary
+    || (isStalePreview ? archivedReasoningSummary.trim() : "");
+  const detailWebSearchSources = webSearchSources.length > 0
+    ? webSearchSources
+    : isStalePreview ? archivedWebSearchSources : [];
+
   const hasStructuredInspectorContent = Boolean(
-    enhanceMetadata?.partsBreakdown ||
-    enhanceMetadata?.enhancementPlan ||
-    (enhanceMetadata?.assumptionsMade?.length ?? 0) > 0 ||
-    (enhanceMetadata?.openQuestions?.length ?? 0) > 0,
+    detailMetadata?.partsBreakdown ||
+    detailMetadata?.enhancementPlan ||
+    (detailMetadata?.assumptionsMade?.length ?? 0) > 0 ||
+    (detailMetadata?.openQuestions?.length ?? 0) > 0,
   );
+  const availableVariants = useMemo(() => {
+    const variants: EnhancementVariant[] = ["original"];
+    if (enhanceMetadata?.alternativeVersions?.shorter) {
+      variants.push("shorter");
+    }
+    if (enhanceMetadata?.alternativeVersions?.more_detailed) {
+      variants.push("more_detailed");
+    }
+    return variants;
+  }, [enhanceMetadata]);
+  const showVariantSwitches =
+    isSettledEnhancedOutput && availableVariants.length > 1;
+  const hasRunProgress = Boolean(
+    detailReasoningSummary ||
+      (webSearchActivity && webSearchActivity.phase !== "idle") ||
+      detailWorkflow.length > 0,
+  );
+  const runProgressSummary = [
+    detailWorkflow.length > 0
+      ? `${detailWorkflow.length} workflow step${detailWorkflow.length === 1 ? "" : "s"}`
+      : null,
+    webSearchActivity && webSearchActivity.phase !== "idle"
+      ? webSearchActivity.phase === "searching"
+        ? "live web search"
+        : `${webSearchActivity.searchCount} search${webSearchActivity.searchCount === 1 ? "" : "es"}`
+      : null,
+    detailReasoningSummary ? "reasoning summary" : null,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .join(" · ");
+  const hasEnhancementSummary = Boolean(detailMetadata && !isEnhancing);
+  const hasInspectorPanel = Boolean(
+    showStructuredInspector &&
+      detailMetadata &&
+      !isEnhancing &&
+      hasStructuredInspectorContent,
+  );
+  const hasSourcesPanel = detailWebSearchSources.length > 0;
+  const shouldAutoOpenEnhancementDetails =
+    showClarificationActions || Boolean(enhanceMetadata?.missingParts?.length);
+  const reviewState = getOutputPanelReviewState({
+    enhancePhase,
+    isEnhancing,
+    previewSource: effectivePreviewSource,
+    hasPreviewContent,
+    staleEnhancementNotice,
+  });
+
+  useEffect(() => {
+    if (!canShowCompare && compareDialogOpen) {
+      setCompareDialogOpen(false);
+    }
+  }, [canShowCompare, compareDialogOpen]);
 
   const diff = useMemo(() => {
-    if (!compareDialogOpen || !hasCompare) return null;
+    if (!compareDialogOpen || !canShowCompare) return null;
     return buildLineDiff(builtPrompt, displayPrompt);
-  }, [compareDialogOpen, hasCompare, builtPrompt, displayPrompt]);
+  }, [compareDialogOpen, canShowCompare, builtPrompt, displayPrompt]);
 
   const handleVariantChange = (variant: EnhancementVariant) => {
     if (activeVariant === undefined) {
@@ -402,30 +495,99 @@ export function OutputPanel({
 
   return (
     <div className="ui-density min-w-0 space-y-4 h-full flex flex-col" data-density="comfortable">
-      <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-        {enhanceAssistiveStatus}
-      </p>
-      <OutputPanelHeader
-        hasEnhancedPrompt={Boolean(enhancedPrompt)}
+      {announceStatus ? (
+        <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+          {reviewState.assistiveStatus}
+        </p>
+      ) : null}
+      <OutputPanelStateBanner
+        title={reviewState.title}
+        description={reviewState.description}
         previewSourceLabel={previewSourceLabel}
-        statusLabel={statusLabel}
-        hasCompare={hasCompare}
-        hasEnhancedOnce={hasEnhancedOnce}
-        showUtilityActions={showUtilityActions}
-        canUseSaveMenu={canUseSaveMenu}
-        canSavePrompt={canSavePrompt}
+        statusLabel={isTransientPhase || isSettledEnhancedOutput ? statusLabel : null}
+        nextAction={reviewState.nextAction}
+        tone={reviewState.tone}
+        stateKey={reviewState.stateKey}
+      />
+
+      <OutputPanelCompareDialog
+        open={canShowCompare && compareDialogOpen}
+        onOpenChange={setCompareDialogOpen}
+        diff={diff}
+        hasCompare={canShowCompare}
+      />
+
+      <OutputPanelSaveDialog
+        open={saveDialogOpen}
+        onOpenChange={setSaveDialogOpen}
+        initialShareEnabled={saveDialogShareIntent}
         canSharePrompt={canSharePrompt}
         phase2Enabled={phase2Enabled}
-        copied={copied}
-        isMobile={isMobile}
-        displayPrompt={displayPrompt}
-        onCopy={() => void handleCopy()}
-        onOpenCompare={() => setCompareDialogOpen(true)}
-        onTooMuchChanged={handleTooMuchChanged}
-        onOpenSaveDialog={openSaveDialog}
-        onSaveVersion={onSaveVersion}
+        remixContext={remixContext}
+        onSavePrompt={onSavePrompt}
+        onSaveAndSharePrompt={onSaveAndSharePrompt}
       />
-      {!showUtilityActions && (
+
+      <Card
+        className={cx(
+          "enhance-output-frame flex min-h-0 flex-1 flex-col overflow-hidden bg-card",
+          isStreamingVisual && "enhance-output-streaming",
+          isSettledVisual && "enhance-output-complete"
+        )}
+        data-testid="output-panel-preview-card"
+      >
+        <div className="border-b border-border/60 px-4 py-3">
+          <p className="ui-section-label text-muted-foreground">
+            Current preview
+          </p>
+        </div>
+        <div className="min-h-0 flex-1 overflow-auto p-4">
+          {displayPrompt ? (
+            <pre className="whitespace-pre-wrap text-sm font-mono text-foreground leading-relaxed">
+              {displayPrompt}
+            </pre>
+          ) : (
+            <div className="flex h-full min-h-30 flex-col items-center justify-center gap-3 px-4 sm:min-h-50">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-muted/30">
+                <Target className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <div className="space-y-1 text-center">
+                <p className="text-sm font-medium text-foreground">
+                  Your prompt preview appears here
+                </p>
+                <p className="max-w-xs text-xs text-muted-foreground">
+                  Start by describing what the model should do, then enhance to get a polished, structured prompt.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {showUtilityActions ? (
+        <OutputPanelHeader
+          copyLabel={copyLabel}
+          hasCompare={canShowCompare}
+          showTooMuchChanged={canShowTooMuchChanged}
+          showUtilityActions={showUtilityActions}
+          canUseSaveMenu={canUseSaveMenu}
+          canUseMoreMenu={canUseMoreMenu}
+          canSavePrompt={canSavePrompt}
+          canSharePrompt={canSharePrompt}
+          phase2Enabled={phase2Enabled}
+          copied={copied}
+          isMobile={isMobile}
+          displayPrompt={displayPrompt}
+          activeVariant={resolvedActiveVariant}
+          availableVariants={showVariantSwitches ? availableVariants : ["original"]}
+          onCopy={() => void handleCopy()}
+          onOpenCompare={() => setCompareDialogOpen(true)}
+          onTooMuchChanged={handleTooMuchChanged}
+          onOpenSaveDialog={openSaveDialog}
+          onSaveVersion={onSaveVersion}
+          onVariantChange={showVariantSwitches ? handleVariantChange : undefined}
+        />
+      ) : (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <p className="text-sm text-muted-foreground">
             Save and developer tools unlock once preview content is available.
@@ -454,178 +616,6 @@ export function OutputPanel({
               More
             </Button>
           </div>
-        </div>
-      )}
-
-      <OutputPanelCompareDialog
-        open={compareDialogOpen}
-        onOpenChange={setCompareDialogOpen}
-        diff={diff}
-        hasCompare={hasCompare}
-      />
-
-      <OutputPanelSaveDialog
-        open={saveDialogOpen}
-        onOpenChange={setSaveDialogOpen}
-        initialShareEnabled={saveDialogShareIntent}
-        canSharePrompt={canSharePrompt}
-        phase2Enabled={phase2Enabled}
-        remixContext={remixContext}
-        onSavePrompt={onSavePrompt}
-        onSaveAndSharePrompt={onSaveAndSharePrompt}
-      />
-
-      {displayedReasoningSummary && (
-        <Card
-          className={cx(
-            "p-3 transition-opacity duration-1000 ease-out",
-            UI_STATUS_SURFACE_CLASSES.warning,
-            isReasoningSummaryFading && "opacity-0",
-          )}
-        >
-          <p className={cx("ui-section-label", UI_STATUS_TEXT_CLASSES.warning)}>
-            Reasoning summary
-          </p>
-          <div className="scrollbar-themed mt-2 max-h-36 sm:max-h-56 overflow-y-auto overscroll-contain prose prose-sm max-w-none whitespace-normal text-foreground/90 dark:prose-invert prose-headings:my-1 prose-p:my-1 prose-pre:my-1 prose-code:wrap-break-word prose-ul:my-1 prose-ol:my-1">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {displayedReasoningSummary}
-            </ReactMarkdown>
-          </div>
-        </Card>
-      )}
-
-      {webSearchActivity && webSearchActivity.phase !== "idle" && (
-        <WebSearchActivityIndicator
-          phase={webSearchActivity.phase}
-          query={webSearchActivity.query}
-          searchCount={webSearchActivity.searchCount}
-        />
-      )}
-
-      <OutputPanelWorkflow
-        steps={enhanceWorkflow}
-        isEnhancing={isEnhancing}
-      />
-
-      {showClarificationActions && enhanceMetadata?.openQuestions && (
-        <EnhancementClarificationCard
-          questions={enhanceMetadata.openQuestions}
-          onAddToPrompt={handleAppendClarificationToPrompt}
-          onAddToSessionContext={
-            onAppendToSessionContext
-              ? handleAppendClarificationToSessionContext
-              : undefined
-          }
-          onCopyQuestions={() =>
-            void handleCopyText(
-              "Clarification questions",
-              formatClarificationQuestions(enhanceMetadata.openQuestions),
-            )
-          }
-        />
-      )}
-
-      {staleEnhancementNotice && (
-        <Card
-          className="border-border/70 bg-muted/30 p-3 text-sm text-muted-foreground"
-          data-testid="output-panel-stale-enhancement-notice"
-        >
-          {staleEnhancementNotice}
-        </Card>
-      )}
-
-      <Card
-        className={cx(
-          "enhance-output-frame flex min-h-0 flex-1 flex-col overflow-hidden bg-card",
-          isStreamingVisual && "enhance-output-streaming",
-          isSettledVisual && "enhance-output-complete"
-        )}
-      >
-        <div className="min-h-0 flex-1 overflow-auto p-4">
-          {displayPrompt ? (
-            <pre className="whitespace-pre-wrap text-sm font-mono text-foreground leading-relaxed">
-              {displayPrompt}
-            </pre>
-          ) : (
-            <div className="flex h-full min-h-30 flex-col items-center justify-center gap-3 px-4 sm:min-h-50">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-muted/30">
-                <Target className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <div className="space-y-1 text-center">
-                <p className="text-sm font-medium text-foreground">
-                  Your prompt preview appears here
-                </p>
-                <p className="max-w-xs text-xs text-muted-foreground">
-                  Start by describing what the model should do, then enhance to get a polished, structured prompt.
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-      </Card>
-
-      {enhanceMetadata && !isEnhancing && (
-        <OutputPanelEnhancementSummary
-          metadata={enhanceMetadata}
-          activeVariant={resolvedActiveVariant}
-          onVariantChange={handleVariantChange}
-          collapseOpenQuestions={showClarificationActions}
-        />
-      )}
-
-      {showStructuredInspector && enhanceMetadata && !isEnhancing && hasStructuredInspectorContent && (
-        <EnhancementInspector
-          metadata={enhanceMetadata}
-          onApplyToBuilder={onApplyToBuilder}
-          onApplyToSessionContext={
-            onAppendToSessionContext
-              ? (label, content) => {
-                onAppendToSessionContext(content);
-                toast({
-                  title: `${label} added`,
-                  description:
-                    "That plan detail was appended to the session context.",
-                });
-              }
-              : undefined
-          }
-          onCopyText={(label, content) => {
-            void handleCopyText(label, content);
-          }}
-          onEditableListSaved={onEditableListSaved}
-          onApplyEditableListToPrompt={(field, items) => {
-            if (!onApplyEditableListToPrompt) return;
-            onApplyEditableListToPrompt(field, items);
-            const copy = getEditableListActionCopy(field);
-            toast(copy);
-          }}
-        />
-      )}
-
-      {webSearchSources.length > 0 && (
-        <div className="px-1 pt-1 pb-0">
-          <p className="ui-section-label mb-1 text-muted-foreground">Sources</p>
-          <ul className="space-y-0.5">
-            {webSearchSources.map((source, i) => {
-              const safeLink = parseWebSourceLink(source);
-              return (
-                <li key={i} className="text-sm text-muted-foreground">
-                  {safeLink ? (
-                    <a
-                      href={safeLink.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline"
-                    >
-                      {safeLink.title}
-                    </a>
-                  ) : (
-                    source
-                  )}
-                </li>
-              );
-            })}
-          </ul>
         </div>
       )}
 
@@ -663,6 +653,158 @@ export function OutputPanel({
             </div>
           </div>
         )}
+
+      {showClarificationActions && enhanceMetadata?.openQuestions && (
+        <EnhancementClarificationCard
+          questions={enhanceMetadata.openQuestions}
+          compact
+          onAddToPrompt={handleAppendClarificationToPrompt}
+          onAddToSessionContext={
+            onAppendToSessionContext
+              ? handleAppendClarificationToSessionContext
+              : undefined
+          }
+          onCopyQuestions={() =>
+            void handleCopyText(
+              "Clarification questions",
+              formatClarificationQuestions(enhanceMetadata.openQuestions),
+            )
+          }
+        />
+      )}
+
+      {hasRunProgress ? (
+        <OutputPanelDetailsAccordion
+          title="Run progress"
+          summary={runProgressSummary || "Workflow and search activity"}
+          defaultOpen={isTransientPhase}
+          testId="output-panel-details-run-progress"
+        >
+          {webSearchActivity && webSearchActivity.phase !== "idle" ? (
+            <WebSearchActivityIndicator
+              phase={webSearchActivity.phase}
+              query={webSearchActivity.query}
+              searchCount={webSearchActivity.searchCount}
+            />
+          ) : null}
+
+          <OutputPanelWorkflow
+            steps={detailWorkflow}
+            isEnhancing={isEnhancing}
+          />
+
+          {detailReasoningSummary ? (
+            <Card
+              className={cx(
+                "p-3 transition-opacity duration-1000 ease-out",
+                UI_STATUS_SURFACE_CLASSES.warning,
+                !isStalePreview && isReasoningSummaryFading && "opacity-0",
+              )}
+            >
+              <p className={cx("ui-section-label", UI_STATUS_TEXT_CLASSES.warning)}>
+                {isStalePreview ? "Archived reasoning summary" : "Reasoning summary"}
+              </p>
+              <div className="scrollbar-themed mt-2 max-h-36 overflow-y-auto overscroll-contain prose prose-sm max-w-none whitespace-normal text-foreground/90 dark:prose-invert prose-headings:my-1 prose-p:my-1 prose-pre:my-1 prose-code:wrap-break-word prose-ul:my-1 prose-ol:my-1 sm:max-h-56">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {detailReasoningSummary}
+                </ReactMarkdown>
+              </div>
+            </Card>
+          ) : null}
+        </OutputPanelDetailsAccordion>
+      ) : null}
+
+      {hasEnhancementSummary ? (
+        <OutputPanelDetailsAccordion
+          title={isStalePreview ? "Last enhancement details" : "What the enhancer found"}
+          summary={
+            isStalePreview
+              ? "Archived AI notes and detected context from the last settled run."
+              : "AI assessment, detected intent, and suggested next steps."
+          }
+          defaultOpen={shouldAutoOpenEnhancementDetails}
+          testId="output-panel-details-enhancer-findings"
+        >
+          <OutputPanelEnhancementSummary
+            metadata={detailMetadata!}
+            activeVariant={resolvedActiveVariant}
+            onVariantChange={handleVariantChange}
+            collapseOpenQuestions={false}
+            showQualityScore={!isStalePreview}
+            showVariants={false}
+          />
+        </OutputPanelDetailsAccordion>
+      ) : null}
+
+      {hasInspectorPanel ? (
+        <OutputPanelDetailsAccordion
+          title="Inspector: assumptions, gaps, and builder updates"
+          summary={
+            isStalePreview
+              ? "Archived structured edits from the last enhancement run."
+              : "Apply structured findings back into the builder when they help."
+          }
+          defaultOpen={shouldAutoOpenEnhancementDetails}
+          testId="output-panel-details-inspector"
+        >
+          <EnhancementInspector
+            metadata={detailMetadata!}
+            onApplyToBuilder={isStalePreview ? undefined : onApplyToBuilder}
+            onApplyToSessionContext={
+              isStalePreview || !onAppendToSessionContext
+                ? undefined
+                : (label, content) => {
+                  onAppendToSessionContext(content);
+                  toast({
+                    title: `${label} added`,
+                    description:
+                      "That plan detail was appended to the session context.",
+                  });
+                }
+            }
+            onCopyText={(label, content) => {
+              void handleCopyText(label, content);
+            }}
+            onEditableListSaved={isStalePreview ? undefined : onEditableListSaved}
+            onApplyEditableListToPrompt={isStalePreview ? undefined : (field, items) => {
+              if (!onApplyEditableListToPrompt) return;
+              onApplyEditableListToPrompt(field, items);
+              const copy = getEditableListActionCopy(field);
+              toast(copy);
+            }}
+          />
+        </OutputPanelDetailsAccordion>
+      ) : null}
+
+      {hasSourcesPanel ? (
+        <OutputPanelDetailsAccordion
+          title={isStalePreview ? "Archived sources" : "Sources and provenance"}
+          summary={`${detailWebSearchSources.length} source link${detailWebSearchSources.length === 1 ? "" : "s"}`}
+          testId="output-panel-details-sources"
+        >
+          <ul className="space-y-1">
+            {detailWebSearchSources.map((source, i) => {
+              const safeLink = parseWebSourceLink(source);
+              return (
+                <li key={i} className="text-sm text-muted-foreground">
+                  {safeLink ? (
+                    <a
+                      href={safeLink.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      {safeLink.title}
+                    </a>
+                  ) : (
+                    source
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </OutputPanelDetailsAccordion>
+      ) : null}
 
       {!hideEnhanceButton && (
         <OutputPanelEnhanceControls

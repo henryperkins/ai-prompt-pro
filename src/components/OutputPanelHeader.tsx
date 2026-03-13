@@ -6,6 +6,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/base/dropdown-menu";
 import { OutputPanelDevTools } from "@/components/OutputPanelDevTools";
+import type { EnhancementVariant } from "@/components/output-panel-types";
 import {
   Check,
   Copy,
@@ -13,65 +14,77 @@ import {
   FloppyDisk as Save,
 } from "@phosphor-icons/react";
 
+const VARIANT_LABELS: Record<EnhancementVariant, string> = {
+  original: "Original",
+  shorter: "Use shorter",
+  more_detailed: "Use more detailed",
+};
+
 interface OutputPanelHeaderProps {
-  hasEnhancedPrompt: boolean;
-  previewSourceLabel: string;
-  statusLabel: string | null;
+  copyLabel: string;
   hasCompare: boolean;
-  hasEnhancedOnce: boolean;
+  showTooMuchChanged: boolean;
   showUtilityActions: boolean;
   canUseSaveMenu: boolean;
+  canUseMoreMenu: boolean;
   canSavePrompt: boolean;
   canSharePrompt: boolean;
   phase2Enabled: boolean;
   copied: boolean;
   isMobile: boolean;
   displayPrompt: string;
+  activeVariant: EnhancementVariant;
+  availableVariants: EnhancementVariant[];
   onCopy: () => void;
   onOpenCompare: () => void;
   onTooMuchChanged: () => void;
   onOpenSaveDialog: (share: boolean) => void;
   onSaveVersion: () => void;
+  onVariantChange?: (variant: EnhancementVariant) => void;
 }
 
 export function OutputPanelHeader({
-  hasEnhancedPrompt,
-  previewSourceLabel,
-  statusLabel,
+  copyLabel,
   hasCompare,
-  hasEnhancedOnce,
+  showTooMuchChanged,
   showUtilityActions,
   canUseSaveMenu,
+  canUseMoreMenu,
   canSavePrompt,
   canSharePrompt,
   phase2Enabled,
   copied,
   isMobile,
   displayPrompt,
+  activeVariant,
+  availableVariants,
   onCopy,
   onOpenCompare,
   onTooMuchChanged,
   onOpenSaveDialog,
   onSaveVersion,
+  onVariantChange,
 }: OutputPanelHeaderProps) {
+  const showVariantControls = Boolean(
+    onVariantChange && availableVariants.length > 1,
+  );
+
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-        <h2 className="text-sm font-medium text-foreground">
-          {hasEnhancedPrompt ? "✨ Enhanced Prompt" : "📝 Preview"}
-        </h2>
-        <span className="interactive-chip inline-flex items-center rounded-full border border-border/80 bg-muted/50 px-2 py-0.5 text-xs font-medium text-muted-foreground">
-          Source: {previewSourceLabel}
-        </span>
-        {statusLabel && (
-          <span className="interactive-chip inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-            {statusLabel}
-          </span>
-        )}
-      </div>
-      <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">
-        {hasCompare && (
-          <>
+    <div className="space-y-2" data-testid="output-panel-review-actions">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={onCopy}
+            disabled={!displayPrompt}
+            className="ui-toolbar-button utility-action-button min-w-[132px]"
+          >
+            {copied ? <Check /> : <Copy />}
+            {copied ? "Copied!" : copyLabel}
+          </Button>
+
+          {hasCompare ? (
             <Button
               type="button"
               variant="secondary"
@@ -81,32 +94,23 @@ export function OutputPanelHeader({
             >
               Show changes
             </Button>
-            {hasEnhancedOnce && (
-              <Button
-                type="button"
-                variant="tertiary"
-                size="sm"
-                className="ui-toolbar-button px-2"
-                onClick={onTooMuchChanged}
-              >
-                Too much changed
-              </Button>
-            )}
-          </>
-        )}
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={onCopy}
-          disabled={!displayPrompt}
-          className="ui-toolbar-button utility-action-button min-w-[84px]"
-        >
-          {copied ? <Check /> : <Copy />}
-          {copied ? "Copied!" : hasEnhancedOnce ? "Copy" : "Copy preview"}
-        </Button>
+          ) : null}
 
-        {showUtilityActions && (
-          <>
+          {showTooMuchChanged ? (
+            <Button
+              type="button"
+              variant="tertiary"
+              size="sm"
+              className="ui-toolbar-button px-2"
+              onClick={onTooMuchChanged}
+            >
+              Too much changed
+            </Button>
+          ) : null}
+        </div>
+
+        {showUtilityActions ? (
+          <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -157,6 +161,7 @@ export function OutputPanelHeader({
                 <Button
                   variant="tertiary"
                   size="sm"
+                  disabled={!canUseMoreMenu}
                   className="ui-toolbar-button gap-1.5"
                 >
                   <MoreHorizontal className="h-3 w-3" />
@@ -170,9 +175,27 @@ export function OutputPanelHeader({
                 />
               </DropdownMenuContent>
             </DropdownMenu>
-          </>
-        )}
+          </div>
+        ) : null}
       </div>
+
+      {showVariantControls ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2">
+          <span className="text-xs font-medium text-muted-foreground">Versions:</span>
+          {availableVariants.map((variant) => (
+            <Button
+              key={variant}
+              type="button"
+              variant={activeVariant === variant ? "primary" : "secondary"}
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => onVariantChange?.(variant)}
+            >
+              {VARIANT_LABELS[variant]}
+            </Button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -168,7 +168,9 @@ describe("Phase 2 accessibility and validation", () => {
     );
 
     const liveRegion = screen.getByRole("status");
-    expect(liveRegion).toHaveTextContent("Enhancement started.");
+    expect(liveRegion).toHaveTextContent(
+      "Enhancing. The AI is actively rewriting the prompt. The visible output may still change.",
+    );
 
     rerender(
       <OutputPanel
@@ -185,7 +187,9 @@ describe("Phase 2 accessibility and validation", () => {
       />,
     );
 
-    expect(liveRegion).toHaveTextContent("Enhancement complete.");
+    expect(liveRegion).toHaveTextContent(
+      "Enhanced output ready. The run is complete and the visible text is the settled AI result.",
+    );
   });
 
   it("validates required fields for save prompt input", () => {

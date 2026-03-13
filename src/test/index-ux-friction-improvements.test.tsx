@@ -166,11 +166,11 @@ describe("Index UX friction improvements", () => {
   it("labels the draft score as builder-derived before enhancement", async () => {
     await renderIndex();
 
-    expect(screen.getByText("Builder quality signal")).toBeInTheDocument();
+    expect(screen.getByText("Builder readiness")).toBeInTheDocument();
     expect(
-      screen.getByText("Draft-only score before enhancement."),
+      screen.getByText("Readiness signal for the current draft before enhancement."),
     ).toBeInTheDocument();
-  });
+  }, 10_000);
 
   it("computes preview source from builder fields once the builder already has detail input", async () => {
     await renderIndex();

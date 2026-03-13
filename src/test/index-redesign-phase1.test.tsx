@@ -149,10 +149,12 @@ describe("Index redesign phase 1 gating", () => {
   it("shows right-rail helper modules and history link on desktop", async () => {
     await renderIndex();
 
-    expect(screen.getByText("Next best action")).toBeInTheDocument();
+    expect(screen.getByText("Builder readiness")).toBeInTheDocument();
+    expect(screen.getByText("Session, tips & history")).toBeInTheDocument();
+    expect(screen.queryByText("Next best action")).not.toBeInTheDocument();
     expect(
-      screen.getByText(/Preview is ready to copy or save\./),
-    ).toBeInTheDocument();
+      screen.queryByText(/Preview is ready to copy or save\./),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("History")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Version History" })).toHaveAttribute("href", "/history");
   });

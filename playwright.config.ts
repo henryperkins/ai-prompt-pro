@@ -1,6 +1,11 @@
 import { defineConfig } from "@playwright/test";
 
-const MOBILE_FLAG_ON_SERVER_URL = "http://127.0.0.1:4173";
+const PLAYWRIGHT_SERVER_HOST = process.env.PLAYWRIGHT_HOST || "127.0.0.1";
+const PLAYWRIGHT_SERVER_PORT = process.env.PLAYWRIGHT_PORT || "4173";
+const PLAYWRIGHT_DEV_SERVER_URL = `http://${PLAYWRIGHT_SERVER_HOST}:${PLAYWRIGHT_SERVER_PORT}`;
+const PLAYWRIGHT_BASE_URL =
+  process.env.PLAYWRIGHT_BASE_URL?.trim() || PLAYWRIGHT_DEV_SERVER_URL;
+const USE_EXTERNAL_BASE_URL = Boolean(process.env.PLAYWRIGHT_BASE_URL?.trim());
 const PLAYWRIGHT_NEON_DATA_API_URL = "https://neon.test/neondb/rest/v1";
 const PLAYWRIGHT_NEON_AUTH_URL = "https://neon.test/neondb/auth";
 const PLAYWRIGHT_AGENT_SERVICE_URL = "https://agent.test";
@@ -16,7 +21,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : [["list"]],
   use: {
-    baseURL: MOBILE_FLAG_ON_SERVER_URL,
+    baseURL: PLAYWRIGHT_BASE_URL,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
@@ -25,20 +30,22 @@ export default defineConfig({
     {
       name: "mobile",
       use: {
-        baseURL: MOBILE_FLAG_ON_SERVER_URL,
+        baseURL: PLAYWRIGHT_BASE_URL,
       },
     },
   ],
-  webServer: [
-    {
-      command:
-        `VITE_NEON_DATA_API_URL=${PLAYWRIGHT_NEON_DATA_API_URL} `
-        + `VITE_NEON_AUTH_URL=${PLAYWRIGHT_NEON_AUTH_URL} `
-        + `VITE_AGENT_SERVICE_URL=${PLAYWRIGHT_AGENT_SERVICE_URL} `
-        + "npm run dev -- --host 127.0.0.1 --port 4173",
-      url: MOBILE_FLAG_ON_SERVER_URL,
-      reuseExistingServer: !process.env.CI,
-      timeout: 120_000,
-    },
-  ],
+  webServer: USE_EXTERNAL_BASE_URL
+    ? undefined
+    : [
+      {
+        command:
+          `VITE_NEON_DATA_API_URL=${PLAYWRIGHT_NEON_DATA_API_URL} `
+          + `VITE_NEON_AUTH_URL=${PLAYWRIGHT_NEON_AUTH_URL} `
+          + `VITE_AGENT_SERVICE_URL=${PLAYWRIGHT_AGENT_SERVICE_URL} `
+          + `npm run dev -- --host ${PLAYWRIGHT_SERVER_HOST} --port ${PLAYWRIGHT_SERVER_PORT}`,
+        url: PLAYWRIGHT_DEV_SERVER_URL,
+        reuseExistingServer: !process.env.CI,
+        timeout: 120_000,
+      },
+    ],
 });
