@@ -385,6 +385,7 @@ async function inferBuilderFieldUpdates({
       );
     }
     const inferThreadOptions = {
+      ...runtime.defaultThreadOptions,
       model: runtime.inferModel,
       modelReasoningEffort: "minimal",
       webSearchEnabled: false,
