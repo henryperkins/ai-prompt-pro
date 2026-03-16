@@ -14,6 +14,7 @@ import {
   postProcessEnhancementResponse,
   scoreComplexity,
   scorePromptQuality,
+  validateEnhancementOutputContract,
 } from "../../agent_service/enhancement-pipeline.mjs";
 
 describe("enhancement pipeline", () => {
@@ -211,6 +212,109 @@ describe("enhancement pipeline", () => {
 
     expect(prompt).toContain(JSON.stringify({ user_input: input }, null, 2));
     expect(prompt.match(/^## OUTPUT FORMAT$/gm)).toHaveLength(1);
+  });
+
+  it("recognizes builder-native context and format markers in prompt structure", () => {
+    const structure = inspectPromptStructure([
+      "<background>",
+      "Product launch notes",
+      "</background>",
+      "",
+      "<sources>",
+      "[FILE: docs/api.md]",
+      "</sources>",
+      "",
+      "Format: bullet list",
+    ].join("\n"));
+
+    expect(structure.presentSections).toContain("Context");
+    expect(structure.presentSections).toContain("Format");
+    expect(structure.missingSections).not.toContain("Context");
+    expect(structure.missingSections).not.toContain("Format");
+  });
+
+  it("requires parts_breakdown.examples to be a string in the structured output contract", () => {
+    const invalid = validateEnhancementOutputContract({
+      enhanced_prompt: "Prompt",
+      parts_breakdown: {
+        role: "Analyst",
+        context: "Context",
+        task: "Task",
+        output_format: "Bullets",
+        examples: null,
+        guardrails: "Guardrails",
+      },
+      enhancements_made: ["Added structure"],
+      quality_score: {
+        clarity: 8,
+        specificity: 8,
+        completeness: 8,
+        actionability: 8,
+        overall: 8,
+      },
+      suggestions: ["Add audience"],
+      alternative_versions: {
+        shorter: "",
+        more_detailed: "",
+      },
+      assumptions_made: [],
+      open_questions: [],
+      enhancement_plan: {
+        primary_intent: "analysis",
+        source_task_type: "",
+        target_deliverable: "",
+        audience: "",
+        required_inputs: [],
+        constraints: [],
+        success_criteria: [],
+        assumptions: [],
+        open_questions: [],
+        verification_needs: [],
+      },
+    });
+
+    const valid = validateEnhancementOutputContract({
+      enhanced_prompt: "Prompt",
+      parts_breakdown: {
+        role: "Analyst",
+        context: "Context",
+        task: "Task",
+        output_format: "Bullets",
+        examples: "",
+        guardrails: "Guardrails",
+      },
+      enhancements_made: ["Added structure"],
+      quality_score: {
+        clarity: 8,
+        specificity: 8,
+        completeness: 8,
+        actionability: 8,
+        overall: 8,
+      },
+      suggestions: ["Add audience"],
+      alternative_versions: {
+        shorter: "",
+        more_detailed: "",
+      },
+      assumptions_made: [],
+      open_questions: [],
+      enhancement_plan: {
+        primary_intent: "analysis",
+        source_task_type: "",
+        target_deliverable: "",
+        audience: "",
+        required_inputs: [],
+        constraints: [],
+        success_criteria: [],
+        assumptions: [],
+        open_questions: [],
+        verification_needs: [],
+      },
+    });
+
+    expect(invalid.ok).toBe(false);
+    expect(invalid.invalidFields).toContain("examples");
+    expect(valid.ok).toBe(true);
   });
 
   describe("classifyIntent", () => {

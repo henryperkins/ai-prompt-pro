@@ -17,6 +17,8 @@ export interface CodexSession {
   transport: CodexSessionTransport;
   contextSummary: string;
   latestEnhancedPrompt: string;
+  lastRunContextSummary: string;
+  lastRunEnhancedPrompt: string;
   eventCount: number;
   startedAt: number | null;
   updatedAt: number | null;
@@ -110,11 +112,11 @@ function extractSessionEnvelope(payload: unknown): Partial<CodexSession> | null 
 
   next.threadId = asNonEmptyString(session.thread_id) || asNonEmptyString(session.threadId);
   next.turnId = asNonEmptyString(session.turn_id) || asNonEmptyString(session.turnId);
-  next.contextSummary = truncate(
+  next.lastRunContextSummary = truncate(
     asNonEmptyString(session.context_summary) || asNonEmptyString(session.contextSummary),
     MAX_SESSION_CONTEXT_SUMMARY_CHARS,
   );
-  next.latestEnhancedPrompt = truncate(
+  next.lastRunEnhancedPrompt = truncate(
     asNonEmptyString(session.latest_enhanced_prompt) || asNonEmptyString(session.latestEnhancedPrompt),
     MAX_SESSION_PROMPT_CHARS,
   );
@@ -156,6 +158,8 @@ export function createCodexSession(overrides: Partial<CodexSession> = {}): Codex
     transport: null,
     contextSummary: "",
     latestEnhancedPrompt: "",
+    lastRunContextSummary: "",
+    lastRunEnhancedPrompt: "",
     eventCount: 0,
     startedAt: null,
     updatedAt: null,
@@ -220,9 +224,11 @@ export function advanceCodexSessionFromEvent(
     if (sessionEnvelope.threadId) next.threadId = sessionEnvelope.threadId;
     if (sessionEnvelope.turnId) next.turnId = sessionEnvelope.turnId;
     if (sessionEnvelope.transport) next.transport = sessionEnvelope.transport;
-    if (sessionEnvelope.contextSummary) next.contextSummary = sessionEnvelope.contextSummary;
-    if (sessionEnvelope.latestEnhancedPrompt) {
-      next.latestEnhancedPrompt = sessionEnvelope.latestEnhancedPrompt;
+    if (sessionEnvelope.lastRunContextSummary) {
+      next.lastRunContextSummary = sessionEnvelope.lastRunContextSummary;
+    }
+    if (sessionEnvelope.lastRunEnhancedPrompt) {
+      next.lastRunEnhancedPrompt = sessionEnvelope.lastRunEnhancedPrompt;
     }
     if (sessionEnvelope.status) {
       next.status = sessionEnvelope.status;

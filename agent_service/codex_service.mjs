@@ -41,13 +41,16 @@ import {
 import {
   buildEnhancementMetaPrompt,
   detectEnhancementContext,
+  ENHANCEMENT_OUTPUT_SCHEMA,
   parseEnhancementRequestAmbiguityMode,
   parseEnhancementRequestBuilderFields,
   parseEnhancementRequestIntentOverride,
   parseEnhancementRequestMode,
   parseEnhancementRequestRewriteStrictness,
+  parseEnhancementJsonResponse,
   pickPrimaryAgentMessageText,
   postProcessEnhancementResponse,
+  validateEnhancementOutputContract,
 } from "./enhancement-pipeline.mjs";
 import {
   appendContextSourceSummariesToEnhancementInput,
@@ -161,19 +164,132 @@ function buildEnhanceSessionEnvelope({
   contextSummary,
   latestEnhancedPrompt,
 }) {
-  return {
+  const payload = {
     thread_id: threadId || null,
     turn_id: turnId || null,
     status,
     transport,
     resumed,
-    context_summary: contextSummary || "",
-    latest_enhanced_prompt: latestEnhancedPrompt || "",
   };
+
+  const normalizedContextSummary = asNonEmptyString(contextSummary);
+  const normalizedLatestEnhancedPrompt = asNonEmptyString(latestEnhancedPrompt);
+
+  if (normalizedContextSummary) {
+    payload.context_summary = normalizedContextSummary;
+  }
+  if (normalizedLatestEnhancedPrompt) {
+    payload.latest_enhanced_prompt = normalizedLatestEnhancedPrompt;
+  }
+
+  return payload;
 }
 
 function toErrorMessage(error) {
   return runtime.toErrorMessage(error);
+}
+
+function createServiceError(message, code, status) {
+  const error = new Error(message);
+  error.code = code;
+  error.status = status;
+  return error;
+}
+
+function createPayloadTooLargeError(message) {
+  return createServiceError(message, "payload_too_large", 413);
+}
+
+function createBadResponseError(message) {
+  return createServiceError(message, "bad_response", 422);
+}
+
+function countObjectStringChars(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return 0;
+  }
+
+  return Object.values(value).reduce((sum, entry) => {
+    return sum + (typeof entry === "string" ? entry.length : 0);
+  }, 0);
+}
+
+function buildEnhancementInputBudget({
+  prompt,
+  enhancementContext,
+  baseEnhancementInput,
+  enhancementInput,
+  sourceSummaryChars = 0,
+  expandedSourceChars = 0,
+}) {
+  return {
+    rawPromptChars: typeof prompt === "string" ? prompt.length : 0,
+    builderFieldChars: countObjectStringChars(enhancementContext?.builderFields),
+    sessionContextChars:
+      typeof enhancementContext?.session?.contextSummary === "string"
+        ? enhancementContext.session.contextSummary.length
+        : 0,
+    carryForwardPromptChars:
+      typeof enhancementContext?.session?.latestEnhancedPrompt === "string"
+        ? enhancementContext.session.latestEnhancedPrompt.length
+        : 0,
+    baseEnhancementInputChars:
+      typeof baseEnhancementInput === "string" ? baseEnhancementInput.length : 0,
+    sourceSummaryChars,
+    expandedSourceChars,
+    composedEnhancementInputChars:
+      typeof enhancementInput === "string" ? enhancementInput.length : 0,
+  };
+}
+
+function buildEnhancementInputBudgetDetail(stage, budget) {
+  const detailParts = [
+    `raw prompt ${budget.rawPromptChars}`,
+    `builder fields ${budget.builderFieldChars}`,
+    `session summary ${budget.sessionContextChars}`,
+    `carry-forward prompt ${budget.carryForwardPromptChars}`,
+    `base meta prompt ${budget.baseEnhancementInputChars}`,
+  ];
+
+  if (budget.sourceSummaryChars > 0) {
+    detailParts.push(`source summaries ${budget.sourceSummaryChars}`);
+  }
+  if (budget.expandedSourceChars > 0) {
+    detailParts.push(`expanded source context ${budget.expandedSourceChars}`);
+  }
+
+  return [
+    `Enhancement input is too large after ${stage}.`,
+    `Maximum ${runtime.maxPromptChars} characters; composed prompt is ${budget.composedEnhancementInputChars} characters.`,
+    `Breakdown: ${detailParts.join(", ")}.`,
+  ].join(" ");
+}
+
+function assertEnhancementInputWithinLimit({
+  stage,
+  prompt,
+  enhancementContext,
+  baseEnhancementInput,
+  enhancementInput,
+  sourceSummaryChars = 0,
+  expandedSourceChars = 0,
+}) {
+  const budget = buildEnhancementInputBudget({
+    prompt,
+    enhancementContext,
+    baseEnhancementInput,
+    enhancementInput,
+    sourceSummaryChars,
+    expandedSourceChars,
+  });
+
+  if (budget.composedEnhancementInputChars <= runtime.maxPromptChars) {
+    return budget;
+  }
+
+  throw createPayloadTooLargeError(
+    buildEnhancementInputBudgetDetail(stage, budget),
+  );
 }
 
 async function inferBuilderFieldUpdates(prompt, currentFields, lockMetadata, requestContext = {}) {
@@ -339,6 +455,21 @@ async function resolveEnhancementInputWithSourceExpansion({
       baseEnhancementInput,
       contextSources,
     });
+  const sourceSummaryChars = Math.max(
+    0,
+    enhancementInputWithSourceSummaries.length - baseEnhancementInput.length,
+  );
+
+  if (sourceSummaryChars > 0) {
+    assertEnhancementInputWithinLimit({
+      stage: "attaching source summaries",
+      prompt,
+      enhancementContext,
+      baseEnhancementInput,
+      enhancementInput: enhancementInputWithSourceSummaries,
+      sourceSummaryChars,
+    });
+  }
 
   const expandableSources = contextSources.filter(
     (source) => source.expandable && hasText(source.summary) && hasText(source.rawContent),
@@ -390,6 +521,22 @@ async function resolveEnhancementInputWithSourceExpansion({
     const enhancementInput = expandedBlock
       ? `${enhancementInputWithSourceSummaries}\n\n${expandedBlock}`
       : enhancementInputWithSourceSummaries;
+    const expandedSourceChars = Math.max(
+      0,
+      enhancementInput.length - enhancementInputWithSourceSummaries.length,
+    );
+
+    if (expandedSourceChars > 0) {
+      assertEnhancementInputWithinLimit({
+        stage: "expanding attached source context",
+        prompt,
+        enhancementContext,
+        baseEnhancementInput,
+        enhancementInput,
+        sourceSummaryChars,
+        expandedSourceChars,
+      });
+    }
 
     logEvent("info", "enhance_source_context_decision", cleanLogFields({
       request_id: requestContext?.requestId,
@@ -416,6 +563,9 @@ async function resolveEnhancementInputWithSourceExpansion({
     };
   } catch (error) {
     if (signal?.aborted || isAbortLikeError(error)) {
+      throw error;
+    }
+    if (error?.code === "payload_too_large" || error?.status === 413) {
       throw error;
     }
     logEvent("warn", "enhance_source_context_preflight_failed", cleanLogFields({
@@ -524,10 +674,28 @@ function buildEnhanceStreamRequest(body) {
     ambiguityMode,
     intentOverride,
     builderFields,
+    hasAttachedContextSources: normalizedContextSources.value.length > 0,
     session: requestSession,
     webSearchEnabled: threadOptions.webSearchEnabled === true,
   });
   const baseEnhancementInput = buildEnhancementMetaPrompt(prompt, enhancementContext);
+  const baseBudget = buildEnhancementInputBudget({
+    prompt,
+    enhancementContext,
+    baseEnhancementInput,
+    enhancementInput: baseEnhancementInput,
+  });
+
+  if (baseBudget.composedEnhancementInputChars > runtime.maxPromptChars) {
+    return {
+      ok: false,
+      status: 413,
+      detail: buildEnhancementInputBudgetDetail(
+        "composing the base enhancement prompt",
+        baseBudget,
+      ),
+    };
+  }
 
   return {
     ok: true,
@@ -640,23 +808,34 @@ async function runEnhanceTurnStream(requestData, options) {
     const { events } = await runStreamedWithRetry(
       thread,
       enhancementInput,
-      { signal },
+      {
+        signal,
+        outputSchema: ENHANCEMENT_OUTPUT_SCHEMA,
+      },
       { requestContext, ...RETRY_TELEMETRY },
     );
     activeThreadId = resolveActiveCodexThreadId(activeThreadId, thread);
 
     let turnFailed = false;
     let turnError = false;
-    const buildSessionPayload = (status, overrides = {}) => buildEnhanceSessionEnvelope({
-      threadId: activeThreadId,
-      turnId,
-      status,
-      transport: requestContext.transport,
-      resumed: Boolean(requestedThreadId),
-      contextSummary: requestSession.contextSummary,
-      latestEnhancedPrompt: requestSession.latestEnhancedPrompt,
-      ...overrides,
-    });
+    const buildSessionPayload = (status, overrides = {}) => {
+      const payload = {
+        threadId: activeThreadId,
+        turnId,
+        status,
+        transport: requestContext.transport,
+        resumed: Boolean(requestedThreadId),
+      };
+
+      if (Object.prototype.hasOwnProperty.call(overrides, "contextSummary")) {
+        payload.contextSummary = overrides.contextSummary;
+      }
+      if (Object.prototype.hasOwnProperty.call(overrides, "latestEnhancedPrompt")) {
+        payload.latestEnhancedPrompt = overrides.latestEnhancedPrompt;
+      }
+
+      return buildEnhanceSessionEnvelope(payload);
+    };
 
     for await (const event of events) {
       if (signal.aborted || isClosed()) break;
@@ -914,6 +1093,16 @@ async function runEnhanceTurnStream(requestData, options) {
       }
 
       const rawEnhancerOutput = pickPrimaryAgentMessageText(agentMessageByItemId, agentMessageItemOrder);
+      const postProcessed = postProcessEnhancementResponse({
+        llmResponseText: rawEnhancerOutput,
+        userInput: prompt,
+        context: enhancementContext,
+      });
+      const parsedEnhancerOutput =
+        postProcessed.parse_status === "json"
+          ? parseEnhancementJsonResponse(rawEnhancerOutput)
+          : null;
+      const outputContract = validateEnhancementOutputContract(parsedEnhancerOutput);
 
       // ── Enhancement response diagnostics ─────────────────────────────
       const agentItemCount = agentMessageByItemId.size;
@@ -929,15 +1118,6 @@ async function runEnhanceTurnStream(requestData, options) {
           emitted_agent_output: emittedAgentOutput,
           message: "Codex turn completed but no agent_message text was collected. The model may have only produced reasoning or tool-use items.",
         }));
-      }
-
-      const postProcessed = postProcessEnhancementResponse({
-        llmResponseText: rawEnhancerOutput,
-        userInput: prompt,
-        context: enhancementContext,
-      });
-      if (sourceExpansion) {
-        postProcessed.source_context = sourceExpansion;
       }
 
       // Log parse outcome for every enhancement to aid failure triage.
@@ -975,8 +1155,37 @@ async function runEnhanceTurnStream(requestData, options) {
         }),
       );
 
-      const finalEnhancedPrompt = postProcessed.enhanced_prompt?.trim() || rawEnhancerOutput.trim();
-      const finalContextSummary = postProcessed.session_context_summary || requestSession.contextSummary;
+      if (postProcessed.parse_status !== "json" || !outputContract.ok) {
+        const validationDetail = [
+          outputContract.missingFields.length > 0
+            ? `missing=${outputContract.missingFields.join(",")}`
+            : null,
+          outputContract.invalidFields.length > 0
+            ? `invalid=${outputContract.invalidFields.join(",")}`
+            : null,
+        ].filter(Boolean).join(" ");
+        logEvent("error", "enhance_invalid_structured_output", cleanLogFields({
+          request_id: requestContext?.requestId,
+          endpoint: requestContext?.endpoint,
+          thread_id: activeThreadId,
+          turn_id: turnId,
+          parse_status: postProcessed.parse_status,
+          raw_output_chars: rawOutputLength,
+          validation_detail: validationDetail || undefined,
+          parse_json_error: diag?.json_parse_error || undefined,
+          raw_output_sha256: hashTextForLogs(rawEnhancerOutput),
+        }));
+        throw createBadResponseError(
+          "Enhancement returned invalid structured output. Please retry.",
+        );
+      }
+
+      if (sourceExpansion) {
+        postProcessed.source_context = sourceExpansion;
+      }
+
+      const finalEnhancedPrompt = postProcessed.enhanced_prompt.trim();
+      const finalContextSummary = postProcessed.session_context_summary || "";
       emittedGenerateWorkflowTerminal = true;
       emitEnhancementWorkflowStep({
         emit,
@@ -989,16 +1198,9 @@ async function runEnhanceTurnStream(requestData, options) {
       });
 
       if (!finalEnhancedPrompt) {
-        logEvent("error", "enhance_empty_result", cleanLogFields({
-          request_id: requestContext?.requestId,
-          endpoint: requestContext?.endpoint,
-          thread_id: activeThreadId,
-          turn_id: turnId,
-          parse_status: postProcessed.parse_status,
-          raw_output_chars: rawOutputLength,
-          raw_output_sha256: hashTextForLogs(rawEnhancerOutput),
-          message: "Enhancement produced an empty final prompt. The LLM response could not be parsed or was blank.",
-        }));
+        throw createBadResponseError(
+          "Enhancement returned an empty prompt. Please retry.",
+        );
       }
 
       if (finalEnhancedPrompt && !emittedAgentOutput) {
@@ -1019,18 +1221,20 @@ async function runEnhanceTurnStream(requestData, options) {
         type: "enhance.metadata",
         turn_id: turnId,
         thread_id: activeThreadId,
-          payload: postProcessed,
-          request_warnings: threadOptionWarnings.length > 0 ? threadOptionWarnings : undefined,
-          session: buildSessionPayload("completed", {
-            contextSummary: finalContextSummary,
-            latestEnhancedPrompt: finalEnhancedPrompt || requestSession.latestEnhancedPrompt,
-          }),
-        });
+        payload: postProcessed,
+        request_warnings: threadOptionWarnings.length > 0 ? threadOptionWarnings : undefined,
+        session: buildSessionPayload("completed", {
+          contextSummary: finalContextSummary,
+          latestEnhancedPrompt: finalEnhancedPrompt,
+        }),
+      });
     }
   } catch (error) {
     activeThreadId = resolveActiveCodexThreadId(activeThreadId, thread);
-    const existingErrorCode = requestContext?.errorCode;
-    const existingStatusCode = requestContext?.statusCode;
+    const thrownErrorCode = typeof error?.code === "string" ? error.code : undefined;
+    const thrownErrorStatus = Number.isFinite(error?.status) ? error.status : undefined;
+    const existingErrorCode = requestContext?.errorCode || thrownErrorCode;
+    const existingStatusCode = requestContext?.statusCode ?? thrownErrorStatus;
     const aborted = signal?.aborted || isAbortLikeError(error);
     const failure = aborted
       ? {
@@ -1046,8 +1250,8 @@ async function runEnhanceTurnStream(requestData, options) {
         code: existingErrorCode,
         status: existingStatusCode,
       }, {
-        defaultCode: "service_error",
-        defaultStatus: 500,
+        defaultCode: existingErrorCode || "service_error",
+        defaultStatus: existingStatusCode ?? 500,
       });
     setRequestError(requestContext, failure.code, failure.message, failure.status);
     if (!isClosed()) {
@@ -1087,13 +1291,20 @@ async function runEnhanceTurnStream(requestData, options) {
 async function streamWithCodex(req, res, body, corsHeaders, requestContext) {
   const preparedRequest = buildEnhanceStreamRequest(body);
   if (!preparedRequest.ok) {
+    const preparedRequestCode =
+      inferErrorCodeFromStatus(preparedRequest.status) || "bad_response";
     setRequestError(
       requestContext,
-      inferErrorCodeFromStatus(preparedRequest.status),
+      preparedRequestCode,
       preparedRequest.detail,
       preparedRequest.status,
     );
-    json(res, preparedRequest.status, { detail: preparedRequest.detail }, corsHeaders);
+    json(
+      res,
+      preparedRequest.status,
+      { detail: preparedRequest.detail, code: preparedRequestCode },
+      corsHeaders,
+    );
     return;
   }
 
@@ -1455,16 +1666,18 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
 
         const preparedRequest = buildEnhanceStreamRequest(payload || {});
         if (!preparedRequest.ok) {
+          const preparedRequestCode =
+            inferErrorCodeFromStatus(preparedRequest.status) || "bad_response";
           setRequestError(
             requestContext,
-            inferErrorCodeFromStatus(preparedRequest.status),
+            preparedRequestCode,
             preparedRequest.detail,
             preparedRequest.status,
           );
           emitWebSocketStreamError({
             message: preparedRequest.detail,
             status: preparedRequest.status,
-            code: "bad_response",
+            code: preparedRequestCode,
           });
           closeWebSocket(ws, 1008, "invalid_request");
           return;

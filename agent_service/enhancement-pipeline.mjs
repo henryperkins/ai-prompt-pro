@@ -89,6 +89,144 @@ const DEFAULT_PARTS = {
 };
 
 const CORE_SECTIONS = ["Role", "Task", "Context", "Format", "Constraints"];
+const CONTEXT_SECTION_MARKERS = [
+  "<background>",
+  "<sources>",
+  "<project-notes>",
+  "<context-interview>",
+  "<database-connections>",
+  "<rag-parameters>",
+  "**background:**",
+  "**sources:**",
+  "**project notes:**",
+  "**context interview:**",
+  "**database connections:**",
+  "**rag parameters:**",
+];
+const FORMAT_SECTION_MARKERS = [
+  "format:",
+  "format -",
+  "## format",
+  "### format",
+  "[format]",
+  "length:",
+  "length -",
+  "## length",
+  "### length",
+  "[length]",
+];
+
+function buildStringSchema({ minLength = 0, maxLength } = {}) {
+  const schema = { type: "string" };
+  if (Number.isFinite(minLength) && minLength > 0) {
+    schema.minLength = minLength;
+  }
+  if (Number.isFinite(maxLength) && maxLength > 0) {
+    schema.maxLength = maxLength;
+  }
+  return schema;
+}
+
+function buildStringListSchema({ maxItems, maxLength = 500 } = {}) {
+  return {
+    type: "array",
+    maxItems,
+    items: buildStringSchema({ minLength: 1, maxLength }),
+  };
+}
+
+export const ENHANCEMENT_OUTPUT_SCHEMA = {
+  type: "object",
+  properties: {
+    enhanced_prompt: buildStringSchema({ minLength: 1, maxLength: 50000 }),
+    parts_breakdown: {
+      type: "object",
+      properties: {
+        role: buildStringSchema({ minLength: 1, maxLength: 4000 }),
+        context: buildStringSchema({ minLength: 1, maxLength: 8000 }),
+        task: buildStringSchema({ minLength: 1, maxLength: 8000 }),
+        output_format: buildStringSchema({ minLength: 1, maxLength: 4000 }),
+        // Use an empty string when no example is needed.
+        examples: buildStringSchema({ maxLength: 8000 }),
+        guardrails: buildStringSchema({ minLength: 1, maxLength: 8000 }),
+      },
+      required: [
+        "role",
+        "context",
+        "task",
+        "output_format",
+        "examples",
+        "guardrails",
+      ],
+      additionalProperties: false,
+    },
+    enhancements_made: buildStringListSchema({ maxItems: 12, maxLength: 400 }),
+    quality_score: {
+      type: "object",
+      properties: {
+        clarity: { type: "number", minimum: 0, maximum: 10 },
+        specificity: { type: "number", minimum: 0, maximum: 10 },
+        completeness: { type: "number", minimum: 0, maximum: 10 },
+        actionability: { type: "number", minimum: 0, maximum: 10 },
+        overall: { type: "number", minimum: 0, maximum: 10 },
+      },
+      required: ["clarity", "specificity", "completeness", "actionability", "overall"],
+      additionalProperties: false,
+    },
+    suggestions: buildStringListSchema({ maxItems: 10, maxLength: 400 }),
+    alternative_versions: {
+      type: "object",
+      properties: {
+        shorter: buildStringSchema({ maxLength: 12000 }),
+        more_detailed: buildStringSchema({ maxLength: 16000 }),
+      },
+      required: ["shorter", "more_detailed"],
+      additionalProperties: false,
+    },
+    assumptions_made: buildStringListSchema({ maxItems: 10, maxLength: 500 }),
+    open_questions: buildStringListSchema({ maxItems: 10, maxLength: 500 }),
+    enhancement_plan: {
+      type: "object",
+      properties: {
+        primary_intent: buildStringSchema({ minLength: 1, maxLength: 120 }),
+        source_task_type: buildStringSchema({ maxLength: 400 }),
+        target_deliverable: buildStringSchema({ maxLength: 500 }),
+        audience: buildStringSchema({ maxLength: 400 }),
+        required_inputs: buildStringListSchema({ maxItems: 10, maxLength: 500 }),
+        constraints: buildStringListSchema({ maxItems: 10, maxLength: 500 }),
+        success_criteria: buildStringListSchema({ maxItems: 10, maxLength: 500 }),
+        assumptions: buildStringListSchema({ maxItems: 10, maxLength: 500 }),
+        open_questions: buildStringListSchema({ maxItems: 10, maxLength: 500 }),
+        verification_needs: buildStringListSchema({ maxItems: 10, maxLength: 500 }),
+      },
+      required: [
+        "primary_intent",
+        "source_task_type",
+        "target_deliverable",
+        "audience",
+        "required_inputs",
+        "constraints",
+        "success_criteria",
+        "assumptions",
+        "open_questions",
+        "verification_needs",
+      ],
+      additionalProperties: false,
+    },
+  },
+  required: [
+    "enhanced_prompt",
+    "parts_breakdown",
+    "enhancements_made",
+    "quality_score",
+    "suggestions",
+    "alternative_versions",
+    "assumptions_made",
+    "open_questions",
+    "enhancement_plan",
+  ],
+  additionalProperties: false,
+};
 
 function asWords(input) {
   if (typeof input !== "string") return [];
@@ -106,6 +244,10 @@ function normalizeStringList(value) {
   return value
     .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
     .filter(Boolean);
+}
+
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function normalizeBuilderMode(rawMode) {
@@ -126,10 +268,17 @@ function normalizeAmbiguityMode(rawMode) {
   return AMBIGUITY_MODE_VALUES.has(normalized) ? normalized : "infer_conservatively";
 }
 
-function detectMissingSlots(prompt, builderFields = {}) {
+function detectMissingSlots(prompt, builderFields = {}, options = {}) {
   const normalized = typeof prompt === "string" ? prompt.toLowerCase().trim() : "";
   const normalizedTask = (builderFields.task || "").toLowerCase().trim();
   const normalizedContext = (builderFields.context || "").toLowerCase().trim();
+  const hasAttachedContextSources = options.hasAttachedContextSources === true;
+  const hasStructuredSourceContext =
+    typeof prompt === "string"
+    && (
+      /<(?:sources|database-connections|rag-parameters)>/i.test(prompt)
+      || /\[(?:text|url|file|database|rag):/i.test(prompt)
+    );
   const slots = [];
 
   const ARTIFACT_RE = /\b(email|report|prd|proposal|presentation|blog|doc|code|function|script|plan|guide|memo|letter|article)\b/;
@@ -160,7 +309,11 @@ function detectMissingSlots(prompt, builderFields = {}) {
     slots.push("success_criteria");
   }
 
-  const hasSourceMaterial = /\b(source|data|document|file|input|based on|given|from the|attached|provided)\b/.test(normalized);
+  const hasSourceMaterial = (
+    /\b(source material|data|document|file|input|based on|given|from the|attached|provided)\b/.test(normalized)
+    || hasAttachedContextSources
+    || hasStructuredSourceContext
+  );
   if (!hasSourceMaterial && !normalizedContext) {
     slots.push("source_material");
   }
@@ -444,6 +597,19 @@ export function inspectPromptStructure(prompt) {
   const normalized = prompt.toLowerCase();
   function hasSection(name) {
     const token = name.toLowerCase();
+    if (token === "context") {
+      return [
+        `${token}:`,
+        `${token} -`,
+        `## ${token}`,
+        `### ${token}`,
+        `[${token}]`,
+        ...CONTEXT_SECTION_MARKERS,
+      ].some((pattern) => normalized.includes(pattern));
+    }
+    if (token === "format") {
+      return FORMAT_SECTION_MARKERS.some((pattern) => normalized.includes(pattern));
+    }
     return [
       `${token}:`,
       `${token} -`,
@@ -473,7 +639,9 @@ export function detectEnhancementContext(input, options = {}) {
   const ambiguityMode = normalizeAmbiguityMode(options.ambiguityMode);
   const inputLanguage = detectInputLanguage(prompt);
   const builderFields = normalizeBuilderFields(options.builderFields);
-  const missingSlots = detectMissingSlots(prompt, builderFields);
+  const missingSlots = detectMissingSlots(prompt, builderFields, {
+    hasAttachedContextSources: options.hasAttachedContextSources === true,
+  });
   const ambiguityLevel = computeAmbiguityLevel(missingSlots, words.length);
   const intentClassification = classifyPrimaryIntent(prompt, { builderFields });
   const intentOverride = typeof options.intentOverride === "string" && PRIMARY_INTENT_ROUTES.includes(options.intentOverride)
@@ -609,12 +777,12 @@ export function buildEnhancementMetaPrompt(userInput, context) {
     renderJsonFence(buildBuilderFieldSnapshot(context.builderFields)),
     "",
     "## PRIOR SESSION CONTEXT",
-    "Use this to preserve user-approved context across enhancement turns.",
+    "Use this to preserve explicitly user-provided carry-forward context across enhancement turns.",
     "Treat it as supporting context only. The current raw input and current builder fields take priority.",
     renderJsonFence(buildSessionSnapshot(context.session)),
     "",
     "## 6-PART BUILDER FRAMEWORK",
-    "Use all parts. If details are missing, infer minimal practical defaults.",
+    "Use all parts. If details are missing, handle them according to the active ambiguity mode below.",
     "",
     "### Part 1: ROLE & PERSONA",
     "- Define who the AI should be.",
@@ -656,6 +824,9 @@ export function buildEnhancementMetaPrompt(userInput, context) {
     "6. If web search was used, include a trailing sources block in enhanced_prompt:",
     "   blank line + --- + Sources: + one '- [Title](URL)' per line.",
     "",
+    "## AMBIGUITY MODE PRECEDENCE",
+    "If ambiguity-mode guidance conflicts with any general guidance, follow the ambiguity-mode guidance.",
+    "",
     "## EDGE CASE DIRECTIVES",
     edgeCaseNotes,
     "",
@@ -668,7 +839,7 @@ export function buildEnhancementMetaPrompt(userInput, context) {
     "    \"context\": \"string\",",
     "    \"task\": \"string\",",
     "    \"output_format\": \"string\",",
-    "    \"examples\": \"string|null\",",
+    "    \"examples\": \"string\",",
     "    \"guardrails\": \"string\"",
     "  },",
     "  \"enhancements_made\": [\"string\"],",
@@ -766,6 +937,132 @@ export function parseEnhancementJsonResponse(rawText) {
   } catch {
     return null;
   }
+}
+
+function isStringArray(value) {
+  return Array.isArray(value) && value.every((entry) => typeof entry === "string");
+}
+
+export function validateEnhancementOutputContract(value) {
+  const missingFields = [];
+  const invalidFields = [];
+  const parsed = isPlainObject(value) ? value : null;
+
+  if (!parsed) {
+    return {
+      ok: false,
+      missingFields: ["root"],
+      invalidFields,
+    };
+  }
+
+  function requireString(field, source = parsed, options = {}) {
+    const allowEmpty = options.allowEmpty === true;
+    if (!(field in source)) {
+      missingFields.push(field);
+      return;
+    }
+    if (typeof source[field] !== "string") {
+      invalidFields.push(field);
+      return;
+    }
+    if (!allowEmpty && source[field].trim().length === 0) {
+      invalidFields.push(field);
+    }
+  }
+
+  function requireStringArray(field, source = parsed) {
+    if (!(field in source)) {
+      missingFields.push(field);
+      return;
+    }
+    if (
+      !isStringArray(source[field])
+      || source[field].some((entry) => entry.trim().length === 0)
+    ) {
+      invalidFields.push(field);
+    }
+  }
+
+  function requireNumber(field, source = parsed, options = {}) {
+    const minimum = Number.isFinite(options.minimum) ? options.minimum : undefined;
+    const maximum = Number.isFinite(options.maximum) ? options.maximum : undefined;
+    if (!(field in source)) {
+      missingFields.push(field);
+      return;
+    }
+    if (typeof source[field] !== "number" || !Number.isFinite(source[field])) {
+      invalidFields.push(field);
+      return;
+    }
+    if (
+      (minimum !== undefined && source[field] < minimum)
+      || (maximum !== undefined && source[field] > maximum)
+    ) {
+      invalidFields.push(field);
+    }
+  }
+
+  requireString("enhanced_prompt");
+  requireStringArray("enhancements_made");
+  requireStringArray("suggestions");
+  requireStringArray("assumptions_made");
+  requireStringArray("open_questions");
+
+  if (!("parts_breakdown" in parsed)) {
+    missingFields.push("parts_breakdown");
+  } else if (!isPlainObject(parsed.parts_breakdown)) {
+    invalidFields.push("parts_breakdown");
+  } else {
+    requireString("role", parsed.parts_breakdown);
+    requireString("context", parsed.parts_breakdown);
+    requireString("task", parsed.parts_breakdown);
+    requireString("output_format", parsed.parts_breakdown);
+    requireString("examples", parsed.parts_breakdown, { allowEmpty: true });
+    requireString("guardrails", parsed.parts_breakdown);
+  }
+
+  if (!("quality_score" in parsed)) {
+    missingFields.push("quality_score");
+  } else if (!isPlainObject(parsed.quality_score)) {
+    invalidFields.push("quality_score");
+  } else {
+    for (const field of ["clarity", "specificity", "completeness", "actionability", "overall"]) {
+      requireNumber(field, parsed.quality_score, { minimum: 0, maximum: 10 });
+    }
+  }
+
+  if (!("alternative_versions" in parsed)) {
+    missingFields.push("alternative_versions");
+  } else if (!isPlainObject(parsed.alternative_versions)) {
+    invalidFields.push("alternative_versions");
+  } else {
+    requireString("shorter", parsed.alternative_versions, { allowEmpty: true });
+    requireString("more_detailed", parsed.alternative_versions, { allowEmpty: true });
+  }
+
+  if (!("enhancement_plan" in parsed)) {
+    missingFields.push("enhancement_plan");
+  } else if (!isPlainObject(parsed.enhancement_plan)) {
+    invalidFields.push("enhancement_plan");
+  } else {
+    requireString("primary_intent", parsed.enhancement_plan);
+    requireString("source_task_type", parsed.enhancement_plan, { allowEmpty: true });
+    requireString("target_deliverable", parsed.enhancement_plan, { allowEmpty: true });
+    requireString("audience", parsed.enhancement_plan, { allowEmpty: true });
+    requireStringArray("required_inputs", parsed.enhancement_plan);
+    requireStringArray("constraints", parsed.enhancement_plan);
+    requireStringArray("success_criteria", parsed.enhancement_plan);
+    requireStringArray("assumptions", parsed.enhancement_plan);
+    requireStringArray("open_questions", parsed.enhancement_plan);
+    requireStringArray("verification_needs", parsed.enhancement_plan);
+  }
+
+  return {
+    ok: missingFields.length === 0 && invalidFields.length === 0,
+    missingFields,
+    invalidFields,
+  };
 }
 
 /**

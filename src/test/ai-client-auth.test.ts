@@ -183,6 +183,48 @@ describe("ai-client auth recovery", () => {
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
+  it("surfaces payload_too_large when enhance request input exceeds service limits", async () => {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+
+    mocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: "valid-token",
+          expires_at: nowSeconds + 3600,
+        },
+      },
+      error: null,
+    });
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(JSON.stringify({
+        detail: "Enhancement input is too large after composing the base enhancement prompt.",
+      }), {
+        status: 413,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { streamEnhance } = await import("@/lib/ai-client");
+    const onError = vi.fn();
+
+    await streamEnhance({
+      prompt: "Improve this",
+      onDelta: vi.fn(),
+      onDone: vi.fn(),
+      onError,
+    });
+
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "payload_too_large",
+        status: 413,
+        message: "Enhancement input is too large after composing the base enhancement prompt.",
+      }),
+    );
+  });
+
   it("refreshes near-expiry sessions before the first enhance request", async () => {
     const nowSeconds = Math.floor(Date.now() / 1000);
 
@@ -691,6 +733,8 @@ describe("ai-client auth recovery", () => {
       status?: string;
       contextSummary?: string;
       latestEnhancedPrompt?: string;
+      lastRunContextSummary?: string;
+      lastRunEnhancedPrompt?: string;
       lastErrorCode?: string;
       lastErrorMessage?: string;
     };
@@ -699,8 +743,10 @@ describe("ai-client auth recovery", () => {
       threadId: "thread_terminal_1",
       turnId: "turn_terminal_1",
       status: "failed",
-      contextSummary: "Carry forward the product and audience context.",
-      latestEnhancedPrompt: "Final streamed draft.",
+      contextSummary: "",
+      latestEnhancedPrompt: "",
+      lastRunContextSummary: "Carry forward the product and audience context.",
+      lastRunEnhancedPrompt: "Final streamed draft.",
       lastErrorCode: "rate_limited",
       lastErrorMessage: "429 Too Many Requests",
     });
@@ -764,6 +810,7 @@ describe("ai-client auth recovery", () => {
       turnId?: string;
       status?: string;
       latestEnhancedPrompt?: string;
+      lastRunEnhancedPrompt?: string;
       lastErrorCode?: string;
       lastErrorMessage?: string;
     };
@@ -778,7 +825,8 @@ describe("ai-client auth recovery", () => {
       threadId: "thread_partial_1",
       turnId: "turn_partial_1",
       status: "failed",
-      latestEnhancedPrompt: "Partial prompt draft",
+      latestEnhancedPrompt: "",
+      lastRunEnhancedPrompt: "Partial prompt draft",
       lastErrorCode: "rate_limited",
       lastErrorMessage: "429 Too Many Requests",
     });

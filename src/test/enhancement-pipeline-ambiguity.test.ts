@@ -136,6 +136,17 @@ describe("enhancement pipeline ambiguity handling", () => {
       const prompt = buildEnhancementMetaPrompt("Write a proposal", ctx);
       expect(prompt).toContain("INFER CONSERVATIVELY");
     });
+
+    it("makes ambiguity-mode precedence explicit in the meta prompt", () => {
+      const ctx = detectEnhancementContext("Write a proposal", {
+        ambiguityMode: "placeholders",
+      });
+      const prompt = buildEnhancementMetaPrompt("Write a proposal", ctx);
+
+      expect(prompt).toContain("Use all parts. If details are missing, handle them according to the active ambiguity mode below.");
+      expect(prompt).toContain("## AMBIGUITY MODE PRECEDENCE");
+      expect(prompt).toContain("Do NOT infer or guess missing information");
+    });
   });
 
   describe("assumptions and open questions in post-processing", () => {

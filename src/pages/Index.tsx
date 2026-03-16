@@ -2279,8 +2279,11 @@ const Index = () => {
     if (!canManageCodexSession) {
       return "Sign in to manage the Codex session and carry supplemental context across turns.";
     }
-    if (enhanceSession.contextSummary.trim()) {
-      return "Outside context is ready to carry into the next Codex turn.";
+    if (
+      enhanceSession.contextSummary.trim() ||
+      enhanceSession.latestEnhancedPrompt.trim()
+    ) {
+      return "Manual carry-forward is ready for the next Codex turn.";
     }
     if (enhanceSession.threadId) {
       return "This builder is already attached to a Codex thread.";
@@ -2289,6 +2292,7 @@ const Index = () => {
   }, [
     canManageCodexSession,
     enhanceSession.contextSummary,
+    enhanceSession.latestEnhancedPrompt,
     enhanceSession.threadId,
   ]);
   const hasBuiltPrompt = builtPrompt.trim().length > 0;

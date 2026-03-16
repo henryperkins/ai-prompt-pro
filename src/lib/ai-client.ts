@@ -94,6 +94,7 @@ export type AIClientErrorCode =
   | "auth_session_invalid"
   | "request_aborted"
   | "request_timeout"
+  | "payload_too_large"
   | "rate_limited"
   | "unsafe_url"
   | "service_error"
@@ -324,6 +325,7 @@ function errorCodeFromStatus(status: number | undefined): AIClientErrorCode {
   if (status === 401) return "auth_session_invalid";
   if (status === 429) return "rate_limited";
   if (status === 408 || status === 504) return "request_timeout";
+  if (status === 413) return "payload_too_large";
   if (typeof status === "number" && status >= 500) return "service_error";
   return "bad_response";
 }
@@ -684,6 +686,9 @@ function normalizeServerErrorCode(code: unknown): AIClientErrorCode | undefined 
   const normalized = code.trim().toLowerCase().replace(/[/.\s-]/g, "_");
   if (normalized.includes("rate_limit") || normalized === "429") return "rate_limited";
   if (normalized.includes("timeout")) return "request_timeout";
+  if (normalized.includes("payload") || normalized.includes("too_large")) {
+    return "payload_too_large";
+  }
   if (
     normalized === "auth_required"
     || normalized.includes("sign_in_required")
@@ -1392,10 +1397,10 @@ export async function streamEnhance({
 
   const rememberLatestEnhancedPrompt = (promptText: string) => {
     const normalized = promptText.trim();
-    if (!normalized || currentSession.latestEnhancedPrompt === normalized) return;
+    if (!normalized || currentSession.lastRunEnhancedPrompt === normalized) return;
     currentSession = createCodexSession({
       ...currentSession,
-      latestEnhancedPrompt: normalized,
+      lastRunEnhancedPrompt: normalized,
     });
   };
 

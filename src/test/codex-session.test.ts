@@ -25,7 +25,10 @@ describe("codex-session", () => {
   });
 
   it("advances session state from streamed event envelopes", () => {
-    const started = beginCodexSession(createCodexSession(), {
+    const started = beginCodexSession(createCodexSession({
+      contextSummary: "Keep the approved product context.",
+      latestEnhancedPrompt: "Manual carry-forward prompt.",
+    }), {
       transport: "sse",
     });
 
@@ -77,8 +80,10 @@ describe("codex-session", () => {
       threadId: "thread_456",
       turnId: "turn_456",
       status: "completed",
-      contextSummary: "Carry forward the product, audience, and tone constraints.",
-      latestEnhancedPrompt: "Final enhanced prompt.",
+      contextSummary: "Keep the approved product context.",
+      latestEnhancedPrompt: "Manual carry-forward prompt.",
+      lastRunContextSummary: "Carry forward the product, audience, and tone constraints.",
+      lastRunEnhancedPrompt: "Final enhanced prompt.",
     });
     expect(completed.eventCount).toBe(2);
   });

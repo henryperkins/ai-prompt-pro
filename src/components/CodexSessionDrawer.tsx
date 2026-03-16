@@ -27,12 +27,24 @@ const STATUS_META = {
   aborted: { label: "Aborted", tone: "default" },
 } as const;
 
+function hasManualCarryForward(session: CodexSession): boolean {
+  return Boolean(
+    session.contextSummary.trim() || session.latestEnhancedPrompt.trim(),
+  );
+}
+
+function hasLastRunSnapshot(session: CodexSession): boolean {
+  return Boolean(
+    session.lastRunContextSummary.trim() || session.lastRunEnhancedPrompt.trim(),
+  );
+}
+
 function getSessionSummary(session: CodexSession): string {
-  if (session.contextSummary.trim()) {
-    return "Supplemental context will be carried into the next enhancement turn.";
+  if (hasManualCarryForward(session)) {
+    return "Manual carry-forward is ready for the next enhancement turn.";
   }
   if (session.threadId) {
-    return "This session already has a live Codex thread. Add outside context before the next pass if needed.";
+    return "This session already has a live Codex thread. Add manual carry-forward before the next pass if needed.";
   }
   return "Add outside context or a carry-forward prompt before the next enhancement pass.";
 }
@@ -56,6 +68,7 @@ function SessionBody({
 }) {
   const statusMeta = STATUS_META[session.status];
   const hasCurrentPrompt = currentPromptText.trim().length > 0;
+  const hasSnapshot = hasLastRunSnapshot(session);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -100,6 +113,33 @@ function SessionBody({
           )}
         </Card>
 
+        {hasSnapshot && (
+          <Card className="border-border/70 bg-card/80 p-3">
+            <p className="text-sm font-medium text-foreground">Last run snapshot</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Model-generated context stays here for reference only. It is not sent again unless you copy or edit it into the manual carry-forward fields below.
+            </p>
+            <div className="mt-3 grid gap-2">
+              <div className="rounded-lg border border-border/70 bg-background/70 p-3">
+                <p className="type-label-caps text-2xs font-medium text-muted-foreground">
+                  Context summary
+                </p>
+                <p className="mt-1 whitespace-pre-wrap break-words text-xs text-foreground">
+                  {session.lastRunContextSummary || "None captured yet."}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border/70 bg-background/70 p-3">
+                <p className="type-label-caps text-2xs font-medium text-muted-foreground">
+                  Prompt snapshot
+                </p>
+                <p className="mt-1 whitespace-pre-wrap break-words font-mono text-xs text-foreground">
+                  {session.lastRunEnhancedPrompt || "None captured yet."}
+                </p>
+              </div>
+            </div>
+          </Card>
+        )}
+
         <div className="space-y-1.5">
           <label
             htmlFor="codex-session-context-summary"
@@ -108,7 +148,7 @@ function SessionBody({
             Outside context summary
           </label>
           <p className="text-sm text-muted-foreground">
-            Add the supplemental facts, constraints, URLs, or environment context Codex should remember for the next turn.
+            Add the supplemental facts, constraints, URLs, or environment context Codex should remember for the next turn. This field only changes when you edit it.
           </p>
           <TextArea
             id="codex-session-context-summary"
@@ -132,7 +172,7 @@ function SessionBody({
                 Carry-forward prompt
               </label>
               <p className="text-sm text-muted-foreground">
-                Edit the prompt snapshot Codex should reference on the next enhancement turn.
+                Edit the prompt snapshot Codex should reference on the next enhancement turn. It is not replaced automatically by the latest model output.
               </p>
             </div>
             <Button
@@ -160,7 +200,7 @@ function SessionBody({
         <Card className="border-primary/20 bg-primary/5 p-3">
           <p className="text-xs font-medium text-primary">Next turn behavior</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            PromptForge will send this session summary and carry-forward prompt back to Codex together with your current builder prompt.
+            PromptForge will send only the manual carry-forward fields above, plus the active thread ID, back to Codex with your current builder prompt.
           </p>
         </Card>
       </div>
@@ -231,7 +271,7 @@ export function CodexSessionDrawer({
           <DrawerHeader>
             <DrawerTitle>Codex session</DrawerTitle>
             <DrawerDescription>
-              Review and edit the carry-forward context that PromptForge sends into the next Codex enhancement turn.
+              Review the last run snapshot and edit the manual carry-forward context that PromptForge sends into the next Codex enhancement turn.
             </DrawerDescription>
           </DrawerHeader>
           {body}
@@ -246,7 +286,7 @@ export function CodexSessionDrawer({
         <SheetHeader>
           <SheetTitle>Codex session</SheetTitle>
           <SheetDescription>
-            Review and edit the carry-forward context that PromptForge sends into the next Codex enhancement turn.
+            Review the last run snapshot and edit the manual carry-forward context that PromptForge sends into the next Codex enhancement turn.
           </SheetDescription>
         </SheetHeader>
         {body}

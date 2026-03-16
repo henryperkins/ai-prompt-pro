@@ -633,11 +633,15 @@ describe("Index web search streaming", () => {
           threadId?: string | null;
           contextSummary?: string;
           latestEnhancedPrompt?: string;
+          lastRunContextSummary?: string;
+          lastRunEnhancedPrompt?: string;
         };
         onSession?: (session: {
           threadId: string | null;
           contextSummary: string;
           latestEnhancedPrompt: string;
+          lastRunContextSummary?: string;
+          lastRunEnhancedPrompt?: string;
         }) => void;
         onDone?: () => void;
       }) => {
@@ -647,16 +651,18 @@ describe("Index web search streaming", () => {
           expect(session?.threadId ?? null).toBeNull();
           onSession?.({
             threadId: "thread_1",
-            contextSummary: "Carry forward the brand and audience context.",
-            latestEnhancedPrompt: "First enhanced prompt.",
+            contextSummary: "",
+            latestEnhancedPrompt: "",
+            lastRunContextSummary: "Carry forward the brand and audience context.",
+            lastRunEnhancedPrompt: "First enhanced prompt.",
           });
           onDone?.();
           return;
         }
 
         expect(session?.threadId).toBe("thread_1");
-        expect(session?.contextSummary).toBe("Carry forward the brand and audience context.");
-        expect(session?.latestEnhancedPrompt).toBe("First enhanced prompt.");
+        expect(session?.contextSummary ?? "").toBe("");
+        expect(session?.latestEnhancedPrompt ?? "").toBe("");
         onDone?.();
       },
     );

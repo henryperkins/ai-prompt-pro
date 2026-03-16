@@ -227,7 +227,7 @@ export function buildGeneratePromptWorkflowDetail(postProcessed) {
   if (postProcessed?.parse_status === "json") {
     return "Generated the final prompt and structured enhancement metadata.";
   }
-  return "Generated the final prompt; metadata required fallback text recovery.";
+  return "Structured enhancement metadata was invalid and the run should be retried.";
 }
 
 // ---------------------------------------------------------------------------
