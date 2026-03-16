@@ -1,11 +1,13 @@
 const BUILDER_MODES = new Set(["quick", "guided", "advanced"]);
 const REWRITE_STRICTNESS_VALUES = new Set(["preserve", "balanced", "aggressive"]);
 const AMBIGUITY_MODE_VALUES = new Set(["ask_me", "placeholders", "infer_conservatively"]);
+const INSTRUCTIONAL_INTENT_PATTERN =
+  /\b(how to|explain|walk me through|show me how|teach me|guide me|step by step|show the steps|(?:give|provide|show)\s+(?:me\s+)?(?:an?\s+)?(?:tutorial|walkthrough))\b/i;
 
 const INTENT_PATTERNS = {
   creative: /\b(write|create|generate|story|poem|design|draft|compose|brainstorm)\b/i,
   analytical: /\b(analyze|analyse|compare|evaluate|assess|review|benchmark)\b/i,
-  instructional: /\b(how to|steps?|guide|tutorial|explain|walkthrough)\b/i,
+  instructional: INSTRUCTIONAL_INTENT_PATTERN,
   conversational: /\b(chat|talk|discuss|roleplay|act as)\b/i,
   extraction: /\b(extract|summari[sz]e|list|find|identify|pull out)\b/i,
   coding: /\b(code|function|script|debug|implement|build|refactor|api)\b/i,
@@ -223,7 +225,6 @@ export const ENHANCEMENT_OUTPUT_SCHEMA = {
     "alternative_versions",
     "assumptions_made",
     "open_questions",
-    "enhancement_plan",
   ],
   additionalProperties: false,
 };
@@ -268,6 +269,56 @@ function normalizeAmbiguityMode(rawMode) {
   return AMBIGUITY_MODE_VALUES.has(normalized) ? normalized : "infer_conservatively";
 }
 
+const SOURCE_MATERIAL_SIGNAL_RE =
+  /\b(source material|source materials|source docs?|source documents?|provided (?:data|dataset|documents?|docs|files?|notes|inputs?|materials?|transcript|reports?|spreadsheets?|csv files?|json files?|pdfs?)|attached (?:data|dataset|documents?|docs|files?|notes|inputs?|materials?|transcript|reports?|spreadsheets?|csv files?|json files?|pdfs?)|uploaded (?:data|dataset|documents?|docs|files?|notes|inputs?|materials?|transcript|reports?|spreadsheets?|csv files?|json files?|pdfs?)|based on (?:the )?(?:provided|attached|uploaded)|using (?:the )?(?:provided|attached|uploaded)|(?:from|in|within|using)\s+(?:this|these|the provided|the attached|the uploaded)\s+(?:[\w-]+\s+){0,2}(?:data|dataset|documents?|docs|files?|notes|inputs?|materials?|transcript|reports?|spreadsheets?|csv(?: file)?s?|json(?: file)?s?|pdfs?|schemas?)|given (?:data|dataset|documents?|docs|files?|notes|inputs?|materials?|transcript|reports?|spreadsheets?|csv files?|json files?|pdfs?))\b/i;
+const SUCCESS_CRITERIA_SIGNAL_RE =
+  /\b(success criteria|criteria for success|acceptance criteria|definition of done|success metric|success metrics|goal|goals|objective|objectives|metric|metrics|measure|measures|kpi|kpis|desired outcome|desired outcomes|required outcome|required outcomes|must include|should include|needs to include|required elements?)\b/i;
+const SOURCE_DEPENDENT_TASK_RE =
+  /\b(summari[sz]e|extract|pull out|identify|list|find|analy[sz]e|review|evaluate|assess|audit|compare)\b/i;
+const SOURCE_DEPENDENT_ARTIFACT_RE =
+  /\b(report|reports|document|documents|doc|docs|transcript|transcripts|notes|paper|papers|policy|policies|dataset|datasets|data|spreadsheet|spreadsheets|file|files|recording|recordings|article|articles|call snippets?|meeting transcript)\b/i;
+
+function collectBuilderSignalTexts(builderFields = {}) {
+  return [
+    builderFields.task,
+    builderFields.context,
+    builderFields.output_format,
+    builderFields.guardrails,
+  ].filter((value) => typeof value === "string" && value.trim().length > 0);
+}
+
+function textSetMatches(values, regex) {
+  return values.some((value) => regex.test(value));
+}
+
+function hasSubstantiveBuilderContext(normalizedContext) {
+  return normalizedContext.length >= 30 || normalizedContext.split(/\s+/).filter(Boolean).length >= 6;
+}
+
+function hasSourceMaterialSignal(prompt, builderFields = {}, options = {}) {
+  if (options.hasAttachedContextSources === true || options.hasStructuredSourceContext === true) {
+    return true;
+  }
+
+  const texts = [prompt, ...collectBuilderSignalTexts(builderFields)]
+    .filter((value) => typeof value === "string" && value.trim().length > 0);
+  return textSetMatches(texts, SOURCE_MATERIAL_SIGNAL_RE);
+}
+
+function requiresSourceBackedInput(prompt, builderFields = {}) {
+  const texts = [prompt, ...collectBuilderSignalTexts(builderFields)]
+    .filter((value) => typeof value === "string" && value.trim().length > 0);
+  return texts.some(
+    (value) => SOURCE_DEPENDENT_TASK_RE.test(value) && SOURCE_DEPENDENT_ARTIFACT_RE.test(value),
+  );
+}
+
+function hasSuccessCriteriaSignal(prompt, builderFields = {}) {
+  const texts = [prompt, ...collectBuilderSignalTexts(builderFields)]
+    .filter((value) => typeof value === "string" && value.trim().length > 0);
+  return textSetMatches(texts, SUCCESS_CRITERIA_SIGNAL_RE);
+}
+
 function detectMissingSlots(prompt, builderFields = {}, options = {}) {
   const normalized = typeof prompt === "string" ? prompt.toLowerCase().trim() : "";
   const normalizedTask = (builderFields.task || "").toLowerCase().trim();
@@ -304,17 +355,20 @@ function detectMissingSlots(prompt, builderFields = {}, options = {}) {
     slots.push("audience");
   }
 
-  const hasSuccessCriteria = /\b(criteria|success|goal|objective|measure|metric|outcome|deliverable|requirement)\b/.test(normalized);
+  const hasSuccessCriteria = hasSuccessCriteriaSignal(prompt, builderFields);
   if (!hasSuccessCriteria) {
     slots.push("success_criteria");
   }
 
-  const hasSourceMaterial = (
-    /\b(source material|data|document|file|input|based on|given|from the|attached|provided)\b/.test(normalized)
-    || hasAttachedContextSources
-    || hasStructuredSourceContext
-  );
-  if (!hasSourceMaterial && !normalizedContext) {
+  const hasSourceMaterial = hasSourceMaterialSignal(prompt, builderFields, {
+    hasAttachedContextSources,
+    hasStructuredSourceContext,
+  });
+  const sourceBackedInputRequired = requiresSourceBackedInput(prompt, builderFields);
+  if (
+    !hasSourceMaterial
+    && (!hasSubstantiveBuilderContext(normalizedContext) || sourceBackedInputRequired)
+  ) {
     slots.push("source_material");
   }
 
@@ -428,6 +482,7 @@ export function classifyIntent(input) {
 const PRIMARY_INTENT_ROUTES = [
   "brainstorm",
   "rewrite",
+  "instruction",
   "analysis",
   "code",
   "extraction",
@@ -438,7 +493,7 @@ const PRIMARY_INTENT_ROUTES = [
 const INTENT_TO_ROUTE_MAP = {
   creative: "brainstorm",
   analytical: "analysis",
-  instructional: "planning",
+  instructional: "instruction",
   conversational: "brainstorm",
   extraction: "extraction",
   coding: "code",
@@ -458,6 +513,13 @@ const PRIMARY_INTENT_ADDONS = {
     .filter((value) => typeof value === "string" && value.length > 0)
     .join("\n\n"),
   code: INTENT_ADDONS.coding,
+  instruction: [
+    "## INSTRUCTION-SPECIFIC ENHANCEMENTS",
+    "- Focus on teaching the user how to complete the task clearly and correctly.",
+    "- Prefer ordered steps, prerequisites, and concise explanations over roadmap-style planning.",
+    "- Call out important pitfalls, decision points, and verification checks when they affect correctness.",
+    "- Match the depth to the user's apparent skill level when the audience is stated or inferable.",
+  ].join("\n"),
   extraction: [
     "## EXTRACTION-SPECIFIC ENHANCEMENTS",
     "- Focus on faithfully extracting or organizing information already present in the source material or request.",
@@ -483,6 +545,7 @@ const REWRITE_PATTERN = /\b(rewrite|revise|edit|improve|fix|rephrase|polish|refi
 const RESEARCH_PATTERN = /\b(research|literature|study|paper|findings|systematic|survey|investigate)\b/i;
 const PLANNING_PATTERN = /\b(plan|roadmap|schedule|timeline|milestones|strategy|project plan|action items)\b/i;
 const ANALYSIS_PATTERN = /\b(analy[sz]e|compare|evaluate|assess|benchmark|audit)\b/i;
+const INSTRUCTION_PATTERN = INSTRUCTIONAL_INTENT_PATTERN;
 
 export function classifyPrimaryIntent(input, options = {}) {
   const prompt = typeof input === "string" ? input.trim() : "";
@@ -495,6 +558,7 @@ export function classifyPrimaryIntent(input, options = {}) {
   const isResearch = RESEARCH_PATTERN.test(normalized);
   const isPlanning = PLANNING_PATTERN.test(normalized);
   const isAnalysis = ANALYSIS_PATTERN.test(normalized);
+  const isInstruction = INSTRUCTION_PATTERN.test(normalized);
   const hasCodeFields = Boolean(
     options.builderFields?.role && /\b(developer|engineer|programmer)\b/i.test(options.builderFields.role),
   );
@@ -516,6 +580,9 @@ export function classifyPrimaryIntent(input, options = {}) {
   if (isAnalysis && !candidates.includes("analysis")) {
     candidates.push("analysis");
   }
+  if (isInstruction && !candidates.includes("instruction")) {
+    candidates.push("instruction");
+  }
 
   candidates = candidates.filter((c) => PRIMARY_INTENT_ROUTES.includes(c));
   const unique = [...new Set(candidates)];
@@ -528,7 +595,7 @@ export function classifyPrimaryIntent(input, options = {}) {
   // For other explicit signals (research, planning, analysis) that may compete
   // with extraction, pick the route whose pattern first matches in the text —
   // the primary action verb typically appears earliest.
-  const ROUTE_PRIORITY = ["rewrite", "code", "extraction", "research", "planning", "analysis", "brainstorm"];
+  const ROUTE_PRIORITY = ["rewrite", "instruction", "code", "extraction", "research", "planning", "analysis", "brainstorm"];
 
   let primaryIntent = unique[0];
 
@@ -538,6 +605,7 @@ export function classifyPrimaryIntent(input, options = {}) {
     primaryIntent = "code";
   } else {
     const signalCandidates = [
+      { active: unique.includes("instruction"), route: "instruction", pattern: INSTRUCTION_PATTERN },
       { active: isResearch, route: "research", pattern: RESEARCH_PATTERN },
       { active: isPlanning, route: "planning", pattern: PLANNING_PATTERN },
       { active: isAnalysis, route: "analysis", pattern: ANALYSIS_PATTERN },
@@ -813,7 +881,7 @@ export function buildEnhancementMetaPrompt(userInput, context) {
     "## ENHANCEMENT PROCESS",
     "1. First, build an `enhancement_plan` by analyzing the user input for intent, task type, deliverable, audience, inputs, constraints, criteria, assumptions, questions, and verification needs.",
     "2. Then, generate the `enhanced_prompt` from that plan using the 6-part framework below.",
-    "3. Return both the plan and the prompt in the JSON output.",
+    "3. Include `enhancement_plan` in the JSON output whenever it is well-supported by the input. Omit it instead of inventing unsupported details.",
     "",
     "## ENHANCEMENT RULES",
     "1. Replace vague language with specific, actionable wording.",
@@ -831,7 +899,7 @@ export function buildEnhancementMetaPrompt(userInput, context) {
     edgeCaseNotes,
     "",
     "## OUTPUT FORMAT",
-    "Return ONLY valid JSON (no prose, no markdown fences) with this exact schema:",
+    "Return ONLY valid JSON (no prose, no markdown fences). Use this schema; `enhancement_plan` is optional but preferred when confidently inferable:",
     "{",
     "  \"enhanced_prompt\": \"string\",",
     "  \"parts_breakdown\": {",
@@ -1041,21 +1109,21 @@ export function validateEnhancementOutputContract(value) {
     requireString("more_detailed", parsed.alternative_versions, { allowEmpty: true });
   }
 
-  if (!("enhancement_plan" in parsed)) {
-    missingFields.push("enhancement_plan");
-  } else if (!isPlainObject(parsed.enhancement_plan)) {
-    invalidFields.push("enhancement_plan");
-  } else {
-    requireString("primary_intent", parsed.enhancement_plan);
-    requireString("source_task_type", parsed.enhancement_plan, { allowEmpty: true });
-    requireString("target_deliverable", parsed.enhancement_plan, { allowEmpty: true });
-    requireString("audience", parsed.enhancement_plan, { allowEmpty: true });
-    requireStringArray("required_inputs", parsed.enhancement_plan);
-    requireStringArray("constraints", parsed.enhancement_plan);
-    requireStringArray("success_criteria", parsed.enhancement_plan);
-    requireStringArray("assumptions", parsed.enhancement_plan);
-    requireStringArray("open_questions", parsed.enhancement_plan);
-    requireStringArray("verification_needs", parsed.enhancement_plan);
+  if ("enhancement_plan" in parsed) {
+    if (!isPlainObject(parsed.enhancement_plan)) {
+      invalidFields.push("enhancement_plan");
+    } else {
+      requireString("primary_intent", parsed.enhancement_plan);
+      requireString("source_task_type", parsed.enhancement_plan, { allowEmpty: true });
+      requireString("target_deliverable", parsed.enhancement_plan, { allowEmpty: true });
+      requireString("audience", parsed.enhancement_plan, { allowEmpty: true });
+      requireStringArray("required_inputs", parsed.enhancement_plan);
+      requireStringArray("constraints", parsed.enhancement_plan);
+      requireStringArray("success_criteria", parsed.enhancement_plan);
+      requireStringArray("assumptions", parsed.enhancement_plan);
+      requireStringArray("open_questions", parsed.enhancement_plan);
+      requireStringArray("verification_needs", parsed.enhancement_plan);
+    }
   }
 
   return {

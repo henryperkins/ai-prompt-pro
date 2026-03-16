@@ -48,6 +48,14 @@ not allow publishable-key fallback or service-token fallback. The setup callback
 and webhook receiver use explicit custom auth instead of the standard route auth
 policy.
 
+Standard route auth is evaluated in this order: `x-agent-token`, then
+publishable-key auth for requests without a bearer token, then bearer-session
+auth. Bearer requests never downgrade to publishable-key auth. If
+`NEON_JWKS_URL` is malformed, JWKS verification is disabled and the service
+falls back to Neon `/v1/user` validation when available; otherwise it returns a
+controlled `503` instead of throwing. Anonymous bearer sessions keep IP-scoped
+daily rate limits.
+
 ### `POST /enhance` body
 
 ```jsonc
@@ -57,7 +65,7 @@ policy.
   "builder_mode": "guided",                 // optional: quick|guided|advanced
   "rewrite_strictness": "balanced",         // optional: preserve|balanced|aggressive
   "ambiguity_mode": "infer_conservatively", // optional: ask_me|placeholders|infer_conservatively
-  "intent_override": "code",               // optional: explicit intent route (brainstorm|rewrite|analysis|code|extraction|planning|research) — must match PRIMARY_INTENT_ROUTES in enhancement-pipeline.mjs
+  "intent_override": "code",               // optional: explicit intent route (brainstorm|rewrite|instruction|analysis|code|extraction|planning|research) — must match PRIMARY_INTENT_ROUTES in enhancement-pipeline.mjs
   "builder_fields": {                       // optional but recommended: pass all 6 keys, even empty
     "role": "",
     "context": "",
@@ -168,8 +176,8 @@ Notes:
 | `OPENAI_API_KEY` or `CODEX_API_KEY` | Fallback OpenAI API key (used only when no provider config is resolved) |
 | `NEON_AUTH_URL` or `NEON_JWKS_URL` | Neon Auth URL (or direct JWKS URL) for bearer-session validation (recommended in production) |
 
-If `GITHUB_CONTEXT_ENABLED=true`, also configure `NEON_DATA_API_URL` and
-`NEON_SERVICE_ROLE_KEY` so the service can persist GitHub installations, repo
+If `GITHUB_CONTEXT_ENABLED=true`, also configure `NEON_DATABASE_URL` (or
+`DATABASE_URL`) so the service can persist GitHub installations, repo
 connections, manifests, and setup states.
 
 ### Provider resolution order
@@ -228,8 +236,7 @@ Set `REQUIRE_PROVIDER_CONFIG=true` to disable step 3 and fail fast instead of fa
 | `GITHUB_REPOSITORY_PAGE_SIZE` | `50` | Default repository page size for installation listings |
 | `GITHUB_PER_MINUTE` | `30` | Per-user minute rate limit for GitHub routes |
 | `GITHUB_PER_DAY` | `600` | Per-user daily rate limit for GitHub routes |
-| `NEON_DATA_API_URL` | _(none)_ | Neon Data API base URL used by the GitHub storage layer |
-| `NEON_SERVICE_ROLE_KEY` | _(none)_ | Service role key used by the GitHub storage layer |
+| `NEON_DATABASE_URL` / `DATABASE_URL` | _(none)_ | Direct Neon Postgres connection string used by the GitHub storage layer |
 
 ### Codex client options
 

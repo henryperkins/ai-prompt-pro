@@ -1,5 +1,6 @@
 /* @vitest-environment node */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { neon } from "@neondatabase/serverless";
 import {
   createRlsClient,
   hasRlsEnv,
@@ -7,11 +8,10 @@ import {
   rlsEnvErrorMessage,
 } from "./rls-client";
 
-const DATA_API_URL = process.env.NEON_DATA_API_URL;
-const SERVICE_ROLE_KEY = process.env.NEON_SERVICE_ROLE_KEY;
-const hasGithubRlsEnv = hasRlsEnv && Boolean(SERVICE_ROLE_KEY);
+const DATABASE_URL = process.env.NEON_DATABASE_URL || process.env.DATABASE_URL;
+const hasGithubRlsEnv = hasRlsEnv && Boolean(DATABASE_URL);
 const githubRlsEnvErrorMessage =
-  `${rlsEnvErrorMessage} Set NEON_SERVICE_ROLE_KEY to seed GitHub context rows.`;
+  `${rlsEnvErrorMessage} Set NEON_DATABASE_URL or DATABASE_URL to seed GitHub context rows.`;
 
 const describeIfEnv = hasGithubRlsEnv ? describe : describe.skip;
 
@@ -23,104 +23,72 @@ if (!hasGithubRlsEnv && process.env.CI) {
   });
 }
 
-function buildDataApiUrl(path: string, query?: Record<string, string>): string {
-  if (!DATA_API_URL) {
-    throw new Error("Missing NEON_DATA_API_URL for GitHub RLS test client.");
+const TABLE_BY_PATH: Record<string, string> = {
+  "/github_installations": "public.github_installations",
+  "/github_repo_connections": "public.github_repo_connections",
+  "/github_repo_manifest_cache": "public.github_repo_manifest_cache",
+  "/github_setup_states": "public.github_setup_states",
+};
+
+function getSqlClient() {
+  if (!DATABASE_URL) {
+    throw new Error("Missing NEON_DATABASE_URL or DATABASE_URL for GitHub RLS test client.");
   }
-
-  const normalizedBaseUrl = DATA_API_URL.replace(/\/+$/, "");
-  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  const url = new URL(`${normalizedBaseUrl}${normalizedPath}`);
-
-  Object.entries(query || {}).forEach(([key, value]) => {
-    if (value.trim()) {
-      url.searchParams.set(key, value);
-    }
-  });
-
-  return url.toString();
+  return neon(DATABASE_URL);
 }
 
-async function requestAsServiceRole(
-  method: "POST" | "DELETE",
-  path: string,
-  {
-    body,
-    query,
-    prefer,
-  }: {
-    body?: unknown;
-    query?: Record<string, string>;
-    prefer?: string;
-  } = {},
-) {
-  if (!SERVICE_ROLE_KEY) {
-    throw new Error("Missing NEON_SERVICE_ROLE_KEY for GitHub RLS test client.");
+function resolveTableName(path: string): string {
+  const tableName = TABLE_BY_PATH[path];
+  if (!tableName) {
+    throw new Error(`Unsupported GitHub RLS seed path: ${path}`);
   }
+  return tableName;
+}
 
-  const response = await fetch(buildDataApiUrl(path, query), {
-    method,
-    headers: {
-      Accept: "application/json",
-      Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
-      apikey: SERVICE_ROLE_KEY,
-      "x-api-key": SERVICE_ROLE_KEY,
-      Prefer: prefer || "return=minimal",
-      "Content-Type": body === undefined ? "" : "application/json",
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-
-  const text = await response.text();
-  const payload = text
-    ? (() => {
-      try {
-        return JSON.parse(text);
-      } catch {
-        return text;
-      }
-    })()
-    : null;
-
-  if (!response.ok) {
-    throw new Error(
-      typeof payload === "string"
-        ? payload
-        : `GitHub RLS seed request failed with status ${response.status}.`,
-    );
-  }
-
-  return payload;
+function quoteIdentifier(value: string): string {
+  return `"${value.replace(/"/g, "\"\"")}"`;
 }
 
 async function insertServiceRow(
   path: string,
   row: Record<string, unknown>,
 ): Promise<{ id: string }> {
-  const payload = await requestAsServiceRole("POST", path, {
-    body: [row],
-    query: {
-      select: "id",
-    },
-    prefer: "return=representation",
-  });
+  const tableName = resolveTableName(path);
+  const entries = Object.entries(row);
+  const columns = entries.map(([key]) => quoteIdentifier(key));
+  const values = entries.map(([, value]) => value);
+  const placeholders = entries.map((_, index) => `$${index + 1}`);
 
-  if (!Array.isArray(payload) || !payload[0] || typeof payload[0].id !== "string") {
+  const sql = getSqlClient();
+  const rows = await sql.query(
+    `
+      insert into ${tableName} (${columns.join(", ")})
+      values (${placeholders.join(", ")})
+      returning id
+    `,
+    values,
+  );
+
+  if (!Array.isArray(rows) || !rows[0] || typeof rows[0].id !== "string") {
     throw new Error(`Failed to create ${path} seed row.`);
   }
 
-  return payload[0] as { id: string };
+  return rows[0] as { id: string };
 }
 
 async function deleteServiceRows(path: string, ids: string[]) {
   const filteredIds = ids.filter(Boolean);
   if (filteredIds.length === 0) return;
 
-  await requestAsServiceRole("DELETE", path, {
-    query: {
-      id: `in.(${filteredIds.join(",")})`,
-    },
-  });
+  const tableName = resolveTableName(path);
+  const sql = getSqlClient();
+  await sql.query(
+    `
+      delete from ${tableName}
+      where id = any($1::uuid[])
+    `,
+    [filteredIds],
+  );
 }
 
 describeIfEnv("github context RLS", () => {

@@ -3,6 +3,7 @@ import {
   buildEnhancementMetaPrompt,
   detectEnhancementContext,
   postProcessEnhancementResponse,
+  validateEnhancementOutputContract,
 } from "../../agent_service/enhancement-pipeline.mjs";
 
 describe("enhancement plan schema", () => {
@@ -86,6 +87,29 @@ describe("enhancement plan schema", () => {
     });
 
     expect(result.enhancement_plan).toBeNull();
+  });
+
+  it("accepts structured output that omits enhancement_plan", () => {
+    const contract = validateEnhancementOutputContract({
+      enhanced_prompt: "Write a concise note...",
+      parts_breakdown: {
+        role: "Writer",
+        context: "Internal update",
+        task: "Write a concise note",
+        output_format: "Short memo",
+        examples: "",
+        guardrails: "Stay factual",
+      },
+      enhancements_made: ["Clarified the task"],
+      quality_score: { clarity: 7, specificity: 6, completeness: 6, actionability: 7, overall: 6.5 },
+      suggestions: [],
+      alternative_versions: { shorter: "", more_detailed: "" },
+      assumptions_made: [],
+      open_questions: [],
+    });
+
+    expect(contract.ok).toBe(true);
+    expect(contract.missingFields).not.toContain("enhancement_plan");
   });
 
   it("fallback mode still works without enhancement_plan", () => {

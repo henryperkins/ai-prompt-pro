@@ -16,7 +16,7 @@
 - Pre-merge gate: `npm run check:prod`.
 - Design-system gate: `npm run check:design-system`.
 - Useful targeted checks: `npx vitest run src/test/persistence.test.ts`, `npm run test:mobile`.
-- Local AI service: `npm run agent:codex`. `npm run test:rls` requires `NEON_SERVICE_ROLE_KEY`.
+- Local AI service: `npm run agent:codex`. `npm run test:rls` requires `NEON_AUTH_URL` + `NEON_DATA_API_URL`. GitHub RLS seeding additionally uses `NEON_DATABASE_URL` (or `DATABASE_URL`).
 
 ## Conventions
 

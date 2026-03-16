@@ -32,6 +32,26 @@ describe("detectDraftIntent", () => {
     expect(result.intent).toBe("brainstorm");
   });
 
+  it("detects instructional prompts without misclassifying them as planning", () => {
+    const result = detectDraftIntent("Explain React hooks to a beginner");
+
+    expect(result.intent).toBe("instruction");
+  });
+
+  it("detects 'walk me through' as instructional", () => {
+    const result = detectDraftIntent("Walk me through OAuth 2.0");
+
+    expect(result.intent).toBe("instruction");
+  });
+
+  it("does not misclassify guide deliverables as instructional", () => {
+    const result = detectDraftIntent(
+      "Create an onboarding guide for new managers",
+    );
+
+    expect(result.intent).toBe("brainstorm");
+  });
+
   it("returns null for vague prompts", () => {
     const result = detectDraftIntent("Help");
 

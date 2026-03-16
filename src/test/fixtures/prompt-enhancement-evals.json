@@ -893,12 +893,11 @@
     "category": "extraction",
     "input": "Extract the key findings and action items from this meeting transcript",
     "expectedPrimaryIntent": "extraction",
-    "expectedAmbiguityLevel": "high",
+    "expectedAmbiguityLevel": "medium",
     "expectedMissingSlots": [
       "target_deliverable",
       "audience",
-      "success_criteria",
-      "source_material"
+      "success_criteria"
     ],
     "requiresPlaceholders": true,
     "requiresOpenQuestions": true,
@@ -941,12 +940,11 @@
     "category": "extraction",
     "input": "Pull out every action owner and due date from these notes",
     "expectedPrimaryIntent": "extraction",
-    "expectedAmbiguityLevel": "high",
+    "expectedAmbiguityLevel": "medium",
     "expectedMissingSlots": [
       "target_deliverable",
       "audience",
-      "success_criteria",
-      "source_material"
+      "success_criteria"
     ],
     "requiresPlaceholders": true,
     "requiresOpenQuestions": true,
@@ -1014,8 +1012,7 @@
     "expectedAmbiguityLevel": "medium",
     "expectedMissingSlots": [
       "audience",
-      "success_criteria",
-      "source_material"
+      "success_criteria"
     ],
     "requiresPlaceholders": false,
     "requiresOpenQuestions": false,

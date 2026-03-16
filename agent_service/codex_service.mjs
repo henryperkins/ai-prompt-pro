@@ -160,8 +160,7 @@ import { createServiceRuntime } from "./service-runtime.mjs";
 const runtime = await createServiceRuntime({ env: process.env });
 const githubApp = createGitHubAppClient(runtime.githubConfig);
 const githubStore = createGitHubStore({
-  dataApiUrl: runtime.githubConfig.dataApiUrl,
-  serviceRoleKey: runtime.githubConfig.serviceRoleKey,
+  databaseUrl: runtime.githubConfig.databaseUrl,
 });
 const githubManifestService = createGitHubManifestService({
   app: githubApp,
@@ -1130,6 +1129,9 @@ async function runEnhanceTurnStream(requestData, options) {
           ? parseEnhancementJsonResponse(rawEnhancerOutput)
           : null;
       const outputContract = validateEnhancementOutputContract(parsedEnhancerOutput);
+      const missingEnhancementPlan =
+        parsedEnhancerOutput != null
+        && !Object.prototype.hasOwnProperty.call(parsedEnhancerOutput, "enhancement_plan");
 
       // ── Enhancement response diagnostics ─────────────────────────────
       const agentItemCount = agentMessageByItemId.size;
@@ -1181,6 +1183,16 @@ async function runEnhanceTurnStream(requestData, options) {
           parse_has_quality_score: diag?.has_quality_score_field,
         }),
       );
+
+      if (missingEnhancementPlan) {
+        logEvent("warn", "enhance_missing_enhancement_plan", cleanLogFields({
+          request_id: requestContext?.requestId,
+          endpoint: requestContext?.endpoint,
+          thread_id: activeThreadId,
+          turn_id: turnId,
+          raw_output_chars: rawOutputLength,
+        }));
+      }
 
       if (postProcessed.parse_status !== "json" || !outputContract.ok) {
         const validationDetail = [
@@ -1779,10 +1791,18 @@ function checkRateLimit(options, failureMessage) {
   };
 }
 
+function getMinuteRateLimitKey(auth, clientIp) {
+  return auth.minuteRateKey || `${auth.rateKey}:${clientIp}`;
+}
+
+function getDayRateLimitKey(auth) {
+  return auth.dayRateKey || auth.rateKey;
+}
+
 function checkEnhanceRateLimits(auth, clientIp) {
   const minuteWindow = checkRateLimit({
     scope: "enhance-minute",
-    key: `${auth.rateKey}:${clientIp}`,
+    key: getMinuteRateLimitKey(auth, clientIp),
     limit: runtime.enhancePerMinute,
     windowMs: 60_000,
   }, "Rate limit exceeded. Please try again later.");
@@ -1792,7 +1812,7 @@ function checkEnhanceRateLimits(auth, clientIp) {
 
   return checkRateLimit({
     scope: "enhance-day",
-    key: auth.rateKey,
+    key: getDayRateLimitKey(auth),
     limit: runtime.enhancePerDay,
     windowMs: 86_400_000,
   }, "Daily quota exceeded. Please try again tomorrow.");
@@ -1801,7 +1821,7 @@ function checkEnhanceRateLimits(auth, clientIp) {
 function checkGitHubRateLimits(auth, clientIp) {
   const minuteWindow = checkRateLimit({
     scope: "github-minute",
-    key: `${auth.rateKey}:${clientIp}`,
+    key: getMinuteRateLimitKey(auth, clientIp),
     limit: runtime.githubPerMinute,
     windowMs: 60_000,
   }, "GitHub context rate limit exceeded. Please try again later.");
@@ -1811,7 +1831,7 @@ function checkGitHubRateLimits(auth, clientIp) {
 
   return checkRateLimit({
     scope: "github-day",
-    key: auth.rateKey,
+    key: getDayRateLimitKey(auth),
     limit: runtime.githubPerDay,
     windowMs: 86_400_000,
   }, "GitHub context daily quota exceeded. Please try again tomorrow.");
@@ -2038,7 +2058,7 @@ async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
   const clientIp = runtime.getClientIp(req, requestContext);
   if (!enforceRateLimit(res, corsHeaders, {
     scope: "extract-minute",
-    key: `${auth.rateKey}:${clientIp}`,
+    key: getMinuteRateLimitKey(auth, clientIp),
     limit: runtime.extractPerMinute,
     windowMs: 60_000,
   }, "Rate limit exceeded. Please try again later.", requestContext)) {
@@ -2047,7 +2067,7 @@ async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
 
   if (!enforceRateLimit(res, corsHeaders, {
     scope: "extract-day",
-    key: auth.rateKey,
+    key: getDayRateLimitKey(auth),
     limit: runtime.extractPerDay,
     windowMs: 86_400_000,
   }, "Daily quota exceeded. Please try again tomorrow.", requestContext)) {
@@ -2237,7 +2257,7 @@ async function handleInferBuilderFields(req, res, body, corsHeaders, requestCont
   const clientIp = runtime.getClientIp(req, requestContext);
   if (!enforceRateLimit(res, corsHeaders, {
     scope: "infer-minute",
-    key: `${auth.rateKey}:${clientIp}`,
+    key: getMinuteRateLimitKey(auth, clientIp),
     limit: runtime.inferPerMinute,
     windowMs: 60_000,
   }, "Rate limit exceeded. Please try again later.", requestContext)) {
@@ -2246,7 +2266,7 @@ async function handleInferBuilderFields(req, res, body, corsHeaders, requestCont
 
   if (!enforceRateLimit(res, corsHeaders, {
     scope: "infer-day",
-    key: auth.rateKey,
+    key: getDayRateLimitKey(auth),
     limit: runtime.inferPerDay,
     windowMs: 86_400_000,
   }, "Daily quota exceeded. Please try again tomorrow.", requestContext)) {

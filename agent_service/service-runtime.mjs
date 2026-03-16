@@ -344,10 +344,9 @@ export async function createServiceRuntime({ env = process.env, deps = {} } = {}
       appId: normalizeEnvValue("GITHUB_APP_ID", env),
       appPrivateKey: normalizeEnvValue("GITHUB_APP_PRIVATE_KEY", env),
       appSlug: normalizeEnvValue("GITHUB_APP_SLUG", env),
-      dataApiUrl: normalizeEnvValue("NEON_DATA_API_URL", env),
+      databaseUrl: normalizeEnvValue("NEON_DATABASE_URL", env) || normalizeEnvValue("DATABASE_URL", env),
       postInstallRedirectUrl,
       repositoryPageSize: parsePositiveIntegerEnv("GITHUB_REPOSITORY_PAGE_SIZE", 50, env),
-      serviceRoleKey: normalizeEnvValue("NEON_SERVICE_ROLE_KEY", env),
       stateSecret: normalizeEnvValue("GITHUB_APP_STATE_SECRET", env),
       webhookSecret: normalizeEnvValue("GITHUB_WEBHOOK_SECRET", env),
     };
@@ -631,9 +630,8 @@ export async function createServiceRuntime({ env = process.env, deps = {} } = {}
         !githubConfig.appId
         || !githubConfig.appPrivateKey
         || !githubConfig.appSlug
-        || !githubConfig.dataApiUrl
+        || !githubConfig.databaseUrl
         || !githubConfig.postInstallRedirectUrl
-        || !githubConfig.serviceRoleKey
         || !githubConfig.stateSecret
         || !githubConfig.webhookSecret
       )

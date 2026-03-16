@@ -250,8 +250,7 @@ describe("agent service runtime extraction", () => {
         GITHUB_APP_STATE_SECRET: "state-secret",
         GITHUB_WEBHOOK_SECRET: "webhook-secret",
         GITHUB_POST_INSTALL_REDIRECT_URL: "https://promptforge.test/builder",
-        NEON_DATA_API_URL: "https://data-api.test/rest/v1",
-        NEON_SERVICE_ROLE_KEY: "service-role-key",
+        NEON_DATABASE_URL: "postgres://promptforge:test@db.example.neon.tech/neondb",
       },
       deps,
     });
@@ -261,8 +260,7 @@ describe("agent service runtime extraction", () => {
       appId: "12345",
       appSlug: "promptforge-app",
       postInstallRedirectUrl: "https://promptforge.test/builder",
-      dataApiUrl: "https://data-api.test/rest/v1",
-      serviceRoleKey: "service-role-key",
+      databaseUrl: "postgres://promptforge:test@db.example.neon.tech/neondb",
     });
     expect(runtime.githubUserAuthPolicy).toEqual({
       allowPublicKey: false,

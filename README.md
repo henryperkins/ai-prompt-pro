@@ -90,8 +90,8 @@ backed flow.
 - Enable the service routes with `GITHUB_CONTEXT_ENABLED=true`.
 - Configure the service with `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`,
   `GITHUB_APP_SLUG`, `GITHUB_APP_STATE_SECRET`, `GITHUB_WEBHOOK_SECRET`,
-  `GITHUB_POST_INSTALL_REDIRECT_URL`, `NEON_DATA_API_URL`, and
-  `NEON_SERVICE_ROLE_KEY`.
+  `GITHUB_POST_INSTALL_REDIRECT_URL`, and `NEON_DATABASE_URL`
+  (or `DATABASE_URL`).
 - Apply `supabase/migrations/20260316010000_github_context_schema.sql` before
   enabling the feature outside local development.
 - GitHub-backed prompts cannot be shared publicly. The Builder blocks share

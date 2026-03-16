@@ -8,7 +8,8 @@ Unit and integration tests for AI Prompt Pro, powered by [Vitest](https://vitest
 npm test              # run all suites once
 npm run test:watch    # watch mode
 npm run test:unit     # unit tests only (excludes RLS integration)
-npm run test:rls      # RLS integration tests (requires NEON_SERVICE_ROLE_KEY)
+npm run test:rls      # community RLS integration tests (requires NEON_AUTH_URL + NEON_DATA_API_URL)
+npx vitest run src/test/rls-github-context.test.ts  # GitHub RLS checks (also requires NEON_DATABASE_URL or DATABASE_URL)
 ```
 
 Run a single file:

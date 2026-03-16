@@ -24,7 +24,7 @@ npm test                 # Run Vitest once
 npm run test:unit        # Vitest excluding RLS integration tests (used by check:prod)
 npm run test:watch       # Run Vitest in watch mode
 npm run test:mobile      # Run Playwright mobile E2E checks
-npm run test:rls         # Run Neon RLS-focused tests (requires NEON_SERVICE_ROLE_KEY)
+npm run test:rls         # Run Neon RLS-focused tests (requires NEON_AUTH_URL + NEON_DATA_API_URL)
 npm run check:prod       # pre-merge gate (docs-freshness → design-system gates → lint → test:unit → build → token-runtime)
 npm run check:design-system  # Build + all design-system lint gates
 npm run agent:codex      # Run local Codex SDK agent service

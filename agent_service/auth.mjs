@@ -82,27 +82,36 @@ function objectBooleanFlag(source, key) {
   return source[key] === true;
 }
 
+function isAnonymousIdentity(source) {
+  return (
+    source?.role === "anon"
+    || source?.is_anonymous === true
+    || objectBooleanFlag(source?.app_metadata, "is_anonymous")
+    || objectBooleanFlag(source?.user_metadata, "is_anonymous")
+  );
+}
+
+function extractUserIdentity(source, idKey) {
+  if (!source || typeof source !== "object" || Array.isArray(source)) return null;
+
+  const rawUserId = source[idKey];
+  const userId = typeof rawUserId === "string" ? rawUserId.trim() : "";
+  if (!userId) return null;
+
+  return {
+    userId,
+    isAnonymous: isAnonymousIdentity(source),
+  };
+}
+
 function decodeUserFromJwt(token, now) {
   const claims = decodeJwtPayload(token.trim());
   if (!claims) return null;
 
-  const subject = typeof claims.sub === "string" ? claims.sub.trim() : "";
-  if (!subject) return null;
-
   const exp = numericClaim(claims.exp);
   if (exp !== null && now() >= exp * 1000) return null;
 
-  const isAnonymous = (
-    claims.role === "anon"
-    || claims.is_anonymous === true
-    || objectBooleanFlag(claims.app_metadata, "is_anonymous")
-    || objectBooleanFlag(claims.user_metadata, "is_anonymous")
-  );
-
-  return {
-    id: subject,
-    isAnonymous,
-  };
+  return extractUserIdentity(claims, "sub");
 }
 
 function looksLikeJwt(value) {
@@ -172,6 +181,9 @@ export function createAuthService({
   }
 
   let neonJwksResolver = null;
+  let parsedNeonJwksUrl = undefined;
+  let hasResolvedNeonJwksUrl = false;
+  let hasLoggedJwksConfigWarning = false;
   let hasLoggedAuthConfigWarning = false;
   let hasLoggedJwtFallbackWarning = false;
   let hasLoggedJwtFallbackProductionWarning = false;
@@ -227,10 +239,40 @@ export function createAuthService({
     return decodedUser;
   }
 
-  function getNeonJwksResolver() {
+  function logInvalidJwksConfig(error) {
+    if (hasLoggedJwksConfigWarning) return;
+    hasLoggedJwksConfigWarning = true;
+    logEvent("error", "auth_config_warning", {
+      error_code: "auth_config_invalid",
+      message:
+        `NEON_JWKS_URL is invalid and JWT verification is disabled until it is fixed (${toErrorMessage(error)}).`,
+    });
+  }
+
+  function getParsedNeonJwksUrl() {
     if (!authConfig.neonJwksUrl) return null;
+    if (hasResolvedNeonJwksUrl) return parsedNeonJwksUrl;
+
+    hasResolvedNeonJwksUrl = true;
+    try {
+      parsedNeonJwksUrl = new URL(authConfig.neonJwksUrl);
+    } catch (error) {
+      parsedNeonJwksUrl = null;
+      logInvalidJwksConfig(error);
+    }
+    return parsedNeonJwksUrl;
+  }
+
+  function getNeonJwksResolver() {
+    const neonJwksUrl = getParsedNeonJwksUrl();
+    if (!neonJwksUrl) return null;
     if (!neonJwksResolver) {
-      neonJwksResolver = createRemoteJWKSetImpl(new URL(authConfig.neonJwksUrl));
+      try {
+        neonJwksResolver = createRemoteJWKSetImpl(neonJwksUrl);
+      } catch (error) {
+        logInvalidJwksConfig(error);
+        return null;
+      }
     }
     return neonJwksResolver;
   }
@@ -253,12 +295,12 @@ export function createAuthService({
       }
 
       const { payload } = await jwtVerifyImpl(token, jwks, verifyOptions);
-      const userId = typeof payload.sub === "string" ? payload.sub.trim() : "";
-      if (!userId) {
+      const verifiedUser = extractUserIdentity(payload, "sub");
+      if (!verifiedUser) {
         return { ok: false, reason: "invalid" };
       }
 
-      return { ok: true, userId, authMode: "user_jwt" };
+      return { ok: true, userId: verifiedUser.userId, isAnonymous: verifiedUser.isAnonymous, authMode: "user_jwt" };
     } catch (error) {
       const message = toErrorMessage(error).toLowerCase();
       if (message.includes("failed to fetch") || message.includes("network")) {
@@ -289,33 +331,42 @@ export function createAuthService({
       }
 
       const data = await response.json().catch(() => null);
-      const userId = typeof data?.id === "string" ? data.id.trim() : "";
-      if (!userId) {
+      const authUser = extractUserIdentity(data, "id");
+      if (!authUser) {
         return { ok: false, reason: "invalid" };
       }
-      return { ok: true, userId, authMode: "user_session" };
+      return { ok: true, userId: authUser.userId, isAnonymous: authUser.isAnonymous, authMode: "user_session" };
     } catch {
       return { ok: false, reason: "unavailable" };
     }
   }
 
-  function buildAuthenticatedUserResult(userId, authMode) {
+  function buildAuthenticatedUserResult(userId, authMode, clientIp, { isAnonymous = false } = {}) {
+    const minuteRateKey = `${userId}:${clientIp}`;
+    const dayRateKey = isAnonymous ? minuteRateKey : userId;
     return {
       ok: true,
       userId,
+      isAnonymous,
       isPublicKey: false,
-      rateKey: userId,
+      rateKey: dayRateKey,
+      minuteRateKey,
+      dayRateKey,
       authMode,
     };
   }
 
   function buildPublicApiKeyAuthResult(apiKey, clientIp, policy) {
     if (!policy?.allowPublicKey || !isConfiguredPublicApiKey(apiKey)) return null;
+    const rateKey = `public:${clientIp}`;
     return {
       ok: true,
       userId: null,
+      isAnonymous: true,
       isPublicKey: true,
-      rateKey: `public:${clientIp}`,
+      rateKey,
+      minuteRateKey: rateKey,
+      dayRateKey: rateKey,
       authMode: "public_key",
     };
   }
@@ -328,7 +379,12 @@ export function createAuthService({
 
     const fallbackUser = tryDecodeUserFromJwtFallback(bearerToken, reason);
     if (fallbackUser) {
-      return buildAuthenticatedUserResult(fallbackUser.id, "jwt_fallback");
+      return buildAuthenticatedUserResult(
+        fallbackUser.userId,
+        "jwt_fallback",
+        clientIp,
+        { isAnonymous: fallbackUser.isAnonymous },
+      );
     }
 
     if (reason === "missing_config" && !hasLoggedAuthConfigWarning) {
@@ -351,6 +407,28 @@ export function createAuthService({
   }
 
   async function requireAuthenticatedUser(req, requestContext, policy = DEFAULT_ROUTE_AUTH_POLICY) {
+    const bearerToken = parseBearerToken(req);
+    const apiKey = (headerValue(req, "apikey") || "").trim();
+    const clientIp = getClientIp(req, requestContext);
+
+    // Public-key auth is only valid for requests without a bearer token.
+    if (!bearerToken) {
+      const publicApiResult = buildPublicApiKeyAuthResult(apiKey, clientIp, policy);
+      if (publicApiResult) return publicApiResult;
+      if (policy?.allowUserJwt === false) {
+        return {
+          ok: false,
+          status: 401,
+          error: "Sign in required.",
+        };
+      }
+      return {
+        ok: false,
+        status: 401,
+        error: "Missing bearer token.",
+      };
+    }
+
     if (policy?.allowUserJwt === false) {
       return {
         ok: false,
@@ -359,24 +437,15 @@ export function createAuthService({
       };
     }
 
-    const bearerToken = parseBearerToken(req);
-    const apiKey = (headerValue(req, "apikey") || "").trim();
-    const clientIp = getClientIp(req, requestContext);
-
-    if (!bearerToken) {
-      const publicApiResult = buildPublicApiKeyAuthResult(apiKey, clientIp, policy);
-      if (publicApiResult) return publicApiResult;
-      return {
-        ok: false,
-        status: 401,
-        error: "Missing bearer token.",
-      };
-    }
-
     if (!looksLikeJwt(bearerToken)) {
       const authApiVerification = await verifyNeonSessionWithAuthApi(bearerToken);
       if (authApiVerification.ok) {
-        return buildAuthenticatedUserResult(authApiVerification.userId, authApiVerification.authMode);
+        return buildAuthenticatedUserResult(
+          authApiVerification.userId,
+          authApiVerification.authMode,
+          clientIp,
+          { isAnonymous: authApiVerification.isAnonymous },
+        );
       }
       if (authApiVerification.reason === "config") {
         return buildAuthUnavailableResult({
@@ -408,12 +477,22 @@ export function createAuthService({
 
     const verified = await verifyNeonJwt(bearerToken);
     if (verified.ok) {
-      return buildAuthenticatedUserResult(verified.userId, verified.authMode);
+      return buildAuthenticatedUserResult(
+        verified.userId,
+        verified.authMode,
+        clientIp,
+        { isAnonymous: verified.isAnonymous },
+      );
     }
 
     const authApiVerification = await verifyNeonSessionWithAuthApi(bearerToken);
     if (authApiVerification.ok) {
-      return buildAuthenticatedUserResult(authApiVerification.userId, authApiVerification.authMode);
+      return buildAuthenticatedUserResult(
+        authApiVerification.userId,
+        authApiVerification.authMode,
+        clientIp,
+        { isAnonymous: authApiVerification.isAnonymous },
+      );
     }
 
     if (verified.reason === "invalid" || authApiVerification.reason === "invalid") {
@@ -470,11 +549,16 @@ export function createAuthService({
           error: "Invalid or missing service token.",
         };
       }
+      const clientIp = getClientIp(req, requestContext);
+      const rateKey = `service:${clientIp}`;
       return {
         ok: true,
         userId: "service",
+        isAnonymous: false,
         isPublicKey: false,
-        rateKey: `service:${getClientIp(req, requestContext)}`,
+        rateKey,
+        minuteRateKey: rateKey,
+        dayRateKey: rateKey,
         authMode: "service_token",
       };
     }
@@ -489,7 +573,7 @@ export function createAuthService({
 
     const publicKeyEnabled = authConfig.configuredPublicApiKeys.size > 0 || strictPublicApiKey === false;
     const serviceTokenEnabled = typeof serviceToken === "string" && serviceToken.trim().length > 0;
-    const jwtValidationConfigured = Boolean(authConfig.neonJwksUrl);
+    const jwtValidationConfigured = Boolean(getParsedNeonJwksUrl());
     const sessionValidationConfigured = Boolean(authConfig.neonAuthUserUrl && authConfig.authValidationApiKey);
     const jwtFallbackEnabled = allowUnverifiedJwtFallback();
 
@@ -505,6 +589,9 @@ export function createAuthService({
 
     if (!jwtValidationConfigured && !sessionValidationConfigured && !jwtFallbackEnabled) {
       warnings.push("user_auth_validation_unconfigured");
+    }
+    if (authConfig.neonJwksUrl && !jwtValidationConfigured) {
+      warnings.push("neon_jwks_url_invalid");
     }
     if (authConfig.neonAuthUserUrl && !authConfig.authValidationApiKey) {
       warnings.push("neon_auth_api_key_missing");

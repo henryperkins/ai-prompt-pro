@@ -42,6 +42,24 @@ describe("enhancement pipeline intent routing", () => {
       expect(result.primaryIntent).toBe("planning");
     });
 
+    it("routes 'Explain React hooks to a beginner' to instruction", () => {
+      const result = classifyPrimaryIntent("Explain React hooks to a beginner");
+      expect(result.primaryIntent).toBe("instruction");
+    });
+
+    it("routes 'Walk me through OAuth 2.0' to instruction", () => {
+      const result = classifyPrimaryIntent("Walk me through OAuth 2.0");
+      expect(result.primaryIntent).toBe("instruction");
+    });
+
+    it("does not misclassify guide deliverables as instruction", () => {
+      const result = classifyPrimaryIntent(
+        "Create an onboarding guide for new managers",
+      );
+
+      expect(result.primaryIntent).toBe("brainstorm");
+    });
+
     it("preserves secondary intents for mixed prompts", () => {
       const result = classifyPrimaryIntent("Analyze and rewrite this marketing report");
       expect(result.primaryIntent).toBe("rewrite");
@@ -94,6 +112,7 @@ describe("enhancement pipeline intent routing", () => {
       expect(parseEnhancementRequestIntentOverride({ intent_override: "rewrite" })).toBe("rewrite");
       expect(parseEnhancementRequestIntentOverride({ intent_override: "analysis" })).toBe("analysis");
       expect(parseEnhancementRequestIntentOverride({ intentOverride: "code" })).toBe("code");
+      expect(parseEnhancementRequestIntentOverride({ intentOverride: "instruction" })).toBe("instruction");
     });
 
     it("rejects invalid intent routes", () => {
@@ -116,6 +135,12 @@ describe("enhancement pipeline intent routing", () => {
     it("uses auto-detected intent when no override", () => {
       const context = detectEnhancementContext("Analyze the quarterly numbers");
       expect(context.primaryIntent).toBe("analysis");
+      expect(context.intentSource).toBe("auto");
+    });
+
+    it("auto-detects instructional prompts without collapsing them into planning", () => {
+      const context = detectEnhancementContext("Explain React hooks to a beginner");
+      expect(context.primaryIntent).toBe("instruction");
       expect(context.intentSource).toBe("auto");
     });
 

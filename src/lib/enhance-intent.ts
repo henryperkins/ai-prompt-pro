@@ -1,6 +1,7 @@
 export const INTENT_ROUTES = [
   "brainstorm",
   "rewrite",
+  "instruction",
   "analysis",
   "code",
   "extraction",
@@ -13,6 +14,7 @@ export type IntentRoute = (typeof INTENT_ROUTES)[number];
 export const INTENT_ROUTE_LABELS: Record<IntentRoute, string> = {
   brainstorm: "Brainstorm",
   rewrite: "Rewrite",
+  instruction: "Instruction",
   analysis: "Analysis",
   code: "Code",
   extraction: "Extraction",
@@ -40,6 +42,7 @@ export interface DraftIntentDetectionResult {
 
 const ROUTE_PRIORITY: IntentRoute[] = [
   "rewrite",
+  "instruction",
   "code",
   "extraction",
   "research",
@@ -56,6 +59,10 @@ const ROUTE_PATTERNS: Record<IntentRoute, RegExp[]> = {
   rewrite: [
     /\b(rewrite|revise|edit|improve|rephrase|shorten|simplify|polish|refine|correct|fix)\b/g,
     /\b(make this better|clean this up)\b/g,
+  ],
+  instruction: [
+    /\b(how to|explain|walk me through|show me how|teach me|guide me|step by step|show the steps)\b/g,
+    /\b(give|provide|show)\s+(?:me\s+)?(?:an?\s+)?(?:tutorial|walkthrough)\b/g,
   ],
   analysis: [
     /\b(analy[sz]e|analysis|assess|evaluate|compare|benchmark|audit|review|critique)\b/g,

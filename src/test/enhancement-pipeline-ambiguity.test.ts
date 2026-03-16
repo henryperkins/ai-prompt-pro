@@ -37,6 +37,32 @@ describe("enhancement pipeline ambiguity handling", () => {
       expect(ctx.missingSlots).not.toContain("audience");
     });
 
+    it("does not let generic builder context hide missing source material", () => {
+      const ctx = detectEnhancementContext(
+        "Summarize the report for executives in bullet points",
+        {
+          builderFields: { context: "Need it by Friday" },
+        },
+      );
+
+      expect(ctx.missingSlots).toContain("source_material");
+    });
+
+    it("does not let longer generic builder context hide missing source material", () => {
+      const ctx = detectEnhancementContext(
+        "Summarize the report for executives in bullet points",
+        {
+          builderFields: {
+            context:
+              "This is for the board meeting next Tuesday, keep it concise and persuasive.",
+          },
+        },
+      );
+
+      expect(ctx.missingSlots).toContain("source_material");
+      expect(ctx.ambiguityLevel).toBe("medium");
+    });
+
     it("flags factual_verification for time-sensitive prompts", () => {
       const ctx = detectEnhancementContext("What are the latest AI safety statistics for this year?");
       expect(ctx.missingSlots).toContain("factual_verification");
@@ -80,6 +106,16 @@ describe("enhancement pipeline ambiguity handling", () => {
         builderFields: { context: "For executives" },
       });
       expect(ctx.missingSlots).not.toContain("audience");
+    });
+
+    it("detects success criteria from builder context when the raw prompt omits them", () => {
+      const ctx = detectEnhancementContext("Summarize the report for executives in bullet points", {
+        builderFields: {
+          context: "Success criteria: identify revenue trends, churn risks, and the top 3 actions.",
+        },
+      });
+
+      expect(ctx.missingSlots).not.toContain("success_criteria");
     });
 
     it("handles uppercase audience text the same as lowercase", () => {

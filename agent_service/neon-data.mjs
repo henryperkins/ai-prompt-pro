@@ -1,67 +1,39 @@
 import { createHash } from "node:crypto";
+import { neon } from "@neondatabase/serverless";
 import { createGitHubError } from "./github-errors.mjs";
 
-function normalizeBaseUrl(value) {
-  if (typeof value !== "string") return "";
-  return value.trim().replace(/\/+$/, "");
-}
-
-function normalizeServiceRoleKey(value) {
+function normalizeDatabaseUrl(value) {
   if (typeof value !== "string") return "";
   return value.trim();
 }
 
-function buildQueryString(query = {}) {
-  const params = new URLSearchParams();
+function textForError(error) {
+  if (error instanceof Error && error.message.trim()) return error.message.trim();
+  if (typeof error === "string" && error.trim()) return error.trim();
+  if (!error || typeof error !== "object") return "";
 
-  Object.entries(query).forEach(([key, value]) => {
-    if (value === undefined || value === null || value === "") return;
-    if (Array.isArray(value)) {
-      value.forEach((entry) => {
-        if (entry === undefined || entry === null || entry === "") return;
-        params.append(key, String(entry));
-      });
-      return;
-    }
-    params.set(key, String(value));
-  });
-
-  const serialized = params.toString();
-  return serialized ? `?${serialized}` : "";
-}
-
-function compactHeaders(headers = {}) {
-  return Object.fromEntries(
-    Object.entries(headers).filter(([, value]) => typeof value === "string" && value.trim()),
-  );
-}
-
-function textForErrorBody(payload) {
-  if (typeof payload === "string" && payload.trim()) return payload.trim();
-  if (!payload || typeof payload !== "object") return "";
-  const candidate = payload;
+  const candidate = error;
   const message = [
     typeof candidate.message === "string" ? candidate.message : "",
-    typeof candidate.error === "string" ? candidate.error : "",
+    typeof candidate.detail === "string" ? candidate.detail : "",
     typeof candidate.details === "string" ? candidate.details : "",
     typeof candidate.hint === "string" ? candidate.hint : "",
   ]
     .map((value) => value.trim())
     .filter(Boolean)
     .join(" ");
+
   return message;
 }
 
-export function createNeonDataApiClient({
-  dataApiUrl,
-  serviceRoleKey,
-  fetchImpl = globalThis.fetch,
+export function createNeonDatabaseClient({
+  databaseUrl,
 } = {}) {
-  const baseUrl = normalizeBaseUrl(dataApiUrl);
-  const apiKey = normalizeServiceRoleKey(serviceRoleKey);
+  const connectionString = normalizeDatabaseUrl(databaseUrl);
+  const sql = connectionString ? neon(connectionString) : null;
 
   function assertConfigured() {
-    if (!baseUrl || !apiKey) {
+    if (!connectionString || !sql) {
       throw createGitHubError(
         "GitHub backend storage is not configured.",
         "github_storage_unconfigured",
@@ -70,63 +42,24 @@ export function createNeonDataApiClient({
     }
   }
 
-  async function requestJson(method, path, {
-    query,
-    body,
-    headers,
-    prefer,
-  } = {}) {
+  async function queryRows(queryText, params = []) {
     assertConfigured();
-    if (typeof fetchImpl !== "function") {
+
+    try {
+      const rows = await sql.query(queryText, params);
+      return Array.isArray(rows) ? rows : [];
+    } catch (error) {
       throw createGitHubError(
-        "Fetch is unavailable for Neon Data API requests.",
-        "github_storage_unavailable",
-        503,
-      );
-    }
-
-    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-    const url = `${baseUrl}${normalizedPath}${buildQueryString(query)}`;
-    const resolvedHeaders = compactHeaders({
-      Accept: "application/json",
-      Authorization: `Bearer ${apiKey}`,
-      apikey: apiKey,
-      Prefer: prefer,
-      "Content-Type": body === undefined ? undefined : "application/json",
-      ...headers,
-    });
-
-    const response = await fetchImpl(url, {
-      method,
-      headers: resolvedHeaders,
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-
-    const responseText = await response.text();
-    const payload = responseText
-      ? (() => {
-        try {
-          return JSON.parse(responseText);
-        } catch {
-          return responseText;
-        }
-      })()
-      : null;
-
-    if (!response.ok) {
-      const detail = textForErrorBody(payload);
-      throw createGitHubError(
-        detail || `Neon Data API request failed with status ${response.status}.`,
+        textForError(error) || "Neon query failed.",
         "github_storage_error",
-        response.status >= 400 ? response.status : 500,
+        500,
       );
     }
+  }
 
-    return {
-      data: payload,
-      headers: response.headers,
-      etag: response.headers.get("etag") || undefined,
-    };
+  async function queryRow(queryText, params = []) {
+    const rows = await queryRows(queryText, params);
+    return rows[0] || null;
   }
 
   function hashStateNonce(nonce) {
@@ -135,7 +68,7 @@ export function createNeonDataApiClient({
 
   return {
     hashStateNonce,
-    requestJson,
+    queryRow,
+    queryRows,
   };
 }
-
