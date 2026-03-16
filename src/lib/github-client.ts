@@ -288,30 +288,43 @@ function createResponseError(response: Response, payload: unknown): GitHubClient
   });
 }
 
-async function requestJson<T>(
-  method: "GET" | "POST" | "DELETE",
-  path: string,
-  options: GitHubRequestOptions = {},
-): Promise<T> {
-  let headers: Record<string, string>;
+function createLocalRequestError(error: unknown): GitHubClientError {
+  const message = getErrorMessage(error);
+  return new GitHubClientError({
+    message,
+    code: classifyLocalErrorCode(message),
+    retryable: isRetryableNetworkError(error),
+    cause: error,
+  });
+}
+
+function shouldRetryWithSessionRefresh(response: Response): boolean {
+  return response.status === 401;
+}
+
+async function getRequestHeaders(
+  options: {
+    forceRefresh?: boolean;
+    allowSessionToken?: boolean;
+  } = {},
+): Promise<Record<string, string>> {
   try {
-    headers = await serviceAuth.getHeaders({
+    return await serviceAuth.getHeaders({
+      ...options,
       allowPublicKeyFallback: false,
     });
   } catch (error) {
     if (isAbortError(error)) throw error;
-    const message = getErrorMessage(error);
-    throw new GitHubClientError({
-      message,
-      code: classifyLocalErrorCode(message),
-      retryable: isRetryableNetworkError(error),
-      cause: error,
-    });
+    throw createLocalRequestError(error);
   }
+}
 
-  const url = new URL(buildServiceUrl(path));
-  appendQuery(url, options.query);
-
+async function executeRequest(
+  method: "GET" | "POST" | "DELETE",
+  url: URL,
+  headers: Record<string, string>,
+  options: GitHubRequestOptions = {},
+): Promise<{ response: Response; payload: unknown }> {
   let response: Response;
   try {
     response = await fetch(url.toString(), {
@@ -331,11 +344,41 @@ async function requestJson<T>(
   }
 
   const payload = await parseResponsePayload(response);
-  if (!response.ok) {
-    throw createResponseError(response, payload);
+  return { response, payload };
+}
+
+async function requestJson<T>(
+  method: "GET" | "POST" | "DELETE",
+  path: string,
+  options: GitHubRequestOptions = {},
+): Promise<T> {
+  const url = new URL(buildServiceUrl(path));
+  appendQuery(url, options.query);
+
+  let requestResult = await executeRequest(
+    method,
+    url,
+    await getRequestHeaders(),
+    options,
+  );
+
+  if (!requestResult.response.ok && shouldRetryWithSessionRefresh(requestResult.response)) {
+    requestResult = await executeRequest(
+      method,
+      url,
+      await getRequestHeaders({
+        forceRefresh: true,
+        allowSessionToken: false,
+      }),
+      options,
+    );
   }
 
-  return (payload ?? {}) as T;
+  if (!requestResult.response.ok) {
+    throw createResponseError(requestResult.response, requestResult.payload);
+  }
+
+  return (requestResult.payload ?? {}) as T;
 }
 
 export async function getGitHubInstallUrl(signal?: AbortSignal): Promise<string> {
