@@ -3,6 +3,7 @@
 > **Review Status:** Reviewed 2026-03-16 against actual codebase state.
 > Inline annotations marked with **⚠️ REVIEW** identify gaps, corrections, and conflicts found during audit.
 > Full critique: [`plans/github-integration-recommendation-critique.md`](plans/github-integration-recommendation-critique.md)
+> Concrete implementation plan: [`plans/github-integration-implementation-plan.md`](plans/github-integration-implementation-plan.md)
 
 ## Short answer
 
