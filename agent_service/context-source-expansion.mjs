@@ -1,7 +1,7 @@
-const CONTEXT_SOURCE_TYPES = new Set(["text", "url", "file", "database", "rag"]);
-const MAX_CONTEXT_SOURCE_COUNT = 8;
-const MAX_CONTEXT_SOURCE_SUMMARY_CHARS = 2500;
-const MAX_CONTEXT_SOURCE_RAW_CHARS = 12000;
+const CONTEXT_SOURCE_TYPES = new Set(["text", "url", "file", "database", "rag", "github"]);
+const MAX_CONTEXT_SOURCE_COUNT = 12;
+const MAX_CONTEXT_SOURCE_SUMMARY_CHARS = 1200;
+const MAX_CONTEXT_SOURCE_RAW_CHARS = 8000;
 const MAX_CONTEXT_SOURCE_TOTAL_RAW_CHARS = 32000;
 const MAX_SOURCE_EXPANSION_REQUESTS = 3;
 

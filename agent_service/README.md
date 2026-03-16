@@ -24,6 +24,30 @@ npm run agent:codex
 | `POST` | `/extract-url` | Fetch URL content and return extracted bullet points |
 | `POST` | `/infer-builder-fields` | Heuristic builder-field suggestions |
 
+### Optional GitHub repository context routes
+
+When `GITHUB_CONTEXT_ENABLED=true`, the service also exposes:
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/github/install-url` | Return the GitHub App installation URL for the signed-in PromptForge user |
+| `GET` | `/github/app/setup` | GitHub post-install callback; validates signed setup state and redirects back to Builder |
+| `GET` | `/github/installations` | List the current user's active GitHub installations |
+| `GET` | `/github/installations/:installationId/repositories` | List repositories for one installation |
+| `GET` | `/github/connections` | List connected repositories for the current user |
+| `POST` | `/github/connections` | Connect a repository and persist the repo connection |
+| `DELETE` | `/github/connections/:connectionId` | Remove a stored repo connection |
+| `POST` | `/github/connections/:connectionId/manifest/refresh` | Force-refresh a cached repository manifest |
+| `GET` | `/github/connections/:connectionId/search` | Search cached manifest entries for one connected repo |
+| `GET` | `/github/connections/:connectionId/file` | Preview one file from a connected repo |
+| `POST` | `/github/connections/:connectionId/context-sources` | Build Builder-ready context source payloads from selected files |
+| `POST` | `/github/webhooks` | GitHub webhook receiver for manifest invalidation and installation lifecycle changes |
+
+GitHub repository routes require a signed-in PromptForge user JWT only. They do
+not allow publishable-key fallback or service-token fallback. The setup callback
+and webhook receiver use explicit custom auth instead of the standard route auth
+policy.
+
 ### `POST /enhance` body
 
 ```jsonc
@@ -138,6 +162,10 @@ If your prompt already contains a real `"<sources>...</sources>"` block or the a
 | `OPENAI_API_KEY` or `CODEX_API_KEY` | Fallback OpenAI API key (used only when no provider config is resolved) |
 | `NEON_AUTH_URL` or `NEON_JWKS_URL` | Neon Auth URL (or direct JWKS URL) for bearer-session validation (recommended in production) |
 
+If `GITHUB_CONTEXT_ENABLED=true`, also configure `NEON_DATA_API_URL` and
+`NEON_SERVICE_ROLE_KEY` so the service can persist GitHub installations, repo
+connections, manifests, and setup states.
+
 ### Provider resolution order
 
 The service resolves AI provider settings in this order:
@@ -167,7 +195,7 @@ Set `REQUIRE_PROVIDER_CONFIG=true` to disable step 3 and fail fast instead of fa
 | `MAX_HTTP_BODY_BYTES` | `524288` | Maximum HTTP JSON body size in bytes before returning `413 payload_too_large` |
 | `ALLOW_UNVERIFIED_JWT_FALLBACK` | `false` | Dev-only: allow decoded JWT fallback when Neon Auth config/service is unavailable |
 | `ALLOW_UNVERIFIED_JWT_FALLBACK_IN_PRODUCTION` | `false` | Explicit override to permit decoded-JWT fallback in production (emergency use only) |
-| `MAX_PROMPT_CHARS` | `32000` | Maximum prompt character length |
+| `MAX_PROMPT_CHARS` | `64000` | Maximum prompt character length |
 | `MAX_INFERENCE_PROMPT_CHARS` | `24000` | Maximum inference prompt length |
 | `MAX_URL_CHARS` | `4096` | Maximum extract-url input URL length |
 | `EXTRACT_FETCH_TIMEOUT_MS` | `15000` | Timeout for page/OpenAI extraction calls |
@@ -178,6 +206,24 @@ Set `REQUIRE_PROVIDER_CONFIG=true` to disable step 3 and fail fast instead of fa
 | `SHUTDOWN_DRAIN_TIMEOUT_MS` | `10000` | Time to wait for in-flight connections to drain before forced exit on SIGTERM/SIGINT |
 | `EXTRACT_URL_CACHE_TTL_MS` | `600000` | TTL for cached `/extract-url` responses (milliseconds) |
 | `EXTRACT_URL_CACHE_MAX_ENTRIES` | `200` | Maximum number of cached `/extract-url` responses |
+
+### GitHub context configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GITHUB_CONTEXT_ENABLED` | `false` | Enable GitHub repository-context routes and storage-backed manifest flow |
+| `GITHUB_APP_ID` | _(none)_ | GitHub App ID |
+| `GITHUB_APP_PRIVATE_KEY` | _(none)_ | PEM private key for the GitHub App |
+| `GITHUB_APP_SLUG` | _(none)_ | GitHub App slug used to build the install URL |
+| `GITHUB_APP_STATE_SECRET` | _(none)_ | Secret used to sign GitHub setup state payloads |
+| `GITHUB_WEBHOOK_SECRET` | _(none)_ | Secret used to verify GitHub webhook signatures |
+| `GITHUB_POST_INSTALL_REDIRECT_URL` | _(none)_ | Absolute Builder URL that receives the setup-return redirect |
+| `GITHUB_API_BASE_URL` | `https://api.github.com` | Optional GitHub API base URL override |
+| `GITHUB_REPOSITORY_PAGE_SIZE` | `50` | Default repository page size for installation listings |
+| `GITHUB_PER_MINUTE` | `30` | Per-user minute rate limit for GitHub routes |
+| `GITHUB_PER_DAY` | `600` | Per-user daily rate limit for GitHub routes |
+| `NEON_DATA_API_URL` | _(none)_ | Neon Data API base URL used by the GitHub storage layer |
+| `NEON_SERVICE_ROLE_KEY` | _(none)_ | Service role key used by the GitHub storage layer |
 
 ### Codex client options
 
@@ -234,6 +280,7 @@ Set `REQUIRE_PROVIDER_CONFIG=true` to disable step 3 and fail fast instead of fa
 
 - **Prompt structure analysis**: Pre-flight inspection checks for Role/Task/Context/Format/Constraints sections and includes findings in the prompt input so the enhancer can address gaps.
 - **On-demand source expansion**: The service appends attached source summaries to the primary enhancement prompt, while a hidden preflight turn can request deeper source excerpts only when the model determines the summaries are insufficient.
+- **GitHub repository context**: Signed-in Builder users can connect repositories, search manifest-cached files, preview content, and attach GitHub-backed context sources. Push and installation webhooks invalidate stale manifests automatically.
 - **Explicit workflow events**: `/enhance` now emits `enhance.workflow` step updates for request analysis, attached-source handling, web-search usage, and prompt generation so the UI can render a curated workflow trace above the final prompt.
 - **429 retry with backoff**: Automatic retry on rate-limit errors with exponential backoff and jitter. Only retries if no chunks have been emitted yet.
 - **Thread resumption**: Pass `thread_id` to continue a previous conversation.

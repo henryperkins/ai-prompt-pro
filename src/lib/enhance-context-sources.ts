@@ -19,9 +19,9 @@ export interface EnhanceContextSource {
   reference?: EnhanceContextSourceReference;
 }
 
-export const MAX_ENHANCE_CONTEXT_SOURCE_COUNT = 8;
-export const MAX_ENHANCE_CONTEXT_SOURCE_SUMMARY_CHARS = 2500;
-export const MAX_ENHANCE_CONTEXT_SOURCE_RAW_CHARS = 12000;
+export const MAX_ENHANCE_CONTEXT_SOURCE_COUNT = 12;
+export const MAX_ENHANCE_CONTEXT_SOURCE_SUMMARY_CHARS = 1200;
+export const MAX_ENHANCE_CONTEXT_SOURCE_RAW_CHARS = 8000;
 export const MAX_ENHANCE_CONTEXT_SOURCE_TOTAL_RAW_CHARS = 32000;
 
 function truncateText(value: string, maxChars: number): string {
@@ -44,6 +44,12 @@ export function buildEnhanceContextSources(
         MAX_ENHANCE_CONTEXT_SOURCE_SUMMARY_CHARS,
       );
       const originalRawContent = source.rawContent.trim();
+      const originalCharCount = Math.max(
+        typeof source.originalCharCount === "number" && Number.isFinite(source.originalCharCount)
+          ? source.originalCharCount
+          : originalRawContent.length,
+        originalRawContent.length,
+      );
       const allowedRawChars = Math.min(
         remainingRawChars,
         MAX_ENHANCE_CONTEXT_SOURCE_RAW_CHARS,
@@ -53,8 +59,9 @@ export function buildEnhanceContextSources(
           ? truncateText(originalRawContent, allowedRawChars)
           : "";
       const rawContentTruncated =
-        Boolean(originalRawContent)
-        && rawContent.length < originalRawContent.length;
+        (source.rawContentTruncated === true && originalCharCount >= rawContent.length)
+        || (Boolean(originalRawContent)
+        && rawContent.length < originalRawContent.length);
 
       if (rawContent.length > 0) {
         remainingRawChars = Math.max(0, remainingRawChars - rawContent.length);
@@ -67,8 +74,8 @@ export function buildEnhanceContextSources(
         summary,
         rawContent,
         rawContentTruncated,
-        originalCharCount: originalRawContent.length,
-        expandable: rawContent.length > 0,
+        originalCharCount,
+        expandable: (source.expandable ?? (rawContent.length > 0)) && rawContent.length > 0,
         reference: source.reference
           ? {
             kind: source.reference.kind,

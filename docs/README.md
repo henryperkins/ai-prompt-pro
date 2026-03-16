@@ -1,6 +1,6 @@
 # Documentation Index
 
-Last updated: 2026-03-13
+Last updated: 2026-03-16
 
 Use this file as the starting point for repo documentation.
 
@@ -16,6 +16,7 @@ Use this file as the starting point for repo documentation.
 - `docs/typography-regression-checklist.md` - typography validation checks.
 - `docs/community-mobile-qa-checklist.md` - manual mobile QA checks.
 - `docs/community-mobile-social-backlog.md` - active backlog for mobile social UX.
+- `docs/github-context-reference.md` - GitHub repository-context setup, constraints, and verification guide.
 
 ## Active planning docs
 

@@ -245,7 +245,7 @@ export async function createServiceRuntime({ env = process.env, deps = {} } = {}
     );
   }
 
-  const maxPromptChars = parsePositiveIntegerEnv("MAX_PROMPT_CHARS", 32000, env);
+  const maxPromptChars = parsePositiveIntegerEnv("MAX_PROMPT_CHARS", 64000, env);
   const maxInferencePromptChars = parsePositiveIntegerEnv("MAX_INFERENCE_PROMPT_CHARS", 24000, env);
   const maxUrlChars = parsePositiveIntegerEnv("MAX_URL_CHARS", 4096, env);
   const fetchTimeoutMs = parsePositiveIntegerEnv("EXTRACT_FETCH_TIMEOUT_MS", 15000, env);
@@ -325,6 +325,38 @@ export async function createServiceRuntime({ env = process.env, deps = {} } = {}
     24_000,
     env,
   );
+  const githubPerMinute = parsePositiveIntegerEnv("GITHUB_PER_MINUTE", 30, env);
+  const githubPerDay = parsePositiveIntegerEnv("GITHUB_PER_DAY", 600, env);
+  const githubConfig = (() => {
+    const enabled = normalizeBool(env?.GITHUB_CONTEXT_ENABLED, false);
+    const postInstallRedirectUrl = normalizeEnvValue("GITHUB_POST_INSTALL_REDIRECT_URL", env);
+    if (enabled && postInstallRedirectUrl) {
+      try {
+        new URL(postInstallRedirectUrl);
+      } catch {
+        throw new Error("GITHUB_POST_INSTALL_REDIRECT_URL must be a valid absolute URL.");
+      }
+    }
+
+    return {
+      enabled,
+      apiBaseUrl: normalizeEnvValue("GITHUB_API_BASE_URL", env),
+      appId: normalizeEnvValue("GITHUB_APP_ID", env),
+      appPrivateKey: normalizeEnvValue("GITHUB_APP_PRIVATE_KEY", env),
+      appSlug: normalizeEnvValue("GITHUB_APP_SLUG", env),
+      dataApiUrl: normalizeEnvValue("NEON_DATA_API_URL", env),
+      postInstallRedirectUrl,
+      repositoryPageSize: parsePositiveIntegerEnv("GITHUB_REPOSITORY_PAGE_SIZE", 50, env),
+      serviceRoleKey: normalizeEnvValue("NEON_SERVICE_ROLE_KEY", env),
+      stateSecret: normalizeEnvValue("GITHUB_APP_STATE_SECRET", env),
+      webhookSecret: normalizeEnvValue("GITHUB_WEBHOOK_SECRET", env),
+    };
+  })();
+  const githubUserAuthPolicy = Object.freeze({
+    allowPublicKey: false,
+    allowServiceToken: false,
+    allowUserJwt: true,
+  });
 
   const openaiApiBaseUrl = (codexConfig?.baseUrl ? codexConfig.baseUrl.replace(/\/+$/, "") : null)
     || normalizeEnvValue("OPENAI_BASE_URL", env)
@@ -564,6 +596,7 @@ export async function createServiceRuntime({ env = process.env, deps = {} } = {}
       provider_source: codexConfigSource,
       provider_name: codexConfig?.name || "OpenAI",
       provider_base_url: openaiApiBaseUrl,
+      github_context_enabled: githubConfig.enabled,
       model: defaultThreadOptions.model || null,
       extract_model: extractModel || null,
       infer_model: inferModel || null,
@@ -592,6 +625,21 @@ export async function createServiceRuntime({ env = process.env, deps = {} } = {}
     if (hasMissingAzureModel) {
       issues.push("provider_model_missing");
     }
+    if (
+      githubConfig.enabled
+      && (
+        !githubConfig.appId
+        || !githubConfig.appPrivateKey
+        || !githubConfig.appSlug
+        || !githubConfig.dataApiUrl
+        || !githubConfig.postInstallRedirectUrl
+        || !githubConfig.serviceRoleKey
+        || !githubConfig.stateSecret
+        || !githubConfig.webhookSecret
+      )
+    ) {
+      warnings.push("github_config_incomplete");
+    }
     warnings.push(...authReadiness.warnings);
     issues.push(...authReadiness.issues);
 
@@ -609,6 +657,7 @@ export async function createServiceRuntime({ env = process.env, deps = {} } = {}
       provider_source: codexConfigSource,
       provider_name: codexConfig?.name || "OpenAI",
       provider_base_url: openaiApiBaseUrl,
+      github_context_enabled: githubConfig.enabled,
       model: defaultThreadOptions.model || null,
       sandbox_mode: defaultThreadOptions.sandboxMode || null,
       strict_public_api_key: strictPublicApiKey,
@@ -657,6 +706,10 @@ export async function createServiceRuntime({ env = process.env, deps = {} } = {}
     fetchTimeoutMs,
     getClientIp,
     getCodexClient,
+    githubConfig,
+    githubPerDay,
+    githubPerMinute,
+    githubUserAuthPolicy,
     hasMissingAzureModel,
     hasProviderApiKey,
     inferModel,

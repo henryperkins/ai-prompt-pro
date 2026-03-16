@@ -27,7 +27,12 @@ export type BuilderTelemetryEvent =
   | "builder_enhance_too_much_changed"
   | "builder_enhance_assumption_edited"
   | "builder_enhance_intent_overridden"
-  | "builder_enhance_structured_applied";
+  | "builder_enhance_structured_applied"
+  | "builder_github_install_clicked"
+  | "builder_github_repo_connected"
+  | "builder_github_manifest_searched"
+  | "builder_github_file_previewed"
+  | "builder_github_sources_attached";
 
 export type BuilderTelemetryValue = string | number | boolean | null;
 

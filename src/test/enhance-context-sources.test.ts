@@ -60,4 +60,30 @@ describe("buildEnhanceContextSources", () => {
 
     expect(result).toEqual([]);
   });
+
+  it("preserves upstream truncation metadata for pre-sliced sources", () => {
+    const result = buildEnhanceContextSources([
+      {
+        id: "github-readme",
+        type: "github",
+        title: "repo/README.md",
+        rawContent: "Short preview",
+        rawContentTruncated: true,
+        originalCharCount: 9_500,
+        expandable: true,
+        summary: "README summary",
+        addedAt: Date.now(),
+      },
+    ]);
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        id: "github-readme",
+        rawContent: "Short preview",
+        rawContentTruncated: true,
+        originalCharCount: 9_500,
+        expandable: true,
+      }),
+    ]);
+  });
 });

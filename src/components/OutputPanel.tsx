@@ -71,6 +71,7 @@ interface OutputPanelProps {
   onSaveAndSharePrompt: (input: SaveAndSharePromptInput) => Promise<boolean>;
   canSavePrompt: boolean;
   canSharePrompt: boolean;
+  shareDisabledReason?: string | null;
   hideEnhanceButton?: boolean;
   enhancePhase?: EnhancePhase;
   enhanceIdleLabel?: string;
@@ -161,6 +162,7 @@ export function OutputPanel({
   onSaveAndSharePrompt,
   canSavePrompt,
   canSharePrompt,
+  shareDisabledReason = null,
   hideEnhanceButton = false,
   enhancePhase = "idle",
   enhanceIdleLabel = "Enhance with AI",
@@ -553,6 +555,7 @@ export function OutputPanel({
         onOpenChange={setSaveDialogOpen}
         initialShareEnabled={saveDialogShareIntent}
         canSharePrompt={canSharePrompt}
+        shareDisabledReason={shareDisabledReason}
         phase2Enabled={phase2Enabled}
         remixContext={remixContext}
         onSavePrompt={onSavePrompt}
@@ -627,6 +630,7 @@ export function OutputPanel({
           canUseMoreMenu={canUseMoreMenu}
           canSavePrompt={canSavePrompt}
           canSharePrompt={canSharePrompt}
+          shareDisabledReason={shareDisabledReason}
           phase2Enabled={phase2Enabled}
           copied={copied}
           isMobile={isMobile}

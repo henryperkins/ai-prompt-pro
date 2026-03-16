@@ -18,6 +18,7 @@ import { normalizeHttpUrl } from "@/lib/url-utils";
 import { toast } from "@/hooks/use-toast";
 import {
   FileText,
+  GitBranch,
   Globe,
   Link,
   Plus,
@@ -202,6 +203,7 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
   const chipIcon = (type: ContextSource["type"]) => {
     if (type === "url") return <Link className="w-3 h-3" />;
     if (type === "file") return <FileText className="w-3 h-3" />;
+    if (type === "github") return <GitBranch className="w-3 h-3" />;
     return <Type className="w-3 h-3" />;
   };
 

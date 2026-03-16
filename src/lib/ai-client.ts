@@ -1,4 +1,3 @@
-import { neon } from "@/integrations/neon/client";
 import {
   abortCodexSession,
   advanceCodexSessionFromEvent,
@@ -23,6 +22,7 @@ import {
 } from "@/lib/codex-stream";
 import type { BuilderInferenceRequestContext } from "@/lib/builder-inference";
 import type { EnhanceContextSource } from "@/lib/enhance-context-sources";
+import { createServiceAuth } from "@/lib/service-auth";
 
 function normalizeEnvValue(value?: string): string | undefined {
   if (typeof value !== "string") return undefined;
@@ -60,14 +60,10 @@ const configuredEnhanceWebSocketConnectTimeoutMs = parsePositiveInteger(
   normalizeEnvValue(import.meta.env.VITE_ENHANCE_WS_CONNECT_TIMEOUT_MS),
 );
 
-let bootstrapTokenPromise: Promise<string> | null = null;
-let publishableKeyFallbackUntilMs = 0;
-const ACCESS_TOKEN_REFRESH_GRACE_SECONDS = 30;
 const FUNCTION_NETWORK_RETRY_DELAY_MS = 250;
 const ENHANCE_STREAM_MAX_RETRIES = 2;
 const ENHANCE_STREAM_BACKOFF_BASE_MS = 1_500;
 const ENHANCE_STREAM_BACKOFF_MAX_MS = 12_000;
-const PUBLISHABLE_KEY_AUTH_FALLBACK_WINDOW_MS = 2 * 60_000;
 export const ENHANCE_REQUEST_TIMEOUT_MS =
   configuredEnhanceRequestTimeoutMs ?? undefined;
 const DEFAULT_ENHANCE_WS_CONNECT_TIMEOUT_MS = 3_500;
@@ -86,6 +82,10 @@ function normalizeEnhanceTransportMode(value: string | undefined): EnhanceTransp
 }
 
 const ENHANCE_TRANSPORT_MODE = normalizeEnhanceTransportMode(configuredEnhanceTransport);
+const serviceAuth = createServiceAuth({
+  serviceUrl: AGENT_SERVICE_URL,
+  publishableKey: PUBLIC_FUNCTION_API_KEY,
+});
 
 export type AIClientErrorCode =
   | "unknown"
@@ -135,12 +135,6 @@ export class AIClientError extends Error {
 
 export function isAIClientError(error: unknown): error is AIClientError {
   return error instanceof AIClientError;
-}
-
-function sessionExpiresSoon(expiresAt: number | null | undefined): boolean {
-  if (typeof expiresAt !== "number" || !Number.isFinite(expiresAt)) return false;
-  const nowSeconds = Math.floor(Date.now() / 1000);
-  return expiresAt <= nowSeconds + ACCESS_TOKEN_REFRESH_GRACE_SECONDS;
 }
 
 function isRetryableAuthSessionError(error: unknown): boolean {
@@ -461,57 +455,6 @@ function errorMessage(error: unknown): string {
   return "Unexpected error from AI service.";
 }
 
-function createErrorWithCause(message: string, cause: unknown): Error {
-  const error = new Error(message);
-  Object.defineProperty(error, "cause", {
-    value: cause,
-    enumerable: false,
-    configurable: true,
-    writable: true,
-  });
-  return error;
-}
-
-function shouldPreferPublishableKeyFallback(): boolean {
-  return Boolean(PUBLIC_FUNCTION_API_KEY) && publishableKeyFallbackUntilMs > Date.now();
-}
-
-function markPublishableKeyFallbackWindow(): void {
-  if (!PUBLIC_FUNCTION_API_KEY) return;
-  publishableKeyFallbackUntilMs = Date.now() + PUBLISHABLE_KEY_AUTH_FALLBACK_WINDOW_MS;
-}
-
-function clearPublishableKeyFallbackWindow(): void {
-  publishableKeyFallbackUntilMs = 0;
-}
-
-async function refreshSessionAccessToken(): Promise<string | null> {
-  try {
-    const {
-      data: { session },
-      error,
-    } = await neon.auth.refreshSession();
-    if (error) return null;
-    if (session?.access_token) {
-      clearPublishableKeyFallbackWindow();
-      return session.access_token;
-    }
-    return null;
-  } catch (error) {
-    if (isRetryableAuthSessionError(error)) {
-      await clearLocalSession();
-    }
-    return null;
-  }
-}
-
-async function clearLocalSession(): Promise<void> {
-  // Prefer the publishable-key fallback path for a short window instead of
-  // trying Neon Auth sign-out here, which can emit noisy 5xx errors when
-  // auth infrastructure is degraded.
-  markPublishableKeyFallbackWindow();
-}
-
 function assertFunctionRuntimeEnv(): void {
   if (!AGENT_SERVICE_URL) {
     throw new Error(
@@ -551,7 +494,7 @@ function buildEnhanceWebSocketStartMessage(
   payload: Record<string, unknown>,
   accessToken: string,
 ): Record<string, unknown> {
-  const isPublicCredential = isPublicFunctionCredential(accessToken);
+  const isPublicCredential = serviceAuth.isPublicCredential(accessToken);
   return {
     type: "enhance.start",
     auth: isPublicCredential
@@ -559,126 +502,6 @@ function buildEnhanceWebSocketStartMessage(
       : { bearer_token: accessToken },
     payload,
   };
-}
-
-async function getAccessToken({
-  forceRefresh = false,
-  allowSessionToken = true,
-}: {
-  forceRefresh?: boolean;
-  allowSessionToken?: boolean;
-} = {}): Promise<string> {
-  assertFunctionRuntimeEnv();
-
-  if (forceRefresh) {
-    const forcedToken = await refreshSessionAccessToken();
-    if (forcedToken) return forcedToken;
-  }
-
-  if (!forceRefresh && allowSessionToken && shouldPreferPublishableKeyFallback() && PUBLIC_FUNCTION_API_KEY) {
-    return PUBLIC_FUNCTION_API_KEY;
-  }
-
-  let sessionResult!: {
-    data: { session: { access_token?: string; expires_at?: number | null } | null };
-    error: unknown;
-  };
-
-  try {
-    sessionResult = await neon.auth.getSession();
-  } catch (sessionError) {
-    if (isRetryableAuthSessionError(sessionError)) {
-      await clearLocalSession();
-      if (PUBLIC_FUNCTION_API_KEY) return PUBLIC_FUNCTION_API_KEY;
-      throw createErrorWithCause(`Could not read auth session: ${errorMessage(sessionError)}`, sessionError);
-    }
-    throw createErrorWithCause(`Could not read auth session: ${errorMessage(sessionError)}`, sessionError);
-  }
-
-  const {
-    data: { session },
-    error: sessionError,
-  } = sessionResult;
-  if (sessionError) {
-    if (isRetryableAuthSessionError(sessionError)) {
-      await clearLocalSession();
-      if (PUBLIC_FUNCTION_API_KEY) return PUBLIC_FUNCTION_API_KEY;
-      throw createErrorWithCause(`Could not read auth session: ${errorMessage(sessionError)}`, sessionError);
-    }
-    throw createErrorWithCause(`Could not read auth session: ${errorMessage(sessionError)}`, sessionError);
-  }
-  if (session?.access_token) {
-    if (!allowSessionToken) {
-      await clearLocalSession();
-    } else {
-      if (sessionExpiresSoon(session.expires_at)) {
-        const refreshedToken = await refreshSessionAccessToken();
-        if (refreshedToken) return refreshedToken;
-      }
-      return session.access_token;
-    }
-  }
-
-  if (PUBLIC_FUNCTION_API_KEY) return PUBLIC_FUNCTION_API_KEY;
-  throw new Error("Sign in required.");
-}
-
-async function getAccessTokenWithBootstrap({
-  forceRefresh = false,
-  allowSessionToken = true,
-}: {
-  forceRefresh?: boolean;
-  allowSessionToken?: boolean;
-} = {}): Promise<string> {
-  if (forceRefresh || !allowSessionToken) {
-    bootstrapTokenPromise = null;
-    return getAccessToken({ forceRefresh, allowSessionToken });
-  }
-
-  if (!bootstrapTokenPromise) {
-    bootstrapTokenPromise = getAccessToken().finally(() => {
-      bootstrapTokenPromise = null;
-    });
-  }
-  return bootstrapTokenPromise;
-}
-
-async function functionHeaders({
-  forceRefresh = false,
-  allowSessionToken = true,
-}: {
-  forceRefresh?: boolean;
-  allowSessionToken?: boolean;
-} = {}): Promise<Record<string, string>> {
-  assertFunctionRuntimeEnv();
-  const accessToken = await getAccessTokenWithBootstrap({ forceRefresh, allowSessionToken });
-  return functionHeadersWithAccessToken(accessToken);
-}
-
-function functionHeadersWithAccessToken(accessToken: string): Record<string, string> {
-  assertFunctionRuntimeEnv();
-  if (isPublicFunctionCredential(accessToken)) {
-    return {
-      "Content-Type": "application/json",
-      apikey: accessToken,
-    };
-  }
-
-  return {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${accessToken}`,
-  };
-}
-
-function functionHeadersWithPublishableKey(): Record<string, string> {
-  if (!PUBLIC_FUNCTION_API_KEY) {
-    throw new Error("Sign in required.");
-  }
-  return functionHeadersWithAccessToken(PUBLIC_FUNCTION_API_KEY);
-}
-
-function isPublicFunctionCredential(accessToken: string): boolean {
-  return Boolean(PUBLIC_FUNCTION_API_KEY && accessToken === PUBLIC_FUNCTION_API_KEY);
 }
 
 function normalizeServerErrorCode(code: unknown): AIClientErrorCode | undefined {
@@ -810,7 +633,7 @@ async function postFunctionWithAuthRecovery(
   };
 
   try {
-    let response = await requestWithRetry(await functionHeaders());
+    let response = await requestWithRetry(await serviceAuth.getHeaders());
     if (response.ok) return response;
 
     let errorDetails = await readFunctionError(response);
@@ -827,7 +650,10 @@ async function postFunctionWithAuthRecovery(
       });
     }
 
-    response = await requestWithRetry(await functionHeaders({ forceRefresh: true, allowSessionToken: false }));
+    response = await requestWithRetry(await serviceAuth.getHeaders({
+      forceRefresh: true,
+      allowSessionToken: false,
+    }));
     if (response.ok) return response;
 
     errorDetails = await readFunctionError(response);
@@ -845,8 +671,8 @@ async function postFunctionWithAuthRecovery(
     }
 
     // If refresh returned another unusable session token, force a deterministic API-key retry.
-    await clearLocalSession();
-    response = await requestWithRetry(functionHeadersWithPublishableKey());
+    await serviceAuth.clearLocalSession();
+    response = await requestWithRetry(serviceAuth.headersWithPublishableKey());
     if (response.ok) return response;
 
     errorDetails = await readFunctionError(response);
@@ -988,7 +814,7 @@ async function streamEnhanceViaWebSocket({
 
   let accessToken: string;
   try {
-    accessToken = await getAccessTokenWithBootstrap();
+    accessToken = await serviceAuth.getAccessTokenWithBootstrap();
   } catch (error) {
     return {
       outcome: "error",

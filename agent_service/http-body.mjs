@@ -41,7 +41,7 @@ function parseContentLengthHeader(contentLengthHeader) {
   return parsed;
 }
 
-export function readBodyJsonWithLimit(req, options = {}) {
+function readBodyTextBufferWithLimit(req, options = {}) {
   const maxBytes = parseMaxBytes(options.maxBytes ?? 256 * 1024);
 
   return new Promise((resolve, reject) => {
@@ -85,22 +85,8 @@ export function readBodyJsonWithLimit(req, options = {}) {
     };
 
     const onEnd = () => {
-      if (chunks.length === 0) {
-        succeed({});
-        return;
-      }
-
-      const body = Buffer.concat(chunks).toString("utf8").trim();
-      if (!body) {
-        succeed({});
-        return;
-      }
-
-      try {
-        succeed(JSON.parse(body));
-      } catch (error) {
-        fail(new Error("Invalid JSON body.", { cause: error }));
-      }
+      const body = chunks.length === 0 ? "" : Buffer.concat(chunks).toString("utf8");
+      succeed(body);
     };
 
     const contentLengthHeader = Array.isArray(req.headers?.["content-length"])
@@ -117,4 +103,22 @@ export function readBodyJsonWithLimit(req, options = {}) {
     req.on("error", onError);
     req.on("end", onEnd);
   });
+}
+
+export async function readBodyTextWithLimit(req, options = {}) {
+  return readBodyTextBufferWithLimit(req, options);
+}
+
+export async function readBodyJsonWithLimit(req, options = {}) {
+  const body = await readBodyTextBufferWithLimit(req, options);
+  const trimmed = body.trim();
+  if (!trimmed) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(trimmed);
+  } catch (error) {
+    throw new Error("Invalid JSON body.", { cause: error });
+  }
 }

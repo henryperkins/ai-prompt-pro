@@ -118,6 +118,22 @@ const AUTH_SESSION = {
   user: AUTH_USER,
 };
 
+const AUTH_GET_SESSION_RESPONSE = {
+  session: {
+    token: AUTH_SESSION.access_token,
+    expiresAt: new Date(AUTH_SESSION.expires_at * 1000).toISOString(),
+  },
+  user: {
+    id: AUTH_USER.id,
+    email: AUTH_USER.email,
+    name: AUTH_USER.user_metadata.display_name,
+    image: AUTH_USER.user_metadata.avatar_url,
+    emailVerified: true,
+    createdAt: AUTH_USER.created_at,
+    updatedAt: AUTH_USER.created_at,
+  },
+};
+
 const FEED_POSTS: CommunityPostRow[] = [
   {
     id: "11111111-1111-1111-1111-111111111111",
@@ -312,7 +328,7 @@ async function installReviewMocks(page: Page): Promise<void> {
   const ratings: Array<{ post_id: string; user_id: string; rating: number }> = [];
 
   await page.route("**/auth/get-session", (route) =>
-    fulfillJson(route, { session: AUTH_SESSION, user: AUTH_USER }),
+    fulfillJson(route, AUTH_GET_SESSION_RESPONSE),
   );
   await page.route("**/auth/token/anonymous", (route) =>
     fulfillJson(route, { token: "header.payload.signature", expires_at: AUTH_SESSION.expires_at }),

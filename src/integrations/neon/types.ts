@@ -435,6 +435,202 @@ export type Database = {
           },
         ]
       }
+      github_installations: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          github_account_id: number
+          github_account_login: string
+          github_account_type: string
+          github_installation_id: number
+          id: string
+          installed_at: string
+          last_seen_at: string
+          permissions: Json
+          repositories_mode: string
+          suspended_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          github_account_id: number
+          github_account_login: string
+          github_account_type: string
+          github_installation_id: number
+          id?: string
+          installed_at?: string
+          last_seen_at?: string
+          permissions?: Json
+          repositories_mode: string
+          suspended_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          github_account_id?: number
+          github_account_login?: string
+          github_account_type?: string
+          github_installation_id?: number
+          id?: string
+          installed_at?: string
+          last_seen_at?: string
+          permissions?: Json
+          repositories_mode?: string
+          suspended_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      github_repo_connections: {
+        Row: {
+          access_revoked_at: string | null
+          created_at: string
+          default_branch: string
+          full_name: string
+          github_repo_id: number
+          id: string
+          installation_record_id: string
+          is_private: boolean
+          last_selected_at: string
+          owner_login: string
+          repo_name: string
+          updated_at: string
+          user_id: string
+          visibility: string
+        }
+        Insert: {
+          access_revoked_at?: string | null
+          created_at?: string
+          default_branch: string
+          full_name: string
+          github_repo_id: number
+          id?: string
+          installation_record_id: string
+          is_private: boolean
+          last_selected_at?: string
+          owner_login: string
+          repo_name: string
+          updated_at?: string
+          user_id: string
+          visibility: string
+        }
+        Update: {
+          access_revoked_at?: string | null
+          created_at?: string
+          default_branch?: string
+          full_name?: string
+          github_repo_id?: number
+          id?: string
+          installation_record_id?: string
+          is_private?: boolean
+          last_selected_at?: string
+          owner_login?: string
+          repo_name?: string
+          updated_at?: string
+          user_id?: string
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "github_repo_connections_installation_record_id_fkey"
+            columns: ["installation_record_id"]
+            isOneToOne: false
+            referencedRelation: "github_installations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      github_repo_manifest_cache: {
+        Row: {
+          created_at: string
+          entry_count: number
+          expires_at: string
+          generated_at: string
+          id: string
+          invalidated_at: string | null
+          is_complete: boolean
+          last_error: string | null
+          manifest: Json
+          ref_name: string
+          repo_connection_id: string
+          tree_sha: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          entry_count?: number
+          expires_at: string
+          generated_at?: string
+          id?: string
+          invalidated_at?: string | null
+          is_complete?: boolean
+          last_error?: string | null
+          manifest?: Json
+          ref_name?: string
+          repo_connection_id: string
+          tree_sha: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          entry_count?: number
+          expires_at?: string
+          generated_at?: string
+          id?: string
+          invalidated_at?: string | null
+          is_complete?: boolean
+          last_error?: string | null
+          manifest?: Json
+          ref_name?: string
+          repo_connection_id?: string
+          tree_sha?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "github_repo_manifest_cache_repo_connection_id_fkey"
+            columns: ["repo_connection_id"]
+            isOneToOne: false
+            referencedRelation: "github_repo_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      github_setup_states: {
+        Row: {
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          nonce_hash: string
+          user_id: string
+        }
+        Insert: {
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          nonce_hash: string
+          user_id: string
+        }
+        Update: {
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          nonce_hash?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -628,6 +824,10 @@ export type Database = {
       pgp_armor_headers: {
         Args: { "": string }
         Returns: Record<string, unknown>[]
+      }
+      prompt_config_contains_github_sources: {
+        Args: { input_config: Json }
+        Returns: boolean
       }
       refresh_community_post_metrics: {
         Args: { target_post_id: string }

@@ -43,6 +43,7 @@ export default defineConfig({
           `VITE_NEON_DATA_API_URL=${PLAYWRIGHT_NEON_DATA_API_URL} `
           + `VITE_NEON_AUTH_URL=${PLAYWRIGHT_NEON_AUTH_URL} `
           + `VITE_AGENT_SERVICE_URL=${PLAYWRIGHT_AGENT_SERVICE_URL} `
+          + `VITE_GITHUB_CONTEXT_ENABLED=true `
           + `npm run dev -- --host ${PLAYWRIGHT_SERVER_HOST} --port ${PLAYWRIGHT_SERVER_PORT}`,
         url: PLAYWRIGHT_DEV_SERVER_URL,
         reuseExistingServer: REUSE_EXISTING_SERVER,

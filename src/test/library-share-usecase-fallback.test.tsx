@@ -36,6 +36,7 @@ function buildPrompt(overrides: Partial<PromptSummary> = {}): PromptSummary {
     sourceCount: 0,
     databaseCount: 0,
     ragEnabled: false,
+    containsGithubSources: false,
     category: "general",
     isShared: false,
     communityPostId: null,
@@ -107,5 +108,33 @@ describe("Library share use case fallback", () => {
 
     expect(screen.getByRole("button", { name: "Share" })).toBeDisabled();
     expect(screen.getByText("Sign in to share.")).toBeInTheDocument();
+  });
+
+  it("shows the GitHub-specific share-disabled reason", async () => {
+    const prompt = buildPrompt({
+      containsGithubSources: true,
+      useCase: "Repository onboarding",
+    });
+    mocks.usePromptBuilder.mockReturnValue({
+      templateSummaries: [prompt],
+      isSignedIn: true,
+      deleteSavedTemplate: vi.fn(),
+      shareSavedPrompt: vi.fn(),
+      unshareSavedPrompt: vi.fn(),
+    });
+
+    const { default: Library } = await import("@/pages/Library");
+    render(
+      <ThemeProvider>
+        <MemoryRouter>
+          <Library />
+        </MemoryRouter>
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByRole("button", { name: "Share" })).toBeDisabled();
+    expect(
+      screen.getByText("Remove GitHub sources before sharing this prompt."),
+    ).toBeInTheDocument();
   });
 });

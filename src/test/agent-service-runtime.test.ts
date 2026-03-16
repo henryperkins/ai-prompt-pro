@@ -235,4 +235,40 @@ describe("agent service runtime extraction", () => {
       }),
     );
   });
+
+  it("parses GitHub runtime config and exposes a strict user-only auth policy", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const { deps } = createStubDeps();
+
+    const runtime = await createServiceRuntime({
+      env: {
+        OPENAI_API_KEY: "sk-test",
+        GITHUB_CONTEXT_ENABLED: "true",
+        GITHUB_APP_ID: "12345",
+        GITHUB_APP_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----",
+        GITHUB_APP_SLUG: "promptforge-app",
+        GITHUB_APP_STATE_SECRET: "state-secret",
+        GITHUB_WEBHOOK_SECRET: "webhook-secret",
+        GITHUB_POST_INSTALL_REDIRECT_URL: "https://promptforge.test/builder",
+        NEON_DATA_API_URL: "https://data-api.test/rest/v1",
+        NEON_SERVICE_ROLE_KEY: "service-role-key",
+      },
+      deps,
+    });
+
+    expect(runtime.githubConfig).toMatchObject({
+      enabled: true,
+      appId: "12345",
+      appSlug: "promptforge-app",
+      postInstallRedirectUrl: "https://promptforge.test/builder",
+      dataApiUrl: "https://data-api.test/rest/v1",
+      serviceRoleKey: "service-role-key",
+    });
+    expect(runtime.githubUserAuthPolicy).toEqual({
+      allowPublicKey: false,
+      allowServiceToken: false,
+      allowUserJwt: true,
+    });
+    expect(runtime.buildReadinessReport().warnings).not.toContain("github_config_incomplete");
+  });
 });

@@ -12,6 +12,7 @@ import {
   CaretRight as ChevronRight,
   Database,
   GearSix as Settings2,
+  GitBranch,
   Stack as Layers3,
 } from "@phosphor-icons/react";
 import type {
@@ -30,6 +31,9 @@ interface BuilderSourcesAdvancedProps {
   onUpdateRag: (updates: Partial<RagParameters>) => void;
   onUpdateProjectNotes: (notes: string) => void;
   onToggleDelimiters: (value: boolean) => void;
+  githubPickerEnabled?: boolean;
+  githubPickerDisabledReason?: string | null;
+  onOpenGithubPicker?: () => void;
 }
 
 export function BuilderSourcesAdvanced({
@@ -41,6 +45,9 @@ export function BuilderSourcesAdvanced({
   onUpdateRag,
   onUpdateProjectNotes,
   onToggleDelimiters,
+  githubPickerEnabled = false,
+  githubPickerDisabledReason = null,
+  onOpenGithubPicker,
 }: BuilderSourcesAdvancedProps) {
   const sourceCount = contextConfig.sources.length;
   const hasProjectNotes = Boolean(contextConfig.projectNotes.trim());
@@ -135,6 +142,37 @@ export function BuilderSourcesAdvanced({
               onAdd={handleAddSource}
               onRemove={handleRemoveSource}
             />
+
+            {githubPickerEnabled && onOpenGithubPicker && (
+              <div className="rounded-lg border border-border/80 bg-background/60 p-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      GitHub repository context
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Search files from connected repositories and attach them as prompt context.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    className="h-11 gap-1.5 text-sm sm:h-9"
+                    onClick={onOpenGithubPicker}
+                    disabled={Boolean(githubPickerDisabledReason)}
+                  >
+                    <GitBranch className="h-3.5 w-3.5" />
+                    Add from GitHub
+                  </Button>
+                </div>
+                {githubPickerDisabledReason && (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {githubPickerDisabledReason}
+                  </p>
+                )}
+              </div>
+            )}
 
             <ProjectNotes value={contextConfig.projectNotes} onChange={onUpdateProjectNotes} />
 

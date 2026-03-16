@@ -7,7 +7,7 @@ import type {
   RagParameters,
   SourceValidationStatus,
 } from "@/lib/context-types";
-import { defaultContextConfig } from "@/lib/context-types";
+import { defaultContextConfig, hasGithubSources } from "@/lib/context-types";
 import {
   applyPromptConfigInvariants,
   defaultConfig,
@@ -84,6 +84,7 @@ export interface TemplateSummary {
   sourceCount: number;
   databaseCount: number;
   ragEnabled: boolean;
+  containsGithubSources: boolean;
 }
 
 interface TemplateEnvelope {
@@ -298,7 +299,8 @@ function createReference(source: ContextSource): ContextReference | undefined {
     source.type === "url" ||
     source.type === "file" ||
     source.type === "database" ||
-    source.type === "rag"
+    source.type === "rag" ||
+    source.type === "github"
   ) {
     return {
       kind: source.type,
@@ -320,7 +322,8 @@ function normalizeSource(
     source.type === "url" ||
     source.type === "file" ||
     source.type === "database" ||
-    source.type === "rag";
+    source.type === "rag" ||
+    source.type === "github";
 
   return {
     ...source,
@@ -712,6 +715,9 @@ export function listTemplateSummaries(): TemplateSummary[] {
     databaseCount:
       record.state.promptConfig.contextConfig.databaseConnections.length,
     ragEnabled: record.state.promptConfig.contextConfig.rag.enabled,
+    containsGithubSources: hasGithubSources(
+      record.state.promptConfig.contextConfig.sources,
+    ),
   }));
 }
 

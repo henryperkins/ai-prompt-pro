@@ -18,6 +18,7 @@ import { usePromptBuilder } from "@/hooks/usePromptBuilder";
 import { useToast } from "@/hooks/use-toast";
 import { brandCopy } from "@/lib/brand-copy";
 import { getLibraryPromptRarity } from "@/lib/community-rarity";
+import { GITHUB_SHARE_BLOCKED_REASON } from "@/lib/context-types";
 import {
   getUserAvatarUrl,
   getUserDisplayName,
@@ -295,6 +296,14 @@ const Library = () => {
         toast({ title: "Sign in required", description: "Sign in to share prompts.", variant: "destructive" });
         return;
       }
+      if (prompt.containsGithubSources) {
+        toast({
+          title: "Sharing unavailable",
+          description: GITHUB_SHARE_BLOCKED_REASON,
+          variant: "destructive",
+        });
+        return;
+      }
       const shareUseCase = resolveShareUseCase(prompt);
       if (!shareUseCase) {
         toast({
@@ -441,6 +450,8 @@ const Library = () => {
       const shareUseCase = resolveShareUseCase(prompt);
       const shareDisabledReason = !isSignedIn
         ? "Sign in to share."
+        : prompt.containsGithubSources
+          ? GITHUB_SHARE_BLOCKED_REASON
         : !shareUseCase
           ? "Add a use case in Builder before sharing."
           : null;

@@ -1,6 +1,6 @@
 # PromptForge Builder Workflow Reference
 
-Last updated: 2026-03-13
+Last updated: 2026-03-16
 
 > Status: Active source-of-truth reference for the shipped builder route. Use this before relying on older launch screenshots or archived UX review snapshots.
 
@@ -57,6 +57,15 @@ doing a before/after comparison against older collateral:
    Codex session access
 4. Open the preview drawer to review, copy, and save the current output
 
+## GitHub context flow
+
+When `VITE_GITHUB_CONTEXT_ENABLED=true` and the user is signed in:
+
+- `Context and sources` includes `GitHub repository context`
+- `Add from GitHub` opens the repository picker dialog
+- attached GitHub files count toward the shared source cap
+- prompts with GitHub-backed sources cannot be shared publicly
+
 ## Degraded inference behavior
 
 When `infer-builder-fields` is unavailable:
@@ -74,5 +83,7 @@ When `infer-builder-fields` is unavailable:
 - `src/components/BuilderHeroInput.tsx`
 - `src/components/BuilderAdjustDetails.tsx`
 - `src/components/BuilderSourcesAdvanced.tsx`
+- `src/components/github/GitHubSourcePickerDialog.tsx`
+- `src/hooks/useGithubSourcePicker.ts`
 - `src/components/OutputPanel.tsx`
 - `src/components/MobileEnhancementSettingsSheet.tsx`

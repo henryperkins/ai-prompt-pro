@@ -244,4 +244,33 @@ describe("context source expansion helpers", () => {
       contextSources: normalized.value,
     })).toContain("## ATTACHED SOURCE SUMMARIES");
   });
+
+  it("accepts github as a first-class context source type", () => {
+    const normalized = normalizeEnhanceContextSources([
+      {
+        id: "repo-entry",
+        type: "github",
+        title: "owner/repo:README.md",
+        summary: "Repository overview",
+        raw_content: "PromptForge GitHub integration notes",
+        reference: {
+          kind: "github",
+          ref_id: "github:1:sha:README.md",
+          locator: "owner/repo@sha:README.md",
+        },
+      },
+    ]);
+
+    expect(normalized.ok).toBe(true);
+    expect(normalized.value).toEqual([
+      expect.objectContaining({
+        type: "github",
+        title: "owner/repo:README.md",
+        reference: expect.objectContaining({
+          kind: "github",
+          refId: "github:1:sha:README.md",
+        }),
+      }),
+    ]);
+  });
 });

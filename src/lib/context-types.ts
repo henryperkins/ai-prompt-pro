@@ -1,8 +1,9 @@
-export type ContextSourceType = "text" | "url" | "file" | "database" | "rag";
+export type ContextSourceType = "text" | "url" | "file" | "database" | "rag" | "github";
 export type SourceValidationStatus = "unknown" | "valid" | "stale" | "invalid";
+export const GITHUB_SHARE_BLOCKED_REASON = "Remove GitHub sources before sharing this prompt.";
 
 export interface ContextReference {
-  kind: "url" | "file" | "database" | "rag";
+  kind: "url" | "file" | "database" | "rag" | "github";
   refId: string;
   locator: string;
   permissionScope?: string;
@@ -21,6 +22,9 @@ export interface ContextSource {
   rawContent: string;
   summary: string;
   addedAt: number;
+  rawContentTruncated?: boolean;
+  originalCharCount?: number;
+  expandable?: boolean;
   reference?: ContextReference;
   validation?: SourceValidation;
 }
@@ -77,6 +81,17 @@ export interface ContextConfig {
   interviewAnswers: InterviewAnswer[];
   useDelimiters: boolean;
   projectNotes: string;
+}
+
+export function hasGithubSources(sources: ContextSource[] | null | undefined): boolean {
+  if (!Array.isArray(sources)) return false;
+  return sources.some((source) => source?.type === "github" || source?.reference?.kind === "github");
+}
+
+export function getGithubShareBlockedReason(
+  sources: ContextSource[] | null | undefined,
+): string | null {
+  return hasGithubSources(sources) ? GITHUB_SHARE_BLOCKED_REASON : null;
 }
 
 export const defaultContextConfig: ContextConfig = {

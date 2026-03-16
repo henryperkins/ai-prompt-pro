@@ -26,6 +26,22 @@ export function json(res, status, payload, headers = {}) {
 }
 
 /**
+ * Send an HTTP redirect response.
+ *
+ * @param {import("node:http").ServerResponse} res
+ * @param {number} status
+ * @param {string} location
+ * @param {Record<string, string>} [headers]
+ */
+export function redirect(res, status, location, headers = {}) {
+  res.writeHead(status, {
+    Location: location,
+    ...headers,
+  });
+  res.end();
+}
+
+/**
  * Begin an SSE (Server-Sent Events) stream.
  *
  * @param {import("node:http").ServerResponse} res
@@ -102,12 +118,18 @@ export function decodeBase64UrlValue(value) {
  * @param {string} origin
  * @returns {Record<string, string>}
  */
-export function baseCorsHeaders(origin) {
+export function baseCorsHeaders(origin, options = {}) {
+  const allowMethods = Array.isArray(options.allowMethods) && options.allowMethods.length > 0
+    ? Array.from(new Set([
+      ...options.allowMethods.map((value) => String(value || "").trim().toUpperCase()).filter(Boolean),
+      "OPTIONS",
+    ]))
+    : ["POST", "OPTIONS"];
   return {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Headers":
       "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Methods": allowMethods.join(", "),
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
   };
@@ -120,10 +142,10 @@ export function baseCorsHeaders(origin) {
  * @param {{ mode: "any" | "set"; origins: Set<string> }} corsConfig
  * @returns {{ ok: boolean; headers: Record<string, string>; origin?: string; status?: number; error?: string }}
  */
-export function resolveCors(req, corsConfig) {
+export function resolveCors(req, corsConfig, options = {}) {
   const origin = (headerValue(req, "origin") || "").trim();
   if (!origin) {
-    return { ok: true, headers: baseCorsHeaders("null"), origin: "null" };
+    return { ok: true, headers: baseCorsHeaders("null", options), origin: "null" };
   }
 
   if (corsConfig.mode === "set" && !corsConfig.origins.has(origin)) {
@@ -131,9 +153,9 @@ export function resolveCors(req, corsConfig) {
       ok: false,
       status: 403,
       error: "Origin is not allowed.",
-      headers: baseCorsHeaders("null"),
+      headers: baseCorsHeaders("null", options),
     };
   }
 
-  return { ok: true, headers: baseCorsHeaders(origin), origin };
+  return { ok: true, headers: baseCorsHeaders(origin, options), origin };
 }

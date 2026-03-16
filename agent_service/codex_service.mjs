@@ -23,6 +23,7 @@ import {
 } from "./request-context.mjs";
 import {
   json,
+  redirect,
   beginSse,
   writeSse,
   endSse,
@@ -70,7 +71,11 @@ import {
   isUrlNotAllowedError,
 } from "./network-security.mjs";
 import { runGuardedAsync } from "./async-guard.mjs";
-import { isPayloadTooLargeError, readBodyJsonWithLimit } from "./http-body.mjs";
+import {
+  isPayloadTooLargeError,
+  readBodyJsonWithLimit,
+  readBodyTextWithLimit,
+} from "./http-body.mjs";
 import { extractItemText } from "./stream-text.mjs";
 import {
   classifyStreamFailure,
@@ -128,9 +133,40 @@ import {
   classifyHttpAuthErrorCode,
   rejectWebSocketUpgrade,
 } from "./ws-helpers.mjs";
+import { createGitHubAppClient } from "./github-app.mjs";
+import { isGitHubError } from "./github-errors.mjs";
+import { createGitHubManifestService } from "./github-manifest.mjs";
+import {
+  createGitHubRouteRegistry,
+  matchGitHubRoute,
+  listGitHubRoutesForPath,
+  collectGitHubRouteMethods,
+} from "./github-routes.mjs";
+import { createGitHubSourceContextService } from "./github-source-context.mjs";
+import { createGitHubStore } from "./github-store.mjs";
 import { createServiceRuntime } from "./service-runtime.mjs";
 
 const runtime = await createServiceRuntime({ env: process.env });
+const githubApp = createGitHubAppClient(runtime.githubConfig);
+const githubStore = createGitHubStore({
+  dataApiUrl: runtime.githubConfig.dataApiUrl,
+  serviceRoleKey: runtime.githubConfig.serviceRoleKey,
+});
+const githubManifestService = createGitHubManifestService({
+  app: githubApp,
+  store: githubStore,
+});
+const githubSourceContextService = createGitHubSourceContextService({
+  app: githubApp,
+  manifestService: githubManifestService,
+});
+const githubRoutes = createGitHubRouteRegistry({
+  runtime,
+  app: githubApp,
+  store: githubStore,
+  manifestService: githubManifestService,
+  sourceContextService: githubSourceContextService,
+});
 
 function extractEnhanceSession(input) {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
@@ -1629,7 +1665,8 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
         const auth = await runtime.authService.authenticateRequestContext(
           req,
           requestContext,
-          authPolicyForEndpoint(requestContext?.endpoint || ENHANCE_WS_PATH),
+          runtime.routeAuthPolicies[requestContext?.endpoint || ENHANCE_WS_PATH]
+            || runtime.routeAuthPolicies[ENHANCE_WS_PATH],
         );
         if (!auth.ok) {
           setRequestError(
@@ -1774,26 +1811,62 @@ function checkEnhanceRateLimits(auth, clientIp) {
   }, "Daily quota exceeded. Please try again tomorrow.");
 }
 
-function authPolicyForEndpoint(endpoint) {
-  return runtime.routeAuthPolicies[endpoint] || runtime.routeAuthPolicies["/enhance"];
+function checkGitHubRateLimits(auth, clientIp) {
+  const minuteWindow = checkRateLimit({
+    scope: "github-minute",
+    key: `${auth.rateKey}:${clientIp}`,
+    limit: runtime.githubPerMinute,
+    windowMs: 60_000,
+  }, "GitHub context rate limit exceeded. Please try again later.");
+  if (!minuteWindow.ok) {
+    return minuteWindow;
+  }
+
+  return checkRateLimit({
+    scope: "github-day",
+    key: auth.rateKey,
+    limit: runtime.githubPerDay,
+    windowMs: 86_400_000,
+  }, "GitHub context daily quota exceeded. Please try again tomorrow.");
 }
 
-async function authenticateRequest(req, res, corsHeaders, requestContext) {
+function sendRateLimitResponse(res, corsHeaders, rateLimit, requestContext) {
+  setRequestError(requestContext, "rate_limited", rateLimit.error, rateLimit.status);
+  json(
+    res,
+    rateLimit.status,
+    { error: rateLimit.error, code: "rate_limited" },
+    {
+      ...corsHeaders,
+      ...(rateLimit.retryAfterSeconds
+        ? { "Retry-After": String(rateLimit.retryAfterSeconds) }
+        : {}),
+    },
+  );
+}
+
+async function authenticateRequest(req, res, corsHeaders, requestContext, authPolicy) {
+  const resolvedAuthPolicy = authPolicy || runtime.routeAuthPolicies[requestContext?.endpoint];
+  if (!resolvedAuthPolicy) {
+    setRequestError(requestContext, "service_error", "Auth policy is not configured.", 500);
+    json(res, 500, {
+      error: "Auth policy is not configured.",
+      code: "service_error",
+    }, corsHeaders);
+    return null;
+  }
+
   const auth = await runtime.authService.authenticateRequestContext(
     req,
     requestContext,
-    authPolicyForEndpoint(requestContext?.endpoint),
+    resolvedAuthPolicy,
   );
   if (!auth.ok) {
-    setRequestError(
-      requestContext,
-      classifyHttpAuthErrorCode(auth.status, auth.error),
-      auth.error,
-      auth.status,
-    );
+    const errorCode = classifyHttpAuthErrorCode(auth.status, auth.error);
+    setRequestError(requestContext, errorCode, auth.error, auth.status);
     json(res, auth.status, {
       error: auth.error,
-      code: classifyHttpAuthErrorCode(auth.status, auth.error),
+      code: errorCode,
     }, corsHeaders);
     return null;
   }
@@ -1804,25 +1877,161 @@ async function authenticateRequest(req, res, corsHeaders, requestContext) {
   return auth;
 }
 
+async function readHttpBodyByMode(req, bodyMode) {
+  if (bodyMode === "none") {
+    return undefined;
+  }
+  if (bodyMode === "text") {
+    return readBodyTextWithLimit(req, { maxBytes: runtime.maxHttpBodyBytes });
+  }
+  return readBodyJsonWithLimit(req, { maxBytes: runtime.maxHttpBodyBytes });
+}
+
+function respondWithGitHubRouteResult(res, routeResult, corsHeaders) {
+  const headers = {
+    ...corsHeaders,
+    ...(routeResult?.headers && typeof routeResult.headers === "object" ? routeResult.headers : {}),
+  };
+  if (typeof routeResult?.redirectTo === "string" && routeResult.redirectTo.trim()) {
+    redirect(res, Number(routeResult.status) || 302, routeResult.redirectTo, headers);
+    return;
+  }
+  if (routeResult?.body === undefined) {
+    res.writeHead(Number(routeResult?.status) || 204, headers);
+    res.end();
+    return;
+  }
+  json(res, Number(routeResult?.status) || 200, routeResult.body, headers);
+}
+
+function classifyGitHubErrorCode(error, status) {
+  if (typeof error?.code === "string" && error.code.trim()) {
+    return error.code.trim();
+  }
+  return inferErrorCodeFromStatus(status) || "service_error";
+}
+
+function resolveGitHubCustomAuthMode(customAuth) {
+  if (customAuth === "githubSetupState") {
+    return "github_setup_state";
+  }
+  if (customAuth === "githubWebhookSignature") {
+    return "github_webhook_signature";
+  }
+  return null;
+}
+
+async function handleGitHubRoute(req, res, url, route, routesForPath, requestContext) {
+  const cors = resolveCors(req, runtime.corsConfig, {
+    allowMethods: routesForPath.length > 0
+      ? collectGitHubRouteMethods(githubRoutes, url.pathname)
+      : ["GET", "POST", "DELETE"],
+  });
+  if (!cors.ok) {
+    setRequestError(requestContext, inferErrorCodeFromStatus(cors.status), cors.error, cors.status);
+    json(res, cors.status, { error: cors.error }, cors.headers);
+    return;
+  }
+
+  if (!route.authPolicy && !route.customAuth) {
+    setRequestError(requestContext, "service_error", "GitHub route auth policy is not configured.", 500);
+    json(
+      res,
+      500,
+      { error: "GitHub route auth policy is not configured.", code: "service_error" },
+      cors.headers,
+    );
+    return;
+  }
+
+  if (route.customAuth) {
+    const authMode = resolveGitHubCustomAuthMode(route.customAuth);
+    if (!authMode) {
+      setRequestError(
+        requestContext,
+        "service_error",
+        `GitHub custom auth mode "${route.customAuth}" is not supported.`,
+        500,
+      );
+      json(
+        res,
+        500,
+        {
+          error: `GitHub custom auth mode "${route.customAuth}" is not supported.`,
+          code: "service_error",
+        },
+        cors.headers,
+      );
+      return;
+    }
+    requestContext.authMode = authMode;
+  }
+
+  let auth = null;
+  if (route.authPolicy) {
+    auth = await authenticateRequest(req, res, cors.headers, requestContext, route.authPolicy);
+    if (!auth) return;
+  }
+
+  if (route.rateLimitScope === "github-user" && auth) {
+    const clientIp = runtime.getClientIp(req, requestContext);
+    const rateLimit = checkGitHubRateLimits(auth, clientIp);
+    if (!rateLimit.ok) {
+      sendRateLimitResponse(res, cors.headers, rateLimit, requestContext);
+      return;
+    }
+  }
+
+  let body;
+  try {
+    body = await readHttpBodyByMode(req, route.bodyMode);
+  } catch (error) {
+    const statusCode = isPayloadTooLargeError(error) ? 413 : 400;
+    const errorCode = statusCode === 413 ? "payload_too_large" : "bad_request";
+    const errorMessage = toErrorMessage(error);
+    setRequestError(requestContext, errorCode, errorMessage, statusCode);
+    json(res, statusCode, { error: errorMessage, code: errorCode }, cors.headers);
+    return;
+  }
+
+  try {
+    const result = await route.handler({
+      auth,
+      body,
+      params: route.params || {},
+      req,
+      requestContext,
+      res,
+      route,
+      runtime,
+      url,
+    });
+    respondWithGitHubRouteResult(res, result, cors.headers);
+  } catch (error) {
+    const status = Number.isFinite(error?.status) ? error.status : 500;
+    const code = classifyGitHubErrorCode(error, status);
+    const message = isGitHubError(error)
+      ? error.message
+      : toErrorMessage(error);
+    setRequestError(requestContext, code, message, status);
+    json(res, status, { error: message, code }, cors.headers);
+  }
+}
+
 async function handleEnhance(req, res, body, corsHeaders, requestContext) {
-  const auth = await authenticateRequest(req, res, corsHeaders, requestContext);
+  const auth = await authenticateRequest(
+    req,
+    res,
+    corsHeaders,
+    requestContext,
+    runtime.routeAuthPolicies["/enhance"],
+  );
   if (!auth) return;
 
   const clientIp = runtime.getClientIp(req, requestContext);
   const rateLimit = checkEnhanceRateLimits(auth, clientIp);
   if (!rateLimit.ok) {
-    setRequestError(requestContext, "rate_limited", rateLimit.error, rateLimit.status);
-    json(
-      res,
-      rateLimit.status,
-      { error: rateLimit.error },
-      {
-        ...corsHeaders,
-        ...(rateLimit.retryAfterSeconds
-          ? { "Retry-After": String(rateLimit.retryAfterSeconds) }
-          : {}),
-      },
-    );
+    sendRateLimitResponse(res, corsHeaders, rateLimit, requestContext);
     return;
   }
 
@@ -1830,7 +2039,13 @@ async function handleEnhance(req, res, body, corsHeaders, requestContext) {
 }
 
 async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
-  const auth = await authenticateRequest(req, res, corsHeaders, requestContext);
+  const auth = await authenticateRequest(
+    req,
+    res,
+    corsHeaders,
+    requestContext,
+    runtime.routeAuthPolicies["/extract-url"],
+  );
   if (!auth) return;
 
   const clientIp = runtime.getClientIp(req, requestContext);
@@ -2022,7 +2237,13 @@ async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
 }
 
 async function handleInferBuilderFields(req, res, body, corsHeaders, requestContext) {
-  const auth = await authenticateRequest(req, res, corsHeaders, requestContext);
+  const auth = await authenticateRequest(
+    req,
+    res,
+    corsHeaders,
+    requestContext,
+    runtime.routeAuthPolicies["/infer-builder-fields"],
+  );
   if (!auth) return;
 
   const clientIp = runtime.getClientIp(req, requestContext);
@@ -2088,11 +2309,19 @@ async function requestHandler(req, res) {
   const rawRequestId = (headerValue(req, "x-request-id") || "").trim();
   const requestId = rawRequestId || `req_${randomUUID().replaceAll("-", "")}`;
   const method = typeof req.method === "string" ? req.method : "GET";
+  const isGitHubPath = url.pathname === "/github" || url.pathname.startsWith("/github/");
+  const githubRoutesForPath = isGitHubPath
+    ? listGitHubRoutesForPath(githubRoutes, url.pathname)
+    : [];
+  const matchedGitHubRoute = isGitHubPath
+    ? matchGitHubRoute(githubRoutes, method, url.pathname)
+    : null;
+  const resolvedEndpoint = matchedGitHubRoute?.pattern || githubRoutesForPath[0]?.pattern || url.pathname;
   const requestContext = createRequestContext(
     requestId,
-    url.pathname,
+    resolvedEndpoint,
     method,
-    transportForEndpoint(url.pathname, ENHANCE_WS_PATH),
+    transportForEndpoint(resolvedEndpoint, ENHANCE_WS_PATH),
   );
   res.setHeader("x-request-id", requestId);
   attachHttpRequestLifecycleLogging(res, requestContext);
@@ -2143,6 +2372,84 @@ async function requestHandler(req, res) {
       ...runtime.buildHealthDetails(),
     });
     return;
+  }
+
+  if (isGitHubPath) {
+    const allowedMethods = githubRoutesForPath.length > 0
+      ? collectGitHubRouteMethods(githubRoutes, url.pathname)
+      : ["GET", "POST", "DELETE"];
+    const cors = resolveCors(req, runtime.corsConfig, { allowMethods });
+
+    if (req.method === "OPTIONS") {
+      if (!cors.ok) {
+        setRequestError(requestContext, inferErrorCodeFromStatus(cors.status), cors.error, cors.status);
+        json(res, cors.status, { error: cors.error }, cors.headers);
+        return;
+      }
+      if (githubRoutesForPath.length === 0) {
+        setRequestError(requestContext, inferErrorCodeFromStatus(404), "Not found.", 404);
+        json(res, 404, { error: "Not found.", code: "not_found" }, cors.headers);
+        return;
+      }
+      res.writeHead(200, cors.headers);
+      res.end("ok");
+      return;
+    }
+
+    if (!cors.ok) {
+      setRequestError(requestContext, inferErrorCodeFromStatus(cors.status), cors.error, cors.status);
+      json(res, cors.status, { error: cors.error }, cors.headers);
+      return;
+    }
+
+    if (githubRoutesForPath.length === 0) {
+      setRequestError(requestContext, inferErrorCodeFromStatus(404), "Not found.", 404);
+      json(res, 404, { error: "Not found.", code: "not_found" }, cors.headers);
+      return;
+    }
+
+    if (!matchedGitHubRoute) {
+      setRequestError(requestContext, inferErrorCodeFromStatus(405), "Method not allowed.", 405);
+      json(
+        res,
+        405,
+        { error: "Method not allowed.", code: "method_not_allowed" },
+        {
+          ...cors.headers,
+          Allow: allowedMethods.join(", "),
+        },
+      );
+      return;
+    }
+
+    try {
+      await handleGitHubRoute(
+        req,
+        res,
+        url,
+        matchedGitHubRoute,
+        githubRoutesForPath,
+        requestContext,
+      );
+      return;
+    } catch (error) {
+      setRequestError(requestContext, "service_error", toErrorMessage(error), 500);
+      logEvent("error", "request_handler_exception", cleanLogFields({
+        request_id: requestContext.requestId,
+        endpoint: requestContext.endpoint,
+        method: requestContext.method,
+        transport: requestContext.transport,
+        error_code: requestContext.errorCode || "service_error",
+        error_message: requestContext.errorMessage,
+      }));
+      json(
+        res,
+        500,
+        { error: requestContext.errorMessage || "Internal server error.", code: "service_error" },
+        cors.headers,
+      );
+      return;
+    }
   }
 
   const isFunctionPath = (

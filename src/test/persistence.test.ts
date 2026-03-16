@@ -561,4 +561,143 @@ describe("persistence", () => {
     expect(updatePayload?.use_case).toBe("Build onboarding emails");
     expect(updatePayload?.is_shared).toBe(true);
   });
+
+  it("rejects sharing prompts that contain GitHub sources", async () => {
+    const { sharePrompt } = await import("@/lib/persistence");
+    const updateSpy = vi.fn();
+
+    fromMock.mockReturnValueOnce({
+      select: () => ({
+        eq: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({
+              data: {
+                id: "tpl_1",
+                use_case: "Repository onboarding",
+                config: buildConfig({
+                  contextConfig: {
+                    ...defaultConfig.contextConfig,
+                    sources: [
+                      {
+                        id: "gh-1",
+                        type: "github",
+                        title: "owner/repo:README.md",
+                        rawContent: "",
+                        summary: "Repository readme",
+                        addedAt: Date.now(),
+                        reference: {
+                          kind: "github",
+                          refId: "github:1:sha:README.md",
+                          locator: "owner/repo@sha:README.md",
+                        },
+                      },
+                    ],
+                  },
+                }),
+              },
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    });
+
+    fromMock.mockReturnValueOnce({
+      update: updateSpy,
+    });
+
+    await expect(sharePrompt("user_1", "tpl_1")).rejects.toMatchObject({
+      name: "PersistenceError",
+      message: "Remove GitHub sources before sharing this prompt.",
+    });
+
+    expect(updateSpy).not.toHaveBeenCalled();
+  });
+
+  it("rejects save-and-share writes when the config contains GitHub sources", async () => {
+    const { savePrompt } = await import("@/lib/persistence");
+
+    await expect(
+      savePrompt("user_1", {
+        name: "Repo-aware prompt",
+        isShared: true,
+        config: buildConfig({
+          contextConfig: {
+            ...defaultConfig.contextConfig,
+            sources: [
+              {
+                id: "gh-1",
+                type: "github",
+                title: "owner/repo:src/app.ts",
+                rawContent: "",
+                summary: "Application entrypoint",
+                addedAt: Date.now(),
+                reference: {
+                  kind: "github",
+                  refId: "github:1:sha:src/app.ts",
+                  locator: "owner/repo@sha:src/app.ts",
+                },
+              },
+            ],
+          },
+        }),
+      }),
+    ).rejects.toMatchObject({
+      name: "PersistenceError",
+      message: "Remove GitHub sources before sharing this prompt.",
+    });
+  });
+
+  it("exposes containsGithubSources in prompt summaries", async () => {
+    const { loadPrompts } = await import("@/lib/persistence");
+
+    fromMock.mockReturnValueOnce({
+      select: () => ({
+        eq: () => ({
+          order: async () => ({
+            data: [
+              buildSavedPromptRow(
+                buildConfig({
+                  contextConfig: {
+                    ...defaultConfig.contextConfig,
+                    sources: [
+                      {
+                        id: "gh-1",
+                        type: "github",
+                        title: "owner/repo:README.md",
+                        rawContent: "",
+                        summary: "Repository overview",
+                        addedAt: Date.now(),
+                        reference: {
+                          kind: "github",
+                          refId: "github:1:sha:README.md",
+                          locator: "owner/repo@sha:README.md",
+                        },
+                      },
+                    ],
+                  },
+                }),
+              ),
+            ],
+            error: null,
+          }),
+        }),
+      }),
+    });
+
+    fromMock.mockReturnValueOnce({
+      select: () => ({
+        in: () => ({
+          eq: async () => ({ data: [], error: null }),
+        }),
+      }),
+    });
+
+    await expect(loadPrompts("user_1")).resolves.toEqual([
+      expect.objectContaining({
+        containsGithubSources: true,
+        sourceCount: 1,
+      }),
+    ]);
+  });
 });

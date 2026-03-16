@@ -11,6 +11,7 @@ Build, enhance, and share AI prompts with a structured prompt builder, a private
 
 - Prompt builder with guided sections, templates, and quality scoring
 - Streaming enhancement (SSE or WebSocket) via `agent_service`
+- Optional GitHub repository context for signed-in builders (GitHub App-backed, non-shareable)
 - Private prompt library with save/load, share/unshare, and bulk edit
 - Community feed with search/filter/sort, upvotes, verified votes, comments, and remix attribution
 - Prompt history/version restore and reusable presets
@@ -75,9 +76,29 @@ Key frontend vars:
 - `VITE_NEON_AUTH_URL`
 - `VITE_NEON_PUBLISHABLE_KEY` (optional fallback key for signed-out calls)
 - `VITE_AGENT_SERVICE_URL` (required for Enhance/Extract/Infer features)
+- `VITE_GITHUB_CONTEXT_ENABLED` (optional; enables the Builder GitHub picker UI)
 - `VITE_ENHANCE_REQUEST_TIMEOUT_MS` (optional; unset by default, set a positive ms value to enable a client-side enhance timeout)
 - `VITE_ENHANCE_TRANSPORT` (`auto` | `sse` | `ws`)
 - `VITE_ENHANCE_WS_CONNECT_TIMEOUT_MS` (optional; defaults to 3500ms)
+
+## GitHub repository context (optional)
+
+PromptForge can attach repository files as Builder context through a GitHub App
+backed flow.
+
+- Enable the UI with `VITE_GITHUB_CONTEXT_ENABLED=true`.
+- Enable the service routes with `GITHUB_CONTEXT_ENABLED=true`.
+- Configure the service with `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`,
+  `GITHUB_APP_SLUG`, `GITHUB_APP_STATE_SECRET`, `GITHUB_WEBHOOK_SECRET`,
+  `GITHUB_POST_INSTALL_REDIRECT_URL`, `NEON_DATA_API_URL`, and
+  `NEON_SERVICE_ROLE_KEY`.
+- Apply `supabase/migrations/20260316010000_github_context_schema.sql` before
+  enabling the feature outside local development.
+- GitHub-backed prompts cannot be shared publicly. The Builder blocks share
+  attempts and the database enforces the same rule.
+
+See `docs/github-context-reference.md` for the active rollout guide and
+`agent_service/README.md` for the backend routes/configuration.
 
 ## Deploy to Azure Static Web Apps (production)
 
@@ -160,5 +181,7 @@ The prompt enhancement backend uses `@openai/codex-sdk`. See `agent_service/READ
 ## Database rollout notes
 
 - Migration `20260210010000_phase1_community_schema.sql` backfills `public.templates` into `public.saved_prompts`.
+- Migration `20260316010000_github_context_schema.sql` adds GitHub installation,
+  repo-connection, manifest-cache, and setup-state storage plus GitHub share guards.
 - During rollout, `public.templates` is intentionally retained for compatibility and rollback safety.
 - Active prompt persistence paths in the app now target `public.saved_prompts`; plan a follow-up migration to drop `public.templates` after rollout validation.

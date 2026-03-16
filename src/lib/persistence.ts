@@ -2,6 +2,10 @@
 import { neon } from "@/integrations/neon/client";
 import type { Json } from "@/integrations/neon/types";
 import { assertBackendConfigured } from "@/lib/backend-config";
+import {
+  GITHUB_SHARE_BLOCKED_REASON,
+  hasGithubSources,
+} from "@/lib/context-types";
 import type { RemixDiff } from "@/lib/community";
 import {
   hydrateConfigV1ToWorkingState,
@@ -101,6 +105,16 @@ export interface ShareResult {
 export function getPersistenceErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message.trim()) return error.message;
   return fallback;
+}
+
+function createGithubShareBlockedError(): PersistenceError {
+  return new PersistenceError("unknown", GITHUB_SHARE_BLOCKED_REASON);
+}
+
+function assertPromptShareAllowed(config: PromptConfig): void {
+  if (hasGithubSources(config.contextConfig.sources)) {
+    throw createGithubShareBlockedError();
+  }
 }
 
 function mapPostgrestError(error: PostgrestError, fallback: string): PersistenceError {
@@ -345,6 +359,7 @@ export async function loadPrompts(userId: string | null): Promise<PromptSummary[
         sourceCount: cfg.contextConfig.sources.length,
         databaseCount: cfg.contextConfig.databaseConnections.length,
         ragEnabled: cfg.contextConfig.rag.enabled,
+        containsGithubSources: hasGithubSources(cfg.contextConfig.sources),
         category: savedRow.category,
         isShared: savedRow.is_shared,
         communityPostId: metrics?.community_post_id ?? null,
@@ -463,6 +478,9 @@ export async function savePrompt(userId: string | null, input: PromptSaveInput):
   const warnings = collectTemplateWarnings(normalizedConfig);
   const tags = normalizePromptTagsOptional(input.tags);
   const safePersistedConfig = sanitizePostgresJson(persistedConfig as unknown as Json);
+  if (input.isShared) {
+    assertPromptShareAllowed(normalizedConfig);
+  }
 
   try {
     const { data: existingRows, error: lookupError } = await neon
@@ -594,13 +612,16 @@ export async function sharePrompt(
   try {
     const { data: existing, error: existingError } = await neon
       .from("saved_prompts")
-      .select("id, use_case")
+      .select("id, use_case, config")
       .eq("id", id)
       .eq("user_id", userId)
       .maybeSingle();
 
     if (existingError) throw mapPostgrestError(existingError, "Failed to share prompt.");
     if (!existing) return { shared: false };
+    assertPromptShareAllowed(
+      hydrateConfigV1ToWorkingState(existing.config ?? defaultConfig),
+    );
 
     const normalizedUseCaseInput = input.useCase !== undefined
       ? normalizeUseCase(input.useCase) ?? ""

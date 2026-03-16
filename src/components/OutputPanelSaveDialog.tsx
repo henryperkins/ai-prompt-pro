@@ -41,6 +41,7 @@ interface OutputPanelSaveDialogProps {
   onOpenChange: (open: boolean) => void;
   initialShareEnabled: boolean;
   canSharePrompt: boolean;
+  shareDisabledReason?: string | null;
   phase2Enabled: boolean;
   remixContext?: { title: string; authorName: string };
   onSavePrompt: (input: SavePromptInput) => Promise<boolean>;
@@ -65,6 +66,7 @@ export function OutputPanelSaveDialog({
   onOpenChange,
   initialShareEnabled,
   canSharePrompt,
+  shareDisabledReason = null,
   phase2Enabled,
   remixContext,
   onSavePrompt,
@@ -326,7 +328,7 @@ export function OutputPanelSaveDialog({
               </div>
               {!canSharePrompt && (
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Sign in to enable sharing.
+                  {shareDisabledReason || "Sign in to enable sharing."}
                 </p>
               )}
             </div>

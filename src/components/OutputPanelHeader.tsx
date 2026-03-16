@@ -29,6 +29,7 @@ interface OutputPanelHeaderProps {
   canUseMoreMenu: boolean;
   canSavePrompt: boolean;
   canSharePrompt: boolean;
+  shareDisabledReason?: string | null;
   phase2Enabled: boolean;
   copied: boolean;
   isMobile: boolean;
@@ -52,6 +53,7 @@ export function OutputPanelHeader({
   canUseMoreMenu,
   canSavePrompt,
   canSharePrompt,
+  shareDisabledReason = null,
   phase2Enabled,
   copied,
   isMobile,
@@ -178,6 +180,10 @@ export function OutputPanelHeader({
           </div>
         ) : null}
       </div>
+
+      {!canSharePrompt && shareDisabledReason ? (
+        <p className="text-xs text-muted-foreground">{shareDisabledReason}</p>
+      ) : null}
 
       {showVariantControls ? (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2">

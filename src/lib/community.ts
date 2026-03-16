@@ -1,6 +1,10 @@
 import { neon } from "@/integrations/neon/client";
 import type { Json } from "@/integrations/neon/types";
 import { assertBackendConfigured } from "@/lib/backend-config";
+import {
+  GITHUB_SHARE_BLOCKED_REASON,
+  hasGithubSources,
+} from "@/lib/context-types";
 import { normalizePromptCategory } from "@/lib/prompt-categories";
 import type { PromptConfig } from "@/lib/prompt-builder";
 import { defaultConfig } from "@/lib/prompt-builder";
@@ -54,6 +58,7 @@ export interface SavedPromptSummary {
   sourceCount: number;
   databaseCount: number;
   ragEnabled: boolean;
+  containsGithubSources: boolean;
   isShared: boolean;
   targetModel: string;
   useCase: string;
@@ -287,6 +292,7 @@ function mapSavedPromptSummary(row: SavedPromptRow): SavedPromptSummary {
     sourceCount: cfg.contextConfig.sources.length,
     databaseCount: cfg.contextConfig.databaseConnections.length,
     ragEnabled: cfg.contextConfig.rag.enabled,
+    containsGithubSources: hasGithubSources(cfg.contextConfig.sources),
     isShared: row.is_shared,
     targetModel: row.target_model,
     useCase: row.use_case,
@@ -487,6 +493,9 @@ export async function savePrompt(input: SavePromptInput): Promise<SavePromptResu
   const fingerprint = computeTemplateFingerprint(normalizedConfig);
   const warnings = collectTemplateWarnings(normalizedConfig);
   const persistedConfig = sanitizePostgresJson(normalizedConfig as unknown as Json);
+  if (input.isShared && hasGithubSources(normalizedConfig.contextConfig.sources)) {
+    throw new Error(GITHUB_SHARE_BLOCKED_REASON);
+  }
 
   try {
     let existing: SavedPromptRow | null = null;

@@ -44,6 +44,22 @@ const AUTH_SESSION = {
   user: AUTH_USER,
 };
 
+const AUTH_GET_SESSION_RESPONSE = {
+  session: {
+    token: AUTH_SESSION.access_token,
+    expiresAt: new Date(AUTH_EXPIRES_AT * 1000).toISOString(),
+  },
+  user: {
+    id: AUTH_USER.id,
+    email: AUTH_USER.email,
+    name: AUTH_USER.user_metadata.display_name,
+    image: AUTH_USER.user_metadata.avatar_url,
+    emailVerified: true,
+    createdAt: AUTH_USER.created_at,
+    updatedAt: AUTH_USER.created_at,
+  },
+};
+
 interface BuilderMobileMetric {
   width: number;
   viewportHeight: number;
@@ -73,10 +89,11 @@ async function installBuilderAuthMocks(
   { authenticated = false }: { authenticated?: boolean } = {},
 ): Promise<void> {
   const authUser = authenticated ? AUTH_USER : null;
-  const authSession = authenticated ? AUTH_SESSION : null;
+  const authSession = authenticated ? AUTH_GET_SESSION_RESPONSE.session : null;
+  const authSessionUser = authenticated ? AUTH_GET_SESSION_RESPONSE.user : null;
 
   await page.route("**/auth/get-session", async (route) => {
-    await fulfillJson(route, { session: authSession, user: authUser });
+    await fulfillJson(route, { session: authSession, user: authSessionUser });
   });
 
   await page.route("**/auth/token/anonymous", async (route) => {
@@ -323,7 +340,7 @@ test("lets signed-in mobile users open the Codex session drawer from settings an
   await page.getByTestId("builder-mobile-settings-trigger").click();
   await expect(
     settingsSheet.getByTestId("builder-mobile-codex-session-summary"),
-  ).toContainText("Outside context is ready to carry into the next Codex turn.");
+  ).toContainText("Manual carry-forward is ready for the next Codex turn.");
 
   await settingsSheet.getByRole("button", { name: "Open session" }).click();
   await expect(contextSummary).toHaveValue(

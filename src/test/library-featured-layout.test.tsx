@@ -59,6 +59,7 @@ function buildPrompt(overrides: Partial<PromptSummary> = {}): PromptSummary {
     sourceCount: 0,
     databaseCount: 0,
     ragEnabled: false,
+    containsGithubSources: false,
     category: "general",
     isShared: false,
     communityPostId: null,

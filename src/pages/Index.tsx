@@ -4,6 +4,10 @@ import { PageShell } from "@/components/PageShell";
 import { BuilderHeroInput } from "@/components/BuilderHeroInput";
 import { BuilderAdjustDetails } from "@/components/BuilderAdjustDetails";
 import { BuilderSourcesAdvanced } from "@/components/BuilderSourcesAdvanced";
+import {
+  GitHubSourcePickerDialog,
+  type GitHubSetupState,
+} from "@/components/github/GitHubSourcePickerDialog";
 import { CodexSessionDrawer } from "@/components/CodexSessionDrawer";
 import { MobileEnhancementSettingsSheet } from "@/components/MobileEnhancementSettingsSheet";
 import {
@@ -48,6 +52,10 @@ import {
   scorePrompt,
 } from "@/lib/prompt-builder";
 import {
+  getGithubShareBlockedReason,
+  type ContextSource,
+} from "@/lib/context-types";
+import {
   applyEnhanceOutputEvent,
   createEnhanceOutputStreamState,
 } from "@/lib/enhance-output-stream";
@@ -74,6 +82,7 @@ import {
   getMostUsedPreference,
   resetEnhancementProfile,
 } from "@/lib/prompt-enhancement-profile";
+import { GITHUB_CONTEXT_ENABLED } from "@/lib/github-client";
 import { trackBuilderEvent } from "@/lib/telemetry";
 import {
   parseEnhanceMetadata,
@@ -788,6 +797,8 @@ const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const remixId = searchParams.get("remix");
   const presetId = searchParams.get("preset");
+  const githubSetupResult = searchParams.get("github_setup");
+  const githubSetupMessage = searchParams.get("github_message");
   const remixLoadToken = useRef(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [mobileEnhancementSettingsOpen, setMobileEnhancementSettingsOpen] =
@@ -802,6 +813,8 @@ const Index = () => {
   });
   const [isAdjustDetailsOpen, setIsAdjustDetailsOpen] = useState(false);
   const [isSourcesAdvancedOpen, setIsSourcesAdvancedOpen] = useState(false);
+  const [isGithubSourcePickerOpen, setIsGithubSourcePickerOpen] = useState(false);
+  const [githubPickerSetupState, setGithubPickerSetupState] = useState<GitHubSetupState | null>(null);
   const [showAdvancedControls, setShowAdvancedControls] = useState(
     () => getUserPreferences().showAdvancedControls,
   );
@@ -1132,6 +1145,51 @@ const Index = () => {
   ]);
 
   useEffect(() => {
+    if (!githubSetupResult) return;
+
+    const normalizedSetupState: GitHubSetupState = {
+      status: githubSetupResult === "success" ? "success" : "error",
+      message:
+        githubSetupMessage
+        || (githubSetupResult === "success"
+          ? "Your GitHub installation is ready to browse."
+          : "GitHub access could not be connected."),
+      nonce: Date.now(),
+    };
+
+    if (GITHUB_CONTEXT_ENABLED) {
+      persistedSetShowAdvancedControls(true);
+      setIsSourcesAdvancedOpen(true);
+      setIsGithubSourcePickerOpen(true);
+      setGithubPickerSetupState(normalizedSetupState);
+
+      toast({
+        title:
+          normalizedSetupState.status === "success"
+            ? "GitHub connected"
+            : "GitHub setup failed",
+        description: normalizedSetupState.message,
+        variant:
+          normalizedSetupState.status === "success"
+            ? "default"
+            : "destructive",
+      });
+    }
+
+    const next = new URLSearchParams(searchParams);
+    next.delete("github_setup");
+    next.delete("github_message");
+    setSearchParams(next, { replace: true });
+  }, [
+    githubSetupMessage,
+    githubSetupResult,
+    persistedSetShowAdvancedControls,
+    searchParams,
+    setSearchParams,
+    toast,
+  ]);
+
+  useEffect(() => {
     if (!remixId) return;
     if (remixContext?.postId === remixId) return;
     const token = ++remixLoadToken.current;
@@ -1233,6 +1291,57 @@ const Index = () => {
     setMobileEnhancementSettingsOpen(false);
     handleOpenSessionDrawer();
   }, [handleOpenSessionDrawer]);
+
+  const handleOpenGithubSourcePicker = useCallback(() => {
+    if (!GITHUB_CONTEXT_ENABLED) {
+      toast({
+        title: "GitHub context unavailable",
+        description: "GitHub context is not enabled for this deployment.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!isSignedIn) {
+      toast({
+        title: "Sign in required",
+        description: "Sign in to connect GitHub repositories.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    persistedSetShowAdvancedControls(true);
+    setIsSourcesAdvancedOpen(true);
+    setIsGithubSourcePickerOpen(true);
+  }, [isSignedIn, persistedSetShowAdvancedControls, toast]);
+
+  const handleAttachGithubSources = useCallback(
+    (sources: ContextSource[]) => {
+      if (sources.length === 0) return;
+
+      const mergedSources = [...config.contextConfig.sources];
+      sources.forEach((source) => {
+        const existingIndex = mergedSources.findIndex((existing) => {
+          if (existing.id === source.id) return true;
+          return (
+            existing.reference?.refId &&
+            source.reference?.refId &&
+            existing.reference.refId === source.reference.refId
+          );
+        });
+
+        if (existingIndex >= 0) {
+          mergedSources[existingIndex] = source;
+          return;
+        }
+
+        mergedSources.push(source);
+      });
+
+      updateContextSources(mergedSources);
+    },
+    [config.contextConfig.sources, updateContextSources],
+  );
 
   const handleUpdateEnhanceSession = useCallback(
     (
@@ -2345,7 +2454,13 @@ const Index = () => {
   const hasUnenhancedPreview =
     !hasCurrentEnhancedOutput && builtPrompt.trim().length > 0;
   const canSavePrompt = hasPromptInput(config);
-  const canSharePrompt = canSavePrompt && isSignedIn;
+  const githubPickerDisabledReason = !isSignedIn
+    ? "Sign in to connect GitHub repositories."
+    : null;
+  const shareDisabledReason = !isSignedIn
+    ? "Sign in to share."
+    : getGithubShareBlockedReason(config.contextConfig.sources);
+  const canSharePrompt = canSavePrompt && !shareDisabledReason;
   const mobileEnhanceLabel = isEnhancing
     ? enhancePhase === "starting"
       ? "Starting…"
@@ -3074,6 +3189,9 @@ const Index = () => {
                 onUpdateRag={updateRagParameters}
                 onUpdateProjectNotes={updateProjectNotes}
                 onToggleDelimiters={toggleDelimiters}
+                githubPickerEnabled={GITHUB_CONTEXT_ENABLED}
+                githubPickerDisabledReason={githubPickerDisabledReason}
+                onOpenGithubPicker={handleOpenGithubSourcePicker}
               />
             </>
           )}
@@ -3230,6 +3348,7 @@ const Index = () => {
               onSaveAndSharePrompt={handleSaveAndSharePrompt}
               canSavePrompt={canSavePrompt}
               canSharePrompt={canSharePrompt}
+              shareDisabledReason={shareDisabledReason}
               previewSource={previewSource}
               hasEnhancedOnce={hasCurrentEnhancedOutput}
               webSearchEnabled={webSearchEnabled}
@@ -3481,6 +3600,7 @@ const Index = () => {
                 onSaveAndSharePrompt={handleSaveAndSharePrompt}
                 canSavePrompt={canSavePrompt}
                 canSharePrompt={canSharePrompt}
+                shareDisabledReason={shareDisabledReason}
                 previewSource={previewSource}
                 hasEnhancedOnce={hasCurrentEnhancedOutput}
                 webSearchEnabled={webSearchEnabled}
@@ -3521,6 +3641,19 @@ const Index = () => {
           </DrawerContent>
         </Drawer>
       )}
+
+      <GitHubSourcePickerDialog
+        open={isGithubSourcePickerOpen}
+        onOpenChange={(nextOpen) => {
+          setIsGithubSourcePickerOpen(nextOpen);
+          if (!nextOpen) {
+            setGithubPickerSetupState(null);
+          }
+        }}
+        existingSourceCount={config.contextConfig.sources.length}
+        onAttachSources={handleAttachGithubSources}
+        setupState={githubPickerSetupState}
+      />
 
       <CodexSessionDrawer
         open={isSignedIn && sessionDrawerOpen}

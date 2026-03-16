@@ -186,4 +186,19 @@ describe("OutputPanelSaveDialog async behavior", () => {
     // Dialog stays open
     expect(screen.getByLabelText("Prompt title")).toHaveValue("Retry prompt");
   });
+
+  it("shows the GitHub share-disabled reason in the save dialog", async () => {
+    renderPanel({
+      canSharePrompt: false,
+      shareDisabledReason: "Remove GitHub sources before sharing this prompt.",
+    });
+
+    await openMenu("Save");
+    await clickElement(await screen.findByRole("menuitem", { name: "Save Prompt" }));
+
+    expect(
+      screen.getAllByText("Remove GitHub sources before sharing this prompt.").length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByRole("switch", { name: "Share to community" })).toBeDisabled();
+  });
 });
