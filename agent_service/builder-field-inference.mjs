@@ -76,6 +76,7 @@ export const INFER_BUILDER_FIELDS_SCHEMA = {
       },
     }),
   },
+  required: ["role", "tone", "lengthPreference", "format", "constraints"],
   additionalProperties: false,
 };
 
