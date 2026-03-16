@@ -110,6 +110,7 @@ describe("ai-client auth recovery", () => {
     expect(firstHeaders.apikey).toBeUndefined();
     expect(secondHeaders.apikey).toBeUndefined();
     expect(mocks.getSession).toHaveBeenCalledWith({ forceFetch: true });
+    expect(mocks.signOut).not.toHaveBeenCalled();
     expect(onError).not.toHaveBeenCalled();
     expect(onDelta).toHaveBeenCalledWith("recovered");
     expect(onDone).toHaveBeenCalledTimes(1);
@@ -1089,7 +1090,7 @@ describe("ai-client auth recovery", () => {
     expect(onDelta).toHaveBeenCalledWith("Enhanced output");
   });
 
-  it("does not reuse stale session token after a 401 invalid-session response", async () => {
+  it("hard-invalidates the local session before falling back after a 401 invalid-session response", async () => {
     const nowSeconds = Math.floor(Date.now() / 1000);
 
     mocks.getSession.mockImplementation(async (options?: { forceFetch?: boolean }) => ({
@@ -1138,7 +1139,7 @@ describe("ai-client auth recovery", () => {
     expect(firstHeaders.apikey).toBeUndefined();
     expect(secondHeaders.Authorization).toBeUndefined();
     expect(secondHeaders.apikey).toBe("sb_publishable_test");
-    expect(mocks.signOut).not.toHaveBeenCalled();
+    expect(mocks.signOut).toHaveBeenCalledTimes(1);
     expect(onError).not.toHaveBeenCalled();
     expect(onDelta).toHaveBeenCalledWith("fallback");
     expect(onDone).toHaveBeenCalledTimes(1);
@@ -1205,7 +1206,7 @@ describe("ai-client auth recovery", () => {
     expect(secondHeaders.apikey).toBeUndefined();
     expect(thirdHeaders.Authorization).toBeUndefined();
     expect(thirdHeaders.apikey).toBe("sb_publishable_test");
-    expect(mocks.signOut).not.toHaveBeenCalled();
+    expect(mocks.signOut).toHaveBeenCalledTimes(1);
     expect(onError).not.toHaveBeenCalled();
     expect(onDelta).toHaveBeenCalledWith("third-try-success");
     expect(onDone).toHaveBeenCalledTimes(1);
@@ -1268,6 +1269,7 @@ describe("ai-client auth recovery", () => {
     expect(firstHeaders.apikey).toBeUndefined();
     expect(secondHeaders.Authorization).toBeUndefined();
     expect(secondHeaders.apikey).toBe("sb_publishable_test");
+    expect(mocks.signOut).toHaveBeenCalledTimes(1);
     expect(onError).not.toHaveBeenCalled();
     expect(onDelta).toHaveBeenCalledWith("refresh-throw-fallback");
     expect(onDone).toHaveBeenCalledTimes(1);

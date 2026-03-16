@@ -10,6 +10,7 @@ function createAuthClient(overrides: {
     data: { session: { access_token?: string; expires_at?: number | null } | null };
     error: unknown;
   }>;
+  signOut?: () => Promise<unknown>;
 } = {}) {
   return {
     getSession: vi.fn(
@@ -19,6 +20,10 @@ function createAuthClient(overrides: {
     refreshSession: vi.fn(
       overrides.refreshSession
         || (async () => ({ data: { session: null }, error: null })),
+    ),
+    signOut: vi.fn(
+      overrides.signOut
+        || (async () => ({ error: null })),
     ),
   };
 }
@@ -76,6 +81,98 @@ describe("service-auth", () => {
     await expect(
       serviceAuth.getHeaders({ allowPublicKeyFallback: false }),
     ).rejects.toThrow("Could not read auth session: Failed to fetch");
+  });
+
+  it("does not reuse a cached session token when forced revalidation finds no session", async () => {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const authClient = createAuthClient({
+      getSession: async (options?: { forceFetch?: boolean }) => ({
+        data: {
+          session: options?.forceFetch
+            ? null
+            : {
+              access_token: "stale-token",
+              expires_at: nowSeconds + 3600,
+            },
+        },
+        error: null,
+      }),
+    });
+
+    const serviceAuth = createServiceAuth({
+      serviceUrl: "https://agent.test",
+      publishableKey: "sb_publishable_test",
+      authClient,
+    });
+
+    await expect(
+      serviceAuth.getHeaders({
+        forceRefresh: true,
+        allowPublicKeyFallback: false,
+      }),
+    ).rejects.toThrow("Sign in required.");
+
+    expect(authClient.getSession).toHaveBeenCalledTimes(1);
+    expect(authClient.getSession).toHaveBeenCalledWith({ forceFetch: true });
+  });
+
+  it("opens a soft publishable-key fallback window without signing the user out", async () => {
+    const authClient = createAuthClient({
+      getSession: async () => ({
+        data: {
+          session: {
+            access_token: "user-session-token",
+            expires_at: Math.floor(Date.now() / 1000) + 3600,
+          },
+        },
+        error: null,
+      }),
+    });
+
+    const serviceAuth = createServiceAuth({
+      serviceUrl: "https://agent.test",
+      publishableKey: "sb_publishable_test",
+      authClient,
+    });
+
+    await serviceAuth.markSoftSessionFailure();
+
+    await expect(serviceAuth.getHeaders()).resolves.toEqual({
+      "Content-Type": "application/json",
+      apikey: "sb_publishable_test",
+    });
+    expect(authClient.signOut).not.toHaveBeenCalled();
+    expect(authClient.getSession).not.toHaveBeenCalled();
+  });
+
+  it("hard-invalidates the local session and opens the publishable-key fallback window", async () => {
+    const authClient = createAuthClient({
+      getSession: async () => ({
+        data: {
+          session: {
+            access_token: "stale-token",
+            expires_at: Math.floor(Date.now() / 1000) + 3600,
+          },
+        },
+        error: null,
+      }),
+      signOut: async () => ({ error: null }),
+    });
+
+    const serviceAuth = createServiceAuth({
+      serviceUrl: "https://agent.test",
+      publishableKey: "sb_publishable_test",
+      authClient,
+    });
+
+    await serviceAuth.hardInvalidateSession();
+
+    await expect(serviceAuth.getHeaders()).resolves.toEqual({
+      "Content-Type": "application/json",
+      apikey: "sb_publishable_test",
+    });
+    expect(authClient.signOut).toHaveBeenCalledTimes(1);
+    expect(authClient.getSession).not.toHaveBeenCalled();
   });
 
   it("deduplicates concurrent forced refresh attempts", async () => {

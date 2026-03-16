@@ -66,6 +66,7 @@ import {
 import {
   sanitizeEnhanceThreadOptions,
   mergeEnhanceThreadOptions,
+  normalizeThreadOptionsForModel,
 } from "./thread-options.mjs";
 import {
   isPrivateHost,
@@ -338,6 +339,33 @@ function assertEnhancementInputWithinLimit({
   );
 }
 
+function normalizeExecutionThreadOptions(
+  threadOptions,
+  model,
+  {
+    phase,
+    requestContext,
+    requestedThreadId,
+  } = {},
+) {
+  const normalized = normalizeThreadOptionsForModel(threadOptions, model);
+
+  if (normalized.adjusted) {
+    logEvent("warn", "thread_options_model_adjusted", cleanLogFields({
+      request_id: requestContext?.requestId,
+      endpoint: requestContext?.endpoint,
+      phase,
+      requested_thread_id: requestedThreadId || undefined,
+      model: typeof model === "string" && model.trim() ? model.trim() : undefined,
+      requested_reasoning_effort: normalized.requestedEffort,
+      applied_reasoning_effort: normalized.appliedEffort,
+      reason: normalized.reason,
+    }));
+  }
+
+  return normalized.value;
+}
+
 async function inferBuilderFieldUpdates({
   prompt,
   currentFields,
@@ -384,12 +412,15 @@ async function inferBuilderFieldUpdates({
         buildInferInputBudgetDetail(runtime.maxInferencePromptChars, inferBudget),
       );
     }
-    const inferThreadOptions = {
+    const inferThreadOptions = normalizeExecutionThreadOptions({
       ...runtime.defaultThreadOptions,
       model: runtime.inferModel,
       modelReasoningEffort: "minimal",
       webSearchEnabled: false,
-    };
+    }, runtime.inferModel, {
+      phase: "infer_builder_fields",
+      requestContext,
+    });
     const inferThread = codex.startThread(inferThreadOptions);
     const inferTurn = await runBufferedWithRetry(
       inferThread,
@@ -526,8 +557,16 @@ async function resolveEnhancementInputWithSourceExpansion({
     modelReasoningEffort: "minimal",
     webSearchEnabled: false,
   };
-  delete preflightThreadOptions.webSearchMode;
-  const preflightThread = codex.startThread(preflightThreadOptions);
+  const executionPreflightThreadOptions = normalizeExecutionThreadOptions(
+    preflightThreadOptions,
+    preflightThreadOptions.model || runtime.defaultThreadOptions.model,
+    {
+      phase: "enhance_source_expansion_preflight",
+      requestContext,
+    },
+  );
+  delete executionPreflightThreadOptions.webSearchMode;
+  const preflightThread = codex.startThread(executionPreflightThreadOptions);
 
   try {
     const turn = await runBufferedWithRetry(
@@ -833,9 +872,18 @@ async function runEnhanceTurnStream(requestData, options) {
     }
     throwIfAborted(signal);
     if (isClosed()) return;
+    const executionThreadOptions = normalizeExecutionThreadOptions(
+      threadOptions,
+      threadOptions.model || runtime.defaultThreadOptions.model,
+      {
+        phase: requestedThreadId ? "enhance_resume_thread" : "enhance_start_thread",
+        requestContext,
+        requestedThreadId,
+      },
+    );
     thread = requestedThreadId
-      ? codex.resumeThread(requestedThreadId, threadOptions)
-      : codex.startThread(threadOptions);
+      ? codex.resumeThread(requestedThreadId, executionThreadOptions)
+      : codex.startThread(executionThreadOptions);
     const { events } = await runStreamedWithRetry(
       thread,
       enhancementInput,

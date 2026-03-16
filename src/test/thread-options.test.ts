@@ -3,6 +3,8 @@ import {
   sanitizeEnhanceThreadOptions,
   extractThreadOptions,
   mergeEnhanceThreadOptions,
+  normalizeReasoningEffortForModel,
+  normalizeThreadOptionsForModel,
 } from "../../agent_service/thread-options.mjs";
 
 describe("sanitizeEnhanceThreadOptions", () => {
@@ -121,6 +123,62 @@ describe("mergeEnhanceThreadOptions", () => {
     )).toEqual({
       modelReasoningEffort: "medium",
       webSearchMode: "cached",
+    });
+  });
+});
+
+describe("normalizeReasoningEffortForModel", () => {
+  it("coerces minimal reasoning to low for gpt-5.4 models", () => {
+    expect(normalizeReasoningEffortForModel("gpt-5.4", "minimal")).toEqual({
+      value: "low",
+      adjusted: true,
+      reason: "minimal_unsupported_for_model",
+    });
+
+    expect(normalizeReasoningEffortForModel("gpt-5.4-2026-03-05", "minimal")).toEqual({
+      value: "low",
+      adjusted: true,
+      reason: "minimal_unsupported_for_model",
+    });
+  });
+
+  it("preserves minimal reasoning for models that still support it", () => {
+    expect(normalizeReasoningEffortForModel("gpt-5.3", "minimal")).toEqual({
+      value: "minimal",
+      adjusted: false,
+    });
+  });
+});
+
+describe("normalizeThreadOptionsForModel", () => {
+  it("adjusts modelReasoningEffort only at execution time for unsupported models", () => {
+    expect(normalizeThreadOptionsForModel(
+      {
+        modelReasoningEffort: "minimal",
+        webSearchEnabled: true,
+      },
+      "gpt-5.4",
+    )).toEqual({
+      value: {
+        modelReasoningEffort: "low",
+        webSearchEnabled: true,
+      },
+      adjusted: true,
+      requestedEffort: "minimal",
+      appliedEffort: "low",
+      reason: "minimal_unsupported_for_model",
+    });
+  });
+
+  it("returns the original thread options when no adjustment is needed", () => {
+    const threadOptions = {
+      modelReasoningEffort: "medium",
+      webSearchEnabled: false,
+    };
+
+    expect(normalizeThreadOptionsForModel(threadOptions, "gpt-5.4")).toEqual({
+      value: threadOptions,
+      adjusted: false,
     });
   });
 });

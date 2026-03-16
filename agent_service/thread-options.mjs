@@ -1,5 +1,69 @@
 const REASONING_EFFORTS = new Set(["minimal", "low", "medium", "high", "xhigh"]);
 const SUPPORTED_THREAD_OPTION_KEYS = new Set(["modelReasoningEffort", "webSearchEnabled"]);
+const MINIMAL_UNSUPPORTED_MODEL_PATTERNS = [
+  /^gpt-5\.4(?:$|-)/,
+];
+
+export function normalizeReasoningEffortForModel(model, effort) {
+  const normalizedModel = typeof model === "string" ? model.trim().toLowerCase() : "";
+  const normalizedEffort = typeof effort === "string" ? effort.trim().toLowerCase() : "";
+
+  if (!normalizedEffort || !REASONING_EFFORTS.has(normalizedEffort)) {
+    return {
+      value: normalizedEffort || effort,
+      adjusted: false,
+    };
+  }
+
+  if (
+    normalizedEffort === "minimal"
+    && MINIMAL_UNSUPPORTED_MODEL_PATTERNS.some((pattern) => pattern.test(normalizedModel))
+  ) {
+    return {
+      value: "low",
+      adjusted: true,
+      reason: "minimal_unsupported_for_model",
+    };
+  }
+
+  return {
+    value: normalizedEffort,
+    adjusted: false,
+  };
+}
+
+export function normalizeThreadOptionsForModel(threadOptions, model) {
+  if (!threadOptions || typeof threadOptions !== "object" || Array.isArray(threadOptions)) {
+    return {
+      value: threadOptions,
+      adjusted: false,
+    };
+  }
+
+  const requestedEffort =
+    typeof threadOptions.modelReasoningEffort === "string"
+      ? threadOptions.modelReasoningEffort.trim().toLowerCase()
+      : undefined;
+  const normalizedEffort = normalizeReasoningEffortForModel(model, requestedEffort);
+
+  if (!normalizedEffort.adjusted) {
+    return {
+      value: threadOptions,
+      adjusted: false,
+    };
+  }
+
+  return {
+    value: {
+      ...threadOptions,
+      modelReasoningEffort: normalizedEffort.value,
+    },
+    adjusted: true,
+    requestedEffort,
+    appliedEffort: normalizedEffort.value,
+    reason: normalizedEffort.reason,
+  };
+}
 
 export function sanitizeEnhanceThreadOptions(input) {
   if (input === undefined) {

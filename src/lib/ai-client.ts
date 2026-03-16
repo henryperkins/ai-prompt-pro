@@ -598,6 +598,10 @@ function isInvalidAuthSessionError(status: number, errorMessage: string): boolea
   );
 }
 
+function isTerminalAuthFailure(status: number, errorMessage: string): boolean {
+  return status === 401 || isInvalidAuthSessionError(status, errorMessage);
+}
+
 function isRecoverableAuthServiceError(status: number, errorMessage: string): boolean {
   if (status !== 503) return false;
   const normalized = errorMessage.toLowerCase();
@@ -638,11 +642,12 @@ async function postFunctionWithAuthRecovery(
 
     let errorDetails = await readFunctionError(response);
     let errorMessage = errorDetails.message;
-    const firstFailureWasAuth =
-      response.status === 401
-      || isInvalidAuthSessionError(response.status, errorMessage)
-      || isRecoverableAuthServiceError(response.status, errorMessage);
-    if (!firstFailureWasAuth) {
+    const firstFailureWasTerminalAuth = isTerminalAuthFailure(response.status, errorMessage);
+    const firstFailureWasRecoverableAuthService = isRecoverableAuthServiceError(
+      response.status,
+      errorMessage,
+    );
+    if (!firstFailureWasTerminalAuth && !firstFailureWasRecoverableAuthService) {
       throw normalizeClientError(name, errorMessage, {
         status: response.status,
         code: errorDetails.code,
@@ -650,28 +655,50 @@ async function postFunctionWithAuthRecovery(
       });
     }
 
-    response = await requestWithRetry(await serviceAuth.getHeaders({
-      forceRefresh: true,
-      allowSessionToken: false,
-    }));
-    if (response.ok) return response;
+    if (firstFailureWasRecoverableAuthService) {
+      await serviceAuth.markSoftSessionFailure();
+      response = await requestWithRetry(serviceAuth.headersWithPublishableKey());
+      if (response.ok) return response;
 
-    errorDetails = await readFunctionError(response);
-    errorMessage = errorDetails.message;
-    const secondFailureWasAuth =
-      response.status === 401
-      || isInvalidAuthSessionError(response.status, errorMessage)
-      || isRecoverableAuthServiceError(response.status, errorMessage);
-    if (!secondFailureWasAuth) {
-      throw normalizeClientError(name, errorMessage, {
+      errorDetails = await readFunctionError(response);
+      throw normalizeClientError(name, errorDetails.message, {
         status: response.status,
         code: errorDetails.code,
         retryAfterMs: errorDetails.retryAfterMs,
       });
     }
 
-    // If refresh returned another unusable session token, force a deterministic API-key retry.
-    await serviceAuth.clearLocalSession();
+    try {
+      response = await requestWithRetry(await serviceAuth.getHeaders({
+        forceRefresh: true,
+        allowPublicKeyFallback: false,
+      }));
+      if (response.ok) return response;
+
+      errorDetails = await readFunctionError(response);
+      errorMessage = errorDetails.message;
+      if (!isTerminalAuthFailure(response.status, errorMessage)) {
+        throw normalizeClientError(name, errorMessage, {
+          status: response.status,
+          code: errorDetails.code,
+          retryAfterMs: errorDetails.retryAfterMs,
+        });
+      }
+    } catch (error) {
+      if (isAbortError(error)) {
+        throw error;
+      }
+
+      const normalizedError = normalizeClientError(name, error);
+      if (
+        normalizedError.code !== "auth_required"
+        && normalizedError.code !== "auth_session_invalid"
+      ) {
+        throw normalizedError;
+      }
+    }
+
+    await serviceAuth.hardInvalidateSession();
     response = await requestWithRetry(serviceAuth.headersWithPublishableKey());
     if (response.ok) return response;
 

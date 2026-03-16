@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { sanitizeEnhanceThreadOptions } from "../../agent_service/thread-options.mjs";
+import {
+  sanitizeEnhanceThreadOptions,
+  normalizeThreadOptionsForModel,
+} from "../../agent_service/thread-options.mjs";
 
 describe("sanitizeEnhanceThreadOptions", () => {
   it("returns undefined for missing thread options", () => {
@@ -82,6 +85,26 @@ describe("sanitizeEnhanceThreadOptions", () => {
       ok: true,
       value: { modelReasoningEffort: "medium", webSearchEnabled: true },
       warnings: [{ field: "sandboxMode", reason: "unsupported_field" }],
+    });
+  });
+
+  it("defers model-specific reasoning coercion until execution time", () => {
+    const sanitized = sanitizeEnhanceThreadOptions({ modelReasoningEffort: "minimal" });
+
+    expect(sanitized).toEqual({
+      ok: true,
+      value: { modelReasoningEffort: "minimal" },
+      warnings: [],
+    });
+
+    expect(
+      normalizeThreadOptionsForModel(sanitized.value, "gpt-5.4-2026-03-05"),
+    ).toEqual({
+      value: { modelReasoningEffort: "low" },
+      adjusted: true,
+      requestedEffort: "minimal",
+      appliedEffort: "low",
+      reason: "minimal_unsupported_for_model",
     });
   });
 });

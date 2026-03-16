@@ -20,6 +20,7 @@ interface SessionReadOptions {
 interface AuthClient {
   getSession: (options?: SessionReadOptions) => Promise<SessionResult>;
   refreshSession?: () => Promise<SessionResult>;
+  signOut?: () => Promise<unknown>;
 }
 
 export interface ServiceAuthAccessTokenOptions {
@@ -84,6 +85,13 @@ function createErrorWithCause(message: string, cause: unknown): Error {
   return error;
 }
 
+function createSessionReadError(error: unknown): Error {
+  return createErrorWithCause(
+    `Could not read auth session: ${errorMessage(error)}`,
+    error,
+  );
+}
+
 export function createServiceAuth({
   serviceUrl,
   publishableKey,
@@ -92,6 +100,7 @@ export function createServiceAuth({
   let bootstrapTokenPromise: Promise<string> | null = null;
   let refreshTokenPromise: Promise<{
     token: string | null;
+    error: unknown;
     retryableFailure: boolean;
   }> | null = null;
   let publishableKeyFallbackUntilMs = 0;
@@ -115,33 +124,63 @@ export function createServiceAuth({
     publishableKeyFallbackUntilMs = 0;
   }
 
-  async function clearLocalSession(): Promise<void> {
+  async function markSoftSessionFailure(): Promise<void> {
+    bootstrapTokenPromise = null;
     markPublishableKeyFallbackWindow();
+  }
+
+  async function hardInvalidateSession(): Promise<void> {
+    bootstrapTokenPromise = null;
+    refreshTokenPromise = null;
+    markPublishableKeyFallbackWindow();
+
+    try {
+      await authClient.signOut?.();
+    } catch {
+      // Local sign-out is best-effort; keep the publishable-key fallback window open.
+    }
+  }
+
+  async function readSession(options?: SessionReadOptions): Promise<{
+    session: SessionRecord | null;
+    error: unknown;
+    retryableFailure: boolean;
+  }> {
+    try {
+      const {
+        data: { session },
+        error,
+      } = await authClient.getSession(options);
+
+      return {
+        session: session ?? null,
+        error,
+        retryableFailure: isRetryableAuthSessionError(error),
+      };
+    } catch (error) {
+      return {
+        session: null,
+        error,
+        retryableFailure: isRetryableAuthSessionError(error),
+      };
+    }
   }
 
   async function refreshSessionAccessToken(
     options: { allowPublicKeyFallback?: boolean } = {},
-  ): Promise<string | null> {
+  ): Promise<{
+    token: string | null;
+    error: unknown;
+    retryableFailure: boolean;
+  }> {
     if (!refreshTokenPromise) {
       refreshTokenPromise = (async () => {
-        try {
-          const {
-            data: { session },
-            error,
-          } = await authClient.getSession({ forceFetch: true });
-          if (error) {
-            return { token: null, retryableFailure: false };
-          }
-          return {
-            token: session?.access_token ?? null,
-            retryableFailure: false,
-          };
-        } catch (error) {
-          return {
-            token: null,
-            retryableFailure: isRetryableAuthSessionError(error),
-          };
-        }
+        const result = await readSession({ forceFetch: true });
+        return {
+          token: result.session?.access_token ?? null,
+          error: result.error,
+          retryableFailure: result.retryableFailure,
+        };
       })().finally(() => {
         refreshTokenPromise = null;
       });
@@ -150,14 +189,14 @@ export function createServiceAuth({
     const result = await refreshTokenPromise;
     if (result.token) {
       clearPublishableKeyFallbackWindow();
-      return result.token;
+      return result;
     }
 
     if (options.allowPublicKeyFallback !== false && result.retryableFailure) {
-      await clearLocalSession();
+      await markSoftSessionFailure();
     }
 
-    return null;
+    return result;
   }
 
   async function getAccessToken({
@@ -168,8 +207,13 @@ export function createServiceAuth({
     assertConfigured();
 
     if (forceRefresh) {
-      const forcedToken = await refreshSessionAccessToken({ allowPublicKeyFallback });
-      if (forcedToken) return forcedToken;
+      const refreshedToken = await refreshSessionAccessToken({ allowPublicKeyFallback });
+      if (refreshedToken.token) return refreshedToken.token;
+      if (allowPublicKeyFallback && publishableKey) return publishableKey;
+      if (refreshedToken.error) {
+        throw createSessionReadError(refreshedToken.error);
+      }
+      throw new Error("Sign in required.");
     }
 
     if (
@@ -182,44 +226,24 @@ export function createServiceAuth({
       return publishableKey;
     }
 
-    let sessionResult: SessionResult;
-    try {
-      sessionResult = await authClient.getSession();
-    } catch (sessionError) {
-      if (isRetryableAuthSessionError(sessionError) && allowPublicKeyFallback) {
-        await clearLocalSession();
-        if (publishableKey) return publishableKey;
-      }
-      throw createErrorWithCause(
-        `Could not read auth session: ${errorMessage(sessionError)}`,
-        sessionError,
-      );
-    }
-
-    const {
-      data: { session },
-      error: sessionError,
-    } = sessionResult;
+    const { session, error: sessionError, retryableFailure } = await readSession();
     if (sessionError) {
-      if (isRetryableAuthSessionError(sessionError) && allowPublicKeyFallback) {
-        await clearLocalSession();
+      if (retryableFailure && allowPublicKeyFallback) {
+        await markSoftSessionFailure();
         if (publishableKey) return publishableKey;
       }
-      throw createErrorWithCause(
-        `Could not read auth session: ${errorMessage(sessionError)}`,
-        sessionError,
-      );
+      throw createSessionReadError(sessionError);
     }
 
     if (session?.access_token) {
       if (!allowSessionToken) {
         if (allowPublicKeyFallback) {
-          await clearLocalSession();
+          await markSoftSessionFailure();
         }
       } else {
         if (sessionExpiresSoon(session.expires_at)) {
           const refreshedToken = await refreshSessionAccessToken({ allowPublicKeyFallback });
-          if (refreshedToken) return refreshedToken;
+          if (refreshedToken.token) return refreshedToken.token;
         }
         return session.access_token;
       }
@@ -279,12 +303,13 @@ export function createServiceAuth({
   }
 
   return {
-    clearLocalSession,
+    hardInvalidateSession,
     getAccessToken,
     getAccessTokenWithBootstrap,
     getHeaders,
     headersWithAccessToken,
     headersWithPublishableKey,
     isPublicCredential,
+    markSoftSessionFailure,
   };
 }

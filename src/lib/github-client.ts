@@ -298,10 +298,6 @@ function createLocalRequestError(error: unknown): GitHubClientError {
   });
 }
 
-function shouldRetryWithSessionRefresh(response: Response): boolean {
-  return response.status === 401;
-}
-
 async function getRequestHeaders(
   options: {
     forceRefresh?: boolean;
@@ -355,26 +351,19 @@ async function requestJson<T>(
   const url = new URL(buildServiceUrl(path));
   appendQuery(url, options.query);
 
-  let requestResult = await executeRequest(
+  const requestResult = await executeRequest(
     method,
     url,
-    await getRequestHeaders(),
+    await getRequestHeaders({
+      forceRefresh: true,
+    }),
     options,
   );
 
-  if (!requestResult.response.ok && shouldRetryWithSessionRefresh(requestResult.response)) {
-    requestResult = await executeRequest(
-      method,
-      url,
-      await getRequestHeaders({
-        forceRefresh: true,
-        allowSessionToken: false,
-      }),
-      options,
-    );
-  }
-
   if (!requestResult.response.ok) {
+    if (requestResult.response.status === 401) {
+      await serviceAuth.hardInvalidateSession();
+    }
     throw createResponseError(requestResult.response, requestResult.payload);
   }
 
