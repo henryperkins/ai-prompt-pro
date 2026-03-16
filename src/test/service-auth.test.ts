@@ -77,4 +77,59 @@ describe("service-auth", () => {
       serviceAuth.getHeaders({ allowPublicKeyFallback: false }),
     ).rejects.toThrow("Could not read auth session: Failed to fetch");
   });
+
+  it("deduplicates concurrent forced refresh attempts", async () => {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    let resolveRefresh:
+      | ((value: {
+        data: {
+          session: { access_token?: string; expires_at?: number | null } | null;
+        };
+        error: unknown;
+      }) => void)
+      | null = null;
+
+    const authClient = createAuthClient({
+      refreshSession: () =>
+        new Promise((resolve) => {
+          resolveRefresh = resolve;
+        }),
+    });
+
+    const serviceAuth = createServiceAuth({
+      serviceUrl: "https://agent.test",
+      authClient,
+    });
+
+    const firstHeadersPromise = serviceAuth.getHeaders({
+      forceRefresh: true,
+      allowSessionToken: false,
+      allowPublicKeyFallback: false,
+    });
+    const secondHeadersPromise = serviceAuth.getHeaders({
+      forceRefresh: true,
+      allowSessionToken: false,
+      allowPublicKeyFallback: false,
+    });
+
+    expect(authClient.refreshSession).toHaveBeenCalledTimes(1);
+
+    resolveRefresh?.({
+      data: {
+        session: {
+          access_token: "refreshed-token",
+          expires_at: nowSeconds + 3600,
+        },
+      },
+      error: null,
+    });
+
+    await expect(firstHeadersPromise).resolves.toMatchObject({
+      Authorization: "Bearer refreshed-token",
+    });
+    await expect(secondHeadersPromise).resolves.toMatchObject({
+      Authorization: "Bearer refreshed-token",
+    });
+    expect(authClient.refreshSession).toHaveBeenCalledTimes(1);
+  });
 });

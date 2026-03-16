@@ -86,6 +86,10 @@ export function createServiceAuth({
   authClient = neon.auth,
 }: ServiceAuthOptions = {}) {
   let bootstrapTokenPromise: Promise<string> | null = null;
+  let refreshTokenPromise: Promise<{
+    token: string | null;
+    retryableFailure: boolean;
+  }> | null = null;
   let publishableKeyFallbackUntilMs = 0;
 
   function assertConfigured(): void {
@@ -114,23 +118,42 @@ export function createServiceAuth({
   async function refreshSessionAccessToken(
     options: { allowPublicKeyFallback?: boolean } = {},
   ): Promise<string | null> {
-    try {
-      const {
-        data: { session },
-        error,
-      } = await authClient.refreshSession();
-      if (error) return null;
-      if (session?.access_token) {
-        clearPublishableKeyFallbackWindow();
-        return session.access_token;
-      }
-      return null;
-    } catch (error) {
-      if (options.allowPublicKeyFallback !== false && isRetryableAuthSessionError(error)) {
-        await clearLocalSession();
-      }
-      return null;
+    if (!refreshTokenPromise) {
+      refreshTokenPromise = (async () => {
+        try {
+          const {
+            data: { session },
+            error,
+          } = await authClient.refreshSession();
+          if (error) {
+            return { token: null, retryableFailure: false };
+          }
+          return {
+            token: session?.access_token ?? null,
+            retryableFailure: false,
+          };
+        } catch (error) {
+          return {
+            token: null,
+            retryableFailure: isRetryableAuthSessionError(error),
+          };
+        }
+      })().finally(() => {
+        refreshTokenPromise = null;
+      });
     }
+
+    const result = await refreshTokenPromise;
+    if (result.token) {
+      clearPublishableKeyFallbackWindow();
+      return result.token;
+    }
+
+    if (options.allowPublicKeyFallback !== false && result.retryableFailure) {
+      await clearLocalSession();
+    }
+
+    return null;
   }
 
   async function getAccessToken({
