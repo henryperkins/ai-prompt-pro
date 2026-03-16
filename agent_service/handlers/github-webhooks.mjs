@@ -1,3 +1,6 @@
+const HANDLED_EVENTS = new Set(["push", "installation", "installation_repositories"]);
+const REPO_LIFECYCLE_EVENTS_UNHANDLED = new Set(["repository"]);
+
 export function createGitHubWebhooksHandler({ app, store, manifestService }) {
   return async function handleGitHubWebhooks({ body, req }) {
     app.verifyWebhookSignature({
@@ -10,6 +13,33 @@ export function createGitHubWebhooksHandler({ app, store, manifestService }) {
       ? JSON.parse(body)
       : {};
     const installationId = Number(payload?.installation?.id);
+    const action = String(payload?.action || "").trim();
+
+    // --- Diagnostic: log unhandled webhook events that affect repo metadata ---
+    if (REPO_LIFECYCLE_EVENTS_UNHANDLED.has(eventName)) {
+      console.log(JSON.stringify({
+        timestamp: new Date().toISOString(),
+        level: "warn",
+        event: "github_webhook_unhandled_repo_event",
+        message:
+          `Received '${eventName}' webhook (action=${action}) but this event is not handled. `
+          + "Repo renames, transfers, archive changes, and default-branch updates will leave stale connection metadata.",
+        webhook_event: eventName,
+        action,
+        repo_full_name: payload?.repository?.full_name || null,
+        repo_id: payload?.repository?.id || null,
+      }));
+    }
+    if (!HANDLED_EVENTS.has(eventName) && !REPO_LIFECYCLE_EVENTS_UNHANDLED.has(eventName)) {
+      console.log(JSON.stringify({
+        timestamp: new Date().toISOString(),
+        level: "info",
+        event: "github_webhook_ignored_event",
+        webhook_event: eventName,
+        action,
+      }));
+    }
+    // --- End diagnostic ---
 
     if (eventName === "push") {
       const repoId = Number(payload?.repository?.id);

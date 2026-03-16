@@ -332,6 +332,25 @@ export function createGitHubStore(config = {}) {
       row.installation_record_id,
       { includeInactive },
     );
+
+    // --- Diagnostic: log stale connection (connection exists but installation is missing/inactive) ---
+    if (!installation) {
+      console.log(JSON.stringify({
+        timestamp: new Date().toISOString(),
+        level: "warn",
+        event: "github_stale_connection_detected",
+        message:
+          "Connection record exists but its backing installation is missing or inactive (suspended/deleted). "
+          + "The user will see this repo as connected but all operations will fail with 404. "
+          + "listConnections() does not filter by installation state.",
+        connection_id: connectionId,
+        installation_record_id: row.installation_record_id,
+        full_name: row.full_name,
+        include_inactive: includeInactive,
+      }));
+    }
+    // --- End diagnostic ---
+
     return installation ? { ...row, installation } : null;
   }
 

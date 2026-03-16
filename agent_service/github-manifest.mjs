@@ -239,7 +239,34 @@ export async function collectDefaultBranchTree(app, connection) {
   const repo = connection.repo_name || connection.repoName;
   const defaultBranch = connection.default_branch || connection.defaultBranch;
   const installationId = Number(connection.installation?.github_installation_id || connection.installation?.githubInstallationId);
-  const branch = await app.getBranch(owner, repo, defaultBranch, installationId);
+
+  let branch;
+  try {
+    branch = await app.getBranch(owner, repo, defaultBranch, installationId);
+  } catch (error) {
+    // --- Diagnostic: detect stale repo metadata ---
+    const message = typeof error?.message === "string" ? error.message : "";
+    const status = Number(error?.status);
+    if (status === 404 || message.toLowerCase().includes("not found")) {
+      console.log(JSON.stringify({
+        timestamp: new Date().toISOString(),
+        level: "warn",
+        event: "github_manifest_stale_repo_metadata",
+        message:
+          `GitHub returned 404 for ${owner}/${repo} branch ${defaultBranch}. `
+          + "The repo may have been renamed, transferred, or the default branch changed since the connection was created. "
+          + "The 'repository' webhook event is not handled, so connection metadata is never updated.",
+        owner,
+        repo,
+        default_branch: defaultBranch,
+        installation_id: installationId,
+        connection_id: connection.id,
+        full_name: connection.full_name || connection.fullName,
+      }));
+    }
+    // --- End diagnostic ---
+    throw error;
+  }
   const rootTreeSha = normalizeString(branch?.commit?.commit?.tree?.sha);
   const commitSha = normalizeString(branch?.commit?.sha);
   if (!rootTreeSha || !commitSha) {

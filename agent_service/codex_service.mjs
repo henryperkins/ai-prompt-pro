@@ -2002,6 +2002,20 @@ async function handleGitHubRoute(req, res, url, route, routesForPath, requestCon
     return;
   }
 
+  // --- Diagnostic: log when GitHub routes fire while feature is disabled ---
+  if (!runtime.githubConfig.enabled) {
+    logEvent("warn", "github_route_dispatched_while_disabled", cleanLogFields({
+      request_id: requestContext.requestId,
+      endpoint: route.pattern,
+      method: route.method,
+      github_context_enabled: false,
+      message:
+        "A GitHub route was dispatched even though GITHUB_CONTEXT_ENABLED=false. "
+        + "The route registry is created unconditionally — handlers that bypass assertFeatureEnabled() may still succeed.",
+    }));
+  }
+  // --- End diagnostic ---
+
   try {
     const result = await route.handler({
       auth,
