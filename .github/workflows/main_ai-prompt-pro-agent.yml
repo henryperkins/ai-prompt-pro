@@ -63,29 +63,29 @@ jobs:
             echo "Missing required secret: CODEX_CONFIG_JSON"
             exit 1
           fi
-          if [ "${{ secrets.GITHUB_CONTEXT_ENABLED }}" = "true" ]; then
-            if [ -z "${{ secrets.GITHUB_APP_ID }}" ]; then
-              echo "Missing required secret: GITHUB_APP_ID"
+          if [ "${{ secrets.GH_CONTEXT_ENABLED }}" = "true" ]; then
+            if [ -z "${{ secrets.GH_APP_ID }}" ]; then
+              echo "Missing required secret: GH_APP_ID"
               exit 1
             fi
-            if [ -z "${{ secrets.GITHUB_APP_PRIVATE_KEY }}" ]; then
-              echo "Missing required secret: GITHUB_APP_PRIVATE_KEY"
+            if [ -z "${{ secrets.GH_APP_PRIVATE_KEY }}" ]; then
+              echo "Missing required secret: GH_APP_PRIVATE_KEY"
               exit 1
             fi
-            if [ -z "${{ secrets.GITHUB_APP_SLUG }}" ]; then
-              echo "Missing required secret: GITHUB_APP_SLUG"
+            if [ -z "${{ secrets.GH_APP_SLUG }}" ]; then
+              echo "Missing required secret: GH_APP_SLUG"
               exit 1
             fi
-            if [ -z "${{ secrets.GITHUB_APP_STATE_SECRET }}" ]; then
-              echo "Missing required secret: GITHUB_APP_STATE_SECRET"
+            if [ -z "${{ secrets.GH_APP_STATE_SECRET }}" ]; then
+              echo "Missing required secret: GH_APP_STATE_SECRET"
               exit 1
             fi
-            if [ -z "${{ secrets.GITHUB_WEBHOOK_SECRET }}" ]; then
-              echo "Missing required secret: GITHUB_WEBHOOK_SECRET"
+            if [ -z "${{ secrets.GH_WEBHOOK_SECRET }}" ]; then
+              echo "Missing required secret: GH_WEBHOOK_SECRET"
               exit 1
             fi
-            if [ -z "${{ secrets.GITHUB_POST_INSTALL_REDIRECT_URL }}" ]; then
-              echo "Missing required secret: GITHUB_POST_INSTALL_REDIRECT_URL"
+            if [ -z "${{ secrets.GH_POST_INSTALL_REDIRECT_URL }}" ]; then
+              echo "Missing required secret: GH_POST_INSTALL_REDIRECT_URL"
               exit 1
             fi
             if [ -z "${{ secrets.NEON_DATABASE_URL }}" ]; then
@@ -110,13 +110,13 @@ jobs:
               NEON_JWKS_URL="${{ secrets.VITE_NEON_AUTH_URL }}/.well-known/jwks.json" \
               FUNCTION_PUBLIC_API_KEY="${{ secrets.VITE_NEON_PUBLISHABLE_KEY }}" \
               NEON_PUBLISHABLE_KEY="${{ secrets.VITE_NEON_PUBLISHABLE_KEY }}" \
-              GITHUB_CONTEXT_ENABLED="${{ secrets.GITHUB_CONTEXT_ENABLED }}" \
-              GITHUB_APP_ID="${{ secrets.GITHUB_APP_ID }}" \
-              GITHUB_APP_PRIVATE_KEY="${{ secrets.GITHUB_APP_PRIVATE_KEY }}" \
-              GITHUB_APP_SLUG="${{ secrets.GITHUB_APP_SLUG }}" \
-              GITHUB_APP_STATE_SECRET="${{ secrets.GITHUB_APP_STATE_SECRET }}" \
-              GITHUB_WEBHOOK_SECRET="${{ secrets.GITHUB_WEBHOOK_SECRET }}" \
-              GITHUB_POST_INSTALL_REDIRECT_URL="${{ secrets.GITHUB_POST_INSTALL_REDIRECT_URL }}" \
+              GITHUB_CONTEXT_ENABLED="${{ secrets.GH_CONTEXT_ENABLED }}" \
+              GITHUB_APP_ID="${{ secrets.GH_APP_ID }}" \
+              GITHUB_APP_PRIVATE_KEY="${{ secrets.GH_APP_PRIVATE_KEY }}" \
+              GITHUB_APP_SLUG="${{ secrets.GH_APP_SLUG }}" \
+              GITHUB_APP_STATE_SECRET="${{ secrets.GH_APP_STATE_SECRET }}" \
+              GITHUB_WEBHOOK_SECRET="${{ secrets.GH_WEBHOOK_SECRET }}" \
+              GITHUB_POST_INSTALL_REDIRECT_URL="${{ secrets.GH_POST_INSTALL_REDIRECT_URL }}" \
               NEON_DATABASE_URL="${{ secrets.NEON_DATABASE_URL }}" \
               AZURE_OPENAI_API_KEY="${{ secrets.AZURE_OPENAI_API_KEY }}" \
               CODEX_CONFIG_JSON='${{ secrets.CODEX_CONFIG_JSON }}' \
