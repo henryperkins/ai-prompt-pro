@@ -55,10 +55,13 @@ export function GitHubConnectionCard({
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
-        <Badge variant="modern" className="text-[11px]">
+        <Badge variant="modern" size="sm">
           {repository.connected ? "Connected" : "Available"}
         </Badge>
-        <Badge variant="pill" color={repository.isPrivate ? "warning" : "gray"}>
+        <Badge
+          variant="pill"
+          tone={repository.isPrivate ? "warning" : "default"}
+        >
           <span className="inline-flex items-center gap-1">
             {repository.isPrivate ? (
               <LockSimple className="h-3 w-3" />

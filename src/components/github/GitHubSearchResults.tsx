@@ -75,13 +75,13 @@ export function GitHubSearchResults({
                     {result.path}
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">
-                    <Badge variant="modern" className="text-[11px]">
+                    <Badge variant="modern" size="sm">
                       <span className="inline-flex items-center gap-1">
                         <FileText className="h-3 w-3" />
                         {result.language || result.extension || "File"}
                       </span>
                     </Badge>
-                    <Badge variant="pill" color="gray">
+                    <Badge variant="pill" tone="default">
                       {formatFileSize(result.size)}
                     </Badge>
                   </div>
