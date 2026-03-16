@@ -1,6 +1,6 @@
 # PromptForge Design System
 
-Last updated: 2026-03-12
+Last updated: 2026-03-16
 
 ## 1) System Overview
 
@@ -31,7 +31,7 @@ Public surface contract:
 
 - `src/components/base/*` is the stable public design-system facade for app and feature code.
 - Public DS-owned entrypoints include `buttons/button`, `input/input`, `select/select`, `avatar`, `checkbox`, `textarea`, and `tooltip`.
-- Public hybrid entrypoints include `label`, `form`, `button-group`, and `progress-indicators/*`.
+- Public hybrid entrypoints include `label`, `form`, `button-group/button-group`, `buttons/button-utility`, and `progress-indicators/*`.
 - Some public entrypoints remain intentional bridge wrappers over legacy primitives (`card`, `drawer`, `table`, `tabs`, `scroll-area`, and similar facades).
 - Feature and product code should import the facade either way and never reach into `src/components/base/primitives/*` unless working on design-system internals.
 - Branded wrappers outside `src/components/base/*` still count as design-system contract surfaces: `src/components/PageShell.tsx`, `PageHero` within that module, and `src/components/community/ProfileHero.tsx`.
@@ -71,6 +71,8 @@ Canonical public imports:
 - Input: `@/components/base/input/input`
 - Badge: `@/components/base/badges/badges`
 - Avatar: `@/components/base/avatar`
+- Button utility: `@/components/base/buttons/button-utility`
+- Button group: `@/components/base/button-group/button-group`
 - Checkbox: `@/components/base/checkbox`
 - Tooltip: `@/components/base/tooltip`
 - Label: `@/components/base/label`
@@ -225,9 +227,12 @@ This system standardizes control heights and text density across UI primitives.
 ## 5.2 Primitive behavior
 
 - Buttons, toggles, tab triggers use normalized line-height and weight.
+- `buttons/button-utility` keeps icon-only controls at `h-11 w-11` on mobile and only compacts at `sm+`.
+- `button-group/button-group` keeps segmented controls at `min-h-11` on mobile and only compacts at `sm+`.
 - Inputs/selects/textarea use shared text and focus treatment.
 - Tables should import from `@/components/base/table` (not `@/components/base/primitives/table`) for a stable public surface.
 - Labels use responsive text sizing (`text-sm` -> `sm:text-base`) with consistent line-height.
+- The public `Label` wrapper may add required markers and tooltip affordances, but it must preserve the primitive responsive typography contract.
 - Primitive text sizing should rely on the tokenized Tailwind scale (`text-sm`, `sm:text-base`, etc.) rather than explicit one-off line-height utilities.
 
 This reduces “one-off” typography and improves consistency in dense forms.
@@ -500,10 +505,12 @@ Implementation map:
 
 1. Run `npm run check:docs`.
 2. Run `npm run check:design-system`.
-3. Run `npx vitest run src/test/accessibility-axe.test.tsx src/test/community-routes-accessibility-axe.test.tsx`.
-4. Run `npm run test:mobile`.
-5. Run `npm run check:prod` before merge when design-system work also changes product logic.
-6. Perform manual checklist pass for sections 11.1 through 11.5.
+3. Run `npx vitest run src/test/button-utility.test.tsx src/test/button-group.test.tsx src/test/label.test.tsx`.
+4. Run `npx vitest run src/test/accessibility-axe.test.tsx src/test/community-routes-accessibility-axe.test.tsx`.
+5. Run `npx playwright test playwright/design-system.mobile.spec.ts`.
+6. Run `npm run test:mobile`.
+7. Run `npm run check:prod` before merge when design-system work also changes product logic.
+8. Perform manual checklist pass for sections 11.1 through 11.5.
 
 ### 11.7 Maintenance Rule
 

@@ -31,8 +31,8 @@ const colorStyles: Record<UtilityButtonColor, string> = {
 };
 
 const sizeStyles: Record<UtilityButtonSize, string> = {
-  xs: "h-8 w-8",
-  sm: "h-9 w-9",
+  xs: "h-11 w-11 sm:h-8 sm:w-8",
+  sm: "h-11 w-11 sm:h-9 sm:w-9",
 };
 
 const iconStyles: Record<UtilityButtonSize, string> = {

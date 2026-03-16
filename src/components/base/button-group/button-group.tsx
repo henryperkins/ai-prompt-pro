@@ -6,9 +6,9 @@ import { renderIconSlot, type IconSlot } from "@/lib/utils/icon-slot";
 type ButtonGroupSize = "sm" | "md" | "lg";
 
 const sizeStyles: Record<ButtonGroupSize, string> = {
-  sm: "h-8 px-3 text-xs",
-  md: "h-9 px-3.5 text-sm",
-  lg: "h-10 px-4 text-sm",
+  sm: "min-h-11 px-3 text-sm sm:min-h-8 sm:px-3 sm:text-xs",
+  md: "min-h-11 px-3.5 text-sm sm:min-h-9 sm:px-3.5",
+  lg: "min-h-12 px-4 text-sm sm:min-h-11 sm:px-4",
 };
 
 const iconStyles: Record<ButtonGroupSize, string> = {
