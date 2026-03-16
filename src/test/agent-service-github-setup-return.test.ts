@@ -50,7 +50,14 @@ describe("agent service GitHub setup return handler", () => {
     });
   });
 
-  it("returns incomplete-install errors to the verified return URL", async () => {
+  it.each([
+    ["missing installation_id", ""],
+    ["zero installation_id", "&installation_id=0"],
+    ["non-numeric installation_id", "&installation_id=not-a-number"],
+    ["partial numeric installation_id", "&installation_id=42abc"],
+    ["decimal installation_id", "&installation_id=42.5"],
+    ["unsafe integer installation_id", `&installation_id=${Number.MAX_SAFE_INTEGER + 1}`],
+  ])("returns incomplete-install errors for %s", async (_label, installationIdQuery) => {
     const deps = createHandlerDeps();
     deps.app.verifySetupState.mockReturnValue({
       userId: "user-123",
@@ -60,7 +67,7 @@ describe("agent service GitHub setup return handler", () => {
 
     const handler = createGitHubSetupReturnHandler(deps);
     const response = await handler({
-      url: createSetupUrl("?state=signed-state"),
+      url: createSetupUrl(`?state=signed-state${installationIdQuery}`),
     });
 
     expect(deps.store.consumeSetupState).toHaveBeenCalledWith({
@@ -71,6 +78,30 @@ describe("agent service GitHub setup return handler", () => {
     expect(response).toEqual({
       status: 302,
       redirectTo: "https://promptforge.test/builder?panel=github&github_setup=error&github_message=GitHub+installation+was+not+completed.",
+    });
+  });
+
+  it.each([
+    "javascript:alert('xss')",
+    "data:text/plain,hello",
+    "https://evil.example/builder",
+  ])("falls back to the default redirect for unsafe returnTo values: %s", async (returnTo) => {
+    const deps = createHandlerDeps();
+    deps.app.verifySetupState.mockReturnValue({
+      userId: "user-123",
+      nonce: "nonce-123",
+      returnTo,
+    });
+    deps.app.getInstallationDetails.mockResolvedValue({ id: 42 });
+
+    const handler = createGitHubSetupReturnHandler(deps);
+    const response = await handler({
+      url: createSetupUrl("?state=signed-state&installation_id=42"),
+    });
+
+    expect(response).toEqual({
+      status: 302,
+      redirectTo: "https://promptforge.test/builder?github_setup=success",
     });
   });
 

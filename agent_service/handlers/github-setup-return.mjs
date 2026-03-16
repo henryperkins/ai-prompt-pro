@@ -9,6 +9,14 @@ function appendResultToRedirect(baseUrl, result, message) {
   return redirectUrl.toString();
 }
 
+function isAllowedRedirectUrl(candidateUrl, defaultUrl) {
+  const protocol = candidateUrl.protocol.toLowerCase();
+  if (protocol !== "http:" && protocol !== "https:") {
+    return false;
+  }
+  return candidateUrl.origin === defaultUrl.origin;
+}
+
 function resolveRedirectUrl(defaultRedirectUrl, returnTo) {
   const normalizedReturnTo = typeof returnTo === "string" ? returnTo.trim() : "";
   if (!normalizedReturnTo) {
@@ -16,10 +24,31 @@ function resolveRedirectUrl(defaultRedirectUrl, returnTo) {
   }
 
   try {
-    return new URL(normalizedReturnTo).toString();
+    const defaultUrl = new URL(defaultRedirectUrl);
+    const candidateUrl = new URL(normalizedReturnTo);
+    if (!isAllowedRedirectUrl(candidateUrl, defaultUrl)) {
+      return defaultRedirectUrl;
+    }
+    return candidateUrl.toString();
   } catch {
     return defaultRedirectUrl;
   }
+}
+
+function parseInstallationId(rawInstallationId) {
+  const normalizedInstallationId = typeof rawInstallationId === "string"
+    ? rawInstallationId.trim()
+    : "";
+  if (!/^\d+$/.test(normalizedInstallationId)) {
+    return null;
+  }
+
+  const installationId = Number(normalizedInstallationId);
+  if (!Number.isSafeInteger(installationId) || installationId <= 0) {
+    return null;
+  }
+
+  return installationId;
 }
 
 function getSetupFailureMessage(error) {
@@ -48,9 +77,8 @@ export function createGitHubSetupReturnHandler({ app, store, runtime }) {
         nonce: state.nonce,
       });
 
-      const normalizedInstallationId = installationIdRaw.trim();
-      const installationId = Number.parseInt(normalizedInstallationId, 10);
-      if (!normalizedInstallationId || !Number.isSafeInteger(installationId) || installationId <= 0) {
+      const installationId = parseInstallationId(installationIdRaw);
+      if (installationId === null) {
         throw createGitHubError(
           "GitHub installation was not completed.",
           "github_installation_incomplete",
