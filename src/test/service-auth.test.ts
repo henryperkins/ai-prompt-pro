@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createServiceAuth } from "@/lib/service-auth";
 
 function createAuthClient(overrides: {
-  getSession?: () => Promise<{
+  getSession?: (options?: { forceFetch?: boolean }) => Promise<{
     data: { session: { access_token?: string; expires_at?: number | null } | null };
     error: unknown;
   }>;
@@ -90,6 +90,14 @@ describe("service-auth", () => {
       | null = null;
 
     const authClient = createAuthClient({
+      getSession: (options?: { forceFetch?: boolean }) => {
+        if (!options?.forceFetch) {
+          return Promise.resolve({ data: { session: null }, error: null });
+        }
+        return new Promise((resolve) => {
+          resolveRefresh = resolve;
+        });
+      },
       refreshSession: () =>
         new Promise((resolve) => {
           resolveRefresh = resolve;
@@ -112,7 +120,8 @@ describe("service-auth", () => {
       allowPublicKeyFallback: false,
     });
 
-    expect(authClient.refreshSession).toHaveBeenCalledTimes(1);
+    expect(authClient.getSession).toHaveBeenCalledTimes(1);
+    expect(authClient.getSession).toHaveBeenCalledWith({ forceFetch: true });
 
     resolveRefresh?.({
       data: {
@@ -130,6 +139,6 @@ describe("service-auth", () => {
     await expect(secondHeadersPromise).resolves.toMatchObject({
       Authorization: "Bearer refreshed-token",
     });
-    expect(authClient.refreshSession).toHaveBeenCalledTimes(1);
+    expect(authClient.getSession).toHaveBeenCalledTimes(1);
   });
 });

@@ -67,6 +67,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(s);
         setUser((s?.user ?? null) as AuthUser | null);
         setLoading(false);
+
+        if (!s) return;
+
+        void neon.auth.getSession({ forceFetch: true })
+          .then(({ data: { session: validatedSession } }) => {
+            if (!isMounted) return;
+            setSession(validatedSession);
+            setUser((validatedSession?.user ?? null) as AuthUser | null);
+          })
+          .catch((error: unknown) => {
+            if (!isMounted) return;
+            console.warn("Failed to revalidate auth session:", error);
+          });
       })
       .catch((error: unknown) => {
         if (!isMounted) return;

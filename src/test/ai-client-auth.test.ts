@@ -60,25 +60,20 @@ describe("ai-client auth recovery", () => {
   it("retries enhance once after forced session refresh on invalid-session 401", async () => {
     const nowSeconds = Math.floor(Date.now() / 1000);
 
-    mocks.getSession.mockResolvedValue({
+    mocks.getSession.mockImplementation(async (options?: { forceFetch?: boolean }) => ({
       data: {
-        session: {
-          access_token: "stale-token",
-          expires_at: nowSeconds + 3600,
-        },
+        session: options?.forceFetch
+          ? {
+            access_token: "fresh-token",
+            expires_at: nowSeconds + 3600,
+          }
+          : {
+            access_token: "stale-token",
+            expires_at: nowSeconds + 3600,
+          },
       },
       error: null,
-    });
-
-    mocks.refreshSession.mockResolvedValue({
-      data: {
-        session: {
-          access_token: "fresh-token",
-          expires_at: nowSeconds + 3600,
-        },
-      },
-      error: null,
-    });
+    }));
 
     const fetchMock = vi
       .fn()
@@ -114,7 +109,7 @@ describe("ai-client auth recovery", () => {
     expect(secondHeaders.Authorization).toBe("Bearer fresh-token");
     expect(firstHeaders.apikey).toBeUndefined();
     expect(secondHeaders.apikey).toBeUndefined();
-    expect(mocks.refreshSession).toHaveBeenCalledTimes(1);
+    expect(mocks.getSession).toHaveBeenCalledWith({ forceFetch: true });
     expect(onError).not.toHaveBeenCalled();
     expect(onDelta).toHaveBeenCalledWith("recovered");
     expect(onDone).toHaveBeenCalledTimes(1);
@@ -123,20 +118,17 @@ describe("ai-client auth recovery", () => {
   it("retries with publishable key when service reports Neon auth is not configured", async () => {
     const nowSeconds = Math.floor(Date.now() / 1000);
 
-    mocks.getSession.mockResolvedValue({
+    mocks.getSession.mockImplementation(async (options?: { forceFetch?: boolean }) => ({
       data: {
-        session: {
-          access_token: "session-token",
-          expires_at: nowSeconds + 3600,
-        },
+        session: options?.forceFetch
+          ? null
+          : {
+            access_token: "session-token",
+            expires_at: nowSeconds + 3600,
+          },
       },
       error: null,
-    });
-
-    mocks.refreshSession.mockResolvedValue({
-      data: { session: null },
-      error: { message: "No active refresh token" },
-    });
+    }));
 
     const fetchMock = vi
       .fn()
@@ -228,25 +220,20 @@ describe("ai-client auth recovery", () => {
   it("refreshes near-expiry sessions before the first enhance request", async () => {
     const nowSeconds = Math.floor(Date.now() / 1000);
 
-    mocks.getSession.mockResolvedValue({
+    mocks.getSession.mockImplementation(async (options?: { forceFetch?: boolean }) => ({
       data: {
-        session: {
-          access_token: "expiring-token",
-          expires_at: nowSeconds - 5,
-        },
+        session: options?.forceFetch
+          ? {
+            access_token: "refreshed-token",
+            expires_at: nowSeconds + 3600,
+          }
+          : {
+            access_token: "expiring-token",
+            expires_at: nowSeconds - 5,
+          },
       },
       error: null,
-    });
-
-    mocks.refreshSession.mockResolvedValue({
-      data: {
-        session: {
-          access_token: "refreshed-token",
-          expires_at: nowSeconds + 3600,
-        },
-      },
-      error: null,
-    });
+    }));
 
     const fetchMock = vi.fn().mockResolvedValueOnce(streamingResponse("fresh"));
     vi.stubGlobal("fetch", fetchMock);
@@ -263,7 +250,7 @@ describe("ai-client auth recovery", () => {
       onError,
     });
 
-    expect(mocks.refreshSession).toHaveBeenCalledTimes(1);
+    expect(mocks.getSession).toHaveBeenCalledWith({ forceFetch: true });
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     const headers = (fetchMock.mock.calls[0]?.[1] as RequestInit).headers as Record<string, string>;
@@ -1105,20 +1092,17 @@ describe("ai-client auth recovery", () => {
   it("does not reuse stale session token after a 401 invalid-session response", async () => {
     const nowSeconds = Math.floor(Date.now() / 1000);
 
-    mocks.getSession.mockResolvedValue({
+    mocks.getSession.mockImplementation(async (options?: { forceFetch?: boolean }) => ({
       data: {
-        session: {
-          access_token: "stale-token",
-          expires_at: nowSeconds + 3600,
-        },
+        session: options?.forceFetch
+          ? null
+          : {
+            access_token: "stale-token",
+            expires_at: nowSeconds + 3600,
+          },
       },
       error: null,
-    });
-
-    mocks.refreshSession.mockResolvedValue({
-      data: { session: null },
-      error: { message: "Refresh token expired" },
-    });
+    }));
 
     const fetchMock = vi
       .fn()
@@ -1163,25 +1147,20 @@ describe("ai-client auth recovery", () => {
   it("falls back to publishable key when refreshed token also fails with invalid-session 401", async () => {
     const nowSeconds = Math.floor(Date.now() / 1000);
 
-    mocks.getSession.mockResolvedValue({
+    mocks.getSession.mockImplementation(async (options?: { forceFetch?: boolean }) => ({
       data: {
-        session: {
-          access_token: "stale-token",
-          expires_at: nowSeconds + 3600,
-        },
+        session: options?.forceFetch
+          ? {
+            access_token: "still-invalid-token",
+            expires_at: nowSeconds + 3600,
+          }
+          : {
+            access_token: "stale-token",
+            expires_at: nowSeconds + 3600,
+          },
       },
       error: null,
-    });
-
-    mocks.refreshSession.mockResolvedValue({
-      data: {
-        session: {
-          access_token: "still-invalid-token",
-          expires_at: nowSeconds + 3600,
-        },
-      },
-      error: null,
-    });
+    }));
 
     const fetchMock = vi
       .fn()
@@ -1232,23 +1211,27 @@ describe("ai-client auth recovery", () => {
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 
-  it("falls back to publishable key when refreshSession throws during forced refresh", async () => {
+  it("falls back to publishable key when forced session revalidation throws during recovery", async () => {
     const nowSeconds = Math.floor(Date.now() / 1000);
 
-    mocks.getSession.mockResolvedValue({
-      data: {
-        session: {
-          access_token: "stale-token",
-          expires_at: nowSeconds + 3600,
-        },
-      },
-      error: null,
-    });
+    mocks.getSession.mockImplementation(async (options?: { forceFetch?: boolean }) => {
+      if (options?.forceFetch) {
+        throw {
+          message: "Failed to fetch",
+          name: "AuthRetryableFetchError",
+          status: 0,
+        };
+      }
 
-    mocks.refreshSession.mockRejectedValue({
-      message: "Failed to fetch",
-      name: "AuthRetryableFetchError",
-      status: 0,
+      return {
+        data: {
+          session: {
+            access_token: "stale-token",
+            expires_at: nowSeconds + 3600,
+          },
+        },
+        error: null,
+      };
     });
 
     const fetchMock = vi

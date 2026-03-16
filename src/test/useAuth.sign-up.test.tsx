@@ -97,7 +97,7 @@ describe("useAuth signUp", () => {
 
   it("clears local session even when remote sign-out fails", async () => {
     const nowSeconds = Math.floor(Date.now() / 1000);
-    mocks.getSession.mockResolvedValueOnce({
+    mocks.getSession.mockImplementation(async () => ({
       data: {
         session: {
           access_token: "token",
@@ -109,7 +109,7 @@ describe("useAuth signUp", () => {
         },
       },
       error: null,
-    });
+    }));
     mocks.signOut.mockRejectedValueOnce(new Error("neon auth unavailable"));
 
     const { result } = renderHook(() => useAuth(), { wrapper });
@@ -129,7 +129,7 @@ describe("useAuth signUp", () => {
 
   it("keeps delete account successful when remote sign-out fails", async () => {
     const nowSeconds = Math.floor(Date.now() / 1000);
-    mocks.getSession.mockResolvedValueOnce({
+    mocks.getSession.mockImplementation(async () => ({
       data: {
         session: {
           access_token: "token",
@@ -141,7 +141,7 @@ describe("useAuth signUp", () => {
         },
       },
       error: null,
-    });
+    }));
     mocks.signOut.mockRejectedValueOnce(new Error("neon auth unavailable"));
 
     const { result } = renderHook(() => useAuth(), { wrapper });
@@ -159,5 +159,32 @@ describe("useAuth signUp", () => {
       expect(result.current.user).toBeNull();
       expect(result.current.session).toBeNull();
     });
+  });
+
+  it("clears cached session state when forced revalidation returns no session", async () => {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    mocks.getSession.mockImplementation(async (options?: { forceFetch?: boolean }) => ({
+      data: {
+        session: options?.forceFetch
+          ? null
+          : {
+            access_token: "token",
+            expires_at: nowSeconds + 3600,
+            user: {
+              id: "user-1",
+              email: "user-1@example.com",
+            },
+          },
+      },
+      error: null,
+    }));
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => {
+      expect(result.current.user).toBeNull();
+      expect(result.current.session).toBeNull();
+    });
+    expect(mocks.getSession).toHaveBeenCalledWith({ forceFetch: true });
   });
 });

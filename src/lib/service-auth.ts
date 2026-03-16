@@ -13,9 +13,13 @@ interface SessionResult {
   error: unknown;
 }
 
+interface SessionReadOptions {
+  forceFetch?: boolean;
+}
+
 interface AuthClient {
-  getSession: () => Promise<SessionResult>;
-  refreshSession: () => Promise<SessionResult>;
+  getSession: (options?: SessionReadOptions) => Promise<SessionResult>;
+  refreshSession?: () => Promise<SessionResult>;
 }
 
 export interface ServiceAuthAccessTokenOptions {
@@ -124,7 +128,7 @@ export function createServiceAuth({
           const {
             data: { session },
             error,
-          } = await authClient.refreshSession();
+          } = await authClient.getSession({ forceFetch: true });
           if (error) {
             return { token: null, retryableFailure: false };
           }

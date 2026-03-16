@@ -66,24 +66,20 @@ describe("github-client", () => {
 
   it("retries the GitHub install flow with a refreshed session token after a stale-session 401", async () => {
     const nowSeconds = Math.floor(Date.now() / 1000);
-    mocks.getSession.mockResolvedValue({
+    mocks.getSession.mockImplementation(async (options?: { forceFetch?: boolean }) => ({
       data: {
-        session: {
-          access_token: "stale-token",
-          expires_at: nowSeconds + 3600,
-        },
+        session: options?.forceFetch
+          ? {
+            access_token: "refreshed-token",
+            expires_at: nowSeconds + 3600,
+          }
+          : {
+            access_token: "stale-token",
+            expires_at: nowSeconds + 3600,
+          },
       },
       error: null,
-    });
-    mocks.refreshSession.mockResolvedValue({
-      data: {
-        session: {
-          access_token: "refreshed-token",
-          expires_at: nowSeconds + 3600,
-        },
-      },
-      error: null,
-    });
+    }));
 
     const fetchMock = vi
       .fn()
@@ -109,7 +105,7 @@ describe("github-client", () => {
     );
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(mocks.refreshSession).toHaveBeenCalledTimes(1);
+    expect(mocks.getSession).toHaveBeenCalledWith({ forceFetch: true });
 
     const firstHeaders = (fetchMock.mock.calls[0]?.[1] as RequestInit).headers as Record<string, string>;
     const secondHeaders = (fetchMock.mock.calls[1]?.[1] as RequestInit).headers as Record<string, string>;
@@ -122,19 +118,17 @@ describe("github-client", () => {
 
   it("does not retry GitHub requests with the same stale session token when refresh cannot recover", async () => {
     const nowSeconds = Math.floor(Date.now() / 1000);
-    mocks.getSession.mockResolvedValue({
+    mocks.getSession.mockImplementation(async (options?: { forceFetch?: boolean }) => ({
       data: {
-        session: {
-          access_token: "stale-token",
-          expires_at: nowSeconds + 3600,
-        },
+        session: options?.forceFetch
+          ? null
+          : {
+            access_token: "stale-token",
+            expires_at: nowSeconds + 3600,
+          },
       },
       error: null,
-    });
-    mocks.refreshSession.mockResolvedValue({
-      data: { session: null },
-      error: { message: "Refresh token expired" },
-    });
+    }));
 
     const fetchMock = vi
       .fn()
@@ -154,7 +148,7 @@ describe("github-client", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(mocks.refreshSession).toHaveBeenCalledTimes(1);
+    expect(mocks.getSession).toHaveBeenCalledWith({ forceFetch: true });
 
     const firstHeaders = (fetchMock.mock.calls[0]?.[1] as RequestInit).headers as Record<string, string>;
     expect(firstHeaders.Authorization).toBe("Bearer stale-token");
