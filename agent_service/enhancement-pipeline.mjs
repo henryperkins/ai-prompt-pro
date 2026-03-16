@@ -137,6 +137,35 @@ function buildStringListSchema({ maxItems, maxLength = 500 } = {}) {
   };
 }
 
+const ENHANCEMENT_PLAN_OBJECT_SCHEMA = {
+  type: "object",
+  properties: {
+    primary_intent: buildStringSchema({ minLength: 1, maxLength: 120 }),
+    source_task_type: buildStringSchema({ maxLength: 400 }),
+    target_deliverable: buildStringSchema({ maxLength: 500 }),
+    audience: buildStringSchema({ maxLength: 400 }),
+    required_inputs: buildStringListSchema({ maxItems: 10, maxLength: 500 }),
+    constraints: buildStringListSchema({ maxItems: 10, maxLength: 500 }),
+    success_criteria: buildStringListSchema({ maxItems: 10, maxLength: 500 }),
+    assumptions: buildStringListSchema({ maxItems: 10, maxLength: 500 }),
+    open_questions: buildStringListSchema({ maxItems: 10, maxLength: 500 }),
+    verification_needs: buildStringListSchema({ maxItems: 10, maxLength: 500 }),
+  },
+  required: [
+    "primary_intent",
+    "source_task_type",
+    "target_deliverable",
+    "audience",
+    "required_inputs",
+    "constraints",
+    "success_criteria",
+    "assumptions",
+    "open_questions",
+    "verification_needs",
+  ],
+  additionalProperties: false,
+};
+
 export const ENHANCEMENT_OUTPUT_SCHEMA = {
   type: "object",
   properties: {
@@ -188,32 +217,10 @@ export const ENHANCEMENT_OUTPUT_SCHEMA = {
     assumptions_made: buildStringListSchema({ maxItems: 10, maxLength: 500 }),
     open_questions: buildStringListSchema({ maxItems: 10, maxLength: 500 }),
     enhancement_plan: {
-      type: "object",
-      properties: {
-        primary_intent: buildStringSchema({ minLength: 1, maxLength: 120 }),
-        source_task_type: buildStringSchema({ maxLength: 400 }),
-        target_deliverable: buildStringSchema({ maxLength: 500 }),
-        audience: buildStringSchema({ maxLength: 400 }),
-        required_inputs: buildStringListSchema({ maxItems: 10, maxLength: 500 }),
-        constraints: buildStringListSchema({ maxItems: 10, maxLength: 500 }),
-        success_criteria: buildStringListSchema({ maxItems: 10, maxLength: 500 }),
-        assumptions: buildStringListSchema({ maxItems: 10, maxLength: 500 }),
-        open_questions: buildStringListSchema({ maxItems: 10, maxLength: 500 }),
-        verification_needs: buildStringListSchema({ maxItems: 10, maxLength: 500 }),
-      },
-      required: [
-        "primary_intent",
-        "source_task_type",
-        "target_deliverable",
-        "audience",
-        "required_inputs",
-        "constraints",
-        "success_criteria",
-        "assumptions",
-        "open_questions",
-        "verification_needs",
+      anyOf: [
+        ENHANCEMENT_PLAN_OBJECT_SCHEMA,
+        { type: "null" },
       ],
-      additionalProperties: false,
     },
   },
   required: [
@@ -225,6 +232,7 @@ export const ENHANCEMENT_OUTPUT_SCHEMA = {
     "alternative_versions",
     "assumptions_made",
     "open_questions",
+    "enhancement_plan",
   ],
   additionalProperties: false,
 };
@@ -881,7 +889,7 @@ export function buildEnhancementMetaPrompt(userInput, context) {
     "## ENHANCEMENT PROCESS",
     "1. First, build an `enhancement_plan` by analyzing the user input for intent, task type, deliverable, audience, inputs, constraints, criteria, assumptions, questions, and verification needs.",
     "2. Then, generate the `enhanced_prompt` from that plan using the 6-part framework below.",
-    "3. Include `enhancement_plan` in the JSON output whenever it is well-supported by the input. Omit it instead of inventing unsupported details.",
+    "3. Always include `enhancement_plan` in the JSON output. Use null instead of inventing unsupported details when the input is too sparse for a confident plan.",
     "",
     "## ENHANCEMENT RULES",
     "1. Replace vague language with specific, actionable wording.",
@@ -899,7 +907,7 @@ export function buildEnhancementMetaPrompt(userInput, context) {
     edgeCaseNotes,
     "",
     "## OUTPUT FORMAT",
-    "Return ONLY valid JSON (no prose, no markdown fences). Use this schema; `enhancement_plan` is optional but preferred when confidently inferable:",
+    "Return ONLY valid JSON (no prose, no markdown fences). Use this schema. Always include `enhancement_plan`; set it to null instead of omitting it when the input does not support a confident plan:",
     "{",
     "  \"enhanced_prompt\": \"string\",",
     "  \"parts_breakdown\": {",
@@ -1109,7 +1117,9 @@ export function validateEnhancementOutputContract(value) {
     requireString("more_detailed", parsed.alternative_versions, { allowEmpty: true });
   }
 
-  if ("enhancement_plan" in parsed) {
+  if (!("enhancement_plan" in parsed)) {
+    missingFields.push("enhancement_plan");
+  } else if (parsed.enhancement_plan !== null) {
     if (!isPlainObject(parsed.enhancement_plan)) {
       invalidFields.push("enhancement_plan");
     } else {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ENHANCEMENT_OUTPUT_SCHEMA,
   buildEnhancementMetaPrompt,
   detectEnhancementContext,
   postProcessEnhancementResponse,
@@ -7,6 +8,17 @@ import {
 } from "../../agent_service/enhancement-pipeline.mjs";
 
 describe("enhancement plan schema", () => {
+  it("structured output schema requires enhancement_plan and allows null", () => {
+    expect(ENHANCEMENT_OUTPUT_SCHEMA.required).toContain("enhancement_plan");
+    const enhancementPlanSchema = ENHANCEMENT_OUTPUT_SCHEMA.properties.enhancement_plan;
+    expect(enhancementPlanSchema).toEqual(expect.objectContaining({
+      anyOf: expect.arrayContaining([
+        expect.objectContaining({ type: "object" }),
+        expect.objectContaining({ type: "null" }),
+      ]),
+    }));
+  });
+
   it("meta-prompt includes enhancement_plan in the JSON schema", () => {
     const ctx = detectEnhancementContext("Write a report analyzing sales data", {
       builderMode: "guided",
@@ -23,6 +35,7 @@ describe("enhancement plan schema", () => {
     const prompt = buildEnhancementMetaPrompt("Analyze data", ctx);
     expect(prompt).toContain("ENHANCEMENT PROCESS");
     expect(prompt).toContain("build an `enhancement_plan`");
+    expect(prompt).toContain("set it to null instead of omitting it");
   });
 
   it("normalizes enhancement_plan when model returns it", () => {
@@ -89,7 +102,31 @@ describe("enhancement plan schema", () => {
     expect(result.enhancement_plan).toBeNull();
   });
 
-  it("accepts structured output that omits enhancement_plan", () => {
+  it("accepts structured output when enhancement_plan is null", () => {
+    const contract = validateEnhancementOutputContract({
+      enhanced_prompt: "Write a concise note...",
+      parts_breakdown: {
+        role: "Writer",
+        context: "Internal update",
+        task: "Write a concise note",
+        output_format: "Short memo",
+        examples: "",
+        guardrails: "Stay factual",
+      },
+      enhancements_made: ["Clarified the task"],
+      quality_score: { clarity: 7, specificity: 6, completeness: 6, actionability: 7, overall: 6.5 },
+      suggestions: [],
+      alternative_versions: { shorter: "", more_detailed: "" },
+      assumptions_made: [],
+      open_questions: [],
+      enhancement_plan: null,
+    });
+
+    expect(contract.ok).toBe(true);
+    expect(contract.invalidFields).not.toContain("enhancement_plan");
+  });
+
+  it("marks enhancement_plan as missing when omitted from structured output", () => {
     const contract = validateEnhancementOutputContract({
       enhanced_prompt: "Write a concise note...",
       parts_breakdown: {
@@ -108,8 +145,8 @@ describe("enhancement plan schema", () => {
       open_questions: [],
     });
 
-    expect(contract.ok).toBe(true);
-    expect(contract.missingFields).not.toContain("enhancement_plan");
+    expect(contract.ok).toBe(false);
+    expect(contract.missingFields).toContain("enhancement_plan");
   });
 
   it("fallback mode still works without enhancement_plan", () => {
