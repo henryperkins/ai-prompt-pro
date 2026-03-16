@@ -351,6 +351,33 @@ export async function createServiceRuntime({ env = process.env, deps = {} } = {}
       webhookSecret: normalizeEnvValue("GITHUB_WEBHOOK_SECRET", env),
     };
   })();
+
+  // --- Diagnostic: port mismatch detection ---
+  if (githubConfig.enabled) {
+    const redirectUrl = githubConfig.postInstallRedirectUrl || "";
+    const originsRaw = normalizeEnvValue("ALLOWED_ORIGINS", env) || "";
+    const vitePort = normalizeEnvValue("PORT", env) || "8001";
+    if (redirectUrl.includes(":5173")) {
+      logEventImpl("warn", "github_port_mismatch", {
+        error_code: "github_config_port_mismatch",
+        message:
+          "GITHUB_POST_INSTALL_REDIRECT_URL references port 5173, but Vite dev server runs on 8080. "
+          + "The post-install redirect will land on a dead page.",
+        redirect_url: redirectUrl,
+      });
+    }
+    if (originsRaw.includes(":5173") && !originsRaw.includes(":8080")) {
+      logEventImpl("warn", "github_cors_port_mismatch", {
+        error_code: "github_cors_port_mismatch",
+        message:
+          "ALLOWED_ORIGINS includes port 5173 but not 8080. "
+          + "The frontend on port 8080 will be CORS-blocked for all GitHub API calls.",
+        allowed_origins: originsRaw,
+      });
+    }
+  }
+  // --- End diagnostic ---
+
   const githubUserAuthPolicy = Object.freeze({
     allowPublicKey: false,
     allowServiceToken: false,
