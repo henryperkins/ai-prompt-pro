@@ -27,6 +27,7 @@ export interface ServiceAuthAccessTokenOptions {
   forceRefresh?: boolean;
   allowSessionToken?: boolean;
   allowPublicKeyFallback?: boolean;
+  allowCachedSessionFallbackOnForceRefresh?: boolean;
 }
 
 export interface ServiceAuthOptions {
@@ -203,12 +204,25 @@ export function createServiceAuth({
     forceRefresh = false,
     allowSessionToken = true,
     allowPublicKeyFallback = true,
+    allowCachedSessionFallbackOnForceRefresh = false,
   }: ServiceAuthAccessTokenOptions = {}): Promise<string> {
     assertConfigured();
 
     if (forceRefresh) {
       const refreshedToken = await refreshSessionAccessToken({ allowPublicKeyFallback });
       if (refreshedToken.token) return refreshedToken.token;
+      if (allowCachedSessionFallbackOnForceRefresh && allowSessionToken) {
+        const cachedSessionResult = await readSession();
+        if (cachedSessionResult.error) {
+          throw createSessionReadError(cachedSessionResult.error);
+        }
+        if (
+          cachedSessionResult.session?.access_token
+          && !sessionExpiresSoon(cachedSessionResult.session.expires_at)
+        ) {
+          return cachedSessionResult.session.access_token;
+        }
+      }
       if (allowPublicKeyFallback && publishableKey) return publishableKey;
       if (refreshedToken.error) {
         throw createSessionReadError(refreshedToken.error);

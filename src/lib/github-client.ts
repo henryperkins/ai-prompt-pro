@@ -307,6 +307,7 @@ async function getRequestHeaders(
   try {
     return await serviceAuth.getHeaders({
       ...options,
+      allowCachedSessionFallbackOnForceRefresh: true,
       allowPublicKeyFallback: false,
     });
   } catch (error) {

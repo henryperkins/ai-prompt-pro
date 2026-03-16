@@ -116,6 +116,44 @@ describe("service-auth", () => {
     expect(authClient.getSession).toHaveBeenCalledWith({ forceFetch: true });
   });
 
+  it("can reuse a cached non-expiring session token after an empty forced revalidation when explicitly allowed", async () => {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const authClient = createAuthClient({
+      getSession: async (options?: { forceFetch?: boolean }) => ({
+        data: {
+          session: options?.forceFetch
+            ? null
+            : {
+              access_token: "cached-token",
+              expires_at: nowSeconds + 3600,
+            },
+        },
+        error: null,
+      }),
+    });
+
+    const serviceAuth = createServiceAuth({
+      serviceUrl: "https://agent.test",
+      publishableKey: "sb_publishable_test",
+      authClient,
+    });
+
+    await expect(
+      serviceAuth.getHeaders({
+        forceRefresh: true,
+        allowPublicKeyFallback: false,
+        allowCachedSessionFallbackOnForceRefresh: true,
+      }),
+    ).resolves.toEqual({
+      "Content-Type": "application/json",
+      Authorization: "Bearer cached-token",
+    });
+
+    expect(authClient.getSession).toHaveBeenCalledTimes(2);
+    expect(authClient.getSession).toHaveBeenNthCalledWith(1, { forceFetch: true });
+    expect(authClient.getSession).toHaveBeenNthCalledWith(2, undefined);
+  });
+
   it("opens a soft publishable-key fallback window without signing the user out", async () => {
     const authClient = createAuthClient({
       getSession: async () => ({
