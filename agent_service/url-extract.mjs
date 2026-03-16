@@ -408,6 +408,25 @@ export function parseInputUrl(input) {
 }
 
 /**
+ * Remove sensitive URL components before logging.
+ *
+ * @param {URL | string} input
+ * @returns {string | undefined}
+ */
+export function sanitizeUrlForLogs(input) {
+  try {
+    const parsed = input instanceof URL ? new URL(input.href) : new URL(String(input));
+    parsed.username = "";
+    parsed.password = "";
+    parsed.search = "";
+    parsed.hash = "";
+    return parsed.toString();
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Check whether an error is a timeout/abort error.
  *
  * @param {unknown} error

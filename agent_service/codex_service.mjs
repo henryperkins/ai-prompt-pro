@@ -39,6 +39,7 @@ import {
   INFER_BUILDER_FIELDS_SCHEMA,
   INFER_SYSTEM_PROMPT,
 } from "./builder-field-inference.mjs";
+import { buildEnhanceSuccessfulTerminalEvents } from "./enhance-stream-contract.mjs";
 import {
   buildEnhancementMetaPrompt,
   detectEnhancementContext,
@@ -99,6 +100,7 @@ import {
   normalizeExtractableText,
   clampExtractText,
   parseInputUrl,
+  sanitizeUrlForLogs,
   isTimeoutError,
   summarizeExtractedText,
 } from "./url-extract.mjs";
@@ -128,11 +130,20 @@ import {
   createWebSocketRequestView,
   isWebSocketOpen,
   closeWebSocket,
+  createWebSocketHeartbeatState,
   writeWebSocketError,
   classifyWebSocketAuthErrorCode,
   classifyHttpAuthErrorCode,
   rejectWebSocketUpgrade,
 } from "./ws-helpers.mjs";
+import {
+  normalizeInferCurrentFields,
+  normalizeInferLockMetadata,
+  normalizeInferRequestContext,
+  normalizeInferSourceSummaries,
+  buildInferInputBudget,
+  buildInferInputBudgetDetail,
+} from "./infer-request.mjs";
 import { createGitHubAppClient } from "./github-app.mjs";
 import { isGitHubError } from "./github-errors.mjs";
 import { createGitHubManifestService } from "./github-manifest.mjs";
@@ -328,7 +339,14 @@ function assertEnhancementInputWithinLimit({
   );
 }
 
-async function inferBuilderFieldUpdates(prompt, currentFields, lockMetadata, requestContext = {}) {
+async function inferBuilderFieldUpdates({
+  prompt,
+  currentFields,
+  lockMetadata,
+  inferRequestContext = {},
+  sourceSummaries = [],
+  requestContext,
+}) {
   if (!runtime.inferModel) {
     return createEmptyBuilderFieldInferenceResult();
   }
@@ -339,15 +357,34 @@ async function inferBuilderFieldUpdates(prompt, currentFields, lockMetadata, req
 
   try {
     const codex = runtime.getCodexClient();
+    const normalizedInferRequestContext = sourceSummaries.length > 0
+      ? {
+        ...inferRequestContext,
+        sourceSummaries,
+      }
+      : inferRequestContext;
     const inferInput = [
       INFER_SYSTEM_PROMPT,
       buildInferUserMessage(
         prompt,
         currentFields,
         lockMetadata,
-        requestContext,
+        normalizedInferRequestContext,
       ),
     ].join("\n\n");
+    const inferBudget = buildInferInputBudget({
+      prompt,
+      currentFields,
+      lockMetadata,
+      inferRequestContext,
+      sourceSummaries,
+      inferInput,
+    });
+    if (inferBudget.composedInferInputChars > runtime.maxInferencePromptChars) {
+      throw createPayloadTooLargeError(
+        buildInferInputBudgetDetail(runtime.maxInferencePromptChars, inferBudget),
+      );
+    }
     const inferThreadOptions = {
       model: runtime.inferModel,
       modelReasoningEffort: "minimal",
@@ -370,8 +407,22 @@ async function inferBuilderFieldUpdates(prompt, currentFields, lockMetadata, req
       lockMetadata,
     });
   } catch (error) {
-    logEvent("warn", "infer_model_exception", { error_message: toErrorMessage(error) });
-    return createEmptyBuilderFieldInferenceResult();
+    if (error?.code === "payload_too_large" || error?.status === 413) {
+      throw error;
+    }
+    const failure = classifyStreamFailure(error, {
+      defaultCode: "service_unavailable",
+      defaultStatus: 503,
+    });
+    logEvent("warn", "infer_model_exception", cleanLogFields({
+      request_id: requestContext?.requestId,
+      endpoint: requestContext?.endpoint,
+      error_code: failure.code,
+      error_message: failure.message,
+      prompt_chars: typeof prompt === "string" ? prompt.length : undefined,
+      source_summary_count: sourceSummaries.length > 0 ? sourceSummaries.length : undefined,
+    }));
+    throw createServiceError(failure.message, failure.code, failure.status);
   }
 }
 
@@ -405,64 +456,6 @@ async function callSummarizeExtractedText(plainText) {
     isAzure: runtime.isAzureProvider,
     timeoutMs: runtime.fetchTimeoutMs,
   });
-}
-
-function parseCurrentFields(value) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-  return value;
-}
-
-function parseInferRequestContext(value) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-
-  const parsed = {};
-
-  if (typeof value.hasAttachedSources === "boolean") {
-    parsed.hasAttachedSources = value.hasAttachedSources;
-  }
-  if (typeof value.attachedSourceCount === "number" && Number.isFinite(value.attachedSourceCount)) {
-    parsed.attachedSourceCount = value.attachedSourceCount;
-  }
-  if (typeof value.hasPresetOrRemix === "boolean") {
-    parsed.hasPresetOrRemix = value.hasPresetOrRemix;
-  }
-  if (typeof value.hasSessionContext === "boolean") {
-    parsed.hasSessionContext = value.hasSessionContext;
-  }
-  if (Array.isArray(value.selectedOutputFormats)) {
-    parsed.selectedOutputFormats = value.selectedOutputFormats
-      .filter((entry) => typeof entry === "string" && entry.trim())
-      .map((entry) => entry.trim());
-  }
-  if (typeof value.hasPastedSourceMaterial === "boolean") {
-    parsed.hasPastedSourceMaterial = value.hasPastedSourceMaterial;
-  }
-
-  return parsed;
-}
-
-const MAX_INFER_SOURCE_SUMMARIES = 4;
-const MAX_INFER_SOURCE_SUMMARY_CHARS = 800;
-const MAX_INFER_SOURCE_SUMMARY_TOTAL_CHARS = 2400;
-
-function parseInferSourceSummaries(value) {
-  if (!Array.isArray(value)) return [];
-
-  let remainingChars = MAX_INFER_SOURCE_SUMMARY_TOTAL_CHARS;
-  const summaries = [];
-
-  for (const entry of value.slice(0, MAX_INFER_SOURCE_SUMMARIES)) {
-    if (!hasText(entry) || remainingChars <= 0) continue;
-    const summary = truncateString(
-      entry,
-      Math.min(MAX_INFER_SOURCE_SUMMARY_CHARS, remainingChars),
-    );
-    if (!hasText(summary)) continue;
-    summaries.push(summary);
-    remainingChars = Math.max(0, remainingChars - summary.length);
-  }
-
-  return summaries;
 }
 
 // Retry telemetry config used by both streamed and buffered calls.
@@ -778,6 +771,8 @@ async function runEnhanceTurnStream(requestData, options) {
   let webSearchCount = 0;
   let lastWebSearchQuery = "";
   const seenWebSearchItemIds = new Set();
+  let sawUpstreamTurnCompleted = false;
+  let upstreamTurnUsage;
 
   if (Array.isArray(threadOptionWarnings) && threadOptionWarnings.length > 0) {
     logEvent("warn", "thread_options_sanitized", cleanLogFields({
@@ -910,19 +905,9 @@ async function runEnhanceTurnStream(requestData, options) {
       }
 
       if (event.type === "turn.completed") {
+        sawUpstreamTurnCompleted = true;
+        upstreamTurnUsage = event.usage;
         captureUsageMetrics(requestContext, event.usage);
-        emit({
-          event: "turn.completed",
-          type: "response.completed",
-          turn_id: turnId,
-          thread_id: activeThreadId,
-          usage: event.usage,
-          response: {
-            id: turnId,
-            status: "completed",
-          },
-          session: buildSessionPayload("completed"),
-        });
         continue;
       }
 
@@ -1114,6 +1099,12 @@ async function runEnhanceTurnStream(requestData, options) {
     }
 
     if (!signal.aborted && !isClosed() && !turnFailed && !turnError) {
+      if (!sawUpstreamTurnCompleted) {
+        throw createBadResponseError(
+          "Enhancement stream ended without a completion event. Please retry.",
+        );
+      }
+
       if (threadOptions.webSearchEnabled === true) {
         emitEnhancementWorkflowStep({
           emit,
@@ -1222,6 +1213,12 @@ async function runEnhanceTurnStream(requestData, options) {
 
       const finalEnhancedPrompt = postProcessed.enhanced_prompt.trim();
       const finalContextSummary = postProcessed.session_context_summary || "";
+      if (!finalEnhancedPrompt) {
+        throw createBadResponseError(
+          "Enhancement returned an empty prompt. Please retry.",
+        );
+      }
+
       emittedGenerateWorkflowTerminal = true;
       emitEnhancementWorkflowStep({
         emit,
@@ -1233,37 +1230,24 @@ async function runEnhanceTurnStream(requestData, options) {
         detail: buildGeneratePromptWorkflowDetail(postProcessed),
       });
 
-      if (!finalEnhancedPrompt) {
-        throw createBadResponseError(
-          "Enhancement returned an empty prompt. Please retry.",
-        );
-      }
-
-      if (finalEnhancedPrompt && !emittedAgentOutput) {
-        const syntheticItemId = `item_enhanced_${randomUUID().replaceAll("-", "")}`;
+      const completedSession = buildSessionPayload("completed", {
+        contextSummary: finalContextSummary,
+        latestEnhancedPrompt: finalEnhancedPrompt,
+      });
+      for (const payload of buildEnhanceSuccessfulTerminalEvents({
+        turnId,
+        threadId: activeThreadId,
+        usage: upstreamTurnUsage,
+        payload: postProcessed,
+        requestWarnings: threadOptionWarnings,
+        session: completedSession,
+        emittedAgentOutput,
+        finalEnhancedPrompt,
+      })) {
         emit({
-          event: "item.completed",
-          type: "item.completed",
-          turn_id: turnId,
-          thread_id: activeThreadId,
-          item_id: syntheticItemId,
-          item_type: "agent_message",
-          item: { id: syntheticItemId, type: "agent_message", text: finalEnhancedPrompt },
+          ...payload,
         });
       }
-
-      emit({
-        event: "enhance/metadata",
-        type: "enhance.metadata",
-        turn_id: turnId,
-        thread_id: activeThreadId,
-        payload: postProcessed,
-        request_warnings: threadOptionWarnings.length > 0 ? threadOptionWarnings : undefined,
-        session: buildSessionPayload("completed", {
-          contextSummary: finalContextSummary,
-          latestEnhancedPrompt: finalEnhancedPrompt,
-        }),
-      });
     }
   } catch (error) {
     activeThreadId = resolveActiveCodexThreadId(activeThreadId, thread);
@@ -1400,9 +1384,9 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
   try {
     const controller = runtime.trackAbortController(new AbortController());
     let receivedStartMessage = false;
-    let awaitingPong = false;
     let idleTimeoutHandle = null;
     let maxLifetimeHandle = null;
+    const heartbeatState = createWebSocketHeartbeatState();
 
     const cleanupTimers = () => {
       if (idleTimeoutHandle) {
@@ -1441,7 +1425,7 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
     };
 
     const markSocketActivity = () => {
-      awaitingPong = false;
+      heartbeatState.onSocketActivity();
       scheduleIdleTimeout();
     };
 
@@ -1547,7 +1531,7 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
 
     const heartbeatHandle = globalThis.setInterval(() => {
       if (!isWebSocketOpen(ws)) return;
-      if (awaitingPong) {
+      if (heartbeatState.isAwaitingPong()) {
         setRequestError(
           requestContext,
           "request_timeout",
@@ -1566,9 +1550,9 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
         return;
       }
 
-      awaitingPong = true;
       try {
         ws.ping();
+        heartbeatState.markPingSent();
       } catch (error) {
         setRequestError(requestContext, "service_error", toErrorMessage(error), 500);
         if (!controller.signal.aborted) {
@@ -1580,7 +1564,10 @@ async function handleEnhanceWebSocketConnection(ws, request, requestContext) {
     heartbeatHandle.unref?.();
 
     scheduleIdleTimeout();
-    ws.on("pong", markSocketActivity);
+    ws.on("pong", () => {
+      heartbeatState.onPong();
+      markSocketActivity();
+    });
 
     ws.on("close", () => {
       globalThis.clearTimeout(firstMessageTimeoutHandle);
@@ -2102,7 +2089,8 @@ async function handleExtractUrl(req, res, body, corsHeaders, requestContext) {
   if (cachedEntry) {
     logEvent("info", "extract_url_cache_hit", {
       request_id: requestContext?.requestId,
-      url: parsedUrl.href,
+      url: sanitizeUrlForLogs(parsedUrl) || parsedUrl.origin,
+      url_sha256: hashTextForLogs(parsedUrl.href),
     });
     json(res, 200, { title: cachedEntry.title, content: cachedEntry.content }, corsHeaders);
     return;
@@ -2268,40 +2256,61 @@ async function handleInferBuilderFields(req, res, body, corsHeaders, requestCont
   const promptRaw = body?.prompt;
   const prompt = typeof promptRaw === "string" ? promptRaw.trim() : "";
   if (!prompt) {
-    json(res, 400, { error: "Prompt is required." }, corsHeaders);
+    setRequestError(requestContext, "bad_request", "Prompt is required.", 400);
+    json(res, 400, { error: "Prompt is required.", code: "bad_request" }, corsHeaders);
     return;
   }
   if (prompt.length > runtime.maxInferencePromptChars) {
+    setRequestError(
+      requestContext,
+      "payload_too_large",
+      `Prompt is too large. Maximum ${runtime.maxInferencePromptChars} characters.`,
+      413,
+    );
     json(
       res,
       413,
-      { error: `Prompt is too large. Maximum ${runtime.maxInferencePromptChars} characters.` },
+      {
+        error: `Prompt is too large. Maximum ${runtime.maxInferencePromptChars} characters.`,
+        code: "payload_too_large",
+      },
       corsHeaders,
     );
     return;
   }
 
-  const currentFields = parseCurrentFields(body?.current_fields ?? body?.currentFields);
-  const lockMetadata = parseCurrentFields(body?.lock_metadata ?? body?.lockMetadata);
-  const inferRequestContext = parseInferRequestContext(
+  const currentFields = normalizeInferCurrentFields(
+    body?.current_fields ?? body?.currentFields,
+  );
+  const lockMetadata = normalizeInferLockMetadata(
+    body?.lock_metadata ?? body?.lockMetadata,
+  );
+  const inferRequestContext = normalizeInferRequestContext(
     body?.request_context ?? body?.requestContext,
   );
-  const sourceSummaries = parseInferSourceSummaries(
+  const sourceSummaries = normalizeInferSourceSummaries(
     body?.source_summaries ?? body?.sourceSummaries,
   );
 
-  const inference = await inferBuilderFieldUpdates(
-    prompt,
-    currentFields,
-    lockMetadata,
-    sourceSummaries.length > 0
-      ? {
-          ...inferRequestContext,
-          sourceSummaries,
-        }
-      : inferRequestContext,
-  );
-  json(res, 200, inference, corsHeaders);
+  try {
+    const inference = await inferBuilderFieldUpdates({
+      prompt,
+      currentFields,
+      lockMetadata,
+      inferRequestContext,
+      sourceSummaries,
+      requestContext,
+    });
+    json(res, 200, inference, corsHeaders);
+  } catch (error) {
+    const status = Number.isFinite(error?.status) ? error.status : 500;
+    const code = typeof error?.code === "string"
+      ? error.code
+      : inferErrorCodeFromStatus(status) || "service_error";
+    const message = toErrorMessage(error);
+    setRequestError(requestContext, code, message, status);
+    json(res, status, { error: message, code }, corsHeaders);
+  }
 }
 
 async function requestHandler(req, res) {

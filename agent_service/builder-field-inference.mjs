@@ -175,7 +175,7 @@ function normalizeConfidence(value) {
   return Math.max(0, Math.min(1, value));
 }
 
-function buildRequestContextSummary(requestContext) {
+export function buildRequestContextSummary(requestContext) {
   if (!requestContext || typeof requestContext !== "object") return "";
 
   const lines = [];

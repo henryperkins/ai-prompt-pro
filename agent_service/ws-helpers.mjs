@@ -226,6 +226,43 @@ export function classifyHttpAuthErrorCode(status, message) {
 }
 
 // ---------------------------------------------------------------------------
+// Heartbeat state
+// ---------------------------------------------------------------------------
+
+/**
+ * Track websocket heartbeat state independently from general socket activity.
+ *
+ * @returns {{
+ *   onPong: () => void;
+ *   onSocketActivity: () => void;
+ *   markPingSent: () => void;
+ *   isAwaitingPong: () => boolean;
+ * }}
+ */
+export function createWebSocketHeartbeatState() {
+  let awaitingPong = false;
+
+  return {
+    onPong() {
+      awaitingPong = false;
+    },
+
+    onSocketActivity() {
+      // Socket activity should only reset idle timers. A missing pong must
+      // remain visible so the heartbeat can detect dead peers mid-stream.
+    },
+
+    markPingSent() {
+      awaitingPong = true;
+    },
+
+    isAwaitingPong() {
+      return awaitingPong;
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Per-IP connection slot tracking
 // ---------------------------------------------------------------------------
 

@@ -112,6 +112,7 @@ If your prompt already contains a real `"<sources>...</sources>"` block or the a
 
 - Legacy auth subprotocols (`auth.bearer.*`, `auth.apikey.*`, `auth.service.*`) are still accepted for compatibility, but message auth is recommended to reduce token exposure in edge logs.
 - Server messages mirror the SSE event payloads and end with `{ "event": "stream.done", "type": "stream.done" }`.
+- Successful enhancements emit `enhance/metadata` before the final `turn.completed` / `response.completed` event. Treat `response.completed` as "backend validation finished", not merely "the upstream model stopped streaming".
 
 ### `POST /extract-url` body
 
@@ -151,6 +152,11 @@ If your prompt already contains a real `"<sources>...</sources>"` block or the a
   }
 }
 ```
+
+Notes:
+- Only the documented `current_fields` and `lock_metadata` keys are used.
+- `request_context.selectedOutputFormats` is capped to the first 8 entries.
+- If the composed inference prompt exceeds the runtime budget, the service returns `413 payload_too_large` instead of falling back to an empty `200` response.
 
 ## Environment variables
 
@@ -275,6 +281,7 @@ Set `REQUIRE_PROVIDER_CONFIG=true` to disable step 3 and fail fast instead of fa
 
 - **Per-process rate limiting**: Rate-limit counters are stored in an in-memory `Map` and are not shared across multiple instances. Restarting the process resets all counters.
 - **Per-process extract-URL cache**: The `/extract-url` response cache is also in-memory and per-process, so cache hits only benefit the same instance.
+- **Sanitized extract-URL logs**: Cache-hit logs intentionally remove URL credentials, query strings, and fragments before writing structured logs.
 
 ## Features
 

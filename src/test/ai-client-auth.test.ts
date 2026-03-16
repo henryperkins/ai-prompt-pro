@@ -590,6 +590,73 @@ describe("ai-client auth recovery", () => {
     );
   });
 
+  it("treats a late turn/error as terminal even after response.completed was emitted", async () => {
+    const onSession = vi.fn();
+    const body = [
+      `data: ${JSON.stringify({
+        event: "turn.completed",
+        type: "response.completed",
+        thread_id: "thread_completed_then_error",
+        turn_id: "turn_completed_then_error",
+        session: {
+          thread_id: "thread_completed_then_error",
+          turn_id: "turn_completed_then_error",
+          status: "completed",
+        },
+      })}`,
+      "",
+      `data: ${JSON.stringify({
+        event: "turn/error",
+        type: "turn/error",
+        thread_id: "thread_completed_then_error",
+        turn_id: "turn_completed_then_error",
+        error: {
+          message: "Enhancement returned invalid structured output. Please retry.",
+          code: "bad_response",
+          status: 422,
+        },
+        session: {
+          thread_id: "thread_completed_then_error",
+          turn_id: "turn_completed_then_error",
+          status: "failed",
+        },
+      })}`,
+      "",
+      "data: [DONE]",
+      "",
+    ].join("\n");
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(streamingRaw(body));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { streamEnhance } = await import("@/lib/ai-client");
+
+    const onDone = vi.fn();
+    const onError = vi.fn();
+
+    await streamEnhance({
+      prompt: "Improve this",
+      onDelta: vi.fn(),
+      onDone,
+      onError,
+      onSession,
+    });
+
+    expect(onDone).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "bad_response",
+        status: 422,
+      }),
+    );
+    expect(onSession.mock.calls.at(-1)?.[0]).toMatchObject({
+      threadId: "thread_completed_then_error",
+      turnId: "turn_completed_then_error",
+      status: "failed",
+      lastErrorCode: "bad_response",
+    });
+  });
+
   it("propagates HTTP Retry-After metadata on enhance rate limits", async () => {
     const nowSeconds = Math.floor(Date.now() / 1000);
 

@@ -125,4 +125,28 @@ describe("inferBuilderFields request payload", () => {
     const body = JSON.parse(String(requestInit.body));
     expect(body.request_context).toBeUndefined();
   });
+
+  it("surfaces payload_too_large when infer input exceeds service limits", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({
+        error: "Builder-field inference input is too large.",
+        code: "payload_too_large",
+      }), {
+        status: 413,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { inferBuilderFields } = await import("@/lib/ai-client");
+
+    await expect(
+      inferBuilderFields({
+        prompt: "Analyze the attached brief",
+      }),
+    ).rejects.toMatchObject({
+      code: "payload_too_large",
+      status: 413,
+    });
+  });
 });
