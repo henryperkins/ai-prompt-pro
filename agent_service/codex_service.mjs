@@ -2407,7 +2407,7 @@ async function requestHandler(req, res) {
     const allowedMethods = githubRoutesForPath.length > 0
       ? collectGitHubRouteMethods(githubRoutes, url.pathname)
       : ["GET", "POST", "DELETE"];
-    const cors = resolveCors(req, runtime.corsConfig, { allowMethods });
+    const cors = resolveCors(req, runtime.corsConfig, { allowMethods: allowedMethods });
 
     if (req.method === "OPTIONS") {
       if (!cors.ok) {
