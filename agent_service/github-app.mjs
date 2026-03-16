@@ -9,6 +9,7 @@ import { SignJWT } from "jose";
 import { createGitHubError } from "./github-errors.mjs";
 
 const GITHUB_API_VERSION = "2022-11-28";
+const CURRENT_GITHUB_API_VERSION = "2026-03-10";
 const DEFAULT_API_BASE_URL = "https://api.github.com";
 const STATE_TTL_SECONDS = 10 * 60;
 const INSTALLATION_TOKEN_SKEW_MS = 60_000;
@@ -66,6 +67,21 @@ export function createGitHubAppClient(config = {}, deps = {}) {
   const stateSecret = normalizeString(config.stateSecret);
   const webhookSecret = normalizeString(config.webhookSecret);
   const privateKeyPem = normalizeMultilineSecret(config.appPrivateKey);
+
+  // --- Diagnostic: API version skew detection ---
+  if (config.enabled && GITHUB_API_VERSION !== CURRENT_GITHUB_API_VERSION) {
+    console.log(JSON.stringify({
+      timestamp: new Date().toISOString(),
+      level: "warn",
+      event: "github_api_version_skew",
+      message:
+        `X-GitHub-Api-Version header is "${GITHUB_API_VERSION}" but the current GitHub API version is "${CURRENT_GITHUB_API_VERSION}". `
+        + "Using an outdated API version may cause response schema differences, deprecation warnings, or missing fields.",
+      configured_version: GITHUB_API_VERSION,
+      current_version: CURRENT_GITHUB_API_VERSION,
+    }));
+  }
+  // --- End diagnostic ---
 
   let cachedAppJwt = null;
   const installationTokenCache = new Map();
