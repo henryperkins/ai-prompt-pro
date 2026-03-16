@@ -289,6 +289,30 @@ function parseInferRequestContext(value) {
   return parsed;
 }
 
+const MAX_INFER_SOURCE_SUMMARIES = 4;
+const MAX_INFER_SOURCE_SUMMARY_CHARS = 800;
+const MAX_INFER_SOURCE_SUMMARY_TOTAL_CHARS = 2400;
+
+function parseInferSourceSummaries(value) {
+  if (!Array.isArray(value)) return [];
+
+  let remainingChars = MAX_INFER_SOURCE_SUMMARY_TOTAL_CHARS;
+  const summaries = [];
+
+  for (const entry of value.slice(0, MAX_INFER_SOURCE_SUMMARIES)) {
+    if (!hasText(entry) || remainingChars <= 0) continue;
+    const summary = truncateString(
+      entry,
+      Math.min(MAX_INFER_SOURCE_SUMMARY_CHARS, remainingChars),
+    );
+    if (!hasText(summary)) continue;
+    summaries.push(summary);
+    remainingChars = Math.max(0, remainingChars - summary.length);
+  }
+
+  return summaries;
+}
+
 // Retry telemetry config used by both streamed and buffered calls.
 const RETRY_TELEMETRY = runtime.retryTelemetry;
 
@@ -1828,12 +1852,20 @@ async function handleInferBuilderFields(req, res, body, corsHeaders, requestCont
   const inferRequestContext = parseInferRequestContext(
     body?.request_context ?? body?.requestContext,
   );
+  const sourceSummaries = parseInferSourceSummaries(
+    body?.source_summaries ?? body?.sourceSummaries,
+  );
 
   const inference = await inferBuilderFieldUpdates(
     prompt,
     currentFields,
     lockMetadata,
-    inferRequestContext,
+    sourceSummaries.length > 0
+      ? {
+          ...inferRequestContext,
+          sourceSummaries,
+        }
+      : inferRequestContext,
   );
   json(res, 200, inference, corsHeaders);
 }

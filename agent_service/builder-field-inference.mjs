@@ -19,7 +19,12 @@ const TONE_VALUES = [
   "Persuasive",
 ];
 
-const LENGTH_PREFERENCE_VALUES = ["brief", "moderate", "detailed"];
+const LENGTH_PREFERENCE_VALUES = ["brief", "standard", "detailed"];
+const LEGACY_LENGTH_PREFERENCE_ALIASES = {
+  moderate: "standard",
+};
+const MAX_SOURCE_SUMMARIES_IN_PROMPT = 4;
+const MAX_SOURCE_SUMMARY_CHARS = 800;
 
 function buildEntrySchema(valueSchema) {
   return {
@@ -93,6 +98,29 @@ export function createEmptyBuilderFieldInferenceResult() {
 
 function hasText(value) {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function truncateText(value, maxChars) {
+  const trimmed = typeof value === "string" ? value.trim() : "";
+  if (!trimmed) return "";
+  if (trimmed.length <= maxChars) return trimmed;
+  return `${trimmed.slice(0, Math.max(0, maxChars - 3)).trimEnd()}...`;
+}
+
+function renderJsonFence(value) {
+  return [
+    "```json",
+    JSON.stringify(value, null, 2),
+    "```",
+  ].join("\n");
+}
+
+function normalizeLengthPreference(value) {
+  if (!hasText(value)) return "";
+  const normalized = value.trim().toLowerCase();
+  const alias = LEGACY_LENGTH_PREFERENCE_ALIASES[normalized];
+  if (alias) return alias;
+  return LENGTH_PREFERENCE_VALUES.includes(normalized) ? normalized : "";
 }
 
 function hasListValue(values) {
@@ -177,19 +205,37 @@ export function buildInferUserMessage(prompt, currentFields, lockMetadata, reque
   const lockedList = Object.entries(lockMetadata || {})
     .filter(([, value]) => value === "user")
     .map(([key]) => key);
-  const setList = Object.entries(currentFields || {})
+  const setEntries = Object.fromEntries(
+    Object.entries(currentFields || {})
     .filter(([, value]) => {
       if (Array.isArray(value)) return value.some((entry) => hasText(entry));
       return hasText(value);
     })
-    .map(([key, value]) => `${key}=${JSON.stringify(value)}`);
+    .map(([key, value]) => [key, value]),
+  );
 
-  const parts = [`Prompt:\n"""${prompt}"""`];
-  if (setList.length > 0) parts.push(`Already set: ${setList.join(", ")}`);
-  if (lockedList.length > 0) parts.push(`Locked (skip): ${lockedList.join(", ")}`);
+  const parts = [
+    "Prompt:",
+    renderJsonFence({ prompt }),
+  ];
+  if (Object.keys(setEntries).length > 0) {
+    parts.push(`Already set:\n${renderJsonFence(setEntries)}`);
+  }
+  if (lockedList.length > 0) {
+    parts.push(`Locked (skip):\n${renderJsonFence(lockedList)}`);
+  }
   const requestContextSummary = buildRequestContextSummary(requestContext);
   if (requestContextSummary) {
     parts.push(`Request context:\n${requestContextSummary}`);
+  }
+  const sourceSummaries = Array.isArray(requestContext?.sourceSummaries)
+    ? requestContext.sourceSummaries
+      .filter((entry) => hasText(entry))
+      .slice(0, MAX_SOURCE_SUMMARIES_IN_PROMPT)
+      .map((entry) => truncateText(entry, MAX_SOURCE_SUMMARY_CHARS))
+    : [];
+  if (sourceSummaries.length > 0) {
+    parts.push(`Attached source summaries:\n${renderJsonFence(sourceSummaries)}`);
   }
   return parts.join("\n");
 }
@@ -215,7 +261,10 @@ export function buildBuilderFieldInferenceResult({
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
     if (!hasText(entry.value)) continue;
     if (hasText(currentFields?.[field]) || isLockedToUser(lockMetadata, field)) continue;
-    const value = entry.value.trim();
+    const value = field === "lengthPreference"
+      ? normalizeLengthPreference(entry.value)
+      : entry.value.trim();
+    if (!value) continue;
     inferredUpdates[field] = value;
     inferredFields.push(field);
     suggestionChips.push(createSuggestionChip(field, { [field]: value }));

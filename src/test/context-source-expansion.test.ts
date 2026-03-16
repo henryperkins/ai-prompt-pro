@@ -84,9 +84,9 @@ describe("context source expansion helpers", () => {
       contextSources: normalized.value,
     });
 
-    expect(prompt).toContain("decision_ref: source_1");
+    expect(prompt).toContain("\"decision_ref\": \"source_1\"");
     expect(prompt).toContain("Only request expanded source context");
-    expect(prompt).toContain("API routes and auth notes");
+    expect(prompt).toContain("\"summary\": \"API routes and auth notes\"");
   });
 
   it("parses model decisions and selects matching expandable sources", () => {
@@ -152,9 +152,9 @@ describe("context source expansion helpers", () => {
     ]);
 
     expect(block).toContain("## ON-DEMAND SOURCE CONTEXT");
-    expect(block).toContain("Expanded Source: docs/api.md");
-    expect(block).toContain("Detailed API guide");
-    expect(block).toContain("Need route specifics.");
+    expect(block).toContain("\"title\": \"docs/api.md\"");
+    expect(block).toContain("\"expanded_content\": \"Detailed API guide\"");
+    expect(block).toContain("\"reason_requested\": \"Need route specifics.\"");
   });
 
   it("builds attached source summary blocks for prompts that rely on context_sources", () => {
@@ -177,8 +177,8 @@ describe("context source expansion helpers", () => {
 
     expect(block).toContain("## ATTACHED SOURCE SUMMARIES");
     expect(block).toContain("<sources>");
-    expect(block).toContain("[FILE: docs/api.md] [ref=file:docs/api.md]");
-    expect(block).toContain("Route list and auth expectations");
+    expect(block).toContain("\"marker\": \"[FILE: docs/api.md] [ref=file:docs/api.md]\"");
+    expect(block).toContain("\"summary\": \"Route list and auth expectations\"");
   });
 
   it("appends context source summaries only when the prompt does not already include them", () => {
@@ -207,10 +207,7 @@ describe("context source expansion helpers", () => {
     const promptWithSources = [
       "Improve this API onboarding prompt.",
       "",
-      "<sources>",
-      "[FILE: docs/api.md] [ref=file:docs/api.md]",
-      "Route list and auth expectations",
-      "</sources>",
+      buildContextSourceSummaryBlock(normalized.value),
     ].join("\n");
     const unchanged = appendContextSourceSummariesToEnhancementInput({
       prompt: promptWithSources,
@@ -221,5 +218,30 @@ describe("context source expansion helpers", () => {
     expect(promptAlreadyIncludesContextSources(promptWithSources, normalized.value)).toBe(true);
     expect(appended).toContain("## ATTACHED SOURCE SUMMARIES");
     expect(unchanged).toBe(baseEnhancementInput);
+  });
+
+  it("does not suppress attached sources when the prompt merely asks for a Sources section", () => {
+    const normalized = normalizeEnhanceContextSources([
+      {
+        id: "docs-api",
+        type: "file",
+        title: "docs/api.md",
+        summary: "Route list and auth expectations",
+        raw_content: "Expanded API docs",
+      },
+    ]);
+
+    if (!normalized.ok) {
+      throw new Error("Expected normalized sources");
+    }
+
+    const prompt = "Improve this API onboarding prompt and include a **Sources:** section at the end.";
+
+    expect(promptAlreadyIncludesContextSources(prompt, normalized.value)).toBe(false);
+    expect(appendContextSourceSummariesToEnhancementInput({
+      prompt,
+      baseEnhancementInput: "META PROMPT",
+      contextSources: normalized.value,
+    })).toContain("## ATTACHED SOURCE SUMMARIES");
   });
 });

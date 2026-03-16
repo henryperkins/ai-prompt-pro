@@ -79,6 +79,33 @@ describe("inferBuilderFields request payload", () => {
     });
   });
 
+  it("serializes source_summaries when provided", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ inferredUpdates: {}, inferredFields: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { inferBuilderFields } = await import("@/lib/ai-client");
+
+    await inferBuilderFields({
+      prompt: "Analyze the attached brief",
+      sourceSummaries: [
+        "API authentication uses PAT tokens.",
+        "Rate limits reset every 60 seconds.",
+      ],
+    });
+
+    const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const body = JSON.parse(String(requestInit.body));
+    expect(body.source_summaries).toEqual([
+      "API authentication uses PAT tokens.",
+      "Rate limits reset every 60 seconds.",
+    ]);
+  });
+
   it("omits request_context when none is provided", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ inferredUpdates: {}, inferredFields: [] }), {

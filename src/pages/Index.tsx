@@ -432,6 +432,15 @@ function hasFieldOwnershipValue(
 function normalizeRemoteInferenceResult(
   response: Awaited<ReturnType<typeof inferBuilderFields>>,
 ): ReturnType<typeof inferBuilderFieldsLocally> {
+  const normalizeInferenceLengthPreference = (
+    value: unknown,
+  ): "brief" | "standard" | "detailed" | undefined => {
+    if (typeof value !== "string") return undefined;
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "brief" || normalized === "detailed") return normalized;
+    if (normalized === "standard" || normalized === "moderate") return "standard";
+    return undefined;
+  };
   const inferredUpdatesRaw = response.inferredUpdates;
   const inferredFieldsRaw = response.inferredFields;
   const suggestionChipsRaw = response.suggestionChips;
@@ -449,8 +458,13 @@ function normalizeRemoteInferenceResult(
   if (typeof inferredUpdatesRaw?.tone === "string") {
     inferredUpdates.tone = inferredUpdatesRaw.tone;
   }
-  if (typeof inferredUpdatesRaw?.lengthPreference === "string") {
-    inferredUpdates.lengthPreference = inferredUpdatesRaw.lengthPreference;
+  {
+    const normalizedLengthPreference = normalizeInferenceLengthPreference(
+      inferredUpdatesRaw?.lengthPreference,
+    );
+    if (normalizedLengthPreference) {
+      inferredUpdates.lengthPreference = normalizedLengthPreference;
+    }
   }
   if (Array.isArray(inferredUpdatesRaw?.format)) {
     inferredUpdates.format = inferredUpdatesRaw.format.filter(
@@ -568,9 +582,15 @@ function normalizeRemoteInferenceResult(
                 if (typeof updates.tone === "string") {
                   normalizedUpdates.tone = updates.tone;
                 }
-                if (typeof updates.lengthPreference === "string") {
-                  normalizedUpdates.lengthPreference =
-                    updates.lengthPreference;
+                {
+                  const normalizedLengthPreference =
+                    normalizeInferenceLengthPreference(
+                      updates.lengthPreference,
+                    );
+                  if (normalizedLengthPreference) {
+                    normalizedUpdates.lengthPreference =
+                      normalizedLengthPreference;
+                  }
                 }
                 if (Array.isArray(updates.format)) {
                   normalizedUpdates.format = updates.format.filter(
@@ -2610,8 +2630,12 @@ const Index = () => {
         setIsInferringSuggestions(true);
         const timeout = window.setTimeout(() => abortController.abort(), 12_000);
         try {
+          const sourceSummaries = config.contextConfig.sources
+            .map((source) => source.summary.trim() || source.rawContent.trim())
+            .filter((entry) => entry.length > 0);
           const remote = await inferBuilderFields({
             prompt,
+            sourceSummaries,
             currentFields: buildInferenceCurrentFields(config),
             lockMetadata: fieldOwnership,
             requestContext,

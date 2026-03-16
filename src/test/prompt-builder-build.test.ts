@@ -94,4 +94,38 @@ describe("buildPrompt", () => {
     expect(prompt).toContain("- Use action verbs");
     expect(prompt).not.toContain("- Keep under 200 words\n2. Use action verbs");
   });
+
+  it("renders length guidance even when no format is selected", () => {
+    const prompt = buildPrompt(
+      buildConfig({
+        originalPrompt: "Draft a status update for customers.",
+        lengthPreference: "brief",
+      }),
+    );
+
+    expect(prompt).toContain("**Length:** Keep it brief (~100 words).");
+    expect(prompt).not.toContain("**Format:**");
+  });
+
+  it("preserves legacy context alongside structured context", () => {
+    const prompt = buildPrompt(
+      buildConfig({
+        originalPrompt: "Draft an enablement memo.",
+        context: "Mention the legacy migration timeline and known support windows.",
+        contextConfig: {
+          ...defaultConfig.contextConfig,
+          structured: {
+            ...defaultConfig.contextConfig.structured,
+            audience: "Support engineers",
+          },
+        },
+      }),
+    );
+
+    expect(prompt).toContain("<background>");
+    expect(prompt).toContain("Audience: Support engineers");
+    expect(prompt).toContain(
+      "**Additional Context:** Mention the legacy migration timeline and known support windows.",
+    );
+  });
 });

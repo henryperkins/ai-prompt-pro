@@ -75,6 +75,28 @@ describe("builder-field inference schema helpers", () => {
     expect(result.inferredFields).toEqual(["format"]);
   });
 
+  it("normalizes legacy moderate length values to standard", () => {
+    const result = buildBuilderFieldInferenceResult({
+      rawResponse: {
+        lengthPreference: { value: "moderate", confidence: 0.86 },
+      },
+      prompt: "Rewrite this email update for executives.",
+      currentFields: {},
+      lockMetadata: {},
+    });
+
+    expect(result.inferredUpdates).toEqual({
+      lengthPreference: "standard",
+    });
+    expect(result.inferredFields).toEqual(["lengthPreference"]);
+    expect(result.suggestionChips[0]?.action).toMatchObject({
+      type: "set_fields",
+      updates: {
+        lengthPreference: "standard",
+      },
+    });
+  });
+
   it("falls back to the audience chip when structured output yields nothing", () => {
     const result = buildBuilderFieldInferenceResult({
       rawResponse: JSON.stringify({}),
@@ -110,13 +132,18 @@ describe("builder-field inference schema helpers", () => {
         hasSessionContext: true,
         selectedOutputFormats: ["Markdown", "Table"],
         hasPastedSourceMaterial: true,
+        sourceSummaries: ["API authentication uses PAT tokens."],
       },
     );
 
-    expect(message).toContain("Already set: tone=\"Technical\"");
-    expect(message).toContain("Locked (skip): role");
+    expect(message).toContain("\"prompt\": \"Improve this customer support workflow\"");
+    expect(message).toContain("\"tone\": \"Technical\"");
+    expect(message).toContain("Locked (skip):");
+    expect(message).toContain("\"role\"");
     expect(message).toContain("- attached_sources: yes (2)");
     expect(message).toContain("- selected_output_formats: Markdown, Table");
     expect(message).toContain("- pasted_source_material_present: yes");
+    expect(message).toContain("Attached source summaries:");
+    expect(message).toContain("API authentication uses PAT tokens.");
   });
 });

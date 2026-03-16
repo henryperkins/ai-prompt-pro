@@ -90,6 +90,10 @@ function sortStrings(values: string[]): string[] {
   return [...values].sort((left, right) => left.localeCompare(right));
 }
 
+function normalizeComparableText(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
 function getPrimaryTaskInput(config: PromptConfig): string {
   const originalPrompt = config.originalPrompt.trim();
   if (originalPrompt) return originalPrompt;
@@ -347,6 +351,13 @@ export function buildPromptConfigSignature(config: PromptConfig): string {
 export function buildPrompt(config: PromptConfig): string {
   const parts: string[] = [];
 
+  const buildLengthInstruction = (includeStandard: boolean): string => {
+    if (config.lengthPreference === "brief") return "Keep it brief (~100 words)";
+    if (config.lengthPreference === "detailed") return "Be detailed (500+ words)";
+    if (includeStandard) return "Standard length (~300 words)";
+    return "";
+  };
+
   const actualRole = config.customRole || config.role;
   if (actualRole) {
     parts.push(`**Role:** Act as a ${actualRole}.`);
@@ -367,22 +378,34 @@ export function buildPrompt(config: PromptConfig): string {
   }
 
   // Legacy context field (for backward compat / simple usage)
-  if (config.context && !contextBlock) {
-    parts.push(`**Context:** ${config.context}`);
+  const legacyContext = config.context.trim();
+  if (legacyContext) {
+    const legacyContextAlreadyCovered =
+      contextBlock.length > 0 &&
+      normalizeComparableText(contextBlock).includes(
+        normalizeComparableText(legacyContext),
+      );
+    if (!legacyContextAlreadyCovered) {
+      parts.push(
+        contextBlock
+          ? `**Additional Context:** ${legacyContext}`
+          : `**Context:** ${legacyContext}`,
+      );
+    }
   }
 
   const formats = [...config.format];
   if (config.customFormat.trim()) formats.push(config.customFormat.trim());
   if (formats.length > 0) {
-    const lengthLabel =
-      config.lengthPreference === "brief"
-        ? "Keep it brief (~100 words)"
-        : config.lengthPreference === "detailed"
-          ? "Be detailed (500+ words)"
-          : "Standard length (~300 words)";
+    const lengthLabel = buildLengthInstruction(true);
     parts.push(
       `**Format:** Present the response as ${formats.join(", ")}. ${lengthLabel}.`,
     );
+  } else {
+    const lengthLabel = buildLengthInstruction(false);
+    if (lengthLabel) {
+      parts.push(`**Length:** ${lengthLabel}.`);
+    }
   }
 
   if (config.examples) {
