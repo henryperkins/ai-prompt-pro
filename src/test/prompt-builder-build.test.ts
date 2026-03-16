@@ -128,4 +128,33 @@ describe("buildPrompt", () => {
       "**Additional Context:** Mention the legacy migration timeline and known support windows.",
     );
   });
+
+  it("renders GitHub context sources with explicit markers and references", () => {
+    const prompt = buildPrompt(
+      buildConfig({
+        originalPrompt: "Summarize the repository setup steps.",
+        contextConfig: {
+          ...defaultConfig.contextConfig,
+          sources: [
+            {
+              id: "gh-1",
+              type: "github",
+              title: "owner/repo:README.md",
+              rawContent: "",
+              summary: "Repository setup instructions and local development steps.",
+              addedAt: Date.now(),
+              reference: {
+                kind: "github",
+                refId: "github:1:sha:README.md",
+                locator: "owner/repo@sha:README.md",
+              },
+            },
+          ],
+        },
+      }),
+    );
+
+    expect(prompt).toContain("[GITHUB: owner/repo:README.md] [ref=github:1:sha:README.md]");
+    expect(prompt).toContain("Repository setup instructions and local development steps.");
+  });
 });

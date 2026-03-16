@@ -1,8 +1,9 @@
 import { Profiler, type ReactNode } from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { defaultConfig } from "@/lib/prompt-builder";
+import { renderWithAuthContext } from "@/test/render-with-auth-context";
 
 const mocks = vi.hoisted(() => ({
   toast: vi.fn(),
@@ -135,7 +136,7 @@ async function measureBuilderMount(enhancedPrompt = "") {
 
   const profilerSamples: Array<{ phase: string; duration: number }> = [];
   const { default: Index } = await import("@/pages/Index");
-  const rendered = render(
+  const rendered = renderWithAuthContext(
     <Profiler
       id="Index"
       onRender={(_id, phase, actualDuration) => {

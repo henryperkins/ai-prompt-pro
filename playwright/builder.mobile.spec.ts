@@ -139,6 +139,199 @@ async function installBuilderAuthMocks(
   await page.route("**/rest/v1/prompt_versions**", async (route) => {
     await fulfillJson(route, [], 200, { "content-range": "0-0/0" });
   });
+
+  await page.route("**/rest/v1/notifications**", async (route) => {
+    await fulfillJson(route, [], 200, { "content-range": "0-0/0" });
+  });
+}
+
+async function installGitHubContextMocks(page: Page): Promise<void> {
+  const installation = {
+    id: "inst-rec-1",
+    githubInstallationId: 9001,
+    githubAccountId: 9101,
+    githubAccountLogin: "promptforge-org",
+    githubAccountType: "Organization",
+    repositoriesMode: "selected",
+    permissions: {
+      contents: "read",
+    },
+    installedAt: "2026-03-16T00:00:00.000Z",
+    lastSeenAt: "2026-03-16T00:00:00.000Z",
+  };
+  const connection = {
+    id: "conn-1",
+    githubRepoId: 4242,
+    ownerLogin: "promptforge-org",
+    repoName: "ai-prompt-pro",
+    fullName: "promptforge-org/ai-prompt-pro",
+    defaultBranch: "main",
+    visibility: "private",
+    isPrivate: true,
+    installationRecordId: "inst-rec-1",
+    lastSelectedAt: "2026-03-16T00:00:00.000Z",
+  };
+  const repositories = [
+    {
+      id: 4242,
+      ownerLogin: "promptforge-org",
+      repoName: "ai-prompt-pro",
+      fullName: "promptforge-org/ai-prompt-pro",
+      defaultBranch: "main",
+      visibility: "private",
+      isPrivate: true,
+      connected: false,
+      connectionId: null,
+    },
+  ];
+  const fileResults = [
+    {
+      path: "README.md",
+      name: "README.md",
+      extension: "md",
+      directory: "",
+      size: 2048,
+      sha: "sha-readme",
+      language: "Markdown",
+      binary: false,
+      generated: false,
+      vendored: false,
+      recommendedRank: 12,
+    },
+  ];
+  const preview = {
+    path: "README.md",
+    language: "Markdown",
+    size: 2048,
+    sha: "sha-readme",
+    truncated: false,
+    locator: "promptforge-org/ai-prompt-pro:README.md",
+    content: "# PromptForge GitHub context\nUse repository files as builder context.",
+    originalCharCount: 68,
+  };
+  const sources = [
+    {
+      id: "github:4242:tree-sha:README.md",
+      type: "github",
+      title: "promptforge-org/ai-prompt-pro:README.md",
+      rawContent: "# PromptForge GitHub context\nUse repository files as builder context.",
+      rawContentTruncated: false,
+      originalCharCount: 68,
+      expandable: true,
+      summary: "Path: README.md\nGitHub context setup instructions.",
+      addedAt: Date.now(),
+      reference: {
+        kind: "github",
+        refId: "github:4242:tree-sha:README.md",
+        locator: "promptforge-org/ai-prompt-pro@tree-sha:README.md",
+        permissionScope: "github-installation:9001",
+      },
+      validation: {
+        status: "valid",
+        checkedAt: Date.now(),
+      },
+    },
+  ];
+
+  await page.route(/\/github\/installations(?:\?.*)?$/, (route) =>
+    fulfillJson(route, { installations: [installation] }),
+  );
+  await page.route(/\/github\/connections(?:\?.*)?$/, async (route) => {
+    if (route.request().method() === "POST") {
+      await fulfillJson(route, { connection });
+      return;
+    }
+    await fulfillJson(route, { connections: [] });
+  });
+  await page.route(/\/github\/installations\/9001\/repositories(?:\?.*)?$/, (route) =>
+    fulfillJson(route, {
+      installation: {
+        id: installation.id,
+        githubInstallationId: installation.githubInstallationId,
+        githubAccountLogin: installation.githubAccountLogin,
+        githubAccountType: installation.githubAccountType,
+      },
+      repositories,
+      nextCursor: null,
+    }),
+  );
+  await page.route(/\/github\/connections\/conn-1\/search(?:\?.*)?$/, (route) =>
+    fulfillJson(route, {
+      results: fileResults,
+      staleFallback: false,
+    }),
+  );
+  await page.route(/\/github\/connections\/conn-1\/file(?:\?.*)?$/, (route) =>
+    fulfillJson(route, { file: preview }),
+  );
+  await page.route(/\/github\/connections\/conn-1\/context-sources(?:\?.*)?$/, (route) =>
+    fulfillJson(route, { sources }),
+  );
+}
+
+function trackUnexpectedNetworkFailures(page: Page): string[] {
+  const unexpectedFailures: string[] = [];
+  page.on("requestfailed", (request) => {
+    const url = request.url();
+    const targetsBuilderDataPlane =
+      url.includes("neon.test") ||
+      url.includes("/auth/get-session") ||
+      url.includes("/auth/token/anonymous") ||
+      url.includes("/rest/v1/") ||
+      url.includes("/github/");
+    if (!targetsBuilderDataPlane) return;
+
+    const errorText = request.failure()?.errorText ?? "unknown_error";
+    unexpectedFailures.push(`${url} :: ${errorText}`);
+  });
+  return unexpectedFailures;
+}
+
+async function attachGitHubReadme(page: Page): Promise<void> {
+  const showAdvancedControls = page.getByRole("button", {
+    name: "Show advanced controls",
+  });
+  if (await showAdvancedControls.isVisible()) {
+    await showAdvancedControls.click();
+  }
+
+  await page.getByRole("button", { name: "Context and sources" }).click();
+  await expect(page.getByText("GitHub repository context")).toBeVisible();
+
+  await page.getByRole("button", { name: "Add from GitHub" }).click();
+  const dialog = page.getByRole("dialog", { name: "Add from GitHub" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("Active installation:")).toBeVisible();
+
+  const repositoryButton = dialog.getByRole("button", {
+    name: /promptforge-org\/ai-prompt-pro/i,
+  }).first();
+  await expect(repositoryButton).toBeVisible();
+  await repositoryButton.click();
+
+  await expect(
+    dialog.getByRole("button", { name: "Connect selected repo" }),
+  ).toBeEnabled();
+  await dialog.getByRole("button", { name: "Connect selected repo" }).click();
+
+  await expect(dialog.getByLabel("Search repository files")).toBeEnabled();
+  await expect(dialog.getByRole("checkbox", { name: "Select README.md" })).toBeVisible();
+
+  await dialog.getByRole("button", { name: "Preview" }).first().click();
+  await expect(dialog.getByText(/PromptForge GitHub context/i)).toBeVisible();
+
+  await dialog.getByRole("checkbox", { name: "Select README.md" }).check({ force: true });
+  await expect(
+    dialog.getByText("1 file selected from promptforge-org/ai-prompt-pro."),
+  ).toBeVisible();
+
+  await dialog.getByRole("button", { name: "Attach selected files" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(
+    page.getByRole("button", {
+      name: "Remove promptforge-org/ai-prompt-pro:README.md",
+    }),
+  ).toBeVisible();
 }
 
 test("captures Builder mobile sticky-bar ergonomics at 360-430px widths", async ({ page }, testInfo) => {
@@ -349,6 +542,29 @@ test("lets signed-in mobile users open the Codex session drawer from settings an
   await expect(carryForwardPrompt).toHaveValue(
     "Carry forward the partner launch prompt with the revised compliance guardrails.",
   );
+});
+
+test("lets signed-in mobile users attach GitHub repository files as builder context", async ({
+  page,
+}) => {
+  const unexpectedFailures = trackUnexpectedNetworkFailures(page);
+  await installBuilderAuthMocks(page, { authenticated: true });
+  await installGitHubContextMocks(page);
+  await page.setViewportSize({ width: 390, height: VIEWPORT_HEIGHT });
+  await page.goto("/");
+
+  const promptInput = page.getByRole("textbox", {
+    name: /What should the model do\?|Your Prompt/i,
+  });
+  await expect(promptInput).toBeVisible();
+  await promptInput.fill("Use repository context to tighten this implementation plan.");
+
+  await attachGitHubReadme(page);
+
+  expect(
+    unexpectedFailures,
+    "Builder mobile GitHub picker test should not leak unmocked auth/data requests.",
+  ).toEqual([]);
 });
 
 test("keeps adjust details progressive on mobile", async ({ page }) => {

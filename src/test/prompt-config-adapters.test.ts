@@ -83,6 +83,41 @@ describe("prompt-config adapters", () => {
     expect(serialized.contextConfig.sources[0]?.rawContent).toBe("");
   });
 
+  it("round-trips GitHub sources through serialization and hydration", () => {
+    const config = buildConfig({
+      contextConfig: {
+        ...defaultConfig.contextConfig,
+        sources: [
+          {
+            id: "gh-1",
+            type: "github",
+            title: "owner/repo:src/index.ts",
+            rawContent: "console.log('keep local drafts only');",
+            summary: "Application entrypoint and startup behavior.",
+            addedAt: Date.now(),
+            reference: {
+              kind: "github",
+              refId: "github:1:sha:src/index.ts",
+              locator: "owner/repo@sha:src/index.ts",
+            },
+          },
+        ],
+      },
+    });
+
+    const serialized = serializeWorkingStateToV1(config);
+    const serializedSource = serialized.contextConfig.sources[0];
+    expect(serializedSource?.type).toBe("github");
+    expect(serializedSource?.rawContent).toBe("");
+    expect(serializedSource?.reference?.kind).toBe("github");
+
+    const hydrated = hydrateConfigV1ToWorkingState(serialized);
+    const hydratedSource = hydrated.contextConfig.sources[0];
+    expect(hydratedSource?.type).toBe("github");
+    expect(hydratedSource?.reference?.kind).toBe("github");
+    expect(hydratedSource?.reference?.refId).toBe("github:1:sha:src/index.ts");
+  });
+
   it("preserves legacy task fields when task migration is disabled", () => {
     const hydrated = hydrateConfigV1ToWorkingState(
       {

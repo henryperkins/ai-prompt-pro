@@ -100,6 +100,41 @@ describe("getSectionHealth", () => {
     expect(health.quality).toBe("in_progress");
   });
 
+  it("treats GitHub sources as context evidence through the shared source pipeline", () => {
+    const health = getSectionHealth(
+      buildConfig({
+        contextConfig: {
+          ...defaultConfig.contextConfig,
+          sources: [
+            {
+              id: "gh-1",
+              type: "github",
+              title: "owner/repo:README.md",
+              rawContent: "",
+              summary: "Repository architecture and setup notes.",
+              addedAt: Date.now(),
+              reference: {
+                kind: "github",
+                refId: "github:1:sha:README.md",
+                locator: "owner/repo@sha:README.md",
+              },
+            },
+          ],
+          structured: {
+            ...defaultConfig.contextConfig.structured,
+            audience: "Engineering managers",
+            offer: "Summarize the repository architecture and setup risks.",
+          },
+          projectNotes:
+            "Call out local setup requirements, risky dependencies, and ownership boundaries before rollout.",
+        },
+      }),
+      58,
+    );
+
+    expect(health.context).toBe("complete");
+  });
+
   it("marks tone in progress when only one tone control changed", () => {
     const health = getSectionHealth(
       buildConfig({

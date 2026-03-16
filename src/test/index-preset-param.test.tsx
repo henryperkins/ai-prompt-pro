@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { defaultConfig } from "@/lib/prompt-builder";
 import { resetPreferencesCache } from "@/lib/user-preferences";
+import { renderWithAuthContext } from "@/test/render-with-auth-context";
 
 const mocks = vi.hoisted(() => ({
   toast: vi.fn(),
@@ -129,7 +130,7 @@ function LocationSearch() {
 
 async function renderIndexAt(url: string) {
   const { default: Index } = await import("@/pages/Index");
-  render(
+  renderWithAuthContext(
     <MemoryRouter initialEntries={[url]}>
       <Routes>
         <Route

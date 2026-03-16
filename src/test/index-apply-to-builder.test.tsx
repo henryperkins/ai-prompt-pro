@@ -1,8 +1,9 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { defaultConfig, buildPrompt } from "@/lib/prompt-builder";
+import { renderWithAuthContext } from "@/test/render-with-auth-context";
 
 const mocks = vi.hoisted(() => ({
   toast: vi.fn(),
@@ -253,7 +254,7 @@ vi.mock("@/hooks/usePromptBuilder", () => ({
 
 async function renderIndex() {
   const { default: Index } = await import("@/pages/Index");
-  return render(
+  return renderWithAuthContext(
     <MemoryRouter>
       <Index />
     </MemoryRouter>,

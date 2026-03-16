@@ -140,6 +140,19 @@ describe("template-store", () => {
               summary: "Inline notes",
               addedAt: Date.now(),
             },
+            {
+              id: "gh-1",
+              type: "github",
+              title: "owner/repo:README.md",
+              rawContent: "Repository README contents should not be persisted in template snapshots",
+              summary: "Repository overview",
+              addedAt: Date.now(),
+              reference: {
+                kind: "github",
+                refId: "github:1:sha:README.md",
+                locator: "owner/repo@sha:README.md",
+              },
+            },
           ],
         },
       }),
@@ -147,11 +160,14 @@ describe("template-store", () => {
 
     const loaded = loadTemplateById(result.record.metadata.id);
     expect(loaded).not.toBeNull();
-    const [urlSource, fileSource, textSource] = loaded!.record.state.promptConfig.contextConfig.sources;
+    const [urlSource, fileSource, textSource, githubSource] =
+      loaded!.record.state.promptConfig.contextConfig.sources;
     expect(urlSource.rawContent).toBe("");
     expect(fileSource.rawContent).toBe("");
     expect(textSource.rawContent).toContain("Keep this text payload");
-    expect(loaded!.record.state.externalReferences.length).toBeGreaterThanOrEqual(2);
+    expect(githubSource.rawContent).toBe("");
+    expect(githubSource.reference?.kind).toBe("github");
+    expect(loaded!.record.state.externalReferences.length).toBeGreaterThanOrEqual(3);
   });
 
   it("returns warnings for risky integrations and invalid rag config", () => {

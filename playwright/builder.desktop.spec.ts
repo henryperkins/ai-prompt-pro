@@ -273,6 +273,53 @@ function trackUnexpectedNetworkFailures(page: Page): string[] {
   return unexpectedFailures;
 }
 
+async function attachGitHubReadme(page: Page): Promise<void> {
+  const showAdvancedControls = page.getByRole("button", {
+    name: "Show advanced controls",
+  });
+  if (await showAdvancedControls.isVisible()) {
+    await showAdvancedControls.click();
+  }
+
+  await page.getByRole("button", { name: "Context and sources" }).click();
+  await expect(page.getByText("GitHub repository context")).toBeVisible();
+
+  await page.getByRole("button", { name: "Add from GitHub" }).click();
+  const dialog = page.getByRole("dialog", { name: "Add from GitHub" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("Active installation:")).toBeVisible();
+
+  const repositoryButton = dialog.getByRole("button", {
+    name: /promptforge-org\/ai-prompt-pro/i,
+  }).first();
+  await expect(repositoryButton).toBeVisible();
+  await repositoryButton.click();
+
+  await expect(
+    dialog.getByRole("button", { name: "Connect selected repo" }),
+  ).toBeEnabled();
+  await dialog.getByRole("button", { name: "Connect selected repo" }).click();
+
+  await expect(dialog.getByLabel("Search repository files")).toBeEnabled();
+  await expect(dialog.getByRole("checkbox", { name: "Select README.md" })).toBeVisible();
+
+  await dialog.getByRole("button", { name: "Preview" }).first().click();
+  await expect(dialog.getByText(/PromptForge GitHub context/i)).toBeVisible();
+
+  await dialog.getByRole("checkbox", { name: "Select README.md" }).check({ force: true });
+  await expect(
+    dialog.getByText("1 file selected from promptforge-org/ai-prompt-pro."),
+  ).toBeVisible();
+
+  await dialog.getByRole("button", { name: "Attach selected files" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(
+    page.getByRole("button", {
+      name: "Remove promptforge-org/ai-prompt-pro:README.md",
+    }),
+  ).toBeVisible();
+}
+
 const LONG_ROLE =
   "Senior UX auditor and design systems strategist for AI-assisted product experiences";
 
@@ -581,53 +628,47 @@ test("lets signed-in desktop users attach GitHub repository files as builder con
   });
   await expect(promptInput).toBeVisible();
   await promptInput.fill("Use repository context to tighten this implementation plan.");
-
-  const showAdvancedControls = page.getByRole("button", {
-    name: "Show advanced controls",
-  });
-  if (await showAdvancedControls.isVisible()) {
-    await showAdvancedControls.click();
-  }
-
-  await page.getByRole("button", { name: "Context and sources" }).click();
-  await expect(page.getByText("GitHub repository context")).toBeVisible();
-
-  await page.getByRole("button", { name: "Add from GitHub" }).click();
-  const dialog = page.getByRole("dialog", { name: "Add from GitHub" });
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByText("Active installation:")).toBeVisible();
-  const repositoryButton = dialog.getByRole("button", {
-    name: /promptforge-org\/ai-prompt-pro/i,
-  }).first();
-  await expect(repositoryButton).toBeVisible();
-
-  await repositoryButton.click();
-  await expect(
-    dialog.getByRole("button", { name: "Connect selected repo" }),
-  ).toBeEnabled();
-  await dialog.getByRole("button", { name: "Connect selected repo" }).click();
-
-  await expect(dialog.getByLabel("Search repository files")).toBeEnabled();
-  await expect(dialog.getByRole("checkbox", { name: "Select README.md" })).toBeVisible();
-
-  await dialog.getByRole("button", { name: "Preview" }).first().click();
-  await expect(dialog.getByText(/PromptForge GitHub context/i)).toBeVisible();
-
-  await dialog.getByRole("checkbox", { name: "Select README.md" }).check({ force: true });
-  await expect(
-    dialog.getByText("1 file selected from promptforge-org/ai-prompt-pro."),
-  ).toBeVisible();
-
-  await dialog.getByRole("button", { name: "Attach selected files" }).click();
-
-  await expect(dialog).toBeHidden();
-  await expect(
-    page.getByRole("button", {
-      name: "Remove promptforge-org/ai-prompt-pro:README.md",
-    }),
-  ).toBeVisible();
+  await attachGitHubReadme(page);
   expect(
     unexpectedFailures,
     "Builder desktop GitHub picker test should not leak unmocked auth/data requests.",
+  ).toEqual([]);
+});
+
+test("shows a visible share-blocked reason after attaching GitHub context on desktop", async ({
+  page,
+}) => {
+  const unexpectedFailures = trackUnexpectedNetworkFailures(page);
+  await installGitHubContextMocks(page);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/");
+
+  const promptInput = page.getByRole("textbox", {
+    name: /What should the model do\?|Your Prompt/i,
+  });
+  await expect(promptInput).toBeVisible();
+  await promptInput.fill("Use repository context to tighten this implementation plan.");
+
+  await attachGitHubReadme(page);
+
+  await expect(
+    page.getByText("Remove GitHub sources before sharing this prompt."),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Save" }).click();
+  await page.getByRole("menuitem", { name: "Save Prompt" }).click();
+
+  const saveDialog = page.getByRole("dialog", { name: "Save Prompt" });
+  await expect(saveDialog).toBeVisible();
+  await expect(
+    saveDialog.getByText("Remove GitHub sources before sharing this prompt."),
+  ).toBeVisible();
+  await expect(
+    saveDialog.getByRole("switch", { name: "Share to community" }),
+  ).toBeDisabled();
+
+  expect(
+    unexpectedFailures,
+    "Builder desktop GitHub share-blocked test should not leak unmocked auth/data requests.",
   ).toEqual([]);
 });

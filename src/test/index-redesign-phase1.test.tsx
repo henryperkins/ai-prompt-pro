@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { defaultConfig } from "@/lib/prompt-builder";
+import { renderWithAuthContext } from "@/test/render-with-auth-context";
 
 const mocks = vi.hoisted(() => ({
   toast: vi.fn(),
@@ -110,7 +111,7 @@ function buildPromptBuilderState() {
 
 async function renderIndex() {
   const { default: Index } = await import("@/pages/Index");
-  render(
+  renderWithAuthContext(
     <MemoryRouter>
       <Index />
     </MemoryRouter>,
@@ -122,6 +123,18 @@ describe("Index redesign phase 1 gating", () => {
     vi.clearAllMocks();
     vi.resetModules();
     mocks.usePromptBuilder.mockReturnValue(buildPromptBuilderState());
+  });
+
+  it("mounts without an auth provider when GitHub context is disabled", async () => {
+    const { default: Index } = await import("@/pages/Index");
+
+    render(
+      <MemoryRouter>
+        <Index />
+      </MemoryRouter>,
+    );
+
+    await expect(screen.findByText("Redesign Hero Input")).resolves.toBeVisible();
   });
 
   it("renders redesign zones and omits legacy tabs path", async () => {

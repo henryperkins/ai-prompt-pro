@@ -3642,18 +3642,20 @@ const Index = () => {
         </Drawer>
       )}
 
-      <GitHubSourcePickerDialog
-        open={isGithubSourcePickerOpen}
-        onOpenChange={(nextOpen) => {
-          setIsGithubSourcePickerOpen(nextOpen);
-          if (!nextOpen) {
-            setGithubPickerSetupState(null);
-          }
-        }}
-        existingSourceCount={config.contextConfig.sources.length}
-        onAttachSources={handleAttachGithubSources}
-        setupState={githubPickerSetupState}
-      />
+      {GITHUB_CONTEXT_ENABLED ? (
+        <GitHubSourcePickerDialog
+          open={isGithubSourcePickerOpen}
+          onOpenChange={(nextOpen) => {
+            setIsGithubSourcePickerOpen(nextOpen);
+            if (!nextOpen) {
+              setGithubPickerSetupState(null);
+            }
+          }}
+          existingSourceCount={config.contextConfig.sources.length}
+          onAttachSources={handleAttachGithubSources}
+          setupState={githubPickerSetupState}
+        />
+      ) : null}
 
       <CodexSessionDrawer
         open={isSignedIn && sessionDrawerOpen}
