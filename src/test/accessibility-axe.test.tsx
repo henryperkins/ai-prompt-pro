@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, waitFor, waitForElementToBeRemoved } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
@@ -171,13 +171,15 @@ describe("accessibility audits", () => {
     it(`has no axe violations on the ${routeCase.label} route`, async () => {
       await renderAppAt(routeCase.pathname);
       await screen.findByTestId("page-shell");
+      await routeCase.waitForReady();
 
       const fallback = screen.queryByTestId("route-fallback-root");
       if (fallback) {
-        await waitForElementToBeRemoved(fallback);
+        await waitFor(() => {
+          expect(screen.queryByTestId("route-fallback-root")).not.toBeInTheDocument();
+        }, { timeout: 5_000 });
       }
 
-      await routeCase.waitForReady();
       await waitForSettledUi();
       await waitFor(() => {
         expect(readUnexpectedConsoleErrors()).toEqual([]);

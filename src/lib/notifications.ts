@@ -1,6 +1,7 @@
 import { neon } from "@/integrations/neon/client";
 import { type CommunityProfile, loadProfilesByIds } from "@/lib/community";
 import { toProfileMap } from "@/lib/community-utils";
+import { requireUserId } from "@/lib/require-user-id";
 import { isPostgrestError } from "@/lib/saved-prompt-shared";
 
 export type NotificationType = "upvote" | "verified" | "comment" | "remix";
@@ -59,18 +60,8 @@ function uniqueNonEmpty(values: Array<string | null | undefined>): string[] {
   return Array.from(new Set(values.filter((value): value is string => Boolean(value))));
 }
 
-async function requireUserId(): Promise<string> {
-  const { data, error } = await neon.auth.getUser();
-  if (error) throw toError(error, "Authentication failed.");
-  const user = data.user;
-  if (!user?.id) {
-    throw new Error("Sign in required.");
-  }
-  return user.id;
-}
-
 export async function loadNotifications(limit = 25, offset = 0): Promise<Notification[]> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("Notifications");
   const normalizedLimit = Math.min(Math.max(limit, 1), 100);
   const normalizedOffset = Math.max(offset, 0);
 
@@ -131,7 +122,7 @@ export async function loadNotifications(limit = 25, offset = 0): Promise<Notific
 }
 
 export async function getUnreadCount(): Promise<number> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("Notifications");
 
   try {
     const { count, error } = await neon
@@ -148,7 +139,7 @@ export async function getUnreadCount(): Promise<number> {
 }
 
 export async function markAsRead(notificationId: string): Promise<boolean> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("Notifications");
 
   try {
     const { data, error } = await neon
@@ -168,7 +159,7 @@ export async function markAsRead(notificationId: string): Promise<boolean> {
 }
 
 export async function markAllAsRead(): Promise<number> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("Notifications");
 
   try {
     const { data, error } = await neon

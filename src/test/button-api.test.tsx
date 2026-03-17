@@ -1,7 +1,15 @@
+import type { ComponentPropsWithoutRef } from "react";
 import { render, screen } from "@testing-library/react";
-import { Plus } from "@phosphor-icons/react";
 import { describe, expect, it } from "vitest";
 import { Button } from "@/components/base/buttons/button";
+
+function TestPlusIcon(props: ComponentPropsWithoutRef<"svg">) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" {...props}>
+      <path d="M11 5h2v14h-2zM5 11h14v2H5z" />
+    </svg>
+  );
+}
 
 describe("Button API normalization", () => {
   it("maps canonical variant props to the expected visual treatment", () => {
@@ -37,7 +45,7 @@ describe("Button API normalization", () => {
   it("keeps mixed icon and text children as separate layout items", () => {
     render(
       <Button>
-        <Plus data-testid="button-icon" />
+        <TestPlusIcon data-testid="button-icon" />
         Add
       </Button>,
     );

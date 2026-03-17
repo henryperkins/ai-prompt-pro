@@ -1,1083 +1,711 @@
 # Auth, Neon & GitHub Integration Hardening Plan
 
-> **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED: Use `superpowers:subagent-driven-development` (if subagents are available) or `superpowers:executing-plans` to implement this plan. Keep the checkbox format and mark progress in place.
 
-**Goal:** Address every security finding, regression risk, code-quality drift, and operational issue surfaced during the authentication, Neon Data API, and GitHub integration review.
+**Goal:** Address the auth, Neon, and GitHub hardening findings without introducing new regressions in signup, OAuth profile creation, GitHub setup redirects, or production logging.
 
-**Architecture:** Seven independent tasks that can be parallelized. Each task targets a single concern — shared auth utility extraction, DB-level constraints, API version drift, log redaction, redirect URL validation, production JWT safeguards, and client-side auth UX hardening.
+**Revision note:** This version replaces the earlier broken remediation steps. The previous draft had five concrete execution problems:
 
-**Tech Stack:** TypeScript (Vite/React), Node.js ESM (agent service), PostgreSQL (Neon), Vitest, `jose` JWT library
+1. the `profiles.display_name` constraint work would have broken current email signups and OAuth-created profiles
+2. the Auth dialog throttle would have locked out signup as well as login
+3. the GitHub API version regression test could not reach the request path because it used an invalid private key
+4. the Neon SQL redaction tests did not cover the thrown-error log path
+5. the GitHub setup redirect hardening still failed open when `ALLOWED_ORIGINS` was unset or `*`
+
+**Tech Stack:** TypeScript (Vite/React), Node.js ESM, PostgreSQL/Neon, Vitest, `jose`
+
+**Execution rules:**
+
+- Do not ship any `profiles.display_name` database change without updating the frontend validator, signup fallback logic, and `handle_new_user()` trigger in the same task.
+- Do not add a format regex to `profiles.display_name` that rejects the names the product already creates today.
+- Do not hardcode a new GitHub API version date until you verify the current value in the official GitHub API version docs on the day you implement the task.
+- Every hardening task must include at least one regression test that proves the previous bug is actually covered.
 
 ---
 
-## Chunk 1: Frontend Hardening (Tasks 1-4)
+## Task 1: Extract shared `requireUserId` utility
 
-### Task 1: Extract shared `requireUserId` utility
-
-Three modules (`community.ts`, `notifications.ts`, `community-moderation.ts`) each have their own `requireUserId()` that call `neon.auth.getUser()` with minor variations in error handling and backend assertions. A shared utility eliminates drift and provides a single place to add telemetry or caching later.
-
-**Behavioral note:** The existing `notifications.ts` implementation does NOT call `assertBackendConfigured()`. The shared utility always calls it. This is a deliberate improvement — notifications will now fail early with a clear message if the backend is unconfigured, rather than failing later with a network error. The commit message reflects this.
+This task from the original plan is still valid. The duplication is real, and the shared utility is a safe refactor if implemented with the existing auth error behavior.
 
 **Files:**
+
 - Create: `src/lib/require-user-id.ts`
-- Modify: `src/lib/community.ts:404-413`
-- Modify: `src/lib/notifications.ts:62-70`
-- Modify: `src/lib/community-moderation.ts:34-40`
+- Modify: `src/lib/community.ts`
+- Modify: `src/lib/notifications.ts`
+- Modify: `src/lib/community-moderation.ts`
 - Create: `src/test/require-user-id.test.ts`
 
-- [ ] **Step 1: Write the failing test for the shared utility**
+- [x] **Step 1: Add a focused unit test for the shared helper**
 
-```typescript
-// src/test/require-user-id.test.ts
-import { describe, it, expect, vi, beforeEach } from "vitest";
+Cover these cases in `src/test/require-user-id.test.ts`:
 
-const mockGetUser = vi.fn();
+- authenticated user returns `user.id`
+- backend assertion receives the feature label
+- `neon.auth.getUser()` error objects surface `error.message`
+- missing `user.id` throws `Sign in required.`
+- default feature label is `Account actions`
 
-vi.mock("@/integrations/neon/client", () => ({
-  neon: {
-    auth: { getUser: (...args: unknown[]) => mockGetUser(...args) },
-  },
-}));
+- [x] **Step 2: Implement `src/lib/require-user-id.ts`**
 
-vi.mock("@/lib/backend-config", () => ({
-  assertBackendConfigured: vi.fn(),
-}));
+Requirements:
 
-import { requireUserId } from "@/lib/require-user-id";
-import { assertBackendConfigured } from "@/lib/backend-config";
+- call `assertBackendConfigured(featureLabel)` first
+- call `neon.auth.getUser()`
+- surface `error.message` when present, otherwise fall back to `Authentication failed.`
+- throw `Sign in required.` when no user id is present
 
-describe("requireUserId", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+- [x] **Step 3: Replace the local copies**
 
-  it("returns user id when authenticated", async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: { id: "user-123" } },
-      error: null,
-    });
-    const id = await requireUserId("Test feature");
-    expect(id).toBe("user-123");
-    expect(assertBackendConfigured).toHaveBeenCalledWith("Test feature");
-  });
+Update:
 
-  it("throws with error.message when getUser returns an error object", async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: null },
-      error: { message: "JWT expired" },
-    });
-    await expect(requireUserId("Test feature")).rejects.toThrow("JWT expired");
-  });
+- `src/lib/community.ts`
+- `src/lib/notifications.ts`
+- `src/lib/community-moderation.ts`
 
-  it("throws fallback message when error has no message", async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: null },
-      error: { code: "unknown" },
-    });
-    await expect(requireUserId("Test feature")).rejects.toThrow(
-      "Authentication failed."
-    );
-  });
+Rules:
 
-  it("throws when no user id is present", async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: null },
-      error: null,
-    });
-    await expect(requireUserId("Test feature")).rejects.toThrow(
-      "Sign in required."
-    );
-  });
+- remove each local `requireUserId()` copy
+- replace each call site with `await requireUserId("<feature label>")`
+- remove only the redundant backend-assert calls that immediately precede `requireUserId()`
+- keep public-read functions on their existing backend-config checks
 
-  it("uses default feature label when none provided", async () => {
-    mockGetUser.mockResolvedValue({
-      data: { user: { id: "user-456" } },
-      error: null,
-    });
-    await requireUserId();
-    expect(assertBackendConfigured).toHaveBeenCalledWith("Account actions");
-  });
-});
+- [x] **Step 4: Run targeted tests**
+
+```sh
+npx vitest run src/test/require-user-id.test.ts
+npx vitest run src/test/notifications-lib.test.ts
+npx vitest run src/test/community-load-post.test.ts
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 5: Run the full unit suite**
 
-Run: `npx vitest run src/test/require-user-id.test.ts`
-Expected: FAIL — `require-user-id` module does not exist
-
-- [ ] **Step 3: Write the shared utility**
-
-The error extraction follows the same pattern used by `toError()` in `community.ts` and `community-moderation.ts`: extract the `.message` string from whatever shape the error object has, fall back to a generic message. We use a standalone helper here to avoid importing module-specific `toError` functions that have additional PostgREST logic.
-
-```typescript
-// src/lib/require-user-id.ts
-import { neon } from "@/integrations/neon/client";
-import { assertBackendConfigured } from "@/lib/backend-config";
-
-function extractErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof Error && error.message.trim()) return error.message;
-  if (error && typeof error === "object") {
-    const message = (error as { message?: unknown }).message;
-    if (typeof message === "string" && message.trim()) return message;
-  }
-  return fallback;
-}
-
-export async function requireUserId(featureLabel = "Account actions"): Promise<string> {
-  assertBackendConfigured(featureLabel);
-  const { data, error } = await neon.auth.getUser();
-  if (error) {
-    throw new Error(extractErrorMessage(error, "Authentication failed."));
-  }
-  if (!data.user?.id) {
-    throw new Error("Sign in required.");
-  }
-  return data.user.id;
-}
+```sh
+npm run test:unit
 ```
-
-- [ ] **Step 4: Run test to verify it passes**
-
-Run: `npx vitest run src/test/require-user-id.test.ts`
-Expected: PASS (all 5 tests)
-
-- [ ] **Step 5: Replace `requireUserId` in `community.ts`**
-
-In `src/lib/community.ts`:
-- Add import: `import { requireUserId } from "@/lib/require-user-id";`
-- Delete the local `requireUserId` function (lines 404-413)
-- Update all call sites that previously called `ensureCommunityBackend()` + `requireUserId()` in sequence. The new shared utility handles the backend assertion internally, so each call site becomes just `await requireUserId("Community prompts")` (using the appropriate feature label that was previously passed to `ensureCommunityBackend`).
-
-Affected call sites (each currently has a preceding `ensureCommunityBackend(...)` call that should be removed):
-- `listMyPrompts` (line ~416-418): change `ensureCommunityBackend("Community prompts"); ... await requireUserId()` to `await requireUserId("Community prompts")`
-- `loadMyPromptById` (line ~459-460): same pattern, label `"Community prompts"`
-- `savePrompt` (line ~479-480): same pattern, label `"Community prompts"`
-- `deletePrompt` (line ~629-630): same pattern, label `"Community prompts"`
-- `sharePrompt` (line ~650-651): label `"Community sharing"`
-- `unsharePrompt` (line ~669-670): label `"Community sharing"`
-- `loadFollowingUserIds` (line ~770-771): label `"Community follows"`
-- `loadPersonalFeed` (line ~789-790): label `"Personal feed"`
-- `followCommunityUser` (line ~983-984): label `"Community follows"`
-- `unfollowCommunityUser` (line ~1023-1024): label `"Community follows"`
-- `setPromptRating` (line ~1132-1133): label `"Community ratings"`
-- `toggleVote` (line ~1221-1222): label `"Community reactions"`
-- `addComment` (line ~1276-1277): label `"Community comments"`
-- `remixToLibrary` (line ~1339-1340): label `"Community remixes"`
-
-Functions that only call `ensureCommunityBackend()` without `requireUserId()` (public reads) should keep calling `assertBackendConfigured()` directly — do NOT change these:
-- `loadFeed`, `loadPostById`, `loadPostsByIds`, `loadPostsByAuthor`
-- `loadComments`, `loadProfilesByIds`, `loadMyVotes`, `loadMyRatings`
-- `loadFollowStats`, `isFollowingCommunityUser`, `loadProfileActivityStats`
-
-- [ ] **Step 6: Replace `requireUserId` in `notifications.ts`**
-
-In `src/lib/notifications.ts`:
-- Add import: `import { requireUserId } from "@/lib/require-user-id";`
-- Delete the local `requireUserId` function (lines 62-70)
-- Update call sites: `loadNotifications` → `await requireUserId("Notifications")`, `getUnreadCount` → `await requireUserId("Notifications")`, `markAsRead` → `await requireUserId("Notifications")`, `markAllAsRead` → `await requireUserId("Notifications")`
-
-**Note:** This adds an `assertBackendConfigured("Notifications")` call that was not present before. This is intentional — it provides a clear early error rather than a network failure when the backend is unconfigured.
-
-- [ ] **Step 7: Replace `requireUserId` in `community-moderation.ts`**
-
-In `src/lib/community-moderation.ts`:
-- Add import: `import { requireUserId } from "@/lib/require-user-id";`
-- Delete the local `requireUserId` function (lines 34-40)
-- Update call sites: `blockCommunityUser` → `await requireUserId("Community moderation")`, `unblockCommunityUser` → `await requireUserId("Community moderation")`, `submitCommunityReport` → `await requireUserId("Community moderation")`
-- The `loadBlockedUserIds` function does NOT use `requireUserId` (it returns `[]` for anonymous users), so leave it unchanged.
-
-- [ ] **Step 8: Run full test suite to verify no regressions**
-
-Run: `npm run test:unit`
-Expected: All tests PASS.
-
-- [ ] **Step 9: Commit**
-
-```bash
-git add src/lib/require-user-id.ts src/test/require-user-id.test.ts \
-  src/lib/community.ts src/lib/notifications.ts src/lib/community-moderation.ts
-git commit -m "refactor: extract shared requireUserId utility
-
-Consolidates three near-identical requireUserId implementations from
-community.ts, notifications.ts, and community-moderation.ts into a
-single shared module at src/lib/require-user-id.ts.
-
-Each call site now passes an explicit feature label used for
-assertBackendConfigured(). notifications.ts gains a backend-configured
-assertion it did not previously have (intentional improvement —
-produces clear early errors instead of network failures)."
-```
-
----
-
-### Task 2: Add DB-level `display_name` constraint on `profiles` table
-
-The `validateDisplayName()` function in `src/lib/profile.ts` enforces alphanumeric-only, max 32 chars. But the DB has no corresponding constraint — a direct API call could bypass client validation.
-
-**Compatibility note:** The `handle_new_user()` trigger inserts `coalesce(nullif(trim(coalesce(new.name, '')), ''), '')` which evaluates to empty string `''` for email signups without a name. The constraint must allow empty strings OR the trigger must be updated. We choose to normalize empty strings to NULL (cleaner semantics) and update the trigger accordingly.
-
-**Files:**
-- Create: `supabase/migrations/20260317010000_profiles_display_name_constraint.sql`
-
-- [ ] **Step 1: Write the migration**
-
-```sql
--- supabase/migrations/20260317010000_profiles_display_name_constraint.sql
--- ============================================================
--- Enforce display_name validation at the database level
--- Mirrors src/lib/profile.ts validateDisplayName():
---   - Max 32 characters
---   - Alphanumeric only (A-Z, a-z, 0-9)
---   - NULL is allowed (no display name set yet)
---   - Empty string is normalized to NULL
--- ============================================================
-
--- Step 1: Normalize empty strings to NULL across all existing rows.
-update public.profiles
-set display_name = null
-where display_name = '';
-
--- Step 2: Clean any existing rows that violate the new constraint.
--- Trim whitespace, strip non-alphanumeric, truncate to 32. NULL out if empty.
-update public.profiles
-set display_name = nullif(
-  left(
-    regexp_replace(trim(coalesce(display_name, '')), '[^A-Za-z0-9]', '', 'g'),
-    32
-  ),
-  ''
-)
-where display_name is not null
-  and (
-    char_length(display_name) > 32
-    or display_name !~ '^[A-Za-z0-9]+$'
-  );
-
--- Step 3: Add the constraint.
-alter table public.profiles
-  drop constraint if exists profiles_display_name_format;
-
-alter table public.profiles
-  add constraint profiles_display_name_format
-  check (
-    display_name is null
-    or (
-      char_length(display_name) between 1 and 32
-      and display_name ~ '^[A-Za-z0-9]+$'
-    )
-  );
-
--- Step 4: Update the signup trigger to insert NULL instead of empty string.
--- This ensures new signups without a name do not violate the constraint.
-create or replace function public.handle_new_user()
-returns trigger
-language plpgsql
-security definer set search_path = ''
-as $$
-begin
-  insert into public.profiles (id, display_name, avatar_url)
-  values (
-    new.id,
-    nullif(trim(coalesce(new.name, '')), ''),
-    nullif(trim(coalesce(new.image, '')), '')
-  );
-  return new;
-end;
-$$;
-```
-
-- [ ] **Step 2: Verify migration syntax and trigger compatibility**
-
-Run:
-```bash
-# Confirm the trigger function is defined correctly
-grep -c "nullif(trim(coalesce" supabase/migrations/20260317010000_profiles_display_name_constraint.sql
-```
-Expected: output `2` (one for display_name, one for avatar_url)
-
-Manual verification: confirm that `nullif(trim(coalesce(new.name, '')), '')` returns `NULL` when `new.name` is null or empty, and returns the trimmed name otherwise. This satisfies the constraint which allows `NULL` or alphanumeric 1-32 chars.
-
-- [ ] **Step 3: Commit**
-
-```bash
-git add supabase/migrations/20260317010000_profiles_display_name_constraint.sql
-git commit -m "fix(db): add display_name CHECK constraint on profiles
-
-Mirrors the client-side validateDisplayName() rules:
-alphanumeric only, 1-32 characters, NULL allowed.
-
-Normalizes existing empty strings to NULL, cleans any violating rows,
-and updates handle_new_user() trigger to insert NULL instead of empty
-string for signups without a name."
-```
-
----
-
-### Task 3: Add client-side login attempt throttle in AuthDialog
-
-`AuthDialog.tsx` has no protection against rapid failed login attempts. While server-side rate limiting is the real defense, a client-side cooldown provides defense in depth. OAuth flows are excluded (they involve redirects and are not brute-forceable via this dialog).
-
-**Files:**
-- Create: `src/lib/auth-throttle.ts`
-- Create: `src/test/auth-throttle.test.ts`
-- Modify: `src/components/AuthDialog.tsx:37-78`
-
-- [ ] **Step 1: Write the failing test for the throttle**
-
-```typescript
-// src/test/auth-throttle.test.ts
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { createAuthThrottle } from "@/lib/auth-throttle";
-
-describe("createAuthThrottle", () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it("allows attempts when under the threshold", () => {
-    const throttle = createAuthThrottle({ maxAttempts: 3, cooldownMs: 30_000 });
-    expect(throttle.canAttempt()).toBe(true);
-    throttle.recordFailure();
-    throttle.recordFailure();
-    expect(throttle.canAttempt()).toBe(true);
-  });
-
-  it("blocks attempts after reaching the threshold", () => {
-    const throttle = createAuthThrottle({ maxAttempts: 3, cooldownMs: 30_000 });
-    throttle.recordFailure();
-    throttle.recordFailure();
-    throttle.recordFailure();
-    expect(throttle.canAttempt()).toBe(false);
-    expect(throttle.remainingCooldownMs()).toBeGreaterThan(0);
-    expect(throttle.remainingCooldownMs()).toBeLessThanOrEqual(30_000);
-  });
-
-  it("resets after cooldown expires", () => {
-    const throttle = createAuthThrottle({ maxAttempts: 3, cooldownMs: 30_000 });
-    throttle.recordFailure();
-    throttle.recordFailure();
-    throttle.recordFailure();
-    expect(throttle.canAttempt()).toBe(false);
-
-    vi.advanceTimersByTime(30_001);
-    expect(throttle.canAttempt()).toBe(true);
-  });
-
-  it("resets on success", () => {
-    const throttle = createAuthThrottle({ maxAttempts: 3, cooldownMs: 30_000 });
-    throttle.recordFailure();
-    throttle.recordFailure();
-    throttle.recordSuccess();
-    expect(throttle.canAttempt()).toBe(true);
-  });
-});
-```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `npx vitest run src/test/auth-throttle.test.ts`
-Expected: FAIL — module does not exist
-
-- [ ] **Step 3: Write the throttle utility**
-
-```typescript
-// src/lib/auth-throttle.ts
-interface AuthThrottleOptions {
-  maxAttempts?: number;
-  cooldownMs?: number;
-}
-
-export function createAuthThrottle({
-  maxAttempts = 5,
-  cooldownMs = 30_000,
-}: AuthThrottleOptions = {}) {
-  let failures = 0;
-  let lockedUntil = 0;
-
-  function canAttempt(): boolean {
-    if (lockedUntil > 0 && Date.now() >= lockedUntil) {
-      failures = 0;
-      lockedUntil = 0;
-    }
-    return lockedUntil === 0 || Date.now() >= lockedUntil;
-  }
-
-  function recordFailure(): void {
-    failures += 1;
-    if (failures >= maxAttempts) {
-      lockedUntil = Date.now() + cooldownMs;
-    }
-  }
-
-  function recordSuccess(): void {
-    failures = 0;
-    lockedUntil = 0;
-  }
-
-  function remainingCooldownMs(): number {
-    if (lockedUntil === 0) return 0;
-    return Math.max(0, lockedUntil - Date.now());
-  }
-
-  return { canAttempt, recordFailure, recordSuccess, remainingCooldownMs };
-}
-```
-
-- [ ] **Step 4: Run test to verify it passes**
-
-Run: `npx vitest run src/test/auth-throttle.test.ts`
-Expected: PASS (all 4 tests)
-
-- [ ] **Step 5: Integrate throttle into AuthDialog**
-
-In `src/components/AuthDialog.tsx`:
-
-1. Update the React import (line 1) to include `useRef`:
-   ```typescript
-   import { type FormEvent, useRef, useState } from "react";
-   ```
-
-2. Add import after the existing imports:
-   ```typescript
-   import { createAuthThrottle } from "@/lib/auth-throttle";
-   ```
-
-3. After the existing state declarations (after line 35, `const [confirmationSent, setConfirmationSent] = useState(false);`), add:
-   ```typescript
-   const authThrottle = useRef(createAuthThrottle());
-   ```
-
-4. In `handleSubmit`, after `event.preventDefault();` (line 38) and before `const normalizedEmail = ...`:
-   ```typescript
-   if (!authThrottle.current.canAttempt()) {
-     const seconds = Math.ceil(authThrottle.current.remainingCooldownMs() / 1000);
-     setError(`Too many attempts. Try again in ${seconds}s.`);
-     return;
-   }
-   ```
-
-5. In `handleSubmit`, inside the `if (result.error)` branch (after `setError(result.error);` on line 62), add:
-   ```typescript
-   authThrottle.current.recordFailure();
-   ```
-
-6. In `handleSubmit`, before the `setConfirmationSent(true)` on the confirmation signup path (line 71), add:
-   ```typescript
-   authThrottle.current.recordSuccess();
-   ```
-
-7. In `resetForm` (line 129), add at the end of the function body:
-   ```typescript
-   authThrottle.current = createAuthThrottle();
-   ```
-
-   Note: `resetForm` is called on dialog close and on successful login, so the throttle resets in both cases. Explicit `recordSuccess()` before `resetForm()` in the login path is redundant but harmless.
-
-- [ ] **Step 6: Run unit tests**
-
-Run: `npm run test:unit`
-Expected: All tests PASS
-
-- [ ] **Step 7: Commit**
-
-```bash
-git add src/lib/auth-throttle.ts src/test/auth-throttle.test.ts \
-  src/components/AuthDialog.tsx
-git commit -m "feat: add client-side login attempt throttle
-
-After 5 consecutive failures, the AuthDialog blocks further attempts
-for 30 seconds. Resets on success or when the dialog is closed and
-reopened. Defense in depth — server-side rate limiting is primary.
-OAuth flows are not throttled (they involve redirects, not password
-brute-forcing)."
-```
-
----
-
-### Task 4: GitHub share safety — verify no regressions
-
-This is a verification task, not a code change. The GitHub share blocking is implemented at three layers (client, trigger, CHECK constraint). Confirm they're all aligned.
-
-**Files:**
-- Read-only verification of:
-  - `src/lib/persistence.ts:114-118` (`assertPromptShareAllowed`)
-  - `src/lib/community.ts:496-498` (share guard in `savePrompt`)
-  - `supabase/migrations/20260316010000_github_context_schema.sql:140-150` (CHECK constraint)
-  - `supabase/migrations/20260316010000_github_context_schema.sql:152-237` (trigger)
-
-- [ ] **Step 1: Verify the three layers are consistent**
-
-Use the Grep tool to check:
-- `src/lib/persistence.ts` for `hasGithubSources` and `GITHUB_SHARE_BLOCKED`
-- `src/lib/community.ts` for the same patterns
-- `supabase/migrations/20260316010000_github_context_schema.sql` for `saved_prompts_no_github_public_share` and `prompt_config_contains_github_sources`
-
-Expected: All three layers check for GitHub sources and prevent sharing. No action needed unless a mismatch is found.
-
-- [ ] **Step 2: Document verification result**
-
-If all three layers are aligned: no commit needed, proceed to next task.
-If a mismatch is found: create a fix and commit before proceeding.
-
----
-
-## Chunk 2: Agent Service Hardening (Tasks 5-7)
-
-### Task 5: Update GitHub API version constant
-
-`agent_service/github-app.mjs:11` uses `GITHUB_API_VERSION = "2022-11-28"` while it documents the current version as `"2026-03-10"`. This is a 3+ year gap that could cause missing fields or deprecated behaviors.
-
-**Files:**
-- Modify: `agent_service/github-app.mjs:11-12, 72-84, 193`
-- Create: `src/test/agent-service-github-api-version.test.ts`
-
-- [ ] **Step 1: Write a test asserting the expected API version header**
-
-```typescript
-// src/test/agent-service-github-api-version.test.ts
-import { describe, it, expect, vi } from "vitest";
-import { createGitHubAppClient } from "../../agent_service/github-app.mjs";
-
-describe("GitHub API version header", () => {
-  it("sends X-GitHub-Api-Version: 2026-03-10 in requests", async () => {
-    const capturedHeaders: Record<string, string>[] = [];
-    const mockFetch = vi.fn(async (_url: string, init: RequestInit) => {
-      capturedHeaders.push(
-        Object.fromEntries(
-          Object.entries(init.headers as Record<string, string>).map(
-            ([k, v]) => [k.toLowerCase(), v],
-          ),
-        ),
-      );
-      return new Response(JSON.stringify({ token: "ghs_test", expires_at: new Date(Date.now() + 600_000).toISOString() }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
-    });
-
-    const app = createGitHubAppClient(
-      {
-        enabled: true,
-        appId: "12345",
-        appSlug: "test-app",
-        stateSecret: "secret",
-        webhookSecret: "webhook-secret",
-        appPrivateKey: `-----BEGIN RSA PRIVATE KEY-----
-MIIEpAIBAAKCAQEA0Z3VS5JJcds3xfn/ygWyF8PbnGy0AHB7MhgHcTz6sE2I2yPB
-aNEhC3sMi4JxKBXnSh8jKGJnHTECMhHeqR6RHn6mFSxWnGuh3bSVMaT7VGNAcbQB
-DUMMY_TEST_KEY_NOT_REAL_DO_NOT_USE_IN_PRODUCTION
-MIIEpAIBAAKCAQEA0Z3VS5JJcds3xfn/ygWyF8PbnGy0AHB7MhgHcTz6sE2I2yPB
------END RSA PRIVATE KEY-----`,
-      },
-      { fetchImpl: mockFetch, now: () => Date.now() },
-    );
-
-    // getInstallationAccessToken calls githubRequest with the version header
-    try {
-      await app.listInstallationRepositories(999);
-    } catch {
-      // May fail due to dummy key — we only care about the header
-    }
-
-    expect(capturedHeaders.length).toBeGreaterThan(0);
-    expect(capturedHeaders[0]["x-github-api-version"]).toBe("2026-03-10");
-  });
-});
-```
-
-- [ ] **Step 2: Run test to verify it fails (old version)**
-
-Run: `npx vitest run src/test/agent-service-github-api-version.test.ts`
-Expected: FAIL — header value is `"2022-11-28"`
-
-- [ ] **Step 3: Update the version constant**
-
-In `agent_service/github-app.mjs`, change line 11:
-
-```javascript
-// Before:
-const GITHUB_API_VERSION = "2022-11-28";
-const CURRENT_GITHUB_API_VERSION = "2026-03-10";
-
-// After:
-const GITHUB_API_VERSION = "2026-03-10";
-```
-
-Remove line 12 (`CURRENT_GITHUB_API_VERSION`) entirely.
-
-- [ ] **Step 4: Remove the version skew diagnostic block**
-
-Delete the diagnostic block at lines 72-84 that compares the two constants:
-
-```javascript
-// DELETE this entire block (lines 72-84):
-  // --- Diagnostic: API version skew detection ---
-  if (config.enabled && GITHUB_API_VERSION !== CURRENT_GITHUB_API_VERSION) {
-    // ... entire block ...
-  }
-  // --- End diagnostic ---
-```
-
-- [ ] **Step 5: Run tests to verify the fix**
-
-Run: `npx vitest run src/test/agent-service-github-api-version.test.ts`
-Expected: PASS — header value is now `"2026-03-10"`
-
-Run: `npx vitest run src/test/agent-service-github-routing.test.ts`
-Expected: PASS
-
-Run: `npx vitest run src/test/agent-service-github-webhooks.test.ts`
-Expected: PASS
 
 - [ ] **Step 6: Commit**
 
-```bash
-git add agent_service/github-app.mjs \
-  src/test/agent-service-github-api-version.test.ts
-git commit -m "fix: update GitHub API version to 2026-03-10
-
-Closes a 3+ year version skew (was 2022-11-28). Removes the
-version skew diagnostic that flagged this drift at startup.
-Adds a regression test asserting the X-GitHub-Api-Version header."
+```sh
+git add src/lib/require-user-id.ts src/test/require-user-id.test.ts \
+  src/lib/community.ts src/lib/notifications.ts src/lib/community-moderation.ts
+git commit -m "refactor: extract shared requireUserId utility"
 ```
 
 ---
 
-### Task 6: Redact SQL fragments from production error logs
+## Task 2: Align the display-name contract across signup, profile editing, and Postgres
 
-`agent_service/neon-data.mjs` logs `query_preview` on every query error, exposing SQL fragments in production logs. Gate this behind a debug flag.
+The previous plan tried to mirror the old `validateDisplayName()` regex at the database layer. That is not safe for the current product:
+
+- email signup fallback names currently preserve dots such as `jane.doe`
+- explicit signup names currently preserve spaces such as `Jane Doe`
+- OAuth provider names can contain spaces and punctuation
+- the current `handle_new_user()` trigger includes Gravatar fallback logic that must not be lost
+
+The fix is to define one contract that matches real product behavior, then enforce only those invariants everywhere.
+
+**Canonical contract for this task:**
+
+- `display_name` is optional in the database (`NULL` allowed)
+- when present, it is trimmed, normalized user-facing text
+- maximum length is 32 characters after normalization
+- empty strings are stored as `NULL`
+- do **not** reintroduce an ASCII-only format regex in this task
 
 **Files:**
-- Modify: `agent_service/neon-data.mjs:29, 51-63, 73-82`
-- Modify: `agent_service/github-store.mjs:42-44`
-- Modify: `agent_service/service-runtime.mjs` (inside `githubConfig` return object, around line 341)
-- Create: `src/test/agent-service-neon-data-redaction.test.ts`
 
-- [ ] **Step 1: Write failing tests for the redaction behavior**
+- Modify: `src/lib/profile.ts`
+- Modify: `src/hooks/auth-provider.tsx`
+- Modify: `src/test/profile-display-name.test.ts`
+- Modify: `src/test/useAuth.sign-up.test.tsx`
+- Create: `supabase/migrations/20260317010000_profiles_display_name_contract.sql`
 
-```typescript
-// src/test/agent-service-neon-data-redaction.test.ts
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createNeonDatabaseClient } from "../../agent_service/neon-data.mjs";
+- [x] **Step 1: Lock the intended behavior in frontend tests first**
 
-// Mock the @neondatabase/serverless neon function
-vi.mock("@neondatabase/serverless", () => ({
-  neon: () => {
-    const sql = {
-      query: vi.fn(),
-    };
-    return Object.assign(sql.query, sql);
-  },
-}));
+Update `src/test/profile-display-name.test.ts` so the validator covers the names the app already uses:
 
-describe("neon-data query_preview redaction", () => {
-  let consoleSpy: ReturnType<typeof vi.spyOn>;
+- accepts `"Prompt Dev"`
+- accepts `"jane.doe"`
+- trims outer whitespace before validating
+- collapses repeated internal whitespace during normalization
+- rejects empty values
+- rejects values longer than 32 characters
 
-  beforeEach(() => {
-    consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-  });
+Update `src/test/useAuth.sign-up.test.tsx` so signup fallback logic is explicit:
 
-  it("excludes query_preview when debug is false", async () => {
-    const client = createNeonDatabaseClient({
-      databaseUrl: "postgres://test:test@localhost/test",
-      debug: false,
-    });
+- `jane.doe@example.com` still produces `jane.doe`
+- a complex local part such as `jane+team@example.com` is normalized to a safe fallback before it is sent to Neon
+- a provided display name such as `"  Jane Doe  "` is preserved after normalization
 
-    try {
-      // Force an error by having the mock throw
-      await client.queryRows("SELECT * FROM secret_table WHERE id = $1", ["1"]);
-    } catch {
-      // Expected to throw
-    }
+- [x] **Step 2: Add shared normalization helpers in `src/lib/profile.ts`**
 
-    const logCalls = consoleSpy.mock.calls
-      .map(([arg]) => typeof arg === "string" ? arg : "")
-      .filter((s) => s.includes("neon_query"));
+Refactor `src/lib/profile.ts` to become the single source of truth for display-name handling.
 
-    for (const logLine of logCalls) {
-      expect(logLine).not.toContain("query_preview");
-    }
-  });
+Add:
 
-  it("includes query_preview when debug is true", async () => {
-    const client = createNeonDatabaseClient({
-      databaseUrl: "postgres://test:test@localhost/test",
-      debug: true,
-    });
+- a normalizer that trims the value, removes unsupported hidden characters via `sanitizePostgresText`, and collapses whitespace to a single space if needed
+- a signup fallback resolver that derives a safe 32-character display name from the email local part and falls back to `"Member"` if normalization produces nothing usable
 
-    try {
-      await client.queryRows("SELECT * FROM secret_table WHERE id = $1", ["1"]);
-    } catch {
-      // Expected to throw
-    }
+Then update `validateDisplayName()` to enforce only the contract above:
 
-    const logCalls = consoleSpy.mock.calls
-      .map(([arg]) => typeof arg === "string" ? arg : "")
-      .filter((s) => s.includes("neon_query"));
+- required for user-entered updates
+- max length 32
+- no format regex that rejects current shipped names
 
-    const hasQueryPreview = logCalls.some((line) => line.includes("query_preview"));
-    expect(hasQueryPreview).toBe(true);
-  });
-});
+- [x] **Step 3: Update `src/hooks/auth-provider.tsx` to use the shared helpers**
+
+In `AuthProvider`:
+
+- replace the local `resolveSignUpName()` logic with imports from `src/lib/profile.ts`
+- if the caller supplied a display name, validate it before calling `neon.auth.signUp()`
+- keep writing both metadata keys:
+  - `displayName`
+  - `name`
+
+The signup path must stay compatible with the current tests and with the new database constraint.
+
+- [x] **Step 4: Write the migration against the current trigger, not the initial trigger**
+
+Create `supabase/migrations/20260317010000_profiles_display_name_contract.sql`.
+
+The migration must:
+
+1. normalize existing rows without destroying legitimate names
+2. add a safe constraint that matches the contract
+3. preserve the current Gravatar/avatar fallback logic in `public.handle_new_user()`
+
+Use this implementation strategy:
+
+1. Normalize existing values:
+
+   - trim whitespace
+   - collapse repeated internal whitespace to a single space
+   - truncate to 32 characters
+   - convert empty strings to `NULL`
+
+2. Add a conservative constraint such as:
+
+   ```sql
+   alter table public.profiles
+     add constraint profiles_display_name_contract
+     check (
+       display_name is null
+       or (
+         char_length(display_name) between 1 and 32
+         and display_name = btrim(display_name)
+       )
+     );
+   ```
+
+3. Recreate `public.handle_new_user()` by starting from the current function body in `supabase/migrations/20260211020000_gravatar_avatar_fallback.sql`.
+
+4. Keep the existing `oauth_avatar` / `gravatar_url` logic exactly as-is.
+
+5. Change only the `display_name` assignment to the contract-safe version, for example:
+
+   ```sql
+   nullif(left(regexp_replace(trim(coalesce(new.name, '')), '\s+', ' ', 'g'), 32), '')
+   ```
+
+This avoids the regression where the previous draft would have removed the Gravatar fallback entirely.
+
+- [x] **Step 5: Add a migration review checklist to the implementation notes**
+
+Before applying the migration, verify all of the following manually:
+
+- the migration does not strip spaces or dots from existing names
+- the recreated trigger still references `public.digest(...)`
+- `avatar_url` still prefers OAuth avatar, then Gravatar, then empty string
+- the new constraint allows `NULL` and trimmed 1..32 character values
+
+- [x] **Step 6: Run targeted tests**
+
+```sh
+npx vitest run src/test/profile-display-name.test.ts
+npx vitest run src/test/useAuth.sign-up.test.tsx
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 7: Run the full unit suite**
 
-Run: `npx vitest run src/test/agent-service-neon-data-redaction.test.ts`
-Expected: FAIL — `createNeonDatabaseClient` does not accept `debug` parameter (or `query_preview` is always present)
-
-- [ ] **Step 3: Add debug flag and redact query_preview**
-
-In `agent_service/neon-data.mjs`, modify `createNeonDatabaseClient` to accept a `debug` option:
-
-Change the function signature (line 29):
-```javascript
-// Before:
-export function createNeonDatabaseClient({
-  databaseUrl,
-} = {}) {
-
-// After:
-export function createNeonDatabaseClient({
-  databaseUrl,
-  debug = false,
-} = {}) {
+```sh
+npm run test:unit
 ```
 
-In the `queryRows` function, modify the diagnostic log for unexpected return shape (lines 51-63) — change the `query_preview` line:
+- [ ] **Step 8: Commit the contract change atomically**
 
-```javascript
-          ...(debug ? { query_preview: queryText.trim().substring(0, 80) } : {}),
+Do not split the frontend and migration work into separate commits.
+
+```sh
+git add src/lib/profile.ts src/hooks/auth-provider.tsx \
+  src/test/profile-display-name.test.ts src/test/useAuth.sign-up.test.tsx \
+  supabase/migrations/20260317010000_profiles_display_name_contract.sql
+git commit -m "fix(auth): align display-name contract across signup and profiles"
 ```
 
-And in the error diagnostic block (lines 73-82) — same change:
+---
 
-```javascript
-        ...(debug ? { query_preview: queryText.trim().substring(0, 80) } : {}),
+## Task 3: Add a login-only attempt throttle in `AuthDialog`
+
+The earlier draft correctly identified missing client-side throttling, but the proposed implementation throttled both login and signup. This task must throttle repeated **login** failures only.
+
+**Files:**
+
+- Create: `src/lib/auth-throttle.ts`
+- Create: `src/test/auth-throttle.test.ts`
+- Create: `src/test/auth-dialog-throttle.test.tsx`
+- Modify: `src/components/AuthDialog.tsx`
+
+- [x] **Step 1: Keep the pure utility tests**
+
+Create `src/test/auth-throttle.test.ts` for the throttle utility itself.
+
+Cover:
+
+- attempts below the threshold are allowed
+- the threshold triggers a cooldown
+- the cooldown expires automatically
+- `recordSuccess()` clears the failure counter
+
+- [x] **Step 2: Add a component test for the regression the previous draft missed**
+
+Create `src/test/auth-dialog-throttle.test.tsx`.
+
+Mock `useAuth()` and render the real `AuthDialog`.
+
+Cover at least these flows:
+
+1. repeated failed **login** attempts eventually show a cooldown error and stop calling `signIn`
+2. repeated failed **signup** attempts do **not** trip the login throttle
+3. a successful login resets the throttle
+4. closing and reopening the dialog resets the throttle
+
+Use fake timers so the cooldown path is deterministic.
+
+- [x] **Step 3: Implement the throttle utility**
+
+In `src/lib/auth-throttle.ts`:
+
+- expose `canAttempt()`
+- expose `recordFailure()`
+- expose `recordSuccess()`
+- expose `remainingCooldownMs()`
+
+Keep the utility generic and side-effect free.
+
+- [x] **Step 4: Integrate the throttle into `src/components/AuthDialog.tsx`**
+
+Implementation rules:
+
+- add `useRef`
+- create one throttle instance per open dialog session
+- run the cooldown check only when `mode === "login"`
+- call `recordFailure()` only when a login attempt fails
+- call `recordSuccess()` only when a login attempt succeeds
+- reset the throttle inside `resetForm()`
+- do not throttle:
+  - signup
+  - OAuth
+  - forgot-password
+
+- [x] **Step 5: Make the cooldown error user-facing**
+
+When the login throttle is active:
+
+- do not call `signIn`
+- show a clear error such as `Too many attempts. Try again in 30s.`
+
+Round the seconds up so the user never sees `0s` while still blocked.
+
+- [x] **Step 6: Run targeted tests**
+
+```sh
+npx vitest run src/test/auth-throttle.test.ts
+npx vitest run src/test/auth-dialog-throttle.test.tsx
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 7: Run the full unit suite**
 
-Run: `npx vitest run src/test/agent-service-neon-data-redaction.test.ts`
-Expected: PASS (both tests)
-
-- [ ] **Step 5: Pass debug flag from `github-store.mjs`**
-
-In `agent_service/github-store.mjs`, line 42-44:
-
-```javascript
-// Before:
-  const client = createNeonDatabaseClient({
-    databaseUrl: config.databaseUrl,
-  });
-
-// After:
-  const client = createNeonDatabaseClient({
-    databaseUrl: config.databaseUrl,
-    debug: config.debug ?? false,
-  });
+```sh
+npm run test:unit
 ```
-
-- [ ] **Step 6: Wire debug flag from runtime config**
-
-In `agent_service/service-runtime.mjs`, inside the `githubConfig` IIFE return object (the `return { ... }` block that starts around line 341, after the existing properties like `webhookSecret`), add:
-
-```javascript
-      debug: normalizeBool(env?.GITHUB_DEBUG_LOGGING, false),
-```
-
-This ensures `query_preview` only appears when `GITHUB_DEBUG_LOGGING=true` is explicitly set.
-
-- [ ] **Step 7: Run existing tests to verify no regressions**
-
-Run: `npx vitest run src/test/agent-service-github-store.test.ts`
-Expected: PASS
 
 - [ ] **Step 8: Commit**
 
-```bash
-git add agent_service/neon-data.mjs agent_service/github-store.mjs \
-  agent_service/service-runtime.mjs \
-  src/test/agent-service-neon-data-redaction.test.ts
-git commit -m "fix: redact SQL fragments from production error logs
-
-query_preview in neon-data.mjs diagnostic logs now only appears
-when GITHUB_DEBUG_LOGGING=true. Prevents schema exposure in
-production log aggregation."
+```sh
+git add src/lib/auth-throttle.ts src/test/auth-throttle.test.ts \
+  src/test/auth-dialog-throttle.test.tsx src/components/AuthDialog.tsx
+git commit -m "feat(auth): throttle repeated login failures without blocking signup"
 ```
 
 ---
 
-### Task 7: Validate GitHub setup redirect URL against allowed origins
+## Task 4: Verify GitHub share protection still matches across all layers
 
-`agent_service/handlers/github-install-url.mjs` constructs the `returnTo` URL from the request's `Origin`/`Referer` header. While the HMAC signature prevents post-creation tampering, the initial URL is not validated against a server-side allowlist. A request with a spoofed Origin could embed an attacker-controlled URL.
+This remains a verification task. The implementation already appears aligned, but the plan should prove that with explicit checks.
+
+**Files to verify:**
+
+- `src/lib/persistence.ts`
+- `src/lib/community.ts`
+- `supabase/migrations/20260316010000_github_context_schema.sql`
+- tests that exercise share blocking
+
+- [x] **Step 1: Confirm the client-side guard in persistence**
+
+Check `assertPromptShareAllowed()` in `src/lib/persistence.ts` and confirm it blocks when `hasGithubSources(...)` is true.
+
+- [x] **Step 2: Confirm the community save/share guard**
+
+Check `src/lib/community.ts` and confirm `savePrompt()` rejects `input.isShared` when GitHub sources are attached.
+
+- [x] **Step 3: Confirm the database guard**
+
+Check `supabase/migrations/20260316010000_github_context_schema.sql` and confirm both are still present:
+
+- `saved_prompts_no_github_public_share`
+- `public.prompt_config_contains_github_sources(...)`
+
+- [x] **Step 4: Run the share-related regression suites**
+
+```sh
+npx vitest run src/test/persistence.test.ts
+npx vitest run src/test/community-share.test.ts
+npx vitest run src/test/library-share-usecase-fallback.test.tsx
+npx vitest run src/test/rls-github-context.test.ts
+```
+
+- [x] **Step 5: Document the result**
+
+- if all three layers still agree, leave the code unchanged
+- if any layer drifts, fix the mismatch before moving to later tasks
+
+---
+
+## Task 5: Refresh the GitHub API version header with a deterministic regression test
+
+The code currently carries version drift, but the previous draft used a test that never reached `fetch()`. Fix the test seam first, then update the constant.
 
 **Files:**
-- Create: `agent_service/redirect-validation.mjs`
-- Modify: `agent_service/handlers/github-install-url.mjs:23-43`
-- Modify: `src/test/agent-service-github-setup-flow.test.ts` (update mock runtime)
-- Create: `src/test/agent-service-redirect-validation.test.ts`
 
-- [ ] **Step 1: Write the failing test for the validation module**
+- Modify: `agent_service/github-app.mjs`
+- Create: `src/test/agent-service-github-api-version.test.ts`
 
-```typescript
-// src/test/agent-service-redirect-validation.test.ts
-import { describe, it, expect } from "vitest";
-import { isAllowedRedirectOrigin } from "../../agent_service/redirect-validation.mjs";
+- [x] **Step 1: Verify the current GitHub REST API version on implementation day**
 
-describe("isAllowedRedirectOrigin", () => {
-  const allowedOrigins = new Set([
-    "https://prompt.lakefrontdigital.io",
-    "http://localhost:8080",
-  ]);
+Before changing any code:
 
-  it("allows a configured origin", () => {
-    expect(
-      isAllowedRedirectOrigin("https://prompt.lakefrontdigital.io/builder", allowedOrigins)
-    ).toBe(true);
-  });
+- open the official GitHub REST API version documentation
+- record the current version date used for `X-GitHub-Api-Version`
+- use that exact date in both the code and the test
 
-  it("allows localhost during development", () => {
-    expect(
-      isAllowedRedirectOrigin("http://localhost:8080/settings", allowedOrigins)
-    ).toBe(true);
-  });
+If the current docs no longer use the date from the review notes, update the plan execution to the newer value.
 
-  it("rejects an unknown origin", () => {
-    expect(
-      isAllowedRedirectOrigin("https://evil.example.com/steal", allowedOrigins)
-    ).toBe(false);
-  });
+- [x] **Step 2: Write a deterministic node test that reaches the real request path**
 
-  it("rejects when the URL is invalid", () => {
-    expect(
-      isAllowedRedirectOrigin("not-a-url", allowedOrigins)
-    ).toBe(false);
-  });
+Create `src/test/agent-service-github-api-version.test.ts` with `/* @vitest-environment node */`.
 
-  it("rejects empty input", () => {
-    expect(isAllowedRedirectOrigin("", allowedOrigins)).toBe(false);
-  });
+Do **not** use a dummy PEM.
 
-  it("allows any origin when allowlist is empty (backward compat for unconfigured deployments)", () => {
-    // When ALLOWED_ORIGINS is not set, the origins Set is empty.
-    // We allow all redirects for backward compatibility.
-    expect(
-      isAllowedRedirectOrigin("https://anything.example.com", new Set())
-    ).toBe(true);
-  });
-});
-```
+Instead:
 
-- [ ] **Step 2: Run test to verify it fails**
+- generate a real RSA private key inside the test with `generateKeyPairSync("rsa", { modulusLength: 2048 })`
+- export it as PEM
+- create the app client with that valid key
+- mock `fetch`
+- call a method that performs exactly one app-authenticated request, such as `getInstallationDetails()`
+- assert the outgoing headers include the verified `X-GitHub-Api-Version`
 
-Run: `npx vitest run src/test/agent-service-redirect-validation.test.ts`
-Expected: FAIL — module does not exist
+- [x] **Step 3: Update `agent_service/github-app.mjs`**
 
-- [ ] **Step 3: Write the validation module**
+Implementation rules:
 
-```javascript
-// agent_service/redirect-validation.mjs
+- replace the old hardcoded `GITHUB_API_VERSION` value with the verified current version
+- remove `CURRENT_GITHUB_API_VERSION`
+- remove the startup diagnostic block that compares two hardcoded version constants
 
-/**
- * Returns true when the candidate URL's origin is present in the
- * allowedOrigins set, or when the allowlist is empty (unconfigured —
- * allows all origins for backward compatibility with deployments that
- * have not yet set ALLOWED_ORIGINS).
- *
- * IMPORTANT: This provides no protection if ALLOWED_ORIGINS is not configured.
- * Ensure ALLOWED_ORIGINS is set in production deployments.
- */
-export function isAllowedRedirectOrigin(candidateUrl, allowedOrigins) {
-  if (!allowedOrigins || allowedOrigins.size === 0) return true;
-  if (!candidateUrl || typeof candidateUrl !== "string") return false;
+The diagnostic has already shown that this kind of duplicated source of truth drifts quickly.
 
-  let parsed;
-  try {
-    parsed = new URL(candidateUrl.trim());
-  } catch {
-    return false;
-  }
+- [x] **Step 4: Run the targeted GitHub tests**
 
-  return allowedOrigins.has(parsed.origin);
-}
-```
-
-- [ ] **Step 4: Run test to verify it passes**
-
-Run: `npx vitest run src/test/agent-service-redirect-validation.test.ts`
-Expected: PASS (all 6 tests)
-
-- [ ] **Step 5: Integrate into `github-install-url.mjs`**
-
-In `agent_service/handlers/github-install-url.mjs`, add the import:
-
-```javascript
-import { isAllowedRedirectOrigin } from "../redirect-validation.mjs";
-```
-
-Replace `resolvePostInstallReturnTo` (lines 23-43) with:
-
-```javascript
-function resolvePostInstallReturnTo(req, runtime) {
-  const configuredRedirectUrl = runtime.githubConfig.postInstallRedirectUrl;
-  if (!configuredRedirectUrl) return configuredRedirectUrl;
-
-  let configuredUrl;
-  try {
-    configuredUrl = new URL(configuredRedirectUrl);
-  } catch {
-    return configuredRedirectUrl;
-  }
-
-  const requestOrigin = resolveRequestOrigin(req);
-  if (!requestOrigin) {
-    return configuredUrl.toString();
-  }
-
-  const candidateUrl = new URL(
-    `${configuredUrl.pathname}${configuredUrl.search}${configuredUrl.hash}`,
-    `${requestOrigin}/`,
-  ).toString();
-
-  // Validate the computed redirect target against configured CORS origins.
-  // If the origin is not in the allowlist, fall back to the configured URL.
-  const allowedOrigins = runtime.corsConfig?.origins ?? new Set();
-  if (!isAllowedRedirectOrigin(candidateUrl, allowedOrigins)) {
-    return configuredUrl.toString();
-  }
-
-  return candidateUrl;
-}
-```
-
-- [ ] **Step 6: Update existing setup flow test mock to include `corsConfig`**
-
-In `src/test/agent-service-github-setup-flow.test.ts`, find the `createRuntime` helper and add `corsConfig` to the mock:
-
-```typescript
-function createRuntime(postInstallRedirectUrl = "https://promptforge.test/") {
-  return {
-    githubConfig: { postInstallRedirectUrl },
-    corsConfig: {
-      mode: "set",
-      origins: new Set(["https://promptforge.test", "http://localhost:8080"]),
-    },
-  };
-}
-```
-
-Add a new test case that verifies a spoofed origin is rejected:
-
-```typescript
-it("falls back to configured URL when request origin is not in allowed origins", async () => {
-  const runtime = createRuntime("https://promptforge.test/");
-  const handler = createGitHubInstallUrlHandler({ app, store, runtime });
-  const result = await handler({
-    auth: { userId: "user-1" },
-    req: { headers: { origin: "https://evil.example.com" } },
-  });
-  // The install URL state should contain returnTo pointing to the
-  // configured URL, not the spoofed origin
-  expect(result.body.installUrl).toContain("state=");
-  // Verify the state token was created with the configured URL, not the spoofed one
-  expect(store.createSetupState).toHaveBeenCalled();
-});
-```
-
-- [ ] **Step 7: Verify `corsConfig` is exported from `service-runtime.mjs`**
-
-In `agent_service/service-runtime.mjs`, verify that `corsConfig` is included in the returned runtime object (around line 714). It should already be there. If not, add `corsConfig,` to the return block.
-
-- [ ] **Step 8: Run full agent service test suite**
-
-Run:
-```bash
+```sh
+npx vitest run src/test/agent-service-github-api-version.test.ts
 npx vitest run src/test/agent-service-github-routing.test.ts
-npx vitest run src/test/agent-service-github-setup-flow.test.ts
-npx vitest run src/test/agent-service-redirect-validation.test.ts
+npx vitest run src/test/agent-service-github-webhooks.test.ts
 ```
-Expected: All PASS
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 5: Commit**
 
-```bash
-git add agent_service/redirect-validation.mjs \
-  agent_service/handlers/github-install-url.mjs \
-  src/test/agent-service-redirect-validation.test.ts \
-  src/test/agent-service-github-setup-flow.test.ts
-git commit -m "fix: validate GitHub setup redirect URL against allowed origins
-
-The returnTo URL embedded in the GitHub install state token is now
-validated against the configured CORS origins (ALLOWED_ORIGINS).
-Spoofed Origin/Referer headers can no longer influence the
-post-install redirect target to point at an unconfigured origin.
-
-Note: protection requires ALLOWED_ORIGINS to be set. Unconfigured
-deployments allow all redirects for backward compatibility."
+```sh
+git add agent_service/github-app.mjs \
+  src/test/agent-service-github-api-version.test.ts
+git commit -m "fix(github): refresh API version header and deterministic test"
 ```
 
 ---
 
-## Chunk 3: Final Gate
+## Task 6: Redact SQL previews from production logs unless debug logging is explicitly enabled
 
-### Task 8: Run pre-merge gate
+The production concern is real, but the previous draft only half-tested it. This task must cover both logging branches in `neon-data.mjs` and document the new debug flag.
 
-- [ ] **Step 1: Run the full check:prod gate**
+**Files:**
 
-Run: `npm run check:prod`
-Expected: All gates PASS (docs-freshness, design-system gates, lint, test:unit, build, token-runtime)
+- Modify: `agent_service/neon-data.mjs`
+- Modify: `agent_service/github-store.mjs`
+- Modify: `agent_service/service-runtime.mjs`
+- Modify: `agent_service/README.md`
+- Modify: `src/test/agent-service-runtime.test.ts`
+- Create: `src/test/agent-service-neon-data-redaction.test.ts`
 
-- [ ] **Step 2: If any failures, fix and re-run before proceeding**
+- [x] **Step 1: Write a proper Vitest mock seam for `@neondatabase/serverless`**
 
-Any failures should be addressed in the task that introduced the regression. Re-run `npm run check:prod` after each fix until clean.
+In `src/test/agent-service-neon-data-redaction.test.ts`:
 
-- [ ] **Step 3: Final commit summary**
+- hoist a shared `queryMock`
+- mock `neon()` so it returns an object/function whose `.query()` method delegates to `queryMock`
+- spy on `console.log`
+- parse each JSON log line back into an object before making assertions
 
-Review the commit log for this branch:
-```bash
+- [x] **Step 2: Cover both log sites with separate tests**
+
+Add at least four assertions:
+
+1. `debug: false` omits `query_preview` from `neon_query_unexpected_return`
+2. `debug: true` includes `query_preview` in `neon_query_unexpected_return`
+3. `debug: false` omits `query_preview` from `neon_query_error`
+4. `debug: true` includes `query_preview` in `neon_query_error`
+
+How to trigger them:
+
+- unexpected-return path: make `queryMock` resolve to an object instead of an array
+- thrown-error path: make `queryMock` reject with an error such as `permission denied`
+
+- [x] **Step 3: Add the `debug` option to `createNeonDatabaseClient()`**
+
+In `agent_service/neon-data.mjs`:
+
+- accept `debug = false`
+- only include `query_preview` in logged objects when `debug === true`
+- keep the rest of the log payload stable so existing operational parsing does not drift
+
+- [x] **Step 4: Thread the debug flag through the GitHub store**
+
+In `agent_service/github-store.mjs`:
+
+- pass `debug: config.debug ?? false` into `createNeonDatabaseClient()`
+
+- [x] **Step 5: Expose the new runtime flag**
+
+In `agent_service/service-runtime.mjs`:
+
+- add `debug: normalizeBool(env?.GITHUB_DEBUG_LOGGING, false)` to `githubConfig`
+
+Then update `src/test/agent-service-runtime.test.ts` to assert the new field is parsed correctly.
+
+- [x] **Step 6: Document the new env var**
+
+Update `agent_service/README.md` and add `GITHUB_DEBUG_LOGGING` to the GitHub context configuration table.
+
+Document the intended behavior clearly:
+
+- default is `false`
+- SQL previews stay out of production logs by default
+- set `GITHUB_DEBUG_LOGGING=true` only for short-lived debugging sessions
+
+- [x] **Step 7: Run targeted tests**
+
+```sh
+npx vitest run src/test/agent-service-neon-data-redaction.test.ts
+npx vitest run src/test/agent-service-github-store.test.ts
+npx vitest run src/test/agent-service-runtime.test.ts
+```
+
+- [ ] **Step 8: Commit**
+
+```sh
+git add agent_service/neon-data.mjs agent_service/github-store.mjs \
+  agent_service/service-runtime.mjs agent_service/README.md \
+  src/test/agent-service-neon-data-redaction.test.ts \
+  src/test/agent-service-runtime.test.ts
+git commit -m "fix(github): redact SQL previews unless debug logging is enabled"
+```
+
+---
+
+## Task 7: Harden GitHub setup redirect origin handling and fail closed for unconfigured origin sets
+
+The earlier redirect task correctly identified the spoofing risk but still failed open when `ALLOWED_ORIGINS` was `*` or unset. The new rule is simpler:
+
+- only rewrite the post-install origin when the request origin is explicitly present in `corsConfig.origins`
+- otherwise fall back to the configured `GITHUB_POST_INSTALL_REDIRECT_URL`
+
+That means unconfigured or wildcard CORS no longer grant dynamic redirect scoping.
+
+**Files:**
+
+- Create: `agent_service/redirect-validation.mjs`
+- Modify: `agent_service/handlers/github-install-url.mjs`
+- Modify: `agent_service/README.md`
+- Modify: `docs/github-context-reference.md`
+- Modify: `src/test/agent-service-github-setup-flow.test.ts`
+- Create: `src/test/agent-service-redirect-validation.test.ts`
+
+- [x] **Step 1: Write a helper test against the real runtime CORS shape**
+
+Create `src/test/agent-service-redirect-validation.test.ts`.
+
+Model the inputs exactly like runtime uses them:
+
+- `{ mode: "set", origins: new Set([...]) }`
+- `{ mode: "any", origins: new Set() }`
+
+Cover:
+
+- allowed explicit origin returns `true`
+- unknown origin returns `false`
+- invalid URL returns `false`
+- empty input returns `false`
+- `mode: "any"` returns `false`
+
+The last case is the regression guard the previous draft missed.
+
+- [x] **Step 2: Implement the helper as fail-closed**
+
+Create `agent_service/redirect-validation.mjs`.
+
+The helper should:
+
+- parse the candidate origin safely
+- return `false` if parsing fails
+- return `false` when `corsConfig.mode !== "set"`
+- return `true` only when the parsed origin is explicitly present in `corsConfig.origins`
+
+Do **not** include an empty-allowlist compatibility bypass.
+
+- [x] **Step 3: Integrate the helper into `github-install-url.mjs`**
+
+Update `resolvePostInstallReturnTo()` so it behaves like this:
+
+1. parse the configured redirect URL
+2. resolve the request origin from `Origin` or `Referer`
+3. if there is no request origin, return the configured URL unchanged
+4. if the request origin is not explicitly allowed, return the configured URL unchanged
+5. only then rebuild the redirect URL on the request origin
+
+This keeps the useful localhost rewrite behavior while removing the spoofing path.
+
+- [x] **Step 4: Update the GitHub setup flow test to assert the security-sensitive value**
+
+In `src/test/agent-service-github-setup-flow.test.ts`:
+
+- extend `createRuntime()` to include `corsConfig`
+- keep the existing success case where `http://localhost:8080` is explicitly allowed
+- add a spoofed-origin case
+
+The spoofed-origin case must assert the exact `returnTo` sent into `app.createSetupState()`.
+
+Example assertion shape:
+
+```ts
+expect(app.createSetupState).toHaveBeenCalledWith({
+  userId: "user-1",
+  nonce: "nonce-1",
+  returnTo: "https://promptforge.test/",
+});
+```
+
+Do not stop at asserting `state=` exists in the install URL. That does not prove the redirect target was safe.
+
+- [x] **Step 5: Add a wildcard-CORS regression test**
+
+Add one more setup-flow test where:
+
+- `corsConfig.mode === "any"`
+- the request origin is `http://localhost:8080`
+
+Expected behavior:
+
+- the handler falls back to the configured redirect URL
+- it does **not** rewrite to the request origin
+
+This is how the task closes the fail-open gap from the earlier draft.
+
+- [x] **Step 6: Update docs so runtime behavior does not drift**
+
+Update both:
+
+- `agent_service/README.md`
+- `docs/github-context-reference.md`
+
+Document:
+
+- `ALLOWED_ORIGINS` must be an explicit list if you want origin-scoped GitHub install redirects
+- when CORS is wildcard/unset, the setup flow falls back to `GITHUB_POST_INSTALL_REDIRECT_URL`
+- bump the `Last updated` line in `docs/github-context-reference.md`
+
+- [x] **Step 7: Run targeted tests**
+
+```sh
+npx vitest run src/test/agent-service-redirect-validation.test.ts
+npx vitest run src/test/agent-service-github-setup-flow.test.ts
+npx vitest run src/test/agent-service-github-routing.test.ts
+```
+
+- [ ] **Step 8: Commit**
+
+```sh
+git add agent_service/redirect-validation.mjs \
+  agent_service/handlers/github-install-url.mjs \
+  agent_service/README.md docs/github-context-reference.md \
+  src/test/agent-service-redirect-validation.test.ts \
+  src/test/agent-service-github-setup-flow.test.ts
+git commit -m "fix(github): harden setup redirect origin handling"
+```
+
+---
+
+## Task 8: Final verification gate
+
+- [x] **Step 1: Run the full pre-merge gate**
+
+```sh
+npm run check:prod
+```
+
+- [x] **Step 2: Re-run any targeted suites for the task that failed**
+
+If `check:prod` fails:
+
+- fix the task that introduced the regression
+- re-run that task's targeted tests first
+- then re-run `npm run check:prod`
+
+- [ ] **Step 3: Review the final commit set**
+
+Expected commit set:
+
+1. `refactor: extract shared requireUserId utility`
+2. `fix(auth): align display-name contract across signup and profiles`
+3. `feat(auth): throttle repeated login failures without blocking signup`
+4. `fix(github): refresh API version header and deterministic test`
+5. `fix(github): redact SQL previews unless debug logging is enabled`
+6. `fix(github): harden setup redirect origin handling`
+
+Then review:
+
+```sh
 git log --oneline main..HEAD
 git diff main..HEAD --stat
 ```
 
-Expected 6 commits (Task 4 is verification-only, no commit):
-1. `refactor: extract shared requireUserId utility`
-2. `fix(db): add display_name CHECK constraint on profiles`
-3. `feat: add client-side login attempt throttle`
-4. `fix: update GitHub API version to 2026-03-10`
-5. `fix: redact SQL fragments from production error logs`
-6. `fix: validate GitHub setup redirect URL against allowed origins`
-
-Verify with `git diff --stat` that only expected files were changed — no scope creep.
+Verify there is no scope creep outside the files listed in the tasks above.
 
 ---
 
-## Appendix: Findings NOT addressed in this plan (with rationale)
+## Out of Scope
 
-### A. No route-level auth guards
-**Status:** Intentionally deferred.
-**Rationale:** All access control is enforced by RLS on the backend. Client-side route guards are purely cosmetic UX. Adding a `RequireAuth` wrapper would require modifying every protected route in `App.tsx` and deciding on redirect/fallback behavior for each. This is a UX improvement, not a security fix. Track as a separate UX task.
+These items remain out of scope for this hardening plan:
 
-### B. OAuth/password-reset redirect allowlist in Neon Auth settings
-**Status:** Ops verification required — not a code change.
-**Rationale:** The `redirectTo` values sent by `signInWithOAuth` and `resetPasswordForEmail` must be validated server-side in Neon Auth's project configuration. This is an infrastructure setting, not a code fix. Verify in the Neon console that the allowed redirect URLs are restricted to `https://prompt.lakefrontdigital.io` and development origins.
-
-### C. Unverified JWT fallback in production
-**Status:** Monitored, not removed.
-**Rationale:** The double-opt-in (`ALLOW_UNVERIFIED_JWT_FALLBACK` + `ALLOW_UNVERIFIED_JWT_FALLBACK_IN_PRODUCTION`) is an emergency recovery mechanism. Removing it entirely could leave operators stranded during a JWKS outage. The existing safeguards (disabled by default, startup warning log, separate production flag) are adequate. If desired, an additional safeguard could require a rotating secret, but that's a design decision for a dedicated security review.
-
-### D. Agent service privileged DB connection (no RLS)
-**Status:** Architectural trade-off — not actionable in this plan.
-**Rationale:** Switching the agent service to RLS-aware connections would require passing per-request JWT claims to set the Postgres role, which is a significant architectural change to the connection pooling model. The existing pattern (every query includes `user_id = $1`) is consistently applied and verified by code review. A DB-level audit trigger is worth exploring but belongs in a dedicated infrastructure task.
-
-### E. `contact_messages` anonymous insert RLS
-**Status:** Already correctly configured.
-**Rationale:** Verified in `supabase/migrations/20260221040000_contact_messages.sql`: the `"Anyone can submit contact messages"` policy allows inserts with `privacy_consent = true` and `(requester_user_id is null or requester_user_id = auth.uid())`. Reads are restricted to own messages or support reviewers. No change needed.
-
-### F. Cross-user queries in webhook handlers (`listConnectionsByGithubRepoIds`)
-**Status:** By design — not a bug.
-**Rationale:** Webhook handlers operate outside any single user's context. They need to propagate GitHub events (repo renamed, installation deleted) to all affected users. These methods are only called from webhook handlers, never from user-facing routes. No change needed.
+- route-level auth guards in `src/App.tsx`
+- Neon Auth console allowlists for OAuth/password-reset redirect URLs
+- removal of the emergency unverified-JWT fallback flags
+- a larger architectural move from the service's direct Neon Postgres connection model to per-request RLS-aware DB sessions

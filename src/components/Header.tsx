@@ -35,7 +35,11 @@ import { NotificationPanel } from "@/components/NotificationPanel";
 import { APP_ROUTE_NAV_ITEMS, isRouteActive } from "@/lib/navigation";
 import { getGravatarUrl } from "@/lib/gravatar";
 import { brandCopy } from "@/lib/brand-copy";
-import { DISPLAY_NAME_MAX_LENGTH, validateDisplayName } from "@/lib/profile";
+import {
+  DISPLAY_NAME_MAX_LENGTH,
+  normalizeDisplayName,
+  validateDisplayName,
+} from "@/lib/profile";
 import type { ThemePreference } from "@/lib/user-preferences";
 import {
   Bell,
@@ -152,7 +156,7 @@ export function Header({ theme, onToggleTheme }: HeaderProps) {
 
   const handleDisplayNameSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    const normalized = displayNameDraft.trim();
+    const normalized = normalizeDisplayName(displayNameDraft);
     const validationError = validateDisplayName(normalized);
     if (validationError) {
       setDisplayNameError(validationError);
@@ -552,12 +556,12 @@ export function Header({ theme, onToggleTheme }: HeaderProps) {
                   }
                 }}
                 autoComplete="nickname"
-                maxLength={DISPLAY_NAME_MAX_LENGTH}
-                placeholder="Letters and numbers only"
+                placeholder={`Up to ${DISPLAY_NAME_MAX_LENGTH} visible characters`}
                 aria-invalid={displayNameError ? true : undefined}
               />
               <p className="text-xs text-muted-foreground">
-                Use letters and numbers only. Max {DISPLAY_NAME_MAX_LENGTH} characters.
+                Max {DISPLAY_NAME_MAX_LENGTH} visible characters after trimming whitespace.
+                Hidden or control characters are not allowed.
               </p>
             </div>
             {displayNameError && (

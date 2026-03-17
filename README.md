@@ -34,6 +34,8 @@ cp .env.example .env
 npm run dev
 ```
 
+The frontend Vite app runs at `http://localhost:8080`.
+
 ## Common commands
 
 - `npm run dev`: start frontend dev server (Vite)
@@ -92,6 +94,8 @@ backed flow.
   `GITHUB_APP_SLUG`, `GITHUB_APP_STATE_SECRET`, `GITHUB_WEBHOOK_SECRET`,
   `GITHUB_POST_INSTALL_REDIRECT_URL`, and `NEON_DATABASE_URL`
   (or `DATABASE_URL`).
+- For local PromptForge development, use `http://localhost:8080` for both
+  `ALLOWED_ORIGINS` and `GITHUB_POST_INSTALL_REDIRECT_URL`.
 - Apply `supabase/migrations/20260316010000_github_context_schema.sql` before
   enabling the feature outside local development.
 - GitHub-backed prompts cannot be shared publicly. The Builder blocks share

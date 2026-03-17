@@ -41,6 +41,7 @@ function buildConnectionRowPayload({ userId, installationRecordId, repo }) {
 export function createGitHubStore(config = {}) {
   const client = createNeonDatabaseClient({
     databaseUrl: config.databaseUrl,
+    debug: config.debug ?? false,
   });
 
   async function createSetupState({ userId, nonce, expiresAt }) {

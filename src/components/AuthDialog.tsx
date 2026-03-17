@@ -12,7 +12,9 @@ import { InputGroup } from "@/components/base/input/input-group";
 import { AppleOAuthIcon, GitHubOAuthIcon, GoogleOAuthIcon } from "@/components/icons/oauth-icons";
 import { useAuth, type AuthOAuthProvider } from "@/hooks/useAuth";
 import { neon } from "@/integrations/neon/client";
+import { createPersistedAuthThrottle } from "@/lib/auth-throttle";
 import { brandCopy } from "@/lib/brand-copy";
+import { DISPLAY_NAME_MAX_LENGTH } from "@/lib/profile";
 import { Eye, EyeSlash } from "@phosphor-icons/react";
 
 interface AuthDialogProps {
@@ -34,6 +36,11 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
   const [forgotPasswordSent, setForgotPasswordSent] = useState(false);
   const [confirmationSent, setConfirmationSent] = useState(false);
 
+  const formatCooldownError = (remainingCooldownMs: number) => {
+    const remainingSeconds = Math.max(1, Math.ceil(remainingCooldownMs / 1000));
+    return `Too many attempts. Try again in ${remainingSeconds}s.`;
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (loading || oauthLoading || forgotPasswordLoading) return;
@@ -48,6 +55,16 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
       return;
     }
 
+    const loginThrottle =
+      mode === "login"
+        ? createPersistedAuthThrottle(normalizedEmail)
+        : null;
+
+    if (loginThrottle && !loginThrottle.canAttempt()) {
+      setError(formatCooldownError(loginThrottle.remainingCooldownMs()));
+      return;
+    }
+
     setLoading(true);
 
     const result =
@@ -58,6 +75,15 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
     setLoading(false);
 
     if (result.error) {
+      if (loginThrottle) {
+        loginThrottle.recordFailure();
+        const remainingCooldownMs = loginThrottle.remainingCooldownMs();
+        if (remainingCooldownMs > 0) {
+          setError(formatCooldownError(remainingCooldownMs));
+          return;
+        }
+      }
+
       setError(result.error);
       return;
     }
@@ -71,6 +97,8 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
       setConfirmationSent(true);
       return;
     }
+
+    loginThrottle?.recordSuccess();
 
     // Login succeeded — close
     onOpenChange(false);
@@ -250,7 +278,7 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
                   onChange={setDisplayName}
                   placeholder="Defaults to your email username"
                   autoComplete="name"
-                  maxLength={80}
+                  hint={`Max ${DISPLAY_NAME_MAX_LENGTH} visible characters. Hidden/control characters are not allowed.`}
                 />
               )}
 

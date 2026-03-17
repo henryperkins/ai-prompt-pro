@@ -1,4 +1,5 @@
 import { headerValue } from "../http-helpers.mjs";
+import { isAllowedRedirectOrigin } from "../redirect-validation.mjs";
 
 function resolveRequestOrigin(req) {
   const originHeader = (headerValue(req, "origin") || "").trim();
@@ -33,6 +34,10 @@ function resolvePostInstallReturnTo(req, runtime) {
 
   const requestOrigin = resolveRequestOrigin(req);
   if (!requestOrigin) {
+    return configuredUrl.toString();
+  }
+
+  if (!isAllowedRedirectOrigin(requestOrigin, runtime.corsConfig)) {
     return configuredUrl.toString();
   }
 

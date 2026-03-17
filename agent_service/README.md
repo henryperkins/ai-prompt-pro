@@ -198,7 +198,7 @@ Set `REQUIRE_PROVIDER_CONFIG=true` to disable step 3 and fail fast instead of fa
 | `HOST` | `0.0.0.0` | Bind address |
 | `PORT` | `8001` | Listen port |
 | `AGENT_SERVICE_TOKEN` | _(none)_ | Optional service-to-service token (`x-agent-token`) |
-| `ALLOWED_ORIGINS` | `*` | Comma-separated list of allowed browser origins |
+| `ALLOWED_ORIGINS` | `*` | Comma-separated list of allowed browser origins; use an explicit list if you want origin-scoped GitHub setup redirects |
 | `REQUIRE_PROVIDER_CONFIG` | `false` | If `true`, startup fails unless provider config is resolved from `~/.codex/config.toml` or `CODEX_CONFIG_JSON` |
 | `FUNCTION_PUBLIC_API_KEY` | _(none)_ | Optional publishable key accepted for unauthenticated calls |
 | `STRICT_PUBLIC_API_KEY` | `true` | Require exact match with configured public key values; if `false`, allows publishable-format fallback when no key is configured (not recommended) |
@@ -233,11 +233,23 @@ Set `REQUIRE_PROVIDER_CONFIG=true` to disable step 3 and fail fast instead of fa
 | `GITHUB_APP_STATE_SECRET` | _(none)_ | Secret used to sign GitHub setup state payloads |
 | `GITHUB_WEBHOOK_SECRET` | _(none)_ | Secret used to verify GitHub webhook signatures |
 | `GITHUB_POST_INSTALL_REDIRECT_URL` | _(none)_ | Absolute Builder URL that receives the setup-return redirect |
+| `GITHUB_DEBUG_LOGGING` | `false` | Include short SQL query previews in GitHub storage logs; keep disabled outside short-lived debugging sessions |
 | `GITHUB_API_BASE_URL` | `https://api.github.com` | Optional GitHub API base URL override |
 | `GITHUB_REPOSITORY_PAGE_SIZE` | `50` | Default repository page size for installation listings |
 | `GITHUB_PER_MINUTE` | `30` | Per-user minute rate limit for GitHub routes |
 | `GITHUB_PER_DAY` | `600` | Per-user daily rate limit for GitHub routes |
 | `NEON_DATABASE_URL` / `DATABASE_URL` | _(none)_ | Direct Neon Postgres connection string used by the GitHub storage layer |
+
+GitHub setup redirects only rewrite onto the requesting frontend origin when
+that origin is explicitly present in `ALLOWED_ORIGINS`. If `ALLOWED_ORIGINS`
+is wildcard or unset, the setup flow falls back to
+`GITHUB_POST_INSTALL_REDIRECT_URL`.
+
+For local PromptForge development, set `ALLOWED_ORIGINS=http://localhost:8080`
+and `GITHUB_POST_INSTALL_REDIRECT_URL=http://localhost:8080/`.
+
+GitHub storage logs omit SQL previews by default. Set
+`GITHUB_DEBUG_LOGGING=true` only for short-lived debugging sessions.
 
 ### Codex client options
 

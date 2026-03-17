@@ -1,6 +1,7 @@
 import { neon } from "@/integrations/neon/client";
 import type { TablesInsert } from "@/integrations/neon/types";
 import { assertBackendConfigured } from "@/lib/backend-config";
+import { requireUserId } from "@/lib/require-user-id";
 import { isPostgrestError, sanitizePostgresText } from "@/lib/saved-prompt-shared";
 
 export type CommunityReportTargetType = "post" | "comment";
@@ -29,14 +30,6 @@ function normalizeReason(value?: string): string {
 
 function normalizeDetails(value?: string): string {
   return sanitizePostgresText(value || "").trim().slice(0, 2000);
-}
-
-async function requireUserId(featureName: string): Promise<string> {
-  assertBackendConfigured(featureName);
-  const { data, error } = await neon.auth.getUser();
-  if (error) throw toError(error, "Authentication failed.");
-  if (!data.user?.id) throw new Error("Sign in required.");
-  return data.user.id;
 }
 
 export async function loadBlockedUserIds(): Promise<string[]> {

@@ -28,9 +28,20 @@ function textForError(error) {
 
 export function createNeonDatabaseClient({
   databaseUrl,
+  debug = false,
 } = {}) {
   const connectionString = normalizeDatabaseUrl(databaseUrl);
   const sql = connectionString ? neon(connectionString) : null;
+
+  function buildQueryPreviewLogField(queryText) {
+    if (!debug) {
+      return {};
+    }
+
+    return {
+      query_preview: queryText.trim().substring(0, 80),
+    };
+  }
 
   function assertConfigured() {
     if (!connectionString || !sql) {
@@ -57,7 +68,7 @@ export function createNeonDatabaseClient({
           return_type: typeof rows,
           is_null: rows === null,
           has_rows_property: rows && typeof rows === "object" ? "rows" in rows : false,
-          query_preview: queryText.trim().substring(0, 80),
+          ...buildQueryPreviewLogField(queryText),
         }));
       }
       // --- End diagnostic ---
@@ -77,7 +88,7 @@ export function createNeonDatabaseClient({
         message: textForError(error) || "Unknown Neon query error",
         is_rls_likely: isRlsLikely,
         error_code: error?.code || null,
-        query_preview: queryText.trim().substring(0, 80),
+        ...buildQueryPreviewLogField(queryText),
       }));
       // --- End diagnostic ---
       throw createGitHubError(

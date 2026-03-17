@@ -77,6 +77,24 @@ describe("useAuth signUp", () => {
     });
   });
 
+  it("normalizes complex email local parts into a safe signup fallback", async () => {
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await result.current.signUp("jane+team@example.com", "Passw0rd!");
+
+    expect(mocks.signUp).toHaveBeenCalledWith({
+      email: "jane+team@example.com",
+      password: "Passw0rd!",
+      options: {
+        data: {
+          displayName: "jane team",
+          name: "jane team",
+        },
+      },
+    });
+  });
+
   it("prefers provided display name when signing up", async () => {
     const { result } = renderHook(() => useAuth(), { wrapper });
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -93,6 +111,24 @@ describe("useAuth signUp", () => {
         },
       },
     });
+  });
+
+  it("rejects hidden display name characters before calling sign up", async () => {
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    const signUpResult = await result.current.signUp(
+      "jane.doe@example.com",
+      "Passw0rd!",
+      "Jane\u200BDoe",
+    );
+
+    expect(signUpResult).toEqual({
+      error: "Display name cannot include hidden or control characters.",
+      session: null,
+      user: null,
+    });
+    expect(mocks.signUp).not.toHaveBeenCalled();
   });
 
   it("clears local session even when remote sign-out fails", async () => {

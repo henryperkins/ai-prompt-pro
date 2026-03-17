@@ -3,8 +3,15 @@ import { describe, expect, it, vi } from "vitest";
 import { createGitHubInstallUrlHandler } from "../../agent_service/handlers/github-install-url.mjs";
 import { createGitHubSetupReturnHandler } from "../../agent_service/handlers/github-setup-return.mjs";
 
-function createRuntime(postInstallRedirectUrl = "https://promptforge.test/") {
+function createRuntime(
+  postInstallRedirectUrl = "https://promptforge.test/",
+  corsConfig = {
+    mode: "set" as const,
+    origins: new Set(["http://localhost:8080"]),
+  },
+) {
   return {
+    corsConfig,
     githubConfig: {
       postInstallRedirectUrl,
     },
@@ -80,6 +87,73 @@ describe("agent service GitHub setup flow", () => {
     expect(app.createSetupState).toHaveBeenCalledWith({
       userId: "user-2",
       nonce: "nonce-2",
+      returnTo: "https://promptforge.test/",
+    });
+  });
+
+  it("keeps the configured return target for spoofed origins", async () => {
+    const app = {
+      createNonce: vi.fn(() => "nonce-3"),
+      createSetupState: vi.fn(() => "signed-state"),
+      buildInstallUrl: vi.fn(() => "https://github.com/apps/promptforge/installations/new?state=signed-state"),
+    };
+    const store = {
+      createSetupState: vi.fn(async () => undefined),
+    };
+
+    const handler = createGitHubInstallUrlHandler({
+      app,
+      store,
+      runtime: createRuntime("https://promptforge.test/"),
+    });
+
+    await handler({
+      auth: { userId: "user-1" },
+      req: {
+        headers: {
+          origin: "https://spoofed.example",
+        },
+      },
+    });
+
+    expect(app.createSetupState).toHaveBeenCalledWith({
+      userId: "user-1",
+      nonce: "nonce-3",
+      returnTo: "https://promptforge.test/",
+    });
+  });
+
+  it("does not rewrite the return target when CORS is wildcard mode", async () => {
+    const app = {
+      createNonce: vi.fn(() => "nonce-4"),
+      createSetupState: vi.fn(() => "signed-state"),
+      buildInstallUrl: vi.fn(() => "https://github.com/apps/promptforge/installations/new?state=signed-state"),
+    };
+    const store = {
+      createSetupState: vi.fn(async () => undefined),
+    };
+
+    const handler = createGitHubInstallUrlHandler({
+      app,
+      store,
+      runtime: createRuntime("https://promptforge.test/", {
+        mode: "any",
+        origins: new Set(),
+      }),
+    });
+
+    await handler({
+      auth: { userId: "user-1" },
+      req: {
+        headers: {
+          origin: "http://localhost:8080",
+        },
+      },
+    });
+
+    expect(app.createSetupState).toHaveBeenCalledWith({
+      userId: "user-1",
+      nonce: "nonce-4",
       returnTo: "https://promptforge.test/",
     });
   });

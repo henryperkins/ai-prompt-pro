@@ -7,7 +7,11 @@ import {
 import { AuthContext } from "@/hooks/auth-context";
 import { neon } from "@/integrations/neon/client";
 import { getBackendConfigErrorMessage, isBackendConfigured } from "@/lib/backend-config";
-import { validateDisplayName } from "@/lib/profile";
+import {
+  normalizeDisplayName,
+  resolveSignUpDisplayName,
+  validateDisplayName,
+} from "@/lib/profile";
 
 type SessionResult = Awaited<ReturnType<typeof neon.auth.getSession>>;
 export type AuthSession = SessionResult["data"]["session"];
@@ -35,20 +39,6 @@ export interface AuthContextValue {
   deleteAccount: () => Promise<{ error: string | null }>;
 }
 const AUTH_UNAVAILABLE_MESSAGE = getBackendConfigErrorMessage("Authentication");
-
-function resolveSignUpName(email: string, displayName?: string): string {
-  const trimmedDisplayName = displayName?.trim();
-  if (trimmedDisplayName) {
-    return trimmedDisplayName;
-  }
-
-  const emailLocalPart = email.split("@")[0]?.trim();
-  if (emailLocalPart) {
-    return emailLocalPart;
-  }
-
-  return "Member";
-}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -108,7 +98,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: AUTH_UNAVAILABLE_MESSAGE, session: null, user: null };
     }
 
-    const safeName = resolveSignUpName(email, displayName);
+    const normalizedDisplayName = normalizeDisplayName(displayName);
+    if (normalizedDisplayName) {
+      const validationError = validateDisplayName(normalizedDisplayName);
+      if (validationError) {
+        return { error: validationError, session: null, user: null };
+      }
+    }
+
+    const safeName = resolveSignUpDisplayName(email, normalizedDisplayName);
     const { data, error } = await neon.auth.signUp({
       email,
       password,
@@ -174,7 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: AUTH_UNAVAILABLE_MESSAGE, user: null };
     }
 
-    const normalized = displayName.trim();
+    const normalized = normalizeDisplayName(displayName);
     const validationError = validateDisplayName(normalized);
     if (validationError) {
       return { error: validationError, user: null };

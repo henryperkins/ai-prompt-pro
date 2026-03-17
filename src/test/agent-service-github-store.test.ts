@@ -1,5 +1,6 @@
 /* @vitest-environment node */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createNeonDatabaseClient } from "../../agent_service/neon-data.mjs";
 
 const neonClientMocks = vi.hoisted(() => ({
   hashStateNonce: vi.fn((value: string) => `hash:${value}`),
@@ -26,6 +27,11 @@ describe("agent service GitHub store", () => {
       databaseUrl: "postgres://promptforge:test@db.example.neon.tech/neondb",
     });
 
+    expect(createNeonDatabaseClient).toHaveBeenCalledWith({
+      databaseUrl: "postgres://promptforge:test@db.example.neon.tech/neondb",
+      debug: false,
+    });
+
     await store.listConnections("user-123");
 
     expect(neonClientMocks.queryRows).toHaveBeenCalledWith(
@@ -40,6 +46,12 @@ describe("agent service GitHub store", () => {
   it("rebinds repo connections to the current active installation by repo and installation id", async () => {
     const store = createGitHubStore({
       databaseUrl: "postgres://promptforge:test@db.example.neon.tech/neondb",
+      debug: true,
+    });
+
+    expect(createNeonDatabaseClient).toHaveBeenCalledWith({
+      databaseUrl: "postgres://promptforge:test@db.example.neon.tech/neondb",
+      debug: true,
     });
 
     await store.rebindConnectionsToInstallationForRepo(4242, 9001);

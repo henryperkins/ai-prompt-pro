@@ -1,6 +1,6 @@
 # GitHub Context Reference
 
-Last updated: 2026-03-16
+Last updated: 2026-03-17
 
 > Status: Active operational reference for PromptForge GitHub repository context.
 
@@ -35,7 +35,12 @@ Agent service:
 - `GITHUB_APP_STATE_SECRET`
 - `GITHUB_WEBHOOK_SECRET`
 - `GITHUB_POST_INSTALL_REDIRECT_URL`
+- `ALLOWED_ORIGINS` as an explicit list if you want origin-scoped setup redirects
+- `GITHUB_DEBUG_LOGGING` only for short-lived GitHub storage debugging
 - `NEON_DATABASE_URL` or `DATABASE_URL`
+
+For local PromptForge development, set both `ALLOWED_ORIGINS` and
+`GITHUB_POST_INSTALL_REDIRECT_URL` to `http://localhost:8080`.
 
 ## Builder flow
 
@@ -56,6 +61,9 @@ Attached GitHub files count toward the shared builder source cap.
   user auth.
 - `POST /github/webhooks` uses GitHub webhook-signature validation instead of
   normal user auth.
+- Post-install redirects only rewrite onto the request origin when that origin
+  is explicitly listed in `ALLOWED_ORIGINS`. Wildcard or unset CORS falls back
+  to `GITHUB_POST_INSTALL_REDIRECT_URL`.
 - GitHub-backed prompts cannot be publicly shared. The frontend and database
   both enforce the user-facing message: `Remove GitHub sources before sharing this prompt.`
 - `github_setup_states` stays service-only; end-user clients cannot read it via RLS.

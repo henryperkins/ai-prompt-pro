@@ -345,6 +345,7 @@ export async function createServiceRuntime({ env = process.env, deps = {} } = {}
       appPrivateKey: normalizeEnvValue("GITHUB_APP_PRIVATE_KEY", env),
       appSlug: normalizeEnvValue("GITHUB_APP_SLUG", env),
       databaseUrl: normalizeEnvValue("NEON_DATABASE_URL", env) || normalizeEnvValue("DATABASE_URL", env),
+      debug: normalizeBool(env?.GITHUB_DEBUG_LOGGING, false),
       postInstallRedirectUrl,
       repositoryPageSize: parsePositiveIntegerEnv("GITHUB_REPOSITORY_PAGE_SIZE", 50, env),
       stateSecret: normalizeEnvValue("GITHUB_APP_STATE_SECRET", env),

@@ -31,7 +31,7 @@
 
 ## Setup Gotchas
 
-- Vite runs on `localhost:8080`, not `5173`. Update local origin/redirect envs accordingly; `.env.example` still contains `5173` values for `ALLOWED_ORIGINS` and `GITHUB_POST_INSTALL_REDIRECT_URL`.
+- Vite runs on `localhost:8080`, not `5173`. Keep local origin/redirect envs aligned with `http://localhost:8080`.
 - If the frontend is served over HTTPS, `VITE_AGENT_SERVICE_URL` must also be HTTPS or the browser will block mixed-content requests.
 - `docs/reviews/` contains historical snapshots, not the current source of truth. `docs/archive/` is local-only and gitignored.
 

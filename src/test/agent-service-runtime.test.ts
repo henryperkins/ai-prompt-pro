@@ -248,6 +248,7 @@ describe("agent service runtime extraction", () => {
         GITHUB_APP_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----",
         GITHUB_APP_SLUG: "promptforge-app",
         GITHUB_APP_STATE_SECRET: "state-secret",
+        GITHUB_DEBUG_LOGGING: "true",
         GITHUB_WEBHOOK_SECRET: "webhook-secret",
         GITHUB_POST_INSTALL_REDIRECT_URL: "https://promptforge.test/builder",
         NEON_DATABASE_URL: "postgres://promptforge:test@db.example.neon.tech/neondb",
@@ -259,6 +260,7 @@ describe("agent service runtime extraction", () => {
       enabled: true,
       appId: "12345",
       appSlug: "promptforge-app",
+      debug: true,
       postInstallRedirectUrl: "https://promptforge.test/builder",
       databaseUrl: "postgres://promptforge:test@db.example.neon.tech/neondb",
     });
@@ -269,5 +271,20 @@ describe("agent service runtime extraction", () => {
       requireActiveSession: true,
     });
     expect(runtime.buildReadinessReport().warnings).not.toContain("github_config_incomplete");
+  });
+
+  it("defaults GitHub debug logging to false", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const { deps } = createStubDeps();
+
+    const runtime = await createServiceRuntime({
+      env: {
+        OPENAI_API_KEY: "sk-test",
+        GITHUB_CONTEXT_ENABLED: "true",
+      },
+      deps,
+    });
+
+    expect(runtime.githubConfig.debug).toBe(false);
   });
 });

@@ -162,6 +162,7 @@ const runtime = await createServiceRuntime({ env: process.env });
 const githubApp = createGitHubAppClient(runtime.githubConfig);
 const githubStore = createGitHubStore({
   databaseUrl: runtime.githubConfig.databaseUrl,
+  debug: runtime.githubConfig.debug,
 });
 const githubManifestService = createGitHubManifestService({
   app: githubApp,
