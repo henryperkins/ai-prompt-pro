@@ -139,7 +139,7 @@ export function ContextIntegrations({
           />
         </div>
 
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Switch
               checked={draft.readOnly}
@@ -147,8 +147,7 @@ export function ContextIntegrations({
             />
             <Label className="text-sm text-muted-foreground sm:text-base">Read-only</Label>
           </div>
-          <Button size="sm" className="h-11 gap-1.5 text-sm sm:h-9 sm:text-sm" onClick={addDatabase}>
-            <Plus className="w-3 h-3" />
+          <Button size="sm" iconLeading={Plus} className="h-11 shrink-0 text-sm sm:h-9 sm:text-sm" onClick={addDatabase}>
             Add connection
           </Button>
         </div>

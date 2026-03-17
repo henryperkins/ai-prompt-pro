@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { Plus } from "@phosphor-icons/react";
 import { describe, expect, it } from "vitest";
 import { Button } from "@/components/base/buttons/button";
 
@@ -31,5 +32,23 @@ describe("Button API normalization", () => {
 
     const button = screen.getByRole("button", { name: "Saving" });
     expect(button).toHaveAttribute("data-loading", "true");
+  });
+
+  it("keeps mixed icon and text children as separate layout items", () => {
+    render(
+      <Button>
+        <Plus data-testid="button-icon" />
+        Add
+      </Button>,
+    );
+
+    const button = screen.getByRole("button", { name: "Add" });
+    const text = button.querySelector("[data-text]");
+    const icon = screen.getByTestId("button-icon");
+
+    expect(text).not.toBeNull();
+    expect(text).toHaveTextContent("Add");
+    expect(text?.querySelector("svg")).toBeNull();
+    expect(icon.parentElement).toBe(button);
   });
 });

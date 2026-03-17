@@ -1,4 +1,5 @@
-import type { AnchorHTMLAttributes, ButtonHTMLAttributes, DetailedHTMLProps } from "react";
+import { Children } from "react";
+import type { AnchorHTMLAttributes, ButtonHTMLAttributes, DetailedHTMLProps, ReactNode } from "react";
 import type { ButtonProps as AriaButtonProps, LinkProps as AriaLinkProps } from "react-aria-components";
 import { Button as AriaButton, Link as AriaLink } from "react-aria-components";
 import { cx, sortCx } from "@/lib/utils/cx";
@@ -8,12 +9,13 @@ import { buttonVariants as legacyButtonVariants } from "./button-variants";
 const styles = sortCx({
   common: {
     root: [
-      "group relative inline-flex h-max cursor-pointer items-center justify-center whitespace-nowrap rounded-lg transition duration-100 ease-linear",
+      "group relative inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-lg transition duration-100 ease-linear",
       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
       "disabled:pointer-events-none disabled:opacity-50",
       "in-data-input-wrapper:focus:!z-50 in-data-input-wrapper:in-data-leading:-mr-px in-data-input-wrapper:in-data-leading:rounded-r-none",
       "in-data-input-wrapper:in-data-trailing:-ml-px in-data-input-wrapper:in-data-trailing:rounded-l-none",
       "*:data-icon:pointer-events-none *:data-icon:shrink-0",
+      "[&_svg]:pointer-events-none [&_svg]:shrink-0",
     ].join(" "),
     icon: "size-5 transition-inherit-all",
   },
@@ -134,6 +136,44 @@ function resolveButtonColor({
   const resolvedVariant = variant ?? legacyStyle?.variant ?? "primary";
   const resolvedTone = tone ?? legacyStyle?.tone ?? "default";
   return buttonVariantToneMap[resolvedVariant][resolvedTone];
+}
+
+function renderButtonChildren(children: ReactNode, noTextPadding?: boolean) {
+  const textClassName = cx("transition-inherit-all", !noTextPadding && "px-0.5");
+  const childArray = Children.toArray(children);
+
+  if (childArray.length <= 1) {
+    const [onlyChild] = childArray;
+    if (onlyChild === undefined) {
+      return null;
+    }
+
+    if (typeof onlyChild === "string" || typeof onlyChild === "number") {
+      return (
+        <span data-text className={textClassName}>
+          {onlyChild}
+        </span>
+      );
+    }
+
+    return (
+      <span data-text className={textClassName}>
+        {onlyChild}
+      </span>
+    );
+  }
+
+  return childArray.map((child, index) => {
+    if (typeof child === "string" || typeof child === "number") {
+      return (
+        <span key={`text-${index}`} data-text className={textClassName}>
+          {child}
+        </span>
+      );
+    }
+
+    return child;
+  });
 }
 
 /**
@@ -270,11 +310,7 @@ export const Button = ({
         </svg>
       )}
 
-      {children && (
-        <span data-text className={cx("transition-inherit-all", !noTextPadding && "px-0.5")}>
-          {children}
-        </span>
-      )}
+      {renderButtonChildren(children, noTextPadding)}
 
       {/* Trailing icon */}
       {renderIconSlot(IconTrailing, { "data-icon": "trailing", className: styles.common.icon })}

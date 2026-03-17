@@ -226,12 +226,11 @@ export function ContextSourceChips({ sources, onAdd, onRemove }: ContextSourceCh
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <label className="text-sm font-medium text-foreground sm:text-base">Sources</label>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button variant="secondary" size="sm" className="h-11 gap-1 text-sm sm:h-9 sm:text-sm">
-              <Plus className="w-3 h-3" />
+            <Button variant="secondary" size="sm" iconLeading={Plus} className="h-11 shrink-0 text-sm sm:h-9 sm:text-sm">
               Add
             </Button>
           </DialogTrigger>

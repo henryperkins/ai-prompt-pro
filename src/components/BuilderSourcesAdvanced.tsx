@@ -145,8 +145,8 @@ export function BuilderSourcesAdvanced({
 
             {githubPickerEnabled && onOpenGithubPicker && (
               <div className="rounded-lg border border-border/80 bg-background/60 p-3">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
+                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-foreground">
                       GitHub repository context
                     </p>
@@ -158,11 +158,11 @@ export function BuilderSourcesAdvanced({
                     type="button"
                     size="sm"
                     variant="secondary"
-                    className="h-11 gap-1.5 text-sm sm:h-9"
+                    iconLeading={GitBranch}
+                    className="h-11 shrink-0 self-start text-sm sm:h-9"
                     onClick={onOpenGithubPicker}
                     disabled={Boolean(githubPickerDisabledReason)}
                   >
-                    <GitBranch className="h-3.5 w-3.5" />
                     Add from GitHub
                   </Button>
                 </div>
@@ -176,8 +176,8 @@ export function BuilderSourcesAdvanced({
 
             <ProjectNotes value={contextConfig.projectNotes} onChange={onUpdateProjectNotes} />
 
-            <div className="flex items-center justify-between border-t border-border pt-3">
-              <div>
+            <div className="flex flex-wrap items-start justify-between gap-3 border-t border-border pt-3">
+              <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-foreground">Advanced integrations</p>
                 <p className="text-sm text-muted-foreground">
                   Database, RAG, and parsing controls for the draft context.
@@ -187,7 +187,8 @@ export function BuilderSourcesAdvanced({
                 type="button"
                 size="sm"
                 variant={showAdvanced ? "primary" : "secondary"}
-                className="h-11 gap-1.5 text-sm sm:h-9 sm:text-sm"
+                iconLeading={Settings2}
+                className="h-11 shrink-0 self-start text-sm sm:h-9 sm:text-sm"
                 onClick={() =>
                   setAdvancedVisibility((previous) => {
                     const previousShown = previous === "auto" ? hasAdvancedConfig : previous === "shown";
@@ -195,7 +196,6 @@ export function BuilderSourcesAdvanced({
                   })
                 }
               >
-                <Settings2 className="h-3.5 w-3.5" />
                 {showAdvanced ? "Hide advanced" : "Show advanced"}
               </Button>
             </div>

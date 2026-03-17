@@ -148,14 +148,14 @@ export function BuilderHeroInput({
                         type="button"
                         variant="tertiary"
                         size="sm"
+                        iconLeading={RotateCcw}
                         onClick={() => {
                           setRecoveryActionsOpen(false);
                           onClear();
                         }}
                         aria-label="Clear prompt text"
-                        className="h-11 gap-1 px-3 text-sm sm:h-10 sm:px-2.5 sm:text-sm"
+                        className="h-11 px-3 text-sm sm:h-10 sm:px-2.5 sm:text-sm"
                       >
-                        <RotateCcw className="w-3 h-3" />
                         Clear prompt
                       </Button>
                     ) : null}

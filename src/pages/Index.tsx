@@ -3068,10 +3068,10 @@ const Index = () => {
             <Button
               variant="tertiary"
               size="sm"
+              iconLeading={X}
               onClick={handleClearRemix}
-              className="utility-action-button gap-1.5 text-sm sm:text-sm"
+              className="utility-action-button text-sm sm:text-sm"
             >
-              <X className="h-3 w-3" />
               Clear remix
             </Button>
           </div>
@@ -3148,8 +3148,8 @@ const Index = () => {
 
           {!shouldShowAdvancedControls && (
             <Card className="border-border/70 bg-card/80 p-3">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+                <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-foreground">
                     Need more control?
                   </p>
@@ -3161,7 +3161,7 @@ const Index = () => {
                   type="button"
                   size="sm"
                   variant="secondary"
-                  className="h-11 text-sm sm:h-10 sm:text-sm"
+                  className="h-11 shrink-0 self-start text-sm sm:h-10 sm:text-sm"
                   onClick={() => persistedSetShowAdvancedControls(true)}
                 >
                   Show advanced controls
@@ -3405,8 +3405,8 @@ const Index = () => {
               </summary>
               <div className="mt-2 space-y-3">
                 <Card className="pf-panel border-border/70 bg-card/80 p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-foreground">
                         Codex session
                       </p>
@@ -3516,13 +3516,14 @@ const Index = () => {
               type="button"
               variant="secondary"
               size="sm"
+              iconLeading={Eye}
               onClick={() => setDrawerOpen(true)}
-              className="h-11 min-w-[4.75rem] shrink-0 gap-1.5 px-2.5 text-xs"
+              className="h-11 min-w-[4.75rem] shrink-0 gap-1.5 px-2.5"
               aria-label={`Open output preview. ${mobilePreviewLabel}.`}
               title={mobilePreviewTitle}
               data-testid="builder-mobile-preview-trigger"
+              noTextPadding
             >
-              <Eye className="h-3.5 w-3.5 shrink-0" />
               <span className="type-label-caps text-2xs leading-none">
                 {mobilePreviewActionLabel}
               </span>
@@ -3531,15 +3532,13 @@ const Index = () => {
               type="button"
               variant="secondary"
               size="sm"
-              className="h-11 w-11 shrink-0 px-0"
+              iconLeading={SlidersHorizontal}
+              className="shrink-0"
               onClick={() => setMobileEnhancementSettingsOpen(true)}
               aria-label="Open enhancement settings"
               title="Enhancement settings"
               data-testid="builder-mobile-settings-trigger"
-            >
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-              <span className="sr-only">Settings</span>
-            </Button>
+            />
           </div>
         </div>
       )}
