@@ -232,6 +232,146 @@ describe("agent service auth hardening", () => {
     );
   });
 
+  it("requires active session revalidation for routes that opt in", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ id: "user-123", is_anonymous: false }),
+    });
+    const authService = createAuthService(createAuthServiceOptions({
+      env: {
+        NEON_JWKS_URL: "https://auth.example.com/jwks.json",
+        NEON_AUTH_URL: "https://project.neon.tech/neondb/auth",
+        NEON_AUTH_API_KEY: "neon-auth-key",
+      },
+      authConfig: resolveAuthConfig({
+        NEON_JWKS_URL: "https://auth.example.com/jwks.json",
+        NEON_AUTH_URL: "https://project.neon.tech/neondb/auth",
+        NEON_AUTH_API_KEY: "neon-auth-key",
+      }),
+      fetchImpl,
+      createRemoteJWKSetImpl: vi.fn(() => Symbol("jwks")),
+      jwtVerifyImpl: vi.fn().mockResolvedValue({
+        payload: { sub: "user-123" },
+      }),
+    }));
+
+    const result = await authService.authenticateRequestContext(
+      createRequest({
+        authorization: "Bearer header.payload.signature",
+      }),
+      {},
+      {
+        allowPublicKey: false,
+        allowServiceToken: false,
+        allowUserJwt: true,
+        requireActiveSession: true,
+      },
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      userId: "user-123",
+      isAnonymous: false,
+      authMode: "user_session",
+    });
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "https://project.neon.tech/neondb/auth/v1/user",
+      expect.objectContaining({
+        headers: {
+          Authorization: "Bearer header.payload.signature",
+          apikey: "neon-auth-key",
+        },
+      }),
+    );
+  });
+
+  it("rejects active-session routes when the verified JWT user does not match the live Neon session", async () => {
+    const authService = createAuthService(createAuthServiceOptions({
+      env: {
+        NEON_JWKS_URL: "https://auth.example.com/jwks.json",
+        NEON_AUTH_URL: "https://project.neon.tech/neondb/auth",
+        NEON_AUTH_API_KEY: "neon-auth-key",
+      },
+      authConfig: resolveAuthConfig({
+        NEON_JWKS_URL: "https://auth.example.com/jwks.json",
+        NEON_AUTH_URL: "https://project.neon.tech/neondb/auth",
+        NEON_AUTH_API_KEY: "neon-auth-key",
+      }),
+      fetchImpl: vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ id: "different-user", is_anonymous: false }),
+      }),
+      createRemoteJWKSetImpl: vi.fn(() => Symbol("jwks")),
+      jwtVerifyImpl: vi.fn().mockResolvedValue({
+        payload: { sub: "user-123" },
+      }),
+    }));
+
+    const result = await authService.authenticateRequestContext(
+      createRequest({
+        authorization: "Bearer header.payload.signature",
+      }),
+      {},
+      {
+        allowPublicKey: false,
+        allowServiceToken: false,
+        allowUserJwt: true,
+        requireActiveSession: true,
+      },
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      status: 401,
+      error: "Invalid or expired auth session.",
+    });
+  });
+
+  it("fails closed when active-session routes cannot revalidate the live Neon session", async () => {
+    const authService = createAuthService(createAuthServiceOptions({
+      env: {
+        NEON_JWKS_URL: "https://auth.example.com/jwks.json",
+        NEON_AUTH_URL: "https://project.neon.tech/neondb/auth",
+        NEON_AUTH_API_KEY: "neon-auth-key",
+      },
+      authConfig: resolveAuthConfig({
+        NEON_JWKS_URL: "https://auth.example.com/jwks.json",
+        NEON_AUTH_URL: "https://project.neon.tech/neondb/auth",
+        NEON_AUTH_API_KEY: "neon-auth-key",
+      }),
+      fetchImpl: vi.fn().mockResolvedValue({
+        ok: false,
+        status: 503,
+        json: async () => ({ error: "upstream unavailable" }),
+      }),
+      createRemoteJWKSetImpl: vi.fn(() => Symbol("jwks")),
+      jwtVerifyImpl: vi.fn().mockResolvedValue({
+        payload: { sub: "user-123" },
+      }),
+    }));
+
+    const result = await authService.authenticateRequestContext(
+      createRequest({
+        authorization: "Bearer header.payload.signature",
+      }),
+      {},
+      {
+        allowPublicKey: false,
+        allowServiceToken: false,
+        allowUserJwt: true,
+        requireActiveSession: true,
+      },
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      status: 503,
+      error: "Authentication service is temporarily unavailable. Please try again.",
+    });
+  });
+
   it("accepts public-key auth when JWT auth is disabled for the route", async () => {
     const authService = createAuthService(createAuthServiceOptions({
       env: {

@@ -382,6 +382,7 @@ export async function createServiceRuntime({ env = process.env, deps = {} } = {}
     allowPublicKey: false,
     allowServiceToken: false,
     allowUserJwt: true,
+    requireActiveSession: true,
   });
 
   const openaiApiBaseUrl = (codexConfig?.baseUrl ? codexConfig.baseUrl.replace(/\/+$/, "") : null)

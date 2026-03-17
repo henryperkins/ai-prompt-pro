@@ -43,9 +43,10 @@ When `GITHUB_CONTEXT_ENABLED=true`, the service also exposes:
 | `POST` | `/github/connections/:connectionId/context-sources` | Build Builder-ready context source payloads from selected files |
 | `POST` | `/github/webhooks` | GitHub webhook receiver for manifest invalidation and installation lifecycle changes |
 
-GitHub repository routes require a signed-in PromptForge user JWT only. They do
-not allow publishable-key fallback or service-token fallback. The setup callback
-and webhook receiver use explicit custom auth instead of the standard route auth
+GitHub repository routes require a signed-in PromptForge user bearer token plus
+live Neon session revalidation. They do not allow publishable-key fallback,
+cached-session fallback, or service-token fallback. The setup callback and
+webhook receiver use explicit custom auth instead of the standard route auth
 policy.
 
 Standard route auth is evaluated in this order: `x-agent-token`, then

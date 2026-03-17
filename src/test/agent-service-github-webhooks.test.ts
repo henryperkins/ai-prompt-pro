@@ -12,9 +12,13 @@ function createWebhookDeps() {
       markInstallationsDeleted: vi.fn(async () => []),
       markInstallationsSuspended: vi.fn(async () => []),
       reactivateInstallations: vi.fn(async () => []),
+      revokeConnectionsForInstallation: vi.fn(async () => []),
+      reactivateConnectionsForInstallation: vi.fn(async () => []),
+      rebindConnectionsToInstallationForRepo: vi.fn(async () => []),
       listInstallationsByGithubInstallationId: vi.fn(async () => []),
       revokeConnectionsForInstallationRepos: vi.fn(async () => []),
       reactivateConnectionsForRepoIds: vi.fn(async () => []),
+      syncConnectionsRepositoryMetadata: vi.fn(async () => []),
     },
     manifestService: {
       invalidateConnection: vi.fn(async () => undefined),
@@ -81,15 +85,19 @@ describe("agent service GitHub webhooks", () => {
   });
 
   it.each([
-    ["deleted", "markInstallationsDeleted"],
-    ["suspend", "markInstallationsSuspended"],
-    ["unsuspend", "reactivateInstallations"],
-    ["created", "reactivateInstallations"],
-    ["new_permissions_accepted", "reactivateInstallations"],
+    ["deleted", "markInstallationsDeleted", "revokeConnectionsForInstallation"],
+    ["suspend", "markInstallationsSuspended", "revokeConnectionsForInstallation"],
+    ["unsuspend", "reactivateInstallations", "reactivateConnectionsForInstallation"],
+    ["created", "reactivateInstallations", "reactivateConnectionsForInstallation"],
+    ["new_permissions_accepted", "reactivateInstallations", "reactivateConnectionsForInstallation"],
   ])(
-    "maps installation %s events onto %s",
-    async (action, expectedMethod) => {
+    "maps installation %s events onto %s and %s",
+    async (action, expectedMethod, expectedConnectionMethod) => {
       const deps = createWebhookDeps();
+      deps.store[expectedMethod as keyof typeof deps.store].mockResolvedValue([
+        { id: "install-rec-1" },
+        { id: "install-rec-2" },
+      ]);
       const handler = createGitHubWebhooksHandler(deps);
 
       await invokeWebhook(handler, {
@@ -103,6 +111,12 @@ describe("agent service GitHub webhooks", () => {
       });
 
       expect(deps.store[expectedMethod as keyof typeof deps.store]).toHaveBeenCalledWith(9001);
+      expect(
+        deps.store[expectedConnectionMethod as keyof typeof deps.store],
+      ).toHaveBeenNthCalledWith(1, "install-rec-1");
+      expect(
+        deps.store[expectedConnectionMethod as keyof typeof deps.store],
+      ).toHaveBeenNthCalledWith(2, "install-rec-2");
       expect(deps.manifestService.invalidateConnection).not.toHaveBeenCalled();
     },
   );
@@ -155,5 +169,113 @@ describe("agent service GitHub webhooks", () => {
     expect(deps.store.listConnectionsByGithubRepoIds).toHaveBeenCalledWith([111, 222, 333]);
     expect(deps.manifestService.invalidateConnection).toHaveBeenNthCalledWith(1, "conn-removed");
     expect(deps.manifestService.invalidateConnection).toHaveBeenNthCalledWith(2, "conn-added");
+  });
+
+  it("rebinds and syncs repository metadata before invalidating manifests on repository lifecycle events", async () => {
+    const deps = createWebhookDeps();
+    deps.store.rebindConnectionsToInstallationForRepo.mockResolvedValue([
+      { id: "conn-1" },
+      { id: "conn-2" },
+    ]);
+    deps.store.syncConnectionsRepositoryMetadata.mockResolvedValue([
+      { id: "conn-1" },
+      { id: "conn-2" },
+    ]);
+
+    const handler = createGitHubWebhooksHandler(deps);
+    const payload = {
+      action: "renamed",
+      installation: {
+        id: 9001,
+      },
+      repository: {
+        id: 4242,
+        owner: {
+          login: "next-owner",
+        },
+        name: "next-repo",
+        full_name: "next-owner/next-repo",
+        default_branch: "main",
+        visibility: "private",
+        private: true,
+      },
+    };
+
+    const response = await invokeWebhook(handler, {
+      event: "repository",
+      payload,
+    });
+
+    expect(deps.store.syncConnectionsRepositoryMetadata).toHaveBeenCalledWith(
+      4242,
+      expect.objectContaining({
+        full_name: "next-owner/next-repo",
+        default_branch: "main",
+      }),
+    );
+    expect(deps.store.rebindConnectionsToInstallationForRepo).toHaveBeenCalledWith(4242, 9001);
+    expect(
+      deps.store.rebindConnectionsToInstallationForRepo.mock.invocationCallOrder[0],
+    ).toBeLessThan(deps.manifestService.invalidateConnection.mock.invocationCallOrder[0]);
+    expect(deps.store.revokeConnectionsForInstallationRepos).not.toHaveBeenCalled();
+    expect(deps.manifestService.invalidateConnection).toHaveBeenNthCalledWith(1, "conn-1");
+    expect(deps.manifestService.invalidateConnection).toHaveBeenNthCalledWith(2, "conn-2");
+    expect(response).toEqual({
+      status: 202,
+      body: {
+        ok: true,
+      },
+    });
+  });
+
+  it("revokes deleted repositories for the affected installation records", async () => {
+    const deps = createWebhookDeps();
+    deps.store.rebindConnectionsToInstallationForRepo.mockResolvedValue([
+      { id: "conn-deleted" },
+    ]);
+    deps.store.listInstallationsByGithubInstallationId.mockResolvedValue([
+      { id: "install-rec-1" },
+      { id: "install-rec-2" },
+    ]);
+    deps.store.syncConnectionsRepositoryMetadata.mockResolvedValue([
+      { id: "conn-deleted" },
+    ]);
+
+    const handler = createGitHubWebhooksHandler(deps);
+
+    await invokeWebhook(handler, {
+      event: "repository",
+      payload: {
+        action: "deleted",
+        installation: {
+          id: 9001,
+        },
+        repository: {
+          id: 4242,
+          owner: {
+            login: "former-owner",
+          },
+          name: "former-repo",
+          full_name: "former-owner/former-repo",
+          default_branch: "main",
+          visibility: "private",
+          private: true,
+        },
+      },
+    });
+
+    expect(deps.store.rebindConnectionsToInstallationForRepo).toHaveBeenCalledWith(4242, 9001);
+    expect(deps.store.listInstallationsByGithubInstallationId).toHaveBeenCalledWith(9001);
+    expect(deps.store.revokeConnectionsForInstallationRepos).toHaveBeenNthCalledWith(
+      1,
+      "install-rec-1",
+      [4242],
+    );
+    expect(deps.store.revokeConnectionsForInstallationRepos).toHaveBeenNthCalledWith(
+      2,
+      "install-rec-2",
+      [4242],
+    );
+    expect(deps.manifestService.invalidateConnection).toHaveBeenCalledWith("conn-deleted");
   });
 });

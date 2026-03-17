@@ -11,6 +11,7 @@ export const DEFAULT_ROUTE_AUTH_POLICY = Object.freeze({
   allowPublicKey: true,
   allowServiceToken: true,
   allowUserJwt: true,
+  requireActiveSession: false,
 });
 
 /**
@@ -377,14 +378,16 @@ export function createAuthService({
       if (publicApiResult) return publicApiResult;
     }
 
-    const fallbackUser = tryDecodeUserFromJwtFallback(bearerToken, reason);
-    if (fallbackUser) {
-      return buildAuthenticatedUserResult(
-        fallbackUser.userId,
-        "jwt_fallback",
-        clientIp,
-        { isAnonymous: fallbackUser.isAnonymous },
-      );
+    if (policy?.requireActiveSession !== true) {
+      const fallbackUser = tryDecodeUserFromJwtFallback(bearerToken, reason);
+      if (fallbackUser) {
+        return buildAuthenticatedUserResult(
+          fallbackUser.userId,
+          "jwt_fallback",
+          clientIp,
+          { isAnonymous: fallbackUser.isAnonymous },
+        );
+      }
     }
 
     if (reason === "missing_config" && !hasLoggedAuthConfigWarning) {
@@ -476,6 +479,60 @@ export function createAuthService({
     }
 
     const verified = await verifyNeonJwt(bearerToken);
+    const requireActiveSession = policy?.requireActiveSession === true;
+    const authApiVerification = (!verified.ok || requireActiveSession)
+      ? await verifyNeonSessionWithAuthApi(bearerToken)
+      : { ok: false, reason: "skipped" };
+
+    if (requireActiveSession) {
+      if (authApiVerification.ok) {
+        if (verified.ok && verified.userId !== authApiVerification.userId) {
+          return {
+            ok: false,
+            status: 401,
+            error: "Invalid or expired auth session.",
+          };
+        }
+
+        return buildAuthenticatedUserResult(
+          authApiVerification.userId,
+          authApiVerification.authMode,
+          clientIp,
+          { isAnonymous: authApiVerification.isAnonymous },
+        );
+      }
+
+      if (authApiVerification.reason === "invalid") {
+        return {
+          ok: false,
+          status: 401,
+          error: "Invalid or expired auth session.",
+        };
+      }
+
+      if (authApiVerification.reason === "unavailable") {
+        return buildAuthUnavailableResult({
+          bearerToken,
+          reason: "auth_unavailable",
+          message: "Authentication service is temporarily unavailable. Please try again.",
+          clientIp,
+          apiKey,
+          policy,
+        });
+      }
+
+      if (authApiVerification.reason === "config") {
+        return buildAuthUnavailableResult({
+          bearerToken,
+          reason: "missing_config",
+          message: "Authentication service is unavailable because Neon auth is not configured.",
+          clientIp,
+          apiKey,
+          policy,
+        });
+      }
+    }
+
     if (verified.ok) {
       return buildAuthenticatedUserResult(
         verified.userId,
@@ -485,7 +542,6 @@ export function createAuthService({
       );
     }
 
-    const authApiVerification = await verifyNeonSessionWithAuthApi(bearerToken);
     if (authApiVerification.ok) {
       return buildAuthenticatedUserResult(
         authApiVerification.userId,

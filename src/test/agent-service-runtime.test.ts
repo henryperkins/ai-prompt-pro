@@ -266,6 +266,7 @@ describe("agent service runtime extraction", () => {
       allowPublicKey: false,
       allowServiceToken: false,
       allowUserJwt: true,
+      requireActiveSession: true,
     });
     expect(runtime.buildReadinessReport().warnings).not.toContain("github_config_incomplete");
   });

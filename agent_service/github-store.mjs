@@ -15,17 +15,23 @@ function parseNumber(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function buildConnectionRowPayload({ userId, installationRecordId, repo }) {
+function buildConnectionMetadataPayload(repo) {
   return {
-    user_id: userId,
-    installation_record_id: installationRecordId,
     github_repo_id: repo.id,
-    owner_login: repo.owner.login,
+    owner_login: repo.owner?.login || "",
     repo_name: repo.name,
     full_name: repo.full_name,
     default_branch: repo.default_branch,
     visibility: repo.visibility || (repo.private ? "private" : "public"),
     is_private: repo.private === true,
+  };
+}
+
+function buildConnectionRowPayload({ userId, installationRecordId, repo }) {
+  return {
+    user_id: userId,
+    installation_record_id: installationRecordId,
+    ...buildConnectionMetadataPayload(repo),
     last_selected_at: new Date().toISOString(),
     access_revoked_at: null,
     updated_at: new Date().toISOString(),
@@ -227,11 +233,15 @@ export function createGitHubStore(config = {}) {
   async function listConnections(userId) {
     return client.queryRows(
       `
-        select *
-        from public.github_repo_connections
-        where user_id = $1
-          and access_revoked_at is null
-        order by updated_at desc
+        select connections.*
+        from public.github_repo_connections connections
+        join public.github_installations installations
+          on installations.id = connections.installation_record_id
+        where connections.user_id = $1
+          and connections.access_revoked_at is null
+          and installations.deleted_at is null
+          and installations.suspended_at is null
+        order by connections.updated_at desc
       `,
       [userId],
     );
@@ -341,8 +351,7 @@ export function createGitHubStore(config = {}) {
         event: "github_stale_connection_detected",
         message:
           "Connection record exists but its backing installation is missing or inactive (suspended/deleted). "
-          + "The user will see this repo as connected but all operations will fail with 404. "
-          + "listConnections() does not filter by installation state.",
+          + "Direct operations on this repo will fail until the installation is restored or the connection is cleaned up.",
         connection_id: connectionId,
         installation_record_id: row.installation_record_id,
         full_name: row.full_name,
@@ -387,6 +396,33 @@ export function createGitHubStore(config = {}) {
     );
   }
 
+  async function revokeConnectionsForInstallation(installationRecordId) {
+    const now = new Date().toISOString();
+    return client.queryRows(
+      `
+        update public.github_repo_connections
+        set access_revoked_at = $2,
+            updated_at = $3
+        where installation_record_id = $1
+        returning id, github_repo_id
+      `,
+      [installationRecordId, now, now],
+    );
+  }
+
+  async function reactivateConnectionsForInstallation(installationRecordId) {
+    return client.queryRows(
+      `
+        update public.github_repo_connections
+        set access_revoked_at = null,
+            updated_at = $2
+        where installation_record_id = $1
+        returning id, github_repo_id
+      `,
+      [installationRecordId, new Date().toISOString()],
+    );
+  }
+
   async function reactivateConnectionsForRepoIds(installationRecordId, githubRepoIds = []) {
     if (!Array.isArray(githubRepoIds) || githubRepoIds.length === 0) return [];
     const numericIds = githubRepoIds.map((value) => Number(value)).filter(Number.isFinite);
@@ -401,6 +437,42 @@ export function createGitHubStore(config = {}) {
         returning id, github_repo_id
       `,
       [installationRecordId, numericIds, new Date().toISOString()],
+    );
+  }
+
+  async function rebindConnectionToInstallationRecord(connectionId, installationRecordId) {
+    return client.queryRow(
+      `
+        update public.github_repo_connections
+        set installation_record_id = $2,
+            access_revoked_at = null,
+            updated_at = $3
+        where id = $1
+        returning *
+      `,
+      [connectionId, installationRecordId, new Date().toISOString()],
+    );
+  }
+
+  async function rebindConnectionsToInstallationForRepo(githubRepoId, githubInstallationId) {
+    const numericRepoId = parseNumber(githubRepoId);
+    const numericInstallationId = parseNumber(githubInstallationId);
+    if (!Number.isFinite(numericRepoId) || !Number.isFinite(numericInstallationId)) return [];
+    return client.queryRows(
+      `
+        update public.github_repo_connections connections
+        set installation_record_id = installations.id,
+            access_revoked_at = null,
+            updated_at = $3
+        from public.github_installations installations
+        where connections.github_repo_id = $1
+          and installations.github_installation_id = $2
+          and installations.user_id = connections.user_id
+          and installations.deleted_at is null
+          and installations.suspended_at is null
+        returning connections.*
+      `,
+      [numericRepoId, numericInstallationId, new Date().toISOString()],
     );
   }
 
@@ -532,6 +604,64 @@ export function createGitHubStore(config = {}) {
     );
   }
 
+  async function syncConnectionRepositoryMetadata(connectionId, repo) {
+    const metadata = buildConnectionMetadataPayload(repo);
+    return client.queryRow(
+      `
+        update public.github_repo_connections
+        set owner_login = $2,
+            repo_name = $3,
+            full_name = $4,
+            default_branch = $5,
+            visibility = $6,
+            is_private = $7,
+            updated_at = $8
+        where id = $1
+        returning *
+      `,
+      [
+        connectionId,
+        metadata.owner_login,
+        metadata.repo_name,
+        metadata.full_name,
+        metadata.default_branch,
+        metadata.visibility,
+        metadata.is_private,
+        new Date().toISOString(),
+      ],
+    );
+  }
+
+  async function syncConnectionsRepositoryMetadata(githubRepoId, repo) {
+    const numericRepoId = parseNumber(githubRepoId);
+    if (!Number.isFinite(numericRepoId)) return [];
+    const metadata = buildConnectionMetadataPayload(repo);
+    return client.queryRows(
+      `
+        update public.github_repo_connections
+        set owner_login = $2,
+            repo_name = $3,
+            full_name = $4,
+            default_branch = $5,
+            visibility = $6,
+            is_private = $7,
+            updated_at = $8
+        where github_repo_id = $1
+        returning *
+      `,
+      [
+        numericRepoId,
+        metadata.owner_login,
+        metadata.repo_name,
+        metadata.full_name,
+        metadata.default_branch,
+        metadata.visibility,
+        metadata.is_private,
+        new Date().toISOString(),
+      ],
+    );
+  }
+
   return {
     consumeSetupState,
     createSetupState,
@@ -548,9 +678,15 @@ export function createGitHubStore(config = {}) {
     listInstallationsByGithubInstallationId,
     markInstallationsDeleted,
     markInstallationsSuspended,
+    rebindConnectionToInstallationRecord,
+    rebindConnectionsToInstallationForRepo,
+    reactivateConnectionsForInstallation,
     reactivateConnectionsForRepoIds,
     reactivateInstallations,
+    revokeConnectionsForInstallation,
     revokeConnectionsForInstallationRepos,
+    syncConnectionRepositoryMetadata,
+    syncConnectionsRepositoryMetadata,
     upsertConnection,
     upsertInstallation,
     upsertManifest,

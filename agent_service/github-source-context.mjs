@@ -149,11 +149,12 @@ export function createGitHubSourceContextService({
 } = {}) {
   async function buildFilePreview({ userId, connection, path }) {
     const snapshot = await manifestService.findEntry({ userId, connection, path });
+    const resolvedConnection = snapshot.connection || connection;
     const installationId = Number(
-      connection.installation?.github_installation_id || connection.installation?.githubInstallationId,
+      resolvedConnection.installation?.github_installation_id || resolvedConnection.installation?.githubInstallationId,
     );
-    const owner = connection.owner_login || connection.ownerLogin;
-    const repo = connection.repo_name || connection.repoName;
+    const owner = resolvedConnection.owner_login || resolvedConnection.ownerLogin;
+    const repo = resolvedConnection.repo_name || resolvedConnection.repoName;
     const blob = await app.getBlob(owner, repo, snapshot.entry.sha, installationId);
     const content = decodeGitHubBlob(blob);
     const sliced = sliceGithubFileForContext(content, MAX_RAW_CHARS);
@@ -163,7 +164,7 @@ export function createGitHubSourceContextService({
       size: snapshot.entry.size,
       sha: snapshot.entry.sha,
       truncated: sliced.rawContentTruncated,
-      locator: `${connection.full_name || connection.fullName}:${snapshot.entry.path}`,
+      locator: `${resolvedConnection.full_name || resolvedConnection.fullName}:${snapshot.entry.path}`,
       content: sliced.rawContent,
       originalCharCount: sliced.originalCharCount,
     };
@@ -171,12 +172,13 @@ export function createGitHubSourceContextService({
 
   async function buildContextSources({ userId, connection, paths, selection }) {
     const manifestSnapshot = await manifestService.getManifestSnapshot({ userId, connection });
+    const resolvedConnection = manifestSnapshot.connection || connection;
     const installationId = Number(
-      connection.installation?.github_installation_id || connection.installation?.githubInstallationId,
+      resolvedConnection.installation?.github_installation_id || resolvedConnection.installation?.githubInstallationId,
     );
-    const owner = connection.owner_login || connection.ownerLogin;
-    const repo = connection.repo_name || connection.repoName;
-    const repoFullName = connection.full_name || connection.fullName;
+    const owner = resolvedConnection.owner_login || resolvedConnection.ownerLogin;
+    const repo = resolvedConnection.repo_name || resolvedConnection.repoName;
+    const repoFullName = resolvedConnection.full_name || resolvedConnection.fullName;
     const commitSha = normalizeString(
       manifestSnapshot.manifestRow.tree_sha || manifestSnapshot.manifestRow.treeSha,
     );

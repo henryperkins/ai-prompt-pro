@@ -13,6 +13,7 @@ function createRegistry() {
         allowPublicKey: false,
         allowServiceToken: false,
         allowUserJwt: true,
+        requireActiveSession: true,
       },
       githubConfig: {
         repositoryPageSize: 50,
@@ -44,6 +45,7 @@ describe("agent service GitHub route registry", () => {
         allowPublicKey: false,
         allowServiceToken: false,
         allowUserJwt: true,
+        requireActiveSession: true,
       },
     });
   });

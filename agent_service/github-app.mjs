@@ -398,6 +398,14 @@ export function createGitHubAppClient(config = {}, deps = {}) {
     return response.data;
   }
 
+  async function getRepositoryById(repositoryId, installationId) {
+    const response = await githubRequest(`/repositories/${encodeURIComponent(repositoryId)}`, {
+      auth: "installation",
+      installationId,
+    });
+    return response.data;
+  }
+
   async function getBranch(owner, repo, branch, installationId) {
     const response = await githubRequest(`/repos/${owner}/${repo}/branches/${encodeURIComponent(branch)}`, {
       auth: "installation",
@@ -454,10 +462,10 @@ export function createGitHubAppClient(config = {}, deps = {}) {
     getBranch,
     getInstallationDetails,
     getRepository,
+    getRepositoryById,
     getTree,
     listInstallationRepositories,
     verifySetupState,
     verifyWebhookSignature,
   };
 }
-

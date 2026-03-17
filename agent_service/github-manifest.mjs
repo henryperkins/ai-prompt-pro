@@ -254,8 +254,8 @@ export async function collectDefaultBranchTree(app, connection) {
         event: "github_manifest_stale_repo_metadata",
         message:
           `GitHub returned 404 for ${owner}/${repo} branch ${defaultBranch}. `
-          + "The repo may have been renamed, transferred, or the default branch changed since the connection was created. "
-          + "The 'repository' webhook event is not handled, so connection metadata is never updated.",
+          + "The repo may have been renamed, transferred, deleted, or had its default branch changed. "
+          + "Connection metadata should be refreshed from the repository id before retrying.",
         owner,
         repo,
         default_branch: defaultBranch,
@@ -349,6 +349,134 @@ export function normalizeManifestEntries(entries) {
     .sort((left, right) => left.path.localeCompare(right.path));
 }
 
+function getConnectionRepoId(connection) {
+  return Number(connection?.github_repo_id || connection?.githubRepoId);
+}
+
+function getConnectionInstallationId(connection) {
+  return Number(
+    connection?.installation?.github_installation_id || connection?.installation?.githubInstallationId,
+  );
+}
+
+function getConnectionInstallationRecordId(connection) {
+  return normalizeString(connection?.installation_record_id || connection?.installationRecordId);
+}
+
+function getInstallationRecordId(installation) {
+  return normalizeString(installation?.id);
+}
+
+function getInstallationGithubInstallationId(installation) {
+  return Number(installation?.github_installation_id || installation?.githubInstallationId);
+}
+
+function getConnectionOwner(connection) {
+  return normalizeString(connection?.owner_login || connection?.ownerLogin);
+}
+
+function getConnectionRepoName(connection) {
+  return normalizeString(connection?.repo_name || connection?.repoName);
+}
+
+function getConnectionFullName(connection) {
+  return normalizeString(connection?.full_name || connection?.fullName);
+}
+
+function getConnectionDefaultBranch(connection) {
+  return normalizeString(connection?.default_branch || connection?.defaultBranch);
+}
+
+function getConnectionVisibility(connection) {
+  return normalizeString(connection?.visibility);
+}
+
+function getConnectionIsPrivate(connection) {
+  return connection?.is_private === true || connection?.isPrivate === true;
+}
+
+function mergeConnectionInstallation(connection, installation) {
+  const installationRecordId = getInstallationRecordId(installation) || getConnectionInstallationRecordId(connection);
+  const githubInstallationId = getInstallationGithubInstallationId(installation) || getConnectionInstallationId(connection);
+
+  return {
+    ...connection,
+    installation_record_id: installationRecordId,
+    installationRecordId: installationRecordId,
+    installation: {
+      ...(connection.installation || {}),
+      ...(installation || {}),
+      id: installationRecordId,
+      github_installation_id: githubInstallationId,
+      githubInstallationId,
+    },
+  };
+}
+
+function mergeConnectionRepositoryMetadata(connection, repo) {
+  const ownerLogin = repo.owner?.login || getConnectionOwner(connection);
+  const repoName = repo.name || getConnectionRepoName(connection);
+  const fullName = repo.full_name || [ownerLogin, repoName].filter(Boolean).join("/");
+  const defaultBranch = repo.default_branch || getConnectionDefaultBranch(connection);
+  const visibility = repo.visibility || (repo.private ? "private" : "public");
+  const isPrivate = repo.private === true;
+
+  return {
+    ...connection,
+    github_repo_id: Number(repo.id) || getConnectionRepoId(connection),
+    githubRepoId: Number(repo.id) || getConnectionRepoId(connection),
+    owner_login: ownerLogin,
+    ownerLogin,
+    repo_name: repoName,
+    repoName,
+    full_name: fullName,
+    fullName,
+    default_branch: defaultBranch,
+    defaultBranch,
+    visibility,
+    is_private: isPrivate,
+    isPrivate,
+  };
+}
+
+function repositoryMetadataChanged(connection, repo) {
+  return (
+    getConnectionOwner(connection) !== normalizeString(repo.owner?.login)
+    || getConnectionRepoName(connection) !== normalizeString(repo.name)
+    || getConnectionFullName(connection) !== normalizeString(repo.full_name)
+    || getConnectionDefaultBranch(connection) !== normalizeString(repo.default_branch)
+    || getConnectionVisibility(connection) !== normalizeString(
+      repo.visibility || (repo.private ? "private" : "public"),
+    )
+    || getConnectionIsPrivate(connection) !== (repo.private === true)
+  );
+}
+
+function isUsableManifestRow(row) {
+  return Boolean(
+    row
+    && !row.invalidated_at
+    && Date.parse(row.expires_at) > Date.now()
+    && Array.isArray(row.manifest),
+  );
+}
+
+function getCachedManifestRow(cache, cacheKey) {
+  const cached = cache.get(cacheKey);
+  if (!cached) return null;
+  if (cached.expiresAt <= Date.now()) {
+    cache.delete(cacheKey);
+    return null;
+  }
+  return cached.row;
+}
+
+function isRepositoryLookupNotFound(error) {
+  const status = Number(error?.status);
+  const message = typeof error?.message === "string" ? error.message.toLowerCase() : "";
+  return status === 404 || message.includes("not found");
+}
+
 export function createGitHubManifestService({
   app,
   store,
@@ -361,41 +489,144 @@ export function createGitHubManifestService({
     return `${connectionId}:${refName}`;
   }
 
+  async function loadUsableManifestRow({ userId, connectionId }) {
+    const cacheKey = buildCacheKey(connectionId, DEFAULT_REF_NAME);
+    const cachedRow = getCachedManifestRow(cache, cacheKey);
+    if (cachedRow) {
+      return {
+        manifestRow: cachedRow,
+        fromCache: true,
+      };
+    }
+
+    const stored = await store.getManifest(userId, connectionId, DEFAULT_REF_NAME);
+    if (!isUsableManifestRow(stored)) {
+      return {
+        manifestRow: null,
+        fromCache: false,
+      };
+    }
+
+    upsertLru(cache, cacheKey, {
+      expiresAt: Date.parse(stored.expires_at),
+      row: stored,
+    }, maxEntries);
+
+    return {
+      manifestRow: stored,
+      fromCache: false,
+    };
+  }
+
+  async function findRepositoryByAnyActiveInstallation(userId, connection, currentInstallationId) {
+    if (typeof store?.listInstallations !== "function") return null;
+    const installations = await store.listInstallations(userId);
+    for (const installation of installations) {
+      const githubInstallationId = getInstallationGithubInstallationId(installation);
+      if (!Number.isFinite(githubInstallationId) || githubInstallationId === currentInstallationId) continue;
+      try {
+        const repository = await app.getRepositoryById(getConnectionRepoId(connection), githubInstallationId);
+        if (typeof store?.rebindConnectionToInstallationRecord === "function") {
+          await store.rebindConnectionToInstallationRecord(connection.id, installation.id);
+        }
+        return {
+          repository,
+          connection: mergeConnectionInstallation(connection, installation),
+        };
+      } catch (error) {
+        if (isRepositoryLookupNotFound(error)) continue;
+        throw error;
+      }
+    }
+
+    return null;
+  }
+
+  async function resolveConnectionRepositoryMetadata(userId, connection) {
+    const installationId = getConnectionInstallationId(connection);
+    const repoId = getConnectionRepoId(connection);
+    if (!Number.isFinite(installationId) || !Number.isFinite(repoId) || typeof app?.getRepositoryById !== "function") {
+      return {
+        connection,
+        manifestMustRefresh: false,
+      };
+    }
+
+    let repository;
+    let effectiveConnection = connection;
+    try {
+      repository = await app.getRepositoryById(repoId, installationId);
+    } catch (error) {
+      if (!isRepositoryLookupNotFound(error)) throw error;
+      const rebound = await findRepositoryByAnyActiveInstallation(userId, connection, installationId);
+      if (!rebound) throw error;
+      repository = rebound.repository;
+      effectiveConnection = rebound.connection;
+    }
+
+    if (!repositoryMetadataChanged(effectiveConnection, repository)) {
+      return {
+        connection: effectiveConnection,
+        manifestMustRefresh: false,
+      };
+    }
+
+    const nextConnection = mergeConnectionRepositoryMetadata(effectiveConnection, repository);
+    if (typeof store?.syncConnectionRepositoryMetadata === "function") {
+      await store.syncConnectionRepositoryMetadata(connection.id, repository);
+    }
+
+    return {
+      connection: nextConnection,
+      manifestMustRefresh: getConnectionDefaultBranch(connection) !== getConnectionDefaultBranch(nextConnection),
+    };
+  }
+
   async function getManifestSnapshot({
     userId,
     connection,
     forceRefresh = false,
   }) {
-    const connectionId = connection.id;
-    const cacheKey = buildCacheKey(connectionId, DEFAULT_REF_NAME);
-    const cached = cache.get(cacheKey);
-    if (!forceRefresh && cached && cached.expiresAt > Date.now()) {
+    const cacheKey = buildCacheKey(connection.id, DEFAULT_REF_NAME);
+    const fallbackManifest = await loadUsableManifestRow({
+      userId,
+      connectionId: connection.id,
+    });
+
+    let resolved = {
+      connection,
+      manifestMustRefresh: false,
+    };
+    let metadataError = null;
+    try {
+      resolved = await resolveConnectionRepositoryMetadata(userId, connection);
+    } catch (error) {
+      metadataError = error;
+      if (!fallbackManifest.manifestRow) throw error;
+    }
+
+    const effectiveConnection = resolved.connection;
+    const forceManifestRefresh = forceRefresh || resolved.manifestMustRefresh;
+    if (metadataError && fallbackManifest.manifestRow) {
       return {
-        manifestRow: cached.row,
-        staleFallback: false,
+        manifestRow: fallbackManifest.manifestRow,
+        staleFallback: true,
+        staleError: metadataError,
+        connection: effectiveConnection,
       };
     }
 
-    const stored = await store.getManifest(userId, connectionId, DEFAULT_REF_NAME);
-    if (
-      !forceRefresh &&
-      stored &&
-      !stored.invalidated_at
-      && Date.parse(stored.expires_at) > Date.now()
-      && Array.isArray(stored.manifest)
-    ) {
-      upsertLru(cache, cacheKey, {
-        expiresAt: Date.parse(stored.expires_at),
-        row: stored,
-      }, maxEntries);
+    const connectionId = effectiveConnection.id;
+    if (!forceManifestRefresh && fallbackManifest.manifestRow) {
       return {
-        manifestRow: stored,
+        manifestRow: fallbackManifest.manifestRow,
         staleFallback: false,
+        connection: effectiveConnection,
       };
     }
 
     try {
-      const tree = await collectDefaultBranchTree(app, connection);
+      const tree = await collectDefaultBranchTree(app, effectiveConnection);
       const manifest = normalizeManifestEntries(tree.entries);
       const expiresAt = new Date(Date.now() + ttlMs);
       const saved = await store.upsertManifest({
@@ -418,13 +649,15 @@ export function createGitHubManifestService({
       return {
         manifestRow: saved,
         staleFallback: false,
+        connection: effectiveConnection,
       };
     } catch (error) {
-      if (stored && Array.isArray(stored.manifest)) {
+      if (!resolved.manifestMustRefresh && fallbackManifest.manifestRow) {
         return {
-          manifestRow: stored,
+          manifestRow: fallbackManifest.manifestRow,
           staleFallback: true,
           staleError: error,
+          connection: effectiveConnection,
         };
       }
       throw error;
@@ -476,4 +709,3 @@ export function createGitHubManifestService({
     searchManifest,
   };
 }
-
