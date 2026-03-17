@@ -116,7 +116,7 @@ describe("github-client", () => {
     expect(firstHeaders.apikey).toBeUndefined();
   });
 
-  it("fails closed when forced GitHub session revalidation returns no session, even if a cached token exists", async () => {
+  it("reuses a cached user session token when forced GitHub revalidation briefly returns no session", async () => {
     const nowSeconds = Math.floor(Date.now() / 1000);
     mocks.getSession.mockImplementation(async (options?: { forceFetch?: boolean }) => ({
       data: {
@@ -140,14 +140,18 @@ describe("github-client", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const { listGitHubInstallations } = await import("@/lib/github-client");
-    await expect(listGitHubInstallations()).rejects.toMatchObject({
-      code: "auth_required",
-      message: "Sign in required.",
-    });
+    await expect(listGitHubInstallations()).resolves.toEqual({ installations: [] });
 
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(mocks.getSession).toHaveBeenCalledTimes(1);
-    expect(mocks.getSession).toHaveBeenCalledWith({ forceFetch: true });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(mocks.getSession).toHaveBeenCalledTimes(2);
+    expect(mocks.getSession).toHaveBeenNthCalledWith(1, { forceFetch: true });
+    expect(mocks.getSession).toHaveBeenNthCalledWith(2, undefined);
+
+    const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const headers = requestInit.headers as Record<string, string>;
+
+    expect(headers.Authorization).toBe("Bearer cached-user-session-token");
+    expect(headers.apikey).toBeUndefined();
   });
 
   it("fails locally before fetch when revalidation cannot recover a user session", async () => {
@@ -170,8 +174,9 @@ describe("github-client", () => {
     });
 
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(mocks.getSession).toHaveBeenCalledTimes(1);
-    expect(mocks.getSession).toHaveBeenCalledWith({ forceFetch: true });
+    expect(mocks.getSession).toHaveBeenCalledTimes(2);
+    expect(mocks.getSession).toHaveBeenNthCalledWith(1, { forceFetch: true });
+    expect(mocks.getSession).toHaveBeenNthCalledWith(2, undefined);
   });
 
   it("fails closed when no signed-in user session exists", async () => {

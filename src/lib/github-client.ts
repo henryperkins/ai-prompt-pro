@@ -307,7 +307,10 @@ async function getRequestHeaders(
   try {
     return await serviceAuth.getHeaders({
       ...options,
-      allowCachedSessionFallbackOnForceRefresh: false,
+      // The backend still enforces the JWT. This only smooths over the short
+      // post-redirect window where Neon's forced revalidation can momentarily
+      // return null while a valid cached session is already present.
+      allowCachedSessionFallbackOnForceRefresh: true,
       allowPublicKeyFallback: false,
     });
   } catch (error) {

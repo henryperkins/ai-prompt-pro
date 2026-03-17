@@ -9,9 +9,28 @@ function appendResultToRedirect(baseUrl, result, message) {
   return redirectUrl.toString();
 }
 
+function resolveRedirectBaseUrl(primaryUrl, fallbackUrl = undefined) {
+  for (const candidate of [primaryUrl, fallbackUrl]) {
+    if (!candidate) continue;
+    try {
+      return new URL(candidate).toString();
+    } catch {
+      // Ignore invalid candidate URLs and fall back to the next option.
+    }
+  }
+
+  throw createGitHubError(
+    "GitHub setup redirect is not configured.",
+    "github_redirect_unavailable",
+    500,
+  );
+}
+
 export function createGitHubSetupReturnHandler({ app, store, runtime }) {
   return async function handleGitHubSetupReturn({ url }) {
-    const defaultRedirectUrl = runtime.githubConfig.postInstallRedirectUrl;
+    const defaultRedirectUrl = resolveRedirectBaseUrl(
+      runtime.githubConfig.postInstallRedirectUrl,
+    );
     const rawState = url.searchParams.get("state") || "";
     const installationIdRaw = url.searchParams.get("installation_id") || "";
 
@@ -45,17 +64,22 @@ export function createGitHubSetupReturnHandler({ app, store, runtime }) {
       const installation = await app.getInstallationDetails(installationId);
       await store.upsertInstallation(state.userId, installation);
 
+      const redirectBaseUrl = resolveRedirectBaseUrl(
+        state.returnTo,
+        defaultRedirectUrl,
+      );
+
       // --- Diagnostic: log successful redirect ---
-      const successRedirect = appendResultToRedirect(defaultRedirectUrl, "success");
+      const successRedirect = appendResultToRedirect(redirectBaseUrl, "success");
       console.log(JSON.stringify({
         timestamp: new Date().toISOString(),
         level: "info",
         event: "github_setup_return_success",
         redirect_url: successRedirect,
         state_return_to: state.returnTo || "(empty)",
-        note: state.returnTo && state.returnTo !== defaultRedirectUrl
-          ? "state.returnTo differs from configured redirect — the state-embedded returnTo is being ignored"
-          : "redirect matches state",
+        note: redirectBaseUrl === defaultRedirectUrl
+          ? "redirect used configured fallback target"
+          : "redirect used state-embedded return target",
       }));
       // --- End diagnostic ---
 
@@ -81,4 +105,3 @@ export function createGitHubSetupReturnHandler({ app, store, runtime }) {
     }
   };
 }
-
