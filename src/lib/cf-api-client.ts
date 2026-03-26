@@ -3,12 +3,8 @@
  * RESTful API client for drafts, prompts, community, and profiles
  */
 
-import { defaultConfig } from "@/lib/prompt-builder";
 export type { RemixDiff } from "@/lib/community";
-import { normalizePromptCategory } from "@/lib/prompt-categories";
-
-const API_BASE_URL = import.meta.env.VITE_API_WORKER_URL || "http://localhost:8000";
-const AUTH_BASE_URL = import.meta.env.VITE_AUTH_WORKER_URL || "http://localhost:8001";
+import { resolveApiUrl, resolveAuthUrl } from "@/lib/worker-endpoints";
 
 // ============================================================
 // Types
@@ -45,18 +41,30 @@ export interface SavedPrompt {
   category: string;
   tags: string[];
   config: unknown;
-  built_prompt: string;
-  enhanced_prompt: string;
+  built_prompt?: string;
+  enhanced_prompt?: string;
   fingerprint: string;
   revision: number;
   is_shared: boolean;
   target_model: string;
   use_case: string;
   remixed_from: string | null;
-  remix_note: string;
-  remix_diff: unknown | null;
+  remix_note?: string;
+  remix_diff?: unknown | null;
+  community_post_id?: string | null;
+  upvote_count?: number;
+  verified_count?: number;
+  remix_count?: number;
+  comment_count?: number;
   created_at: number;
   updated_at: number;
+}
+
+export interface PromptVersionRecord {
+  id: string;
+  name: string;
+  prompt: string;
+  created_at: number;
 }
 
 export interface CommunityPost {
@@ -126,22 +134,24 @@ async function fetchWithAuth(
 }
 
 function handleResponse<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    if (response.status === 401) {
-      throw new Error("Unauthorized");
+  return response.json().catch(() => ({})).then((payload) => {
+    if (!response.ok) {
+      const errorMessage = typeof (payload as { error?: unknown }).error === "string"
+        ? (payload as { error: string }).error
+        : null;
+      const message = response.status === 401
+        ? `Unauthorized${errorMessage ? `: ${errorMessage}` : ""}`
+        : response.status === 403
+          ? `Forbidden${errorMessage ? `: ${errorMessage}` : ""}`
+          : response.status === 404
+            ? `Not found${errorMessage ? `: ${errorMessage}` : ""}`
+            : response.status === 409
+              ? `Conflict${errorMessage ? `: ${errorMessage}` : ""}`
+              : errorMessage || `Request failed: ${response.status}`;
+      throw new Error(message);
     }
-    if (response.status === 403) {
-      throw new Error("Forbidden");
-    }
-    if (response.status === 404) {
-      throw new Error("Not found");
-    }
-    if (response.status === 409) {
-      throw new Error("Conflict");
-    }
-    throw new Error(`Request failed: ${response.status}`);
-  }
-  return response.json();
+    return payload as T;
+  });
 }
 
 // ============================================================
@@ -153,7 +163,7 @@ export async function register(
   password: string,
   displayName?: string
 ): Promise<{ user: AuthUser; accessToken: string; refreshToken: string }> {
-  const response = await fetch(`${AUTH_BASE_URL}/auth/register`, {
+  const response = await fetch(resolveAuthUrl("/auth/register"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password, displayName }),
@@ -166,7 +176,7 @@ export async function login(
   email: string,
   password: string
 ): Promise<{ user: AuthUser; accessToken: string; refreshToken: string }> {
-  const response = await fetch(`${AUTH_BASE_URL}/auth/login`, {
+  const response = await fetch(resolveAuthUrl("/auth/login"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
@@ -178,7 +188,7 @@ export async function login(
 export async function refreshToken(
   refreshToken: string
 ): Promise<{ accessToken: string }> {
-  const response = await fetch(`${AUTH_BASE_URL}/auth/refresh`, {
+  const response = await fetch(resolveAuthUrl("/auth/refresh"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ refreshToken }),
@@ -188,7 +198,7 @@ export async function refreshToken(
 }
 
 export async function logout(refreshToken?: string): Promise<void> {
-  await fetch(`${AUTH_BASE_URL}/auth/logout`, {
+  await fetch(resolveAuthUrl("/auth/logout"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ refreshToken }),
@@ -203,7 +213,7 @@ export async function getSession(
   }
 
   const response = await fetchWithAuth(
-    `${AUTH_BASE_URL}/auth/session`,
+    resolveAuthUrl("/auth/session"),
     {},
     accessToken
   );
@@ -212,7 +222,7 @@ export async function getSession(
 }
 
 export async function deleteAccount(accessToken: string): Promise<void> {
-  await fetchWithAuth(`${AUTH_BASE_URL}/auth/account`, {
+  await fetchWithAuth(resolveAuthUrl("/auth/account"), {
     method: "DELETE",
   }, accessToken);
 }
@@ -222,7 +232,7 @@ export async function deleteAccount(accessToken: string): Promise<void> {
 // ============================================================
 
 export async function loadDraft(accessToken: string): Promise<{ config: unknown } | null> {
-  const response = await fetchWithAuth(`${API_BASE_URL}/api/drafts`, {}, accessToken);
+  const response = await fetchWithAuth(resolveApiUrl("/api/drafts"), {}, accessToken);
 
   if (response.status === 404) {
     return null;
@@ -235,7 +245,7 @@ export async function saveDraft(
   accessToken: string,
   config: unknown
 ): Promise<{ id: string; updated_at: number }> {
-  const response = await fetchWithAuth(`${API_BASE_URL}/api/drafts`, {
+  const response = await fetchWithAuth(resolveApiUrl("/api/drafts"), {
     method: "POST",
     body: JSON.stringify({ config }),
   }, accessToken);
@@ -244,7 +254,7 @@ export async function saveDraft(
 }
 
 export async function deleteDraft(accessToken: string): Promise<{ deleted: boolean }> {
-  const response = await fetchWithAuth(`${API_BASE_URL}/api/drafts`, {
+  const response = await fetchWithAuth(resolveApiUrl("/api/drafts"), {
     method: "DELETE",
   }, accessToken);
 
@@ -256,7 +266,7 @@ export async function deleteDraft(accessToken: string): Promise<{ deleted: boole
 // ============================================================
 
 export async function loadPrompts(accessToken: string): Promise<SavedPrompt[]> {
-  const response = await fetchWithAuth(`${API_BASE_URL}/api/prompts`, {}, accessToken);
+  const response = await fetchWithAuth(resolveApiUrl("/api/prompts"), {}, accessToken);
   return handleResponse(response);
 }
 
@@ -265,7 +275,7 @@ export async function loadPromptById(
   promptId: string
 ): Promise<SavedPrompt | null> {
   const response = await fetchWithAuth(
-    `${API_BASE_URL}/api/prompts/${promptId}`,
+    resolveApiUrl(`/api/prompts/${promptId}`),
     {},
     accessToken
   );
@@ -294,7 +304,7 @@ export async function createPrompt(
     remix_diff?: RemixDiff | null;
   }
 ): Promise<{ id: string; revision: number }> {
-  const response = await fetchWithAuth(`${API_BASE_URL}/api/prompts`, {
+  const response = await fetchWithAuth(resolveApiUrl("/api/prompts"), {
     method: "POST",
     body: JSON.stringify(input),
   }, accessToken);
@@ -319,10 +329,11 @@ export async function updatePrompt(
     remixed_from?: string | null;
     remix_note?: string;
     remix_diff?: RemixDiff | null;
+    expected_revision?: number;
   }
 ): Promise<{ revision: number }> {
   const response = await fetchWithAuth(
-    `${API_BASE_URL}/api/prompts/${promptId}`,
+    resolveApiUrl(`/api/prompts/${promptId}`),
     {
       method: "PUT",
       body: JSON.stringify(input),
@@ -338,7 +349,7 @@ export async function deletePrompt(
   promptId: string
 ): Promise<{ deleted: boolean }> {
   const response = await fetchWithAuth(
-    `${API_BASE_URL}/api/prompts/${promptId}`,
+    resolveApiUrl(`/api/prompts/${promptId}`),
     {
       method: "DELETE",
     },
@@ -356,12 +367,14 @@ export async function sharePrompt(
     description?: string;
     category?: string;
     tags?: string[];
+    targetModel?: string;
     target_model?: string;
+    useCase?: string;
     use_case?: string;
   }
-): Promise<{ shared: boolean; post_id?: string }> {
+): Promise<{ shared: boolean; postId?: string; post_id?: string }> {
   const response = await fetchWithAuth(
-    `${API_BASE_URL}/api/prompts/${promptId}/share`,
+    resolveApiUrl(`/api/prompts/${promptId}/share`),
     {
       method: "POST",
       body: JSON.stringify(input),
@@ -377,7 +390,7 @@ export async function unsharePrompt(
   promptId: string
 ): Promise<{ unshared: boolean }> {
   const response = await fetchWithAuth(
-    `${API_BASE_URL}/api/prompts/${promptId}/unshare`,
+    resolveApiUrl(`/api/prompts/${promptId}/unshare`),
     {
       method: "POST",
     },
@@ -407,12 +420,12 @@ export async function getCommunityPosts(
   if (filters?.cursor) params.set("cursor", filters.cursor);
   if (filters?.limit) params.set("limit", String(filters.limit));
 
-  const response = await fetch(`${API_BASE_URL}/api/community?${params.toString()}`);
+  const response = await fetch(resolveApiUrl(`/api/community?${params.toString()}`));
   return handleResponse(response);
 }
 
 export async function getCommunityPostById(postId: string): Promise<CommunityPost | null> {
-  const response = await fetch(`${API_BASE_URL}/api/community/${postId}`);
+  const response = await fetch(resolveApiUrl(`/api/community/${postId}`));
 
   if (response.status === 404) {
     return null;
@@ -427,7 +440,7 @@ export async function createVote(
   voteType: "upvote" | "verified"
 ): Promise<{ voted: boolean }> {
   const response = await fetchWithAuth(
-    `${API_BASE_URL}/api/community/${postId}/vote`,
+    resolveApiUrl(`/api/community/${postId}/vote`),
     {
       method: "POST",
       body: JSON.stringify({ voteType }),
@@ -443,7 +456,7 @@ export async function deleteVote(
   postId: string
 ): Promise<{ deleted: boolean }> {
   const response = await fetchWithAuth(
-    `${API_BASE_URL}/api/community/${postId}/vote`,
+    resolveApiUrl(`/api/community/${postId}/vote`),
     {
       method: "DELETE",
     },
@@ -454,7 +467,7 @@ export async function deleteVote(
 }
 
 export async function getCommentsByPostId(postId: string): Promise<Comment[]> {
-  const response = await fetch(`${API_BASE_URL}/api/community/${postId}/comments`);
+  const response = await fetch(resolveApiUrl(`/api/community/${postId}/comments`));
   return handleResponse(response);
 }
 
@@ -464,7 +477,7 @@ export async function createComment(
   body: string
 ): Promise<{ id: string }> {
   const response = await fetchWithAuth(
-    `${API_BASE_URL}/api/community/${postId}/comments`,
+    resolveApiUrl(`/api/community/${postId}/comments`),
     {
       method: "POST",
       body: JSON.stringify({ body }),
@@ -481,7 +494,7 @@ export async function updateComment(
   body: string
 ): Promise<{ updated: boolean }> {
   const response = await fetchWithAuth(
-    `${API_BASE_URL}/api/community/comments/${commentId}`,
+    resolveApiUrl(`/api/community/comments/${commentId}`),
     {
       method: "PUT",
       body: JSON.stringify({ body }),
@@ -497,7 +510,7 @@ export async function deleteComment(
   commentId: string
 ): Promise<{ deleted: boolean }> {
   const response = await fetchWithAuth(
-    `${API_BASE_URL}/api/community/comments/${commentId}`,
+    resolveApiUrl(`/api/community/comments/${commentId}`),
     {
       method: "DELETE",
     },
@@ -512,7 +525,7 @@ export async function deleteComment(
 // ============================================================
 
 export async function getProfile(accessToken: string): Promise<Profile | null> {
-  const response = await fetchWithAuth(`${API_BASE_URL}/api/profile/me`, {}, accessToken);
+  const response = await fetchWithAuth(resolveApiUrl("/api/profile/me"), {}, accessToken);
 
   if (response.status === 404) {
     return null;
@@ -529,13 +542,31 @@ export async function updateProfile(
   }
 ): Promise<{ updated: boolean }> {
   const response = await fetchWithAuth(
-    `${API_BASE_URL}/api/profile/me`,
+    resolveApiUrl("/api/profile/me"),
     {
       method: "PUT",
       body: JSON.stringify(input),
     },
     accessToken
   );
+
+  return handleResponse(response);
+}
+
+export async function loadVersions(accessToken: string): Promise<PromptVersionRecord[]> {
+  const response = await fetchWithAuth(resolveApiUrl("/api/versions"), {}, accessToken);
+  return handleResponse(response);
+}
+
+export async function saveVersion(
+  accessToken: string,
+  name: string,
+  prompt: string
+): Promise<PromptVersionRecord> {
+  const response = await fetchWithAuth(resolveApiUrl("/api/versions"), {
+    method: "POST",
+    body: JSON.stringify({ name, prompt }),
+  }, accessToken);
 
   return handleResponse(response);
 }

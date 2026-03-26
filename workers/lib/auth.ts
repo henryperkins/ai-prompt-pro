@@ -3,6 +3,7 @@
  * JWT signing/verification, password hashing, session management
  */
 
+import { timingSafeEqual } from "node:crypto";
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 
 // ============================================================
@@ -83,7 +84,7 @@ export async function verifyPassword(
     const derivedHash = new Uint8Array(derivedBits);
 
     // Constant-time comparison
-    return crypto.timingSafeEqual(storedHashBytes, derivedHash);
+    return timingSafeEqual(storedHashBytes, derivedHash);
   } catch {
     return false;
   }

@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import { render, type RenderOptions } from "@testing-library/react";
 import { AuthContext } from "@/hooks/auth-context";
-import type { AuthContextValue } from "@/hooks/auth-provider";
+import type { AuthContextValue } from "@/hooks/auth-provider-cf";
 
 const defaultAuthContextValue: AuthContextValue = {
   user: null,
@@ -10,6 +10,7 @@ const defaultAuthContextValue: AuthContextValue = {
   signUp: async () => ({ error: null, session: null, user: null }),
   signIn: async () => ({ error: null, session: null, user: null }),
   signInWithOAuth: async () => ({ error: null, session: null }),
+  requestPasswordReset: async () => ({ error: null }),
   signOut: async () => undefined,
   updateDisplayName: async () => ({ error: null, user: null }),
   deleteAccount: async () => ({ error: null }),

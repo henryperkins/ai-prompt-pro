@@ -9,12 +9,19 @@ import {
   clearStoredTokens,
   getValidAccessToken,
   logoutStoredSession,
-  resolveRequestUrl,
   restoreStoredAuthSession,
   saveStoredTokens,
   type BrowserAuthSession,
   type BrowserAuthUser,
 } from "@/lib/browser-auth";
+import {
+  apiDeleteAccount,
+  apiLogin,
+  apiRegister,
+  apiRequestPasswordReset,
+  apiUpdateProfile,
+  type AuthOAuthProvider,
+} from "@/lib/auth-api";
 import {
   normalizeDisplayName,
   resolveSignUpDisplayName,
@@ -33,7 +40,7 @@ export interface AuthSession extends BrowserAuthSession {
   user: AuthUser;
 }
 
-export type AuthOAuthProvider = "apple" | "github" | "google";
+export type { AuthOAuthProvider };
 
 export interface AuthContextValue {
   user: AuthUser | null;
@@ -51,12 +58,11 @@ export interface AuthContextValue {
   signInWithOAuth: (
     provider: AuthOAuthProvider,
   ) => Promise<{ error: string | null; session: null }>;
+  requestPasswordReset: (email: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   updateDisplayName: (displayName: string) => Promise<{ error: string | null; user: AuthUser | null }>;
   deleteAccount: () => Promise<{ error: string | null }>;
 }
-
-const AUTH_BASE = "/auth";
 
 function enrichUser(raw: BrowserAuthUser): AuthUser {
   return {
@@ -67,67 +73,6 @@ function enrichUser(raw: BrowserAuthUser): AuthUser {
       avatar_url: raw.avatarUrl ?? null,
     },
   };
-}
-
-async function requestAuthJson<T>(path: string, body?: unknown): Promise<T> {
-  const response = await fetch(resolveRequestUrl(path), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  const payload = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error((payload as { error?: string }).error || `Request failed (${response.status})`);
-  }
-
-  return payload as T;
-}
-
-async function apiRegister(email: string, password: string, displayName?: string) {
-  return requestAuthJson<{ user: BrowserAuthUser; accessToken: string; refreshToken: string }>(
-    `${AUTH_BASE}/register`,
-    { email, password, displayName },
-  );
-}
-
-async function apiLogin(email: string, password: string) {
-  return requestAuthJson<{ user: BrowserAuthUser; accessToken: string; refreshToken: string }>(
-    `${AUTH_BASE}/login`,
-    { email, password },
-  );
-}
-
-async function apiDeleteAccount(accessToken: string) {
-  const response = await fetch(resolveRequestUrl(`${AUTH_BASE}/account`), {
-    method: "DELETE",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  if (!response.ok) {
-    const payload = await response.json().catch(() => ({}));
-    throw new Error((payload as { error?: string }).error || "Failed to delete account.");
-  }
-}
-
-async function apiUpdateProfile(accessToken: string, displayName: string) {
-  const response = await fetch(resolveRequestUrl("/api/profile/me"), {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify({ display_name: displayName }),
-  });
-
-  if (!response.ok) {
-    const payload = await response.json().catch(() => ({}));
-    throw new Error((payload as { error?: string }).error || "Failed to update display name.");
-  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -225,6 +170,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const requestPasswordReset = useCallback(async (email: string) => {
+    try {
+      await apiRequestPasswordReset(email);
+      return { error: null };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Password reset failed." };
+    }
+  }, []);
+
   const signOut = useCallback(async () => {
     try {
       await logoutStoredSession();
@@ -294,7 +248,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, session, loading, signUp, signIn, signInWithOAuth, signOut, updateDisplayName, deleteAccount }}
+      value={{
+        user,
+        session,
+        loading,
+        signUp,
+        signIn,
+        signInWithOAuth,
+        requestPasswordReset,
+        signOut,
+        updateDisplayName,
+        deleteAccount,
+      }}
     >
       {children}
     </AuthContext.Provider>

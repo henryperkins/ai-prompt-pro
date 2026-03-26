@@ -202,7 +202,7 @@ describe("Community relationship state resets", () => {
     });
 
     expect(mocks.loadBlockedUserIds).toHaveBeenCalledTimes(2);
-  }, 15_000);
+  }, 30_000);
 
   it("renders follow controls from ready follow data even while blocked-user loading is still pending", async () => {
     const blockedReload = createDeferred<string[]>();

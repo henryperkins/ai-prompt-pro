@@ -30,6 +30,17 @@ preview_id = "4aab689f5bd64e22ace0843a0310653e"
 [vars]
 CORS_ORIGIN = "https://prompt.lakefrontdigital.io"
 
+[[tail_consumers]]
+service = "azure-search-mcp-tail"
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+
 # Development
 [dev]
 port = 8787

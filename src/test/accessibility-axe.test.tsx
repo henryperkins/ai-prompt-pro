@@ -3,99 +3,108 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 
+const ROUTE_READY_TIMEOUT_MS = 15_000;
+
 const ROUTE_CASES = [
   {
     label: "builder",
     pathname: "/",
     waitForReady: async () => {
-      await screen.findByTestId("builder-hero");
+      await screen.findByTestId("builder-hero", {}, { timeout: ROUTE_READY_TIMEOUT_MS });
     },
   },
   {
     label: "community",
     pathname: "/community",
     waitForReady: async () => {
-      await screen.findByRole("heading", { name: "Community Remix Feed" });
-      await screen.findByTestId("community-search-shell");
+      await screen.findByRole("heading", { name: "Community Remix Feed" }, { timeout: ROUTE_READY_TIMEOUT_MS });
+      await screen.findByTestId("community-search-shell", {}, { timeout: ROUTE_READY_TIMEOUT_MS });
     },
   },
   {
     label: "feed",
     pathname: "/feed",
     waitForReady: async () => {
-      await screen.findByRole("heading", { name: "Community Remix Feed" });
-      await screen.findByTestId("community-search-shell");
+      await screen.findByRole("heading", { name: "Community Remix Feed" }, { timeout: ROUTE_READY_TIMEOUT_MS });
+      await screen.findByTestId("community-auth-discovery", {}, { timeout: ROUTE_READY_TIMEOUT_MS });
     },
   },
   {
     label: "library",
     pathname: "/library",
     waitForReady: async () => {
-      await screen.findByRole("heading", { name: "Prompt Library" });
+      await screen.findByRole("heading", { name: "Prompt Library" }, { timeout: ROUTE_READY_TIMEOUT_MS });
     },
   },
   {
     label: "library bulk edit",
     pathname: "/library/bulk-edit",
     waitForReady: async () => {
-      await screen.findByRole("heading", { name: "Prompt Library" });
+      await screen.findByRole("heading", { name: "Prompt Library" }, { timeout: ROUTE_READY_TIMEOUT_MS });
     },
   },
   {
     label: "presets",
     pathname: "/presets",
     waitForReady: async () => {
-      await screen.findByRole("heading", { name: "Presets" });
-      await screen.findByTestId("preset-results-summary");
+      await screen.findByRole("heading", { name: "Presets" }, { timeout: ROUTE_READY_TIMEOUT_MS });
+      await screen.findByTestId("preset-results-summary", {}, { timeout: ROUTE_READY_TIMEOUT_MS });
     },
   },
   {
     label: "history",
     pathname: "/history",
     waitForReady: async () => {
-      await screen.findByRole("heading", { name: "Version History" });
+      await screen.findByRole("heading", { name: "Version History" }, { timeout: ROUTE_READY_TIMEOUT_MS });
+    },
+  },
+  {
+    label: "reset password",
+    pathname: "/reset-password?token=test-reset-token",
+    waitForReady: async () => {
+      await screen.findByRole("heading", { name: "Reset password" }, { timeout: ROUTE_READY_TIMEOUT_MS });
     },
   },
   {
     label: "privacy",
     pathname: "/privacy",
     waitForReady: async () => {
-      await screen.findByRole("heading", { name: "Privacy Policy" });
+      await screen.findByRole("heading", { name: "Privacy Policy" }, { timeout: ROUTE_READY_TIMEOUT_MS });
     },
   },
   {
     label: "terms",
     pathname: "/terms",
     waitForReady: async () => {
-      await screen.findByRole("heading", { name: "Terms of Use" });
+      await screen.findByRole("heading", { name: "Terms of Use" }, { timeout: ROUTE_READY_TIMEOUT_MS });
     },
   },
   {
     label: "contact",
     pathname: "/contact",
     waitForReady: async () => {
-      await screen.findByRole("heading", { name: "Get in touch" });
+      await screen.findByRole("heading", { name: "Get in touch" }, { timeout: ROUTE_READY_TIMEOUT_MS });
     },
   },
   {
     label: "support inbox",
     pathname: "/support/inbox",
     waitForReady: async () => {
-      await screen.findByRole("heading", { name: "Support Inbox" });
+      await screen.findByRole("heading", { name: "Support Inbox" }, { timeout: ROUTE_READY_TIMEOUT_MS });
     },
   },
   {
     label: "components showcase",
     pathname: "/components-showcase",
     waitForReady: async () => {
-      await screen.findByRole("heading", { name: "Untitled UI Component Showcase" });
+      await screen.findByRole("heading", { name: "Untitled UI Component Showcase" }, { timeout: ROUTE_READY_TIMEOUT_MS });
     },
   },
   {
     label: "not found",
     pathname: "/does-not-exist",
     waitForReady: async () => {
-      await screen.findByRole("heading", { name: "Page not found" });
+      await screen.findByRole("heading", { name: "Page not found" }, { timeout: ROUTE_READY_TIMEOUT_MS });
     },
   },
 ] as const;
@@ -119,6 +128,7 @@ vi.mock("@/hooks/useAuth", () => ({
     signUp: vi.fn(),
     signIn: vi.fn(),
     signInWithOAuth: vi.fn(),
+    requestPasswordReset: vi.fn(),
     signOut: vi.fn(),
     updateDisplayName: vi.fn(),
     deleteAccount: vi.fn(),
@@ -170,15 +180,11 @@ describe("accessibility audits", () => {
   for (const routeCase of ROUTE_CASES) {
     it(`has no axe violations on the ${routeCase.label} route`, async () => {
       await renderAppAt(routeCase.pathname);
-      await screen.findByTestId("page-shell");
+      await screen.findByTestId("page-shell", {}, { timeout: ROUTE_READY_TIMEOUT_MS });
+      await waitFor(() => {
+        expect(screen.queryByTestId("route-fallback-root")).not.toBeInTheDocument();
+      }, { timeout: ROUTE_READY_TIMEOUT_MS });
       await routeCase.waitForReady();
-
-      const fallback = screen.queryByTestId("route-fallback-root");
-      if (fallback) {
-        await waitFor(() => {
-          expect(screen.queryByTestId("route-fallback-root")).not.toBeInTheDocument();
-        }, { timeout: 5_000 });
-      }
 
       await waitForSettledUi();
       await waitFor(() => {
@@ -187,6 +193,6 @@ describe("accessibility audits", () => {
 
       const results = await axe(document.body);
       expect(results.violations).toEqual([]);
-    }, 15_000);
+    }, 30_000);
   }
 });

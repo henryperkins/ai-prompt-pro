@@ -39,9 +39,10 @@ interface PromptPersistenceOverrides {
 }
 
 export function usePromptBuilder() {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { toast } = useToast();
   const userId = user?.id ?? null;
+  const accessToken = session?.accessToken ?? null;
   const [config, setConfig] = useState<PromptConfig>(loadLocalDraft);
   const [enhancedPrompt, setEnhancedPrompt] = useState("");
   const [isEnhancing, setIsEnhancing] = useState(false);
@@ -68,7 +69,7 @@ export function usePromptBuilder() {
     resetDraftState,
     clearDirtyIfClean,
     editsSinceAuthChange,
-  } = useDraftPersistence({ userId, config, isCloudHydrated, toast });
+  } = useDraftPersistence({ userId, accessToken, config, isCloudHydrated, toast });
 
   const showPersistenceError = useCallback(
     (title: string, error: unknown, fallback: string) => {
@@ -89,6 +90,7 @@ export function usePromptBuilder() {
   // Load draft/prompts/versions when the auth identity changes.
   useEffect(() => {
     const previousUserId = prevUserId.current;
+    if (userId && !accessToken) return;
     if (userId === previousUserId) return;
     prevUserId.current = userId;
 
@@ -97,6 +99,7 @@ export function usePromptBuilder() {
     const hadPendingEdits = editsSinceAuthChange.current;
     const token = ++authLoadToken.current;
     const nextUserId = userId;
+    const nextAccessToken = accessToken;
 
     resetDraftState();
     setEnhancedPrompt("");
@@ -129,7 +132,7 @@ export function usePromptBuilder() {
 
           const migration = await Promise.allSettled(
             localVersions.map((version) =>
-              persistence.saveVersion(nextUserId, version.name, version.prompt),
+              persistence.saveVersion(nextAccessToken, version.name, version.prompt),
             ),
           );
           const failedVersions = localVersions.filter(
@@ -155,11 +158,11 @@ export function usePromptBuilder() {
     setIsCloudHydrated(false);
 
     void Promise.allSettled([
-      persistence.loadDraft(nextUserId),
-      persistence.loadPrompts(nextUserId),
+      persistence.loadDraft(nextAccessToken),
+      persistence.loadPrompts(nextAccessToken),
       (async () => {
         await migrateVersionsFromGuestToCloud();
-        return persistence.loadVersions(nextUserId);
+        return persistence.loadVersions(nextAccessToken);
       })(),
     ]).then(([draftResult, promptsResult, versionsResult]) => {
       if (token !== authLoadToken.current) return;
@@ -228,12 +231,16 @@ export function usePromptBuilder() {
     resetDraftState,
     clearDirtyIfClean,
     editsSinceAuthChange,
+    accessToken,
   ]);
 
   const refreshTemplateSummaries = useCallback(async () => {
     if (userId) {
+      if (!accessToken) {
+        return;
+      }
       try {
-        const summaries = await persistence.loadPrompts(userId);
+        const summaries = await persistence.loadPrompts(accessToken);
         setTemplateSummaries(summaries);
       } catch (error) {
         showPersistenceError(
@@ -245,7 +252,7 @@ export function usePromptBuilder() {
     } else {
       setTemplateSummaries(listLocalTemplateSummaries().map(toPromptSummary));
     }
-  }, [userId, showPersistenceError]);
+  }, [userId, accessToken, showPersistenceError]);
 
   const updateConfig = useCallback(
     (updates: Partial<PromptConfig>) => {
@@ -290,6 +297,15 @@ export function usePromptBuilder() {
       const versionName = name || `Version ${versions.length + 1}`;
 
       if (userId) {
+        if (!accessToken) {
+          showPersistenceError(
+            "Failed to save version",
+            new Error("Sign in required."),
+            "Failed to save version.",
+          );
+          return;
+        }
+
         const optimisticId = createVersionId("local");
         const optimisticVersion: persistence.PromptVersion = {
           id: optimisticId,
@@ -345,7 +361,7 @@ export function usePromptBuilder() {
         };
 
         void persistence
-          .saveVersion(userId, versionName, promptToSave)
+          .saveVersion(accessToken, versionName, promptToSave)
           .then((saved) => {
             if (!saved) {
               rollbackOptimistic();
@@ -386,6 +402,7 @@ export function usePromptBuilder() {
       builtPrompt,
       versions.length,
       userId,
+      accessToken,
       showPersistenceError,
     ],
   );
@@ -468,6 +485,10 @@ export function usePromptBuilder() {
       },
       overrides?: PromptPersistenceOverrides,
     ): Promise<SaveTemplateResult> => {
+      if (userId && !accessToken) {
+        throw new Error("Sign in required.");
+      }
+
       const effectiveEnhancedPrompt =
         overrides?.enhancedPromptOverride ?? enhancedPrompt;
       const remixPayload = buildRemixPayload(remixContext, config, {
@@ -475,7 +496,7 @@ export function usePromptBuilder() {
         category: input.category,
         remixNote: input.remixNote,
       });
-      const result = await persistence.savePrompt(userId, {
+      const result = await persistence.savePrompt(accessToken, {
         id: activePromptMetadata?.id,
         expectedRevision: activePromptMetadata?.revision,
         name: input.title,
@@ -503,6 +524,7 @@ export function usePromptBuilder() {
       builtPrompt,
       enhancedPrompt,
       userId,
+      accessToken,
       activePromptMetadata,
       refreshTemplateSummaries,
       remixContext,
@@ -522,7 +544,7 @@ export function usePromptBuilder() {
       },
       overrides?: PromptPersistenceOverrides,
     ): Promise<SaveTemplateResult & { postId?: string }> => {
-      if (!userId) {
+      if (!userId || !accessToken) {
         throw new Error("Sign in to share prompts.");
       }
 
@@ -533,7 +555,7 @@ export function usePromptBuilder() {
         category: input.category,
         remixNote: input.remixNote,
       });
-      const result = await persistence.savePrompt(userId, {
+      const result = await persistence.savePrompt(accessToken, {
         id: activePromptMetadata?.id,
         expectedRevision: activePromptMetadata?.revision,
         name: input.title,
@@ -554,7 +576,7 @@ export function usePromptBuilder() {
       });
 
       const shareResult = await persistence.sharePrompt(
-        userId,
+        accessToken,
         result.record.metadata.id,
         {
           title: input.title,
@@ -578,6 +600,7 @@ export function usePromptBuilder() {
       builtPrompt,
       enhancedPrompt,
       userId,
+      accessToken,
       activePromptMetadata,
       refreshTemplateSummaries,
       remixContext,
@@ -589,29 +612,38 @@ export function usePromptBuilder() {
       id: string,
       input?: persistence.PromptShareInput,
     ): Promise<persistence.ShareResult> => {
-      const result = await persistence.sharePrompt(userId, id, input);
+      if (!accessToken) {
+        throw new Error("Sign in to share prompts.");
+      }
+      const result = await persistence.sharePrompt(accessToken, id, input);
       if (result.shared) await refreshTemplateSummaries();
       return result;
     },
-    [userId, refreshTemplateSummaries],
+    [accessToken, refreshTemplateSummaries],
   );
 
   const unshareSavedPrompt = useCallback(
     async (id: string): Promise<boolean> => {
-      const updatedIds = await persistence.unsharePrompts(userId, [id]);
+      if (!accessToken) {
+        throw new Error("Sign in required.");
+      }
+      const updatedIds = await persistence.unsharePrompts(accessToken, [id]);
       if (updatedIds.length > 0) await refreshTemplateSummaries();
       return updatedIds.length > 0;
     },
-    [userId, refreshTemplateSummaries],
+    [accessToken, refreshTemplateSummaries],
   );
 
   const unshareSavedPrompts = useCallback(
     async (ids: string[]): Promise<string[]> => {
-      const updatedIds = await persistence.unsharePrompts(userId, ids);
+      if (!accessToken) {
+        throw new Error("Sign in required.");
+      }
+      const updatedIds = await persistence.unsharePrompts(accessToken, ids);
       if (updatedIds.length > 0) await refreshTemplateSummaries();
       return updatedIds;
     },
-    [userId, refreshTemplateSummaries],
+    [accessToken, refreshTemplateSummaries],
   );
 
   const saveAsTemplate = useCallback(
@@ -631,7 +663,7 @@ export function usePromptBuilder() {
 
   const loadSavedTemplate = useCallback(
     async (id: string): Promise<TemplateLoadResult | null> => {
-      const loaded = await persistence.loadPromptById(userId, id);
+      const loaded = await persistence.loadPromptById(userId ? accessToken : null, id);
       if (!loaded) return null;
       setConfig(hydrateConfig(loaded.record.state.promptConfig));
       setEnhancedPrompt("");
@@ -644,25 +676,25 @@ export function usePromptBuilder() {
       markDraftDirty();
       return loaded;
     },
-    [userId, markDraftDirty],
+    [userId, accessToken, markDraftDirty],
   );
 
   const deleteSavedTemplate = useCallback(
     async (id: string): Promise<boolean> => {
-      const deletedIds = await persistence.deletePrompts(userId, [id]);
+      const deletedIds = await persistence.deletePrompts(userId ? accessToken : null, [id]);
       if (deletedIds.length > 0) await refreshTemplateSummaries();
       return deletedIds.length > 0;
     },
-    [userId, refreshTemplateSummaries],
+    [userId, accessToken, refreshTemplateSummaries],
   );
 
   const deleteSavedTemplates = useCallback(
     async (ids: string[]): Promise<string[]> => {
-      const deletedIds = await persistence.deletePrompts(userId, ids);
+      const deletedIds = await persistence.deletePrompts(userId ? accessToken : null, ids);
       if (deletedIds.length > 0) await refreshTemplateSummaries();
       return deletedIds;
     },
-    [userId, refreshTemplateSummaries],
+    [userId, accessToken, refreshTemplateSummaries],
   );
 
   return {

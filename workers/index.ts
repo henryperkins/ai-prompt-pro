@@ -17,10 +17,19 @@ type Bindings = {
   SESSIONS: KVNamespace;
   JWT_SECRET: string;
   CORS_ORIGIN: string;
+  PASSWORD_RESET_DELIVERY_WEBHOOK_URL?: string;
+  PASSWORD_RESET_DELIVERY_WEBHOOK_TOKEN?: string;
+  PASSWORD_RESET_PUBLIC_ORIGIN?: string;
   ASSETS: Fetcher;
 };
 
 const app = new Hono<{ Bindings: Bindings }>();
+
+// Global error handler — surfaces uncaught errors in logs + response
+app.onError((err, c) => {
+  console.error(`[${c.req.method} ${c.req.path}] Unhandled error:`, err.message, err.stack);
+  return c.json({ error: "Internal server error", detail: err.message }, 500);
+});
 
 // Global CORS — only needed for cross-origin dev (Vite on 8080, Worker on 8787).
 // In production same-origin requests skip CORS entirely.

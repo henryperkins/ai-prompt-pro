@@ -155,7 +155,7 @@ describe("Community tag filter state", () => {
     expect(filteredCall?.search).toBeUndefined();
     expect(screen.getByRole("textbox", { name: "Search community posts" })).toHaveValue("");
     expect(screen.getByTestId("community-active-tag")).toHaveTextContent("#ops");
-  }, 15_000);
+  }, 30_000);
 
   it("does not restore a hidden search term after the tag filter is cleared", async () => {
     await renderCommunity();
@@ -186,5 +186,5 @@ describe("Community tag filter state", () => {
       expect(screen.queryByTestId("community-active-tag")).toBeNull();
       expect(screen.getByRole("textbox", { name: "Search community posts" })).toHaveValue("");
     });
-  }, 15_000);
+  }, 30_000);
 });

@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { MemoryRouter } from "react-router-dom";
 import { PageHero, PageShell } from "@/components/PageShell";
 import { AuthContext } from "@/hooks/auth-context";
-import type { AuthContextValue } from "@/hooks/auth-provider";
+import type { AuthContextValue } from "@/hooks/auth-provider-cf";
 import { ThemeContext } from "@/hooks/theme-context";
 import type { ThemePreference } from "@/lib/user-preferences";
 
@@ -14,6 +14,7 @@ const authValue: AuthContextValue = {
   signUp: async () => ({ error: null, session: null, user: null }),
   signIn: async () => ({ error: null, session: null, user: null }),
   signInWithOAuth: async () => ({ error: null, session: null }),
+  requestPasswordReset: async () => ({ error: null }),
   signOut: async () => {},
   updateDisplayName: async () => ({ error: null, user: null }),
   deleteAccount: async () => ({ error: null }),

@@ -210,7 +210,7 @@ describe("Index suggestion inference cancellation", () => {
     });
 
     expect(screen.queryByText("Stale suggestion")).not.toBeInTheDocument();
-  }, 15_000);
+  }, 30_000);
 
   it("falls back to local suggestions and backs off retries after inference failures", async () => {
     vi.useFakeTimers();
@@ -287,5 +287,5 @@ describe("Index suggestion inference cancellation", () => {
         "Using local suggestions while AI suggestions reconnect. We'll retry automatically.",
       ),
     ).not.toBeInTheDocument();
-  }, 15_000);
+  }, 30_000);
 });

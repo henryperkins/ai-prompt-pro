@@ -312,7 +312,23 @@ CREATE INDEX IF NOT EXISTS prompt_versions_user_id_idx ON prompt_versions(user_i
 CREATE INDEX IF NOT EXISTS prompt_versions_created_at_idx ON prompt_versions(created_at DESC);
 
 -- ============================================================
--- 16. oauth_accounts - OAuth provider linkage
+-- 16. password_reset_tokens - one-time password reset tokens
+-- ============================================================
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at INTEGER NOT NULL,
+  consumed_at INTEGER,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE INDEX IF NOT EXISTS password_reset_tokens_user_id_idx ON password_reset_tokens(user_id);
+CREATE INDEX IF NOT EXISTS password_reset_tokens_token_hash_idx ON password_reset_tokens(token_hash);
+CREATE INDEX IF NOT EXISTS password_reset_tokens_expires_at_idx ON password_reset_tokens(expires_at);
+
+-- ============================================================
+-- 17. oauth_accounts - OAuth provider linkage
 -- ============================================================
 CREATE TABLE IF NOT EXISTS oauth_accounts (
   id TEXT PRIMARY KEY,
@@ -329,7 +345,7 @@ CREATE INDEX IF NOT EXISTS oauth_accounts_user_id_idx ON oauth_accounts(user_id)
 CREATE INDEX IF NOT EXISTS oauth_accounts_provider_idx ON oauth_accounts(provider, provider_account_id);
 
 -- ============================================================
--- 17. sessions - refresh token storage
+-- 18. sessions - refresh token storage
 -- ============================================================
 CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY,

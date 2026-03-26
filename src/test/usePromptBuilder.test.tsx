@@ -4,9 +4,12 @@ import { defaultConfig, type PromptConfig } from "@/lib/prompt-builder";
 
 const LOCAL_VERSIONS_KEY = "promptforge-local-versions";
 const CLOUD_VERSIONS_KEY = "promptforge-cloud-versions:user_a";
+const TOKEN_A = "token_a";
+const TOKEN_B = "token_b";
 
 const mocks = vi.hoisted(() => ({
   authUser: { current: { id: "user_a" } as { id: string } | null },
+  authSession: { current: { accessToken: "token_a" } as { accessToken: string } | null },
   toast: vi.fn(),
   loadDraft: vi.fn(),
   saveDraft: vi.fn(),
@@ -33,7 +36,7 @@ function createDeferred<T>() {
 }
 
 vi.mock("@/hooks/useAuth", () => ({
-  useAuth: () => ({ user: mocks.authUser.current }),
+  useAuth: () => ({ user: mocks.authUser.current, session: mocks.authSession.current }),
 }));
 
 vi.mock("@/hooks/use-toast", () => ({
@@ -83,6 +86,7 @@ describe("usePromptBuilder", () => {
     localStorage.clear();
     sessionStorage.clear();
     mocks.authUser.current = { id: "user_a" };
+    mocks.authSession.current = { accessToken: TOKEN_A };
     mocks.loadDraft.mockResolvedValue(buildConfig({ role: "User A role" }));
     mocks.loadPrompts.mockResolvedValue([]);
     mocks.loadVersions.mockResolvedValue([]);
@@ -109,6 +113,7 @@ describe("usePromptBuilder", () => {
     expect(result.current.enhancedPrompt).toBe("Sensitive output from user A");
 
     mocks.authUser.current = { id: "user_b" };
+    mocks.authSession.current = { accessToken: TOKEN_B };
     mocks.loadDraft.mockRejectedValueOnce(new Error("Failed to load draft"));
     mocks.loadPrompts.mockResolvedValueOnce([]);
     mocks.loadVersions.mockResolvedValueOnce([]);
@@ -119,7 +124,7 @@ describe("usePromptBuilder", () => {
     expect(result.current.enhancedPrompt).toBe("");
 
     await waitFor(() => {
-      expect(mocks.loadDraft).toHaveBeenCalledWith("user_b");
+      expect(mocks.loadDraft).toHaveBeenCalledWith(TOKEN_B);
     });
 
     expect(result.current.config).toEqual(defaultConfig);
@@ -128,6 +133,7 @@ describe("usePromptBuilder", () => {
 
   it("persists guest versions locally and migrates them on sign-in", async () => {
     mocks.authUser.current = null;
+    mocks.authSession.current = null;
     const { usePromptBuilder } = await import("@/hooks/usePromptBuilder");
     const { result, rerender } = renderHook(() => usePromptBuilder());
 
@@ -152,6 +158,7 @@ describe("usePromptBuilder", () => {
     expect(JSON.parse(storedBeforeLogin || "[]")).toHaveLength(1);
 
     mocks.authUser.current = { id: "user_b" };
+    mocks.authSession.current = { accessToken: TOKEN_B };
     mocks.loadDraft.mockResolvedValueOnce(buildConfig({ role: "Cloud role" }));
     mocks.loadPrompts.mockResolvedValueOnce([]);
     mocks.loadVersions.mockResolvedValueOnce([
@@ -166,7 +173,7 @@ describe("usePromptBuilder", () => {
     rerender();
 
     await waitFor(() => {
-      expect(mocks.saveVersion).toHaveBeenCalledWith("user_b", "Guest Version 1", "Guest version content");
+      expect(mocks.saveVersion).toHaveBeenCalledWith(TOKEN_B, "Guest Version 1", "Guest version content");
     });
 
     expect(localStorage.getItem(LOCAL_VERSIONS_KEY)).toBeNull();
@@ -233,7 +240,7 @@ describe("usePromptBuilder", () => {
     const { result } = renderHook(() => usePromptBuilder());
 
     await waitFor(() => {
-      expect(mocks.loadVersions).toHaveBeenCalledWith("user_a");
+      expect(mocks.loadVersions).toHaveBeenCalledWith(TOKEN_A);
     });
 
     act(() => {
@@ -294,7 +301,7 @@ describe("usePromptBuilder", () => {
     const { result } = renderHook(() => usePromptBuilder());
 
     await waitFor(() => {
-      expect(mocks.loadVersions).toHaveBeenCalledWith("user_a");
+      expect(mocks.loadVersions).toHaveBeenCalledWith(TOKEN_A);
     });
 
     act(() => {
@@ -336,7 +343,7 @@ describe("usePromptBuilder", () => {
     const { result } = renderHook(() => usePromptBuilder());
 
     await waitFor(() => {
-      expect(mocks.loadVersions).toHaveBeenCalledWith("user_a");
+      expect(mocks.loadVersions).toHaveBeenCalledWith(TOKEN_A);
     });
 
     act(() => {
@@ -350,7 +357,7 @@ describe("usePromptBuilder", () => {
     expect(result.current.versions[0]?.prompt).toBe("Short variant prompt");
     await waitFor(() => {
       expect(mocks.saveVersion).toHaveBeenCalledWith(
-        "user_a",
+        TOKEN_A,
         "Variant Version",
         "Short variant prompt",
       );
@@ -370,6 +377,7 @@ describe("usePromptBuilder", () => {
 
     const deferredDraft = createDeferred<PromptConfig | null>();
     mocks.authUser.current = { id: "user_b" };
+    mocks.authSession.current = { accessToken: TOKEN_B };
     mocks.loadDraft.mockReturnValueOnce(deferredDraft.promise);
     mocks.loadPrompts.mockResolvedValueOnce([]);
     mocks.loadVersions.mockResolvedValueOnce([]);
@@ -396,6 +404,7 @@ describe("usePromptBuilder", () => {
   it("preserves preset config when auth hydrates after loadTemplate", async () => {
     // Start as guest so the first auth effect is a no-op (null === null).
     mocks.authUser.current = null;
+    mocks.authSession.current = null;
     mocks.loadDraft.mockResolvedValue(buildConfig({ role: "Cloud role" }));
 
     const { usePromptBuilder } = await import("@/hooks/usePromptBuilder");
@@ -423,13 +432,14 @@ describe("usePromptBuilder", () => {
 
     // Auth resolves — userId changes from null → "user_a".
     mocks.authUser.current = { id: "user_a" };
+    mocks.authSession.current = { accessToken: TOKEN_A };
     mocks.loadPrompts.mockResolvedValueOnce([]);
     mocks.loadVersions.mockResolvedValueOnce([]);
     rerender();
 
     // Wait for cloud hydration to complete.
     await waitFor(() => {
-      expect(mocks.loadDraft).toHaveBeenCalledWith("user_a");
+      expect(mocks.loadDraft).toHaveBeenCalledWith(TOKEN_A);
     });
 
     // Preset config must survive auth hydration.
@@ -442,6 +452,7 @@ describe("usePromptBuilder", () => {
 
   it("rejects save-and-share for signed-out users before any save attempt", async () => {
     mocks.authUser.current = null;
+    mocks.authSession.current = null;
     const { usePromptBuilder } = await import("@/hooks/usePromptBuilder");
     const { result } = renderHook(() => usePromptBuilder());
 
@@ -483,9 +494,9 @@ describe("usePromptBuilder", () => {
       );
     });
 
-    expect(mocks.savePrompt).toHaveBeenNthCalledWith(
+      expect(mocks.savePrompt).toHaveBeenNthCalledWith(
       1,
-      "user_a",
+      TOKEN_A,
       expect.objectContaining({
         enhancedPrompt: "Short variant prompt",
       }),
@@ -503,13 +514,13 @@ describe("usePromptBuilder", () => {
 
     expect(mocks.savePrompt).toHaveBeenNthCalledWith(
       2,
-      "user_a",
+      TOKEN_A,
       expect.objectContaining({
         enhancedPrompt: "Short variant prompt",
       }),
     );
     expect(mocks.sharePrompt).toHaveBeenCalledWith(
-      "user_a",
+      TOKEN_A,
       "prompt_1",
       expect.objectContaining({
         title: "Variant prompt",

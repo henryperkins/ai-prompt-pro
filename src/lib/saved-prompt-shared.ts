@@ -1,4 +1,4 @@
-import type { Json } from "@/integrations/neon/types";
+type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
 
 export interface PostgrestError {
   code: string;

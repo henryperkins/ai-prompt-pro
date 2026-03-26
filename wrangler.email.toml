@@ -1,0 +1,27 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "promptforge-email"
+main = "workers/email/index.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[account]
+id = "a77e479f6736120eadd99973dbeb705e"
+
+# RESEND_API_KEY and WEBHOOK_TOKEN must be set via `wrangler secret put`
+# Optional: EMAIL_FROM overrides the default "PromptForge <noreply@lakefrontdigital.io>"
+[vars]
+
+[dev]
+port = 8788
+local_protocol = "http"
+
+[[tail_consumers]]
+service = "azure-search-mcp-tail"
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true

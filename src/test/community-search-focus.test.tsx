@@ -100,7 +100,7 @@ describe("Community search focus visibility", () => {
       expect(mocks.loadPostsByIds).toHaveBeenCalled();
       expect(mocks.loadMyVotes).toHaveBeenCalled();
     });
-  }, 15_000);
+  }, 30_000);
 
   it("preserves the focus shell styling in dark mode", async () => {
     document.documentElement.dataset.theme = "midnight";

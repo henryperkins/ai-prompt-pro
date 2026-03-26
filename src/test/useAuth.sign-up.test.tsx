@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AuthProvider } from "@/hooks/auth-provider";
+import { AuthProvider } from "@/hooks/auth-provider-cf";
 import { useAuth } from "@/hooks/useAuth";
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -217,6 +217,24 @@ describe("useAuth", () => {
     expect(result.current.user).toMatchObject({
       id: "user-1",
       displayName: "User One",
+    });
+  });
+
+  it("requests a password reset against the worker auth endpoint", async () => {
+    const fetchMock = vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ accepted: true }, { status: 202 }));
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let resetResult: { error: string | null } | null = null;
+    await act(async () => {
+      resetResult = await result.current.requestPasswordReset("user@example.com");
+    });
+
+    expect(resetResult).toEqual({ error: null });
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/auth/reset-password");
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      method: "POST",
     });
   });
 });

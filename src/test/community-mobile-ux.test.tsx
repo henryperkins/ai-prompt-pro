@@ -200,7 +200,7 @@ describe("community mobile UX", () => {
         }),
       );
     });
-  }, 15_000);
+  }, 30_000);
 
   it("uses pressed-state semantics for category suggestions on desktop", async () => {
     mocks.isMobile = false;

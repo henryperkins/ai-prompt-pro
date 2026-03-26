@@ -3,24 +3,136 @@
  * Authentication service with JWT, email/password, and OAuth
  */
 
-import { Hono } from "hono";
-import { generateJwt, verifyToken, hashPassword, verifyPassword, hashToken } from "../lib/auth";
+import { Hono, type Context } from "hono";
+import {
+  generateJwt,
+  generateRefreshToken,
+  verifyToken,
+  hashPassword,
+  verifyPassword,
+  hashToken,
+} from "../lib/auth";
+import {
+  clearRateLimit,
+  normalizeDisplayName,
+  normalizeEmail,
+  peekRateLimit,
+  recordRateLimitHit,
+  resolveClientIp,
+  validateDisplayName,
+  validateEmail,
+  validatePassword,
+} from "../lib/auth-guards";
 
 type Bindings = {
   DB: D1Database;
   SESSIONS: KVNamespace;
   JWT_SECRET: string;
+  PASSWORD_RESET_DELIVERY_WEBHOOK_URL?: string;
+  PASSWORD_RESET_DELIVERY_WEBHOOK_TOKEN?: string;
+  PASSWORD_RESET_PUBLIC_ORIGIN?: string;
 };
 
 type Variables = {
   userId: string | null;
 };
 
+type AuthContext = Context<{ Bindings: Bindings; Variables: Variables }>;
+
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
+
+const RESET_TOKEN_TTL_SECONDS = 60 * 60;
+const LOGIN_FAILURE_LIMIT = 5;
+const LOGIN_FAILURE_WINDOW_SECONDS = 15 * 60;
+const LOGIN_BURST_LIMIT = 20;
+const LOGIN_BURST_WINDOW_SECONDS = 5 * 60;
+const REGISTER_LIMIT = 5;
+const REGISTER_WINDOW_SECONDS = 60 * 60;
+const REFRESH_LIMIT = 60;
+const REFRESH_WINDOW_SECONDS = 10 * 60;
+const RESET_REQUEST_LIMIT = 3;
+const RESET_REQUEST_WINDOW_SECONDS = 60 * 60;
+const RESET_CONFIRM_LIMIT = 10;
+const RESET_CONFIRM_WINDOW_SECONDS = 60 * 60;
+
+function rateLimitResponse(c: AuthContext, retryAfterSeconds: number) {
+  c.header("Retry-After", String(retryAfterSeconds));
+  return c.json({
+    error: `Too many attempts. Try again in ${retryAfterSeconds}s.`,
+  }, 429);
+}
+
+function isPasswordResetEnabled(c: AuthContext): boolean {
+  return Boolean(c.env.PASSWORD_RESET_DELIVERY_WEBHOOK_URL?.trim());
+}
+
+function resolvePasswordResetOrigin(c: AuthContext): string {
+  const explicitOrigin = c.env.PASSWORD_RESET_PUBLIC_ORIGIN?.trim();
+  if (explicitOrigin) {
+    return explicitOrigin.replace(/\/+$/, "");
+  }
+
+  const requestOrigin = c.req.header("origin")?.trim();
+  if (requestOrigin) {
+    return requestOrigin.replace(/\/+$/, "");
+  }
+
+  return new URL(c.req.url).origin.replace(/\/+$/, "");
+}
+
+async function cleanupExpiredResetTokens(db: D1Database, nowSeconds: number): Promise<void> {
+  await db
+    .prepare("DELETE FROM password_reset_tokens WHERE consumed_at IS NOT NULL OR expires_at <= ?")
+    .bind(nowSeconds)
+    .run();
+}
+
+async function deliverPasswordResetWebhook(input: {
+  webhookUrl: string;
+  webhookToken?: string;
+  email: string;
+  resetUrl: string;
+}): Promise<boolean> {
+  const response = await fetch(input.webhookUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(input.webhookToken ? { Authorization: `Bearer ${input.webhookToken}` } : {}),
+    },
+    body: JSON.stringify({
+      type: "password_reset",
+      email: input.email,
+      reset_url: input.resetUrl,
+      app_name: "PromptForge",
+    }),
+  }).catch(() => null);
+
+  return Boolean(response?.ok);
+}
+
+function loginFailureRateLimitKey(email: string, clientIp: string): string {
+  return `login-failure:${email}:${clientIp}`;
+}
+
+function perIpRateLimitKey(scope: string, clientIp: string): string {
+  return `${scope}:ip:${clientIp}`;
+}
+
+function perEmailRateLimitKey(scope: string, email: string): string {
+  return `${scope}:email:${email}`;
+}
 
 // Health check
 app.get("/health", (c) => {
   return c.json({ status: "ok", timestamp: Date.now() });
+});
+
+app.get("/capabilities", (c) => {
+  return c.json({
+    oauthProviders: [],
+    passwordResetEnabled: isPasswordResetEnabled(c),
+    passwordResetSupportUrl: "/contact",
+  });
 });
 
 // ============================================================
@@ -28,16 +140,50 @@ app.get("/health", (c) => {
 // ============================================================
 app.post("/register", async (c) => {
   const body = await c.req.json();
-  const { email, password, displayName } = body;
+  const email = normalizeEmail(body.email);
+  const password = body.password;
+  const displayName = normalizeDisplayName(body.displayName);
+  const clientIp = resolveClientIp(c.req.raw);
 
-  if (!email || !password) {
-    return c.json({ error: "Email and password required" }, 400);
+  const emailError = validateEmail(email);
+  if (emailError) {
+    return c.json({ error: emailError }, 400);
+  }
+
+  const passwordError = validatePassword(password);
+  if (passwordError) {
+    return c.json({ error: passwordError }, 400);
+  }
+
+  const displayNameError = validateDisplayName(displayName);
+  if (displayNameError) {
+    return c.json({ error: displayNameError }, 400);
+  }
+
+  const ipRateLimit = await recordRateLimitHit(
+    c.env.SESSIONS,
+    perIpRateLimitKey("register", clientIp),
+    REGISTER_LIMIT,
+    REGISTER_WINDOW_SECONDS,
+  );
+  if (!ipRateLimit.allowed) {
+    return rateLimitResponse(c, ipRateLimit.retryAfterSeconds);
+  }
+
+  const emailRateLimit = await recordRateLimitHit(
+    c.env.SESSIONS,
+    perEmailRateLimitKey("register", email),
+    REGISTER_LIMIT,
+    REGISTER_WINDOW_SECONDS,
+  );
+  if (!emailRateLimit.allowed) {
+    return rateLimitResponse(c, emailRateLimit.retryAfterSeconds);
   }
 
   // Check if user exists
   const existing = await c.env.DB
     .prepare("SELECT id FROM users WHERE email = ?")
-    .bind(email.toLowerCase())
+    .bind(email)
     .first();
 
   if (existing) {
@@ -56,7 +202,7 @@ app.post("/register", async (c) => {
       `INSERT INTO users (id, email, password_hash, display_name, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?)`
     )
-    .bind(userId, email.toLowerCase(), passwordHash, displayName || null, now, now)
+    .bind(userId, email, passwordHash, displayName || null, now, now)
     .run();
 
   // Create profile
@@ -70,12 +216,12 @@ app.post("/register", async (c) => {
 
   // Generate tokens
   const accessToken = await generateJwt(
-    { sub: userId, email: email.toLowerCase() },
+    { sub: userId, email },
     c.env.JWT_SECRET,
     60 * 15 // 15 minutes
   );
 
-  const refreshToken = crypto.randomUUID();
+  const refreshToken = generateRefreshToken();
   const refreshTokenHash = await hashToken(refreshToken);
   const expiresAt = now + (60 * 60 * 24 * 7); // 7 days
 
@@ -96,8 +242,8 @@ app.post("/register", async (c) => {
   return c.json({
     user: {
       id: userId,
-      email: email.toLowerCase(),
-      displayName,
+      email,
+      displayName: displayName || null,
     },
     accessToken,
     refreshToken,
@@ -109,27 +255,74 @@ app.post("/register", async (c) => {
 // ============================================================
 app.post("/login", async (c) => {
   const body = await c.req.json();
-  const { email, password } = body;
+  const email = normalizeEmail(body.email);
+  const password = body.password;
+  const clientIp = resolveClientIp(c.req.raw);
 
-  if (!email || !password) {
+  const emailError = validateEmail(email);
+  if (emailError) {
+    return c.json({ error: emailError }, 400);
+  }
+
+  if (typeof password !== "string" || !password) {
     return c.json({ error: "Email and password required" }, 400);
+  }
+
+  const burstRateLimit = await recordRateLimitHit(
+    c.env.SESSIONS,
+    perIpRateLimitKey("login-burst", clientIp),
+    LOGIN_BURST_LIMIT,
+    LOGIN_BURST_WINDOW_SECONDS,
+  );
+  if (!burstRateLimit.allowed) {
+    return rateLimitResponse(c, burstRateLimit.retryAfterSeconds);
+  }
+
+  const failureKey = loginFailureRateLimitKey(email, clientIp);
+  const loginFailureLimit = await peekRateLimit(
+    c.env.SESSIONS,
+    failureKey,
+    LOGIN_FAILURE_LIMIT,
+  );
+  if (!loginFailureLimit.allowed) {
+    return rateLimitResponse(c, loginFailureLimit.retryAfterSeconds);
   }
 
   // Get user
   const user = await c.env.DB
     .prepare("SELECT * FROM users WHERE email = ?")
-    .bind(email.toLowerCase())
+    .bind(email)
     .first();
 
   if (!user) {
+    const failureDecision = await recordRateLimitHit(
+      c.env.SESSIONS,
+      failureKey,
+      LOGIN_FAILURE_LIMIT,
+      LOGIN_FAILURE_WINDOW_SECONDS,
+    );
+    if (!failureDecision.allowed) {
+      return rateLimitResponse(c, failureDecision.retryAfterSeconds);
+    }
     return c.json({ error: "Invalid email or password" }, 401);
   }
 
   // Verify password
   const valid = await verifyPassword(password, user.password_hash);
   if (!valid) {
+    const failureDecision = await recordRateLimitHit(
+      c.env.SESSIONS,
+      failureKey,
+      LOGIN_FAILURE_LIMIT,
+      LOGIN_FAILURE_WINDOW_SECONDS,
+    );
+    if (!failureDecision.allowed) {
+      return rateLimitResponse(c, failureDecision.retryAfterSeconds);
+    }
     return c.json({ error: "Invalid email or password" }, 401);
   }
+
+  await clearRateLimit(c.env.SESSIONS, failureKey);
 
   // Generate tokens
   const accessToken = await generateJwt(
@@ -138,7 +331,7 @@ app.post("/login", async (c) => {
     60 * 15 // 15 minutes
   );
 
-  const refreshToken = crypto.randomUUID();
+  const refreshToken = generateRefreshToken();
   const refreshTokenHash = await hashToken(refreshToken);
   const expiresAt = Math.floor(Date.now() / 1000) + (60 * 60 * 24 * 7); // 7 days
 
@@ -173,9 +366,20 @@ app.post("/login", async (c) => {
 app.post("/refresh", async (c) => {
   const body = await c.req.json();
   const { refreshToken } = body;
+  const clientIp = resolveClientIp(c.req.raw);
 
   if (!refreshToken) {
     return c.json({ error: "Refresh token required" }, 400);
+  }
+
+  const refreshRateLimit = await recordRateLimitHit(
+    c.env.SESSIONS,
+    perIpRateLimitKey("refresh", clientIp),
+    REFRESH_LIMIT,
+    REFRESH_WINDOW_SECONDS,
+  );
+  if (!refreshRateLimit.allowed) {
+    return rateLimitResponse(c, refreshRateLimit.retryAfterSeconds);
   }
 
   // Lookup session in KV first
@@ -192,6 +396,7 @@ app.post("/refresh", async (c) => {
     .first();
 
   if (!session) {
+    await c.env.SESSIONS.delete(`session:${refreshToken}`);
     return c.json({ error: "Invalid or expired refresh token" }, 401);
   }
 
@@ -203,9 +408,10 @@ app.post("/refresh", async (c) => {
   }
 
   // Get user for new token
+  const effectiveUserId = typeof session.user_id === "string" ? session.user_id : userId;
   const user = await c.env.DB
     .prepare("SELECT id, email FROM users WHERE id = ?")
-    .bind(userId)
+    .bind(effectiveUserId)
     .first();
 
   if (!user) {
@@ -324,9 +530,146 @@ app.delete("/account", async (c) => {
 // Password Reset (Request)
 // ============================================================
 app.post("/reset-password", async (c) => {
+  const body = await c.req.json();
+  const email = normalizeEmail(body.email);
+  const clientIp = resolveClientIp(c.req.raw);
+
+  const emailError = validateEmail(email);
+  if (emailError) {
+    return c.json({ error: emailError }, 400);
+  }
+
+  const ipRateLimit = await recordRateLimitHit(
+    c.env.SESSIONS,
+    perIpRateLimitKey("reset-password-request", clientIp),
+    RESET_REQUEST_LIMIT,
+    RESET_REQUEST_WINDOW_SECONDS,
+  );
+  if (!ipRateLimit.allowed) {
+    return rateLimitResponse(c, ipRateLimit.retryAfterSeconds);
+  }
+
+  const emailRateLimit = await recordRateLimitHit(
+    c.env.SESSIONS,
+    perEmailRateLimitKey("reset-password-request", email),
+    RESET_REQUEST_LIMIT,
+    RESET_REQUEST_WINDOW_SECONDS,
+  );
+  if (!emailRateLimit.allowed) {
+    return rateLimitResponse(c, emailRateLimit.retryAfterSeconds);
+  }
+
+  if (!isPasswordResetEnabled(c)) {
+    return c.json({
+      error: "Password reset is not configured in this environment. Contact support for help.",
+    }, 501);
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  await cleanupExpiredResetTokens(c.env.DB, now);
+
+  const user = await c.env.DB
+    .prepare("SELECT id, email FROM users WHERE email = ?")
+    .bind(email)
+    .first<{ id: string; email: string }>();
+
+  if (user) {
+    const resetToken = generateRefreshToken();
+    const resetTokenHash = await hashToken(resetToken);
+    const expiresAt = now + RESET_TOKEN_TTL_SECONDS;
+
+    await c.env.DB
+      .prepare("DELETE FROM password_reset_tokens WHERE user_id = ?")
+      .bind(user.id)
+      .run();
+
+    await c.env.DB
+      .prepare(
+        `INSERT INTO password_reset_tokens (id, user_id, token_hash, expires_at, created_at)
+         VALUES (?, ?, ?, ?, ?)`
+      )
+      .bind(crypto.randomUUID(), user.id, resetTokenHash, expiresAt, now)
+      .run();
+
+    const delivered = await deliverPasswordResetWebhook({
+      webhookUrl: c.env.PASSWORD_RESET_DELIVERY_WEBHOOK_URL as string,
+      webhookToken: c.env.PASSWORD_RESET_DELIVERY_WEBHOOK_TOKEN,
+      email: user.email,
+      resetUrl: `${resolvePasswordResetOrigin(c)}/reset-password?token=${encodeURIComponent(resetToken)}`,
+    });
+
+    if (!delivered) {
+      await c.env.DB
+        .prepare("DELETE FROM password_reset_tokens WHERE token_hash = ?")
+        .bind(resetTokenHash)
+        .run();
+    }
+  }
+
   return c.json({
-    error: "Password reset is not available in this build.",
-  }, 501);
+    accepted: true,
+  }, 202);
+});
+
+app.post("/reset-password/confirm", async (c) => {
+  const body = await c.req.json();
+  const token = typeof body.token === "string" ? body.token.trim() : "";
+  const password = body.password;
+  const clientIp = resolveClientIp(c.req.raw);
+
+  const passwordError = validatePassword(password);
+  if (passwordError) {
+    return c.json({ error: passwordError }, 400);
+  }
+
+  const ipRateLimit = await recordRateLimitHit(
+    c.env.SESSIONS,
+    perIpRateLimitKey("reset-password-confirm", clientIp),
+    RESET_CONFIRM_LIMIT,
+    RESET_CONFIRM_WINDOW_SECONDS,
+  );
+  if (!ipRateLimit.allowed) {
+    return rateLimitResponse(c, ipRateLimit.retryAfterSeconds);
+  }
+
+  if (!token) {
+    return c.json({ error: "Invalid or expired password reset link." }, 400);
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  await cleanupExpiredResetTokens(c.env.DB, now);
+
+  const tokenHash = await hashToken(token);
+  const resetRecord = await c.env.DB
+    .prepare(
+      `SELECT user_id, expires_at, consumed_at
+       FROM password_reset_tokens
+       WHERE token_hash = ?`
+    )
+    .bind(tokenHash)
+    .first<{ user_id: string; expires_at: number; consumed_at: number | null }>();
+
+  if (!resetRecord || resetRecord.consumed_at || resetRecord.expires_at <= now) {
+    return c.json({ error: "Invalid or expired password reset link." }, 400);
+  }
+
+  const passwordHash = await hashPassword(password);
+
+  await c.env.DB.batch([
+    c.env.DB
+      .prepare("UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?")
+      .bind(passwordHash, now, resetRecord.user_id),
+    c.env.DB
+      .prepare("UPDATE password_reset_tokens SET consumed_at = ? WHERE token_hash = ?")
+      .bind(now, tokenHash),
+    c.env.DB
+      .prepare("UPDATE sessions SET revoked = 1 WHERE user_id = ?")
+      .bind(resetRecord.user_id),
+  ]);
+
+  return c.json({
+    reset: true,
+  });
 });
 
 // ============================================================

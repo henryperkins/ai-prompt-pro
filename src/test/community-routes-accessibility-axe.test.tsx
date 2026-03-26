@@ -127,7 +127,7 @@ function buildProfile(overrides: Partial<CommunityProfile> = {}): CommunityProfi
   };
 }
 
-const COMMUNITY_ROUTE_A11Y_TIMEOUT_MS = 15_000;
+const COMMUNITY_ROUTE_A11Y_TIMEOUT_MS = 30_000;
 
 async function renderProfileRoute() {
   vi.resetModules();

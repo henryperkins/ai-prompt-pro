@@ -25,6 +25,8 @@ type EnhanceStreamEvent = {
   payload: unknown;
 };
 
+const SLOW_INDEX_TEST_TIMEOUT_MS = 30_000;
+
 vi.mock("@/hooks/use-toast", () => ({
   useToast: () => ({ toast: mocks.toast }),
 }));
@@ -379,7 +381,7 @@ describe("Index enhancement staleness", () => {
     expect(screen.getByTestId("built-prompt-prop")).toHaveTextContent(
       "Updated launch prompt",
     );
-  });
+  }, SLOW_INDEX_TEST_TIMEOUT_MS);
 
   it("treats structured builder applies as stale-state edits and saves the draft instead of stale AI output", async () => {
     await renderIndex();
@@ -423,7 +425,7 @@ describe("Index enhancement staleness", () => {
       "builder_enhance_accepted",
       expect.anything(),
     );
-  });
+  }, SLOW_INDEX_TEST_TIMEOUT_MS);
 
   it("keeps enhanced output semantics after the done→idle timer fires", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });

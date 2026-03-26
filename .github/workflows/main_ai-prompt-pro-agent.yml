@@ -123,7 +123,7 @@ jobs:
               REQUIRE_PROVIDER_CONFIG=true \
               CODEX_MODEL="gpt-5.4-mini" \
               CODEX_MODEL_REASONING_EFFORT="xhigh" \
-              ALLOWED_ORIGINS="https://gentle-dune-075b4710f.2.azurestaticapps.net,https://prompt.lakefrontdigital.io,http://localhost:8080,http://localhost:5173"
+              ALLOWED_ORIGINS="https://promptforge.pages.dev,https://prompt.lakefrontdigital.io,http://localhost:8080,http://localhost:5173"
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3

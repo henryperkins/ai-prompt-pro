@@ -6,7 +6,6 @@
 import {
   loadDraft as loadDraftApi,
   saveDraft as saveDraftApi,
-  deleteDraft as deleteDraftApi,
   loadPrompts as loadPromptsApi,
   loadPromptById as loadPromptByIdApi,
   createPrompt as createPromptApi,
@@ -14,6 +13,8 @@ import {
   deletePrompt as deletePromptApi,
   sharePrompt as sharePromptApi,
   unsharePrompt as unsharePromptApi,
+  loadVersions as loadVersionsApi,
+  saveVersion as saveVersionApi,
   getCommunityPosts as getCommunityPostsApi,
   getCommunityPostById as getCommunityPostByIdApi,
   createVote as createVoteApi,
@@ -32,10 +33,9 @@ import {
 } from "@/lib/prompt-config-adapters";
 import {
   collectTemplateWarnings,
-  computeTemplateFingerprint,
   deriveExternalReferencesFromConfig,
   inferTemplateStarterPrompt,
-  listLocalTemplates,
+  listTemplateSummaries,
   loadTemplateById,
   saveTemplateSnapshot,
   deleteTemplateById,
@@ -44,8 +44,17 @@ import {
   type SaveTemplateResult,
   type TemplateSaveInput,
 } from "@/lib/template-store";
-import { defaultConfig } from "@/lib/prompt-builder";
 import type { PromptConfig } from "@/lib/prompt-builder";
+import {
+  GITHUB_SHARE_BLOCKED_REASON,
+  hasGithubSources,
+} from "@/lib/context-types";
+import { normalizePromptCategory } from "@/lib/prompt-categories";
+import {
+  normalizePromptTagsOptional,
+  sanitizePostgresJson,
+  sanitizePostgresText,
+} from "@/lib/saved-prompt-shared";
 
 const DRAFT_KEY = "promptforge-draft";
 
@@ -83,6 +92,97 @@ function toPersistenceError(error: unknown, fallback: string): PersistenceError 
     return new PersistenceError("unknown", error.message || fallback, { cause: error });
   }
   return new PersistenceError("unknown", fallback, { cause: error });
+}
+
+type SanitizableJson = Parameters<typeof sanitizePostgresJson>[0];
+
+function toFrontendTimestamp(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return Date.now();
+  }
+  return value >= 1_000_000_000_000 ? value : value * 1000;
+}
+
+function normalizeOptionalText(value: string | undefined, maxLength: number): string | undefined {
+  if (value === undefined) return undefined;
+  return sanitizePostgresText(value).trim().slice(0, maxLength);
+}
+
+function normalizeRequiredText(value: string | undefined, fallback: string, maxLength: number): string {
+  const normalized = sanitizePostgresText(value || "").trim().slice(0, maxLength);
+  return normalized || fallback;
+}
+
+function normalizeRemixDiff(
+  value: RemixDiff | null | undefined,
+): RemixDiff | null | undefined {
+  if (value === undefined || value === null) {
+    return value;
+  }
+
+  return sanitizePostgresJson(value as SanitizableJson) as RemixDiff;
+}
+
+function toPromptSummaryRecord(prompt: SavedPrompt): PromptSummary {
+  const cfg = hydrateConfigV1ToWorkingState(prompt.config as PromptConfig);
+  return {
+    id: prompt.id,
+    name: prompt.title,
+    description: prompt.description,
+    tags: Array.isArray(prompt.tags) ? prompt.tags : [],
+    starterPrompt: inferTemplateStarterPrompt(cfg),
+    updatedAt: toFrontendTimestamp(prompt.updated_at),
+    createdAt: toFrontendTimestamp(prompt.created_at),
+    revision: prompt.revision,
+    schemaVersion: 2,
+    sourceCount: cfg.contextConfig.sources.length,
+    databaseCount: cfg.contextConfig.databaseConnections.length,
+    ragEnabled: cfg.contextConfig.rag.enabled,
+    containsGithubSources: hasGithubSources(cfg.contextConfig.sources),
+    category: normalizePromptCategory(prompt.category) || "general",
+    isShared: prompt.is_shared,
+    communityPostId: prompt.community_post_id ?? null,
+    targetModel: prompt.target_model || "",
+    useCase: prompt.use_case || "",
+    remixedFrom: prompt.remixed_from ?? null,
+    builtPrompt: prompt.built_prompt || "",
+    enhancedPrompt: prompt.enhanced_prompt || "",
+    upvoteCount: prompt.upvote_count ?? 0,
+    verifiedCount: prompt.verified_count ?? 0,
+    remixCount: prompt.remix_count ?? 0,
+    commentCount: prompt.comment_count ?? 0,
+  };
+}
+
+function toTemplateLoadResultRecord(prompt: SavedPrompt): TemplateLoadResult {
+  const cfg = hydrateConfigV1ToWorkingState(prompt.config as PromptConfig);
+  return {
+    record: {
+      metadata: {
+        id: prompt.id,
+        name: prompt.title,
+        description: prompt.description,
+        tags: Array.isArray(prompt.tags) ? prompt.tags : [],
+        schemaVersion: 2,
+        revision: prompt.revision,
+        fingerprint: prompt.fingerprint || "",
+        createdAt: toFrontendTimestamp(prompt.created_at),
+        updatedAt: toFrontendTimestamp(prompt.updated_at),
+        category: normalizePromptCategory(prompt.category) || "general",
+        isShared: prompt.is_shared,
+        targetModel: prompt.target_model || "",
+        useCase: prompt.use_case || "",
+        remixedFrom: prompt.remixed_from ?? null,
+        builtPrompt: prompt.built_prompt || "",
+        enhancedPrompt: prompt.enhanced_prompt || "",
+      },
+      state: {
+        promptConfig: cfg,
+        externalReferences: deriveExternalReferencesFromConfig(cfg),
+      },
+    },
+    warnings: collectTemplateWarnings(cfg),
+  };
 }
 
 // ============================================================
@@ -158,6 +258,7 @@ export interface PromptSummary extends TemplateSummary {
 }
 
 export interface PromptSaveInput extends TemplateSaveInput {
+  expectedRevision?: number;
   category?: string;
   builtPrompt?: string;
   enhancedPrompt?: string;
@@ -183,9 +284,16 @@ export interface ShareResult {
   postId?: string;
 }
 
+export interface PromptVersion {
+  id: string;
+  name: string;
+  prompt: string;
+  timestamp: number;
+}
+
 export async function loadPrompts(accessToken: string | null): Promise<PromptSummary[]> {
   if (!accessToken) {
-    return listLocalTemplates().map((template) => ({
+    return listTemplateSummaries().map((template) => ({
       ...template,
       category: "general",
       isShared: false,
@@ -204,37 +312,7 @@ export async function loadPrompts(accessToken: string | null): Promise<PromptSum
 
   try {
     const savedPrompts = await loadPromptsApi(accessToken);
-
-    return savedPrompts.map((prompt) => {
-      const cfg = hydrateConfigV1ToWorkingState(prompt.config as PromptConfig);
-      return {
-        id: prompt.id,
-        name: prompt.title,
-        description: prompt.description,
-        tags: prompt.tags,
-        starterPrompt: inferTemplateStarterPrompt(cfg),
-        updatedAt: prompt.updated_at,
-        createdAt: prompt.created_at,
-        revision: prompt.revision,
-        schemaVersion: 2,
-        sourceCount: cfg.contextConfig.sources.length,
-        databaseCount: cfg.contextConfig.databaseConnections.length,
-        ragEnabled: cfg.contextConfig.rag.enabled,
-        containsGithubSources: false, // GitHub sources not applicable to CF migration
-        category: prompt.category,
-        isShared: prompt.is_shared,
-        communityPostId: prompt.is_shared ? prompt.id : null,
-        targetModel: prompt.target_model,
-        useCase: prompt.use_case,
-        remixedFrom: prompt.remixed_from,
-        builtPrompt: prompt.built_prompt,
-        enhancedPrompt: prompt.enhanced_prompt,
-        upvoteCount: 0,
-        verifiedCount: 0,
-        remixCount: 0,
-        commentCount: 0,
-      } satisfies PromptSummary;
-    });
+    return savedPrompts.map(toPromptSummaryRecord);
   } catch (error) {
     throw toPersistenceError(error, "Failed to load prompts.");
   }
@@ -251,35 +329,7 @@ export async function loadPromptById(
   try {
     const prompt = await loadPromptByIdApi(accessToken, id);
     if (!prompt) return null;
-
-    const cfg = hydrateConfigV1ToWorkingState(prompt.config as PromptConfig);
-    return {
-      record: {
-        metadata: {
-          id: prompt.id,
-          name: prompt.title,
-          description: prompt.description,
-          tags: prompt.tags,
-          schemaVersion: 2,
-          revision: prompt.revision,
-          fingerprint: prompt.fingerprint || "",
-          createdAt: prompt.created_at,
-          updatedAt: prompt.updated_at,
-          category: prompt.category,
-          isShared: prompt.is_shared,
-          targetModel: prompt.target_model,
-          useCase: prompt.use_case,
-          remixedFrom: prompt.remixed_from,
-          builtPrompt: prompt.built_prompt,
-          enhancedPrompt: prompt.enhanced_prompt,
-        },
-        state: {
-          promptConfig: cfg,
-          externalReferences: deriveExternalReferencesFromConfig(cfg),
-        },
-      },
-      warnings: collectTemplateWarnings(cfg),
-    };
+    return toTemplateLoadResultRecord(prompt);
   } catch (error) {
     throw toPersistenceError(error, "Failed to load prompt.");
   }
@@ -289,126 +339,79 @@ export async function savePrompt(
   accessToken: string | null,
   input: PromptSaveInput
 ): Promise<SaveTemplateResult> {
+  const sanitizedConfig = sanitizePostgresJson(input.config as SanitizableJson) as PromptConfig;
+
+  if (input.isShared && hasGithubSources(sanitizedConfig.contextConfig.sources)) {
+    throw new PersistenceError("unknown", GITHUB_SHARE_BLOCKED_REASON);
+  }
+
   if (!accessToken) {
     return saveTemplateSnapshot({
       name: input.name || "Untitled Prompt",
       description: input.description,
       tags: input.tags,
-      config: input.config,
+      config: sanitizedConfig,
     });
   }
 
   try {
-    const normalizedConfig = serializeWorkingStateToV1(input.config as PromptConfig, {
-      includeV2Compat: false,
+    const normalizedConfig = serializeWorkingStateToV1(sanitizedConfig, {
+      includeV2Compat: true,
     });
+    const existing = input.id ? await loadPromptByIdApi(accessToken, input.id) : null;
+    const title = normalizeRequiredText(input.name, "Untitled Prompt", 200);
+    const description = normalizeOptionalText(input.description, 500);
+    const category = normalizePromptCategory(input.category) || "general";
+    const tags = normalizePromptTagsOptional(input.tags);
+    const builtPrompt = normalizeOptionalText(input.builtPrompt, 50_000);
+    const enhancedPrompt = normalizeOptionalText(input.enhancedPrompt, 50_000);
+    const targetModel = normalizeOptionalText(input.targetModel, 80);
+    const useCase = normalizeOptionalText(input.useCase, 500);
+    const remixNote = normalizeOptionalText(input.remixNote, 500);
+    const remixedFrom = normalizeOptionalText(input.remixedFrom ?? undefined, 200) ?? null;
+    const remixDiff = normalizeRemixDiff(input.remixDiff);
 
-    // Check if prompt exists
-    const existing = await loadPromptByIdApi(accessToken, input.id || "");
+    const basePayload = {
+      title,
+      description,
+      category,
+      tags,
+      config: normalizedConfig,
+      built_prompt: builtPrompt,
+      enhanced_prompt: enhancedPrompt,
+      target_model: targetModel,
+      use_case: useCase,
+      is_shared: input.isShared,
+      remixed_from: remixedFrom,
+      remix_note: remixNote,
+      remix_diff: remixDiff,
+    };
 
-    if (existing && existing.id === input.id) {
-      // Update
-      const updatePayload: Record<string, unknown> = {
-        title: input.name,
-        description: input.description,
-        category: input.category,
-        tags: input.tags,
-        config: normalizedConfig,
-        built_prompt: input.builtPrompt,
-        enhanced_prompt: input.enhancedPrompt,
-        target_model: input.targetModel,
-        use_case: input.useCase,
-        is_shared: input.isShared,
-        remixed_from: input.remixedFrom,
-        remix_note: input.remixNote,
-        remix_diff: input.remixDiff,
-      };
+    let savedPromptId = input.id ?? "";
+    let outcome: SaveTemplateResult["outcome"] = "created";
 
-      const { revision } = await updatePromptApi(accessToken, existing.id, updatePayload);
-
-      const cfg = hydrateConfigV1ToWorkingState(normalizedConfig as PromptConfig);
-      const warnings = collectTemplateWarnings(cfg);
-
-      return {
-        outcome: "updated",
-        record: {
-          metadata: {
-            id: existing.id,
-            name: input.name || "Untitled Prompt",
-            description: input.description || "",
-            tags: input.tags || [],
-            schemaVersion: 2,
-            revision,
-            fingerprint: computeTemplateFingerprint(normalizedConfig),
-            createdAt: existing.created_at,
-            updatedAt: Date.now(),
-            category: input.category || "general",
-            isShared: input.isShared || false,
-            targetModel: input.targetModel || "",
-            useCase: input.useCase || "",
-            remixedFrom: input.remixedFrom || null,
-            builtPrompt: input.builtPrompt || "",
-            enhancedPrompt: input.enhancedPrompt || "",
-          },
-          state: {
-            promptConfig: cfg,
-            externalReferences: deriveExternalReferencesFromConfig(cfg),
-          },
-        },
-        warnings,
-      };
+    if (existing) {
+      await updatePromptApi(accessToken, existing.id, {
+        ...basePayload,
+        expected_revision: input.expectedRevision,
+      });
+      savedPromptId = existing.id;
+      outcome = "updated";
     } else {
-      // Create
-      const createPayload = {
-        title: input.name || "Untitled Prompt",
-        description: input.description,
-        category: input.category,
-        tags: input.tags,
-        config: normalizedConfig,
-        built_prompt: input.builtPrompt,
-        enhanced_prompt: input.enhancedPrompt,
-        target_model: input.targetModel,
-        use_case: input.useCase,
-        is_shared: input.isShared,
-        remixed_from: input.remixedFrom,
-        remix_note: input.remixNote,
-        remix_diff: input.remixDiff,
-      };
-
-      const { id, revision } = await createPromptApi(accessToken, createPayload);
-
-      const cfg = hydrateConfigV1ToWorkingState(normalizedConfig as PromptConfig);
-      const warnings = collectTemplateWarnings(cfg);
-
-      return {
-        outcome: "created",
-        record: {
-          metadata: {
-            id,
-            name: input.name || "Untitled Prompt",
-            description: input.description || "",
-            tags: input.tags || [],
-            schemaVersion: 2,
-            revision,
-            fingerprint: computeTemplateFingerprint(normalizedConfig),
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-            category: input.category || "general",
-            isShared: input.isShared || false,
-            targetModel: input.targetModel || "",
-            useCase: input.useCase || "",
-            remixedFrom: input.remixedFrom || null,
-            builtPrompt: input.builtPrompt || "",
-            enhancedPrompt: input.enhancedPrompt || "",
-          },
-          state: {
-            promptConfig: cfg,
-            externalReferences: deriveExternalReferencesFromConfig(cfg),
-          },
-        },
-        warnings,
-      };
+      const created = await createPromptApi(accessToken, basePayload);
+      savedPromptId = created.id;
+      outcome = "created";
     }
+
+    const savedPrompt = await loadPromptByIdApi(accessToken, savedPromptId);
+    if (!savedPrompt) {
+      throw new PersistenceError("unknown", "Saved prompt could not be reloaded.");
+    }
+
+    return {
+      outcome,
+      ...toTemplateLoadResultRecord(savedPrompt),
+    };
   } catch (error) {
     throw toPersistenceError(error, "Failed to save prompt.");
   }
@@ -424,9 +427,80 @@ export async function sharePrompt(
   }
 
   try {
-    return await sharePromptApi(accessToken, id, input);
+    const prompt = await loadPromptByIdApi(accessToken, id);
+    if (!prompt) {
+      throw new PersistenceError("unknown", "Prompt not found.");
+    }
+
+    const cfg = hydrateConfigV1ToWorkingState(prompt.config as PromptConfig);
+    if (hasGithubSources(cfg.contextConfig.sources)) {
+      throw new PersistenceError("unknown", GITHUB_SHARE_BLOCKED_REASON);
+    }
+
+    const useCase = normalizeOptionalText(input.useCase ?? prompt.use_case, 500);
+    if (!useCase) {
+      throw new PersistenceError("unknown", "Use case is required before sharing.");
+    }
+
+    const result = await sharePromptApi(accessToken, id, {
+      title: normalizeOptionalText(input.title ?? prompt.title, 200),
+      description: normalizeOptionalText(input.description ?? prompt.description, 500),
+      category: normalizePromptCategory(input.category ?? prompt.category) || "general",
+      tags: normalizePromptTagsOptional(input.tags ?? prompt.tags) ?? [],
+      target_model: normalizeOptionalText(input.targetModel ?? prompt.target_model, 80),
+      use_case: useCase,
+    });
+
+    return {
+      shared: result.shared === true,
+      postId: result.postId ?? result.post_id,
+    };
   } catch (error) {
     throw toPersistenceError(error, "Failed to share prompt.");
+  }
+}
+
+export async function loadVersions(accessToken: string | null): Promise<PromptVersion[]> {
+  if (!accessToken) {
+    return [];
+  }
+
+  try {
+    const versions = await loadVersionsApi(accessToken);
+    return versions.map((version) => ({
+      id: version.id,
+      name: version.name,
+      prompt: version.prompt,
+      timestamp: toFrontendTimestamp(version.created_at),
+    }));
+  } catch (error) {
+    throw toPersistenceError(error, "Failed to load version history.");
+  }
+}
+
+export async function saveVersion(
+  accessToken: string | null,
+  name: string,
+  prompt: string,
+): Promise<PromptVersion | null> {
+  if (!accessToken) {
+    return null;
+  }
+
+  try {
+    const saved = await saveVersionApi(
+      accessToken,
+      normalizeRequiredText(name, "Version", 200),
+      normalizeRequiredText(prompt, "", 50_000),
+    );
+    return {
+      id: saved.id,
+      name: saved.name,
+      prompt: saved.prompt,
+      timestamp: toFrontendTimestamp(saved.created_at),
+    };
+  } catch (error) {
+    throw toPersistenceError(error, "Failed to save version.");
   }
 }
 

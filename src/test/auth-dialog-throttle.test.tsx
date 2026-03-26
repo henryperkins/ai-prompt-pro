@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthDialog } from "@/components/AuthDialog";
 
 const mocks = vi.hoisted(() => ({
-  resetPasswordForEmail: vi.fn(),
+  requestPasswordReset: vi.fn(),
   signIn: vi.fn(),
   signInWithOAuth: vi.fn(),
   signUp: vi.fn(),
@@ -15,16 +15,19 @@ vi.mock("@/hooks/useAuth", () => ({
     signIn: (...args: unknown[]) => mocks.signIn(...args),
     signUp: (...args: unknown[]) => mocks.signUp(...args),
     signInWithOAuth: (...args: unknown[]) => mocks.signInWithOAuth(...args),
+    requestPasswordReset: (...args: unknown[]) => mocks.requestPasswordReset(...args),
   }),
 }));
 
-vi.mock("@/integrations/neon/client", () => ({
-  neon: {
-    auth: {
-      resetPasswordForEmail: (...args: unknown[]) => mocks.resetPasswordForEmail(...args),
+function jsonResponse(body: unknown, init: ResponseInit = {}) {
+  return new Response(JSON.stringify(body), {
+    headers: {
+      "Content-Type": "application/json",
+      ...(init.headers || {}),
     },
-  },
-}));
+    status: init.status ?? 200,
+  });
+}
 
 function StatefulDialogHarness() {
   const [open, setOpen] = useState(true);
@@ -75,6 +78,11 @@ describe("AuthDialog login throttle", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-03-17T00:00:00.000Z"));
     vi.clearAllMocks();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({
+      oauthProviders: [],
+      passwordResetEnabled: false,
+      passwordResetSupportUrl: "/contact",
+    })));
     window.sessionStorage.clear();
     mocks.signIn.mockResolvedValue({
       error: "Invalid login credentials.",
@@ -90,13 +98,12 @@ describe("AuthDialog login throttle", () => {
       error: null,
       session: null,
     });
-    mocks.resetPasswordForEmail.mockResolvedValue({
-      error: null,
-    });
+    mocks.requestPasswordReset.mockResolvedValue({ error: null });
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it("shows a cooldown error and stops calling signIn after repeated login failures", async () => {
@@ -209,5 +216,42 @@ describe("AuthDialog login throttle", () => {
     await submit("Sign in");
 
     expect(mocks.signIn).toHaveBeenCalledTimes(4);
+  });
+
+  it("shows a support path when password reset self-service is disabled", async () => {
+    render(<AuthDialog open onOpenChange={vi.fn()} />);
+
+    expect(
+      screen.getByText(/Password reset is not self-serve in this environment\./),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Contact support" })).toHaveAttribute("href", "/contact");
+  });
+
+  it("requests a password reset when the worker enables self-service", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({
+      oauthProviders: [],
+      passwordResetEnabled: true,
+      passwordResetSupportUrl: "/contact",
+    }));
+
+    render(<AuthDialog open onOpenChange={vi.fn()} />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Forgot password?" }));
+    });
+
+    await act(async () => {
+      fireEvent.change(screen.getByPlaceholderText("you@example.com"), { target: { value: "user@example.com" } });
+      fireEvent.click(screen.getByRole("button", { name: "Send reset link" }));
+    });
+
+    expect(mocks.requestPasswordReset).toHaveBeenCalledWith("user@example.com");
+    expect(
+      screen.getByText("If an account exists for that email, we’ll send a password reset link."),
+    ).toBeInTheDocument();
   });
 });

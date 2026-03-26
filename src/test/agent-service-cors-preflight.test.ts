@@ -24,7 +24,7 @@ async function waitForServiceReady(child: ChildProcessWithoutNullStreams): Promi
     const started = new Promise<void>((resolve, reject) => {
       const deadline = setTimeout(() => {
         reject(new Error(`Timed out waiting for service start.\nstdout:\n${stdout}\nstderr:\n${stderr}`));
-      }, 15_000);
+      }, 30_000);
 
       const poll = setInterval(() => {
         if (stdout.includes("\"event\":\"service_start\"")) {

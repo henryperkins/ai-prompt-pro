@@ -28,7 +28,7 @@ describe("useDraftPersistence", () => {
     const toast = vi.fn();
 
     const { result } = renderHook(() =>
-      useDraftPersistence({ userId: null, config: defaultConfig, isCloudHydrated: true, toast }),
+      useDraftPersistence({ userId: null, accessToken: null, config: defaultConfig, isCloudHydrated: true, toast }),
     );
 
     expect(result.current.isDraftDirty).toBe(false);
@@ -40,7 +40,7 @@ describe("useDraftPersistence", () => {
     const toast = vi.fn();
 
     const { result } = renderHook(() =>
-      useDraftPersistence({ userId: null, config: defaultConfig, isCloudHydrated: true, toast }),
+      useDraftPersistence({ userId: null, accessToken: null, config: defaultConfig, isCloudHydrated: true, toast }),
     );
 
     act(() => {
@@ -56,7 +56,7 @@ describe("useDraftPersistence", () => {
     const toast = vi.fn();
 
     const { result } = renderHook(() =>
-      useDraftPersistence({ userId: null, config: defaultConfig, isCloudHydrated: true, toast }),
+      useDraftPersistence({ userId: null, accessToken: null, config: defaultConfig, isCloudHydrated: true, toast }),
     );
 
     act(() => {
@@ -77,7 +77,7 @@ describe("useDraftPersistence", () => {
     const config = { ...defaultConfig, role: "Tester" };
 
     const { result } = renderHook(() =>
-      useDraftPersistence({ userId: "user1", config, isCloudHydrated: true, toast }),
+      useDraftPersistence({ userId: "user1", accessToken: "token-user1", config, isCloudHydrated: true, toast }),
     );
 
     act(() => {
@@ -90,7 +90,7 @@ describe("useDraftPersistence", () => {
       vi.advanceTimersByTime(800);
     });
 
-    expect(mocks.saveDraft).toHaveBeenCalledWith("user1", config);
+    expect(mocks.saveDraft).toHaveBeenCalledWith("token-user1", config);
   });
 
   it("does not autosave when cloud is not hydrated", async () => {
@@ -98,7 +98,7 @@ describe("useDraftPersistence", () => {
     const toast = vi.fn();
 
     const { result } = renderHook(() =>
-      useDraftPersistence({ userId: "user1", config: defaultConfig, isCloudHydrated: false, toast }),
+      useDraftPersistence({ userId: "user1", accessToken: "token-user1", config: defaultConfig, isCloudHydrated: false, toast }),
     );
 
     act(() => {
@@ -118,7 +118,7 @@ describe("useDraftPersistence", () => {
     mocks.saveDraft.mockRejectedValue(new Error("Network error"));
 
     const { result } = renderHook(() =>
-      useDraftPersistence({ userId: null, config: defaultConfig, isCloudHydrated: true, toast }),
+      useDraftPersistence({ userId: null, accessToken: null, config: defaultConfig, isCloudHydrated: true, toast }),
     );
 
     act(() => {
@@ -139,7 +139,7 @@ describe("useDraftPersistence", () => {
     const toast = vi.fn();
 
     const { result } = renderHook(() =>
-      useDraftPersistence({ userId: null, config: defaultConfig, isCloudHydrated: true, toast }),
+      useDraftPersistence({ userId: null, accessToken: null, config: defaultConfig, isCloudHydrated: true, toast }),
     );
 
     // Mark dirty first
@@ -169,7 +169,7 @@ describe("useDraftPersistence", () => {
     const toast = vi.fn();
 
     const { result, rerender } = renderHook(() =>
-      useDraftPersistence({ userId: null, config: defaultConfig, isCloudHydrated: true, toast }),
+      useDraftPersistence({ userId: null, accessToken: null, config: defaultConfig, isCloudHydrated: true, toast }),
     );
 
     const first = {

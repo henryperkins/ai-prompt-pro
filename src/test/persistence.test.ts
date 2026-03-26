@@ -79,7 +79,6 @@ describe("persistence", () => {
     let insertedPayload: Record<string, unknown> | null = null;
 
     vi.mocked(fetch)
-      .mockResolvedValueOnce(jsonResponse([]))
       .mockImplementationOnce(async (_input, init) => {
         insertedPayload = JSON.parse(String((init as RequestInit).body));
         return jsonResponse({ id: "tpl_1", revision: 1 }, { status: 201 });
@@ -161,7 +160,6 @@ describe("persistence", () => {
     const sanitized = "alphabeta\ufffdgamma\ufffd";
 
     vi.mocked(fetch)
-      .mockResolvedValueOnce(jsonResponse([]))
       .mockImplementationOnce(async (_input, init) => {
         insertedPayload = JSON.parse(String((init as RequestInit).body));
         return jsonResponse({ id: "tpl_2", revision: 1 }, { status: 201 });

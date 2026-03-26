@@ -6,6 +6,7 @@ const DRAFT_AUTOSAVE_DELAY_MS = 700;
 
 export interface DraftPersistenceOptions {
   userId: string | null;
+  accessToken: string | null;
   config: PromptConfig;
   isCloudHydrated: boolean;
   toast: (opts: { title: string; description: string; variant?: string }) => void;
@@ -17,6 +18,7 @@ export interface DraftPersistenceOptions {
  */
 export function useDraftPersistence({
   userId,
+  accessToken,
   config,
   isCloudHydrated,
   toast,
@@ -46,7 +48,7 @@ export function useDraftPersistence({
   const saveDraftSafely = useCallback(
     async (nextConfig: PromptConfig, saveToken: number) => {
       try {
-        await persistence.saveDraft(userId, nextConfig);
+        await persistence.saveDraft(accessToken, nextConfig);
         draftSaveError.current = null;
         if (saveToken === autosaveToken.current) {
           setIsDraftDirty(false);
@@ -63,13 +65,13 @@ export function useDraftPersistence({
         }
       }
     },
-    [userId, toast],
+    [accessToken, toast],
   );
 
   // Debounced autosave effect
   useEffect(() => {
     if (!isDraftDirty) return;
-    if (userId && !isCloudHydrated) return;
+    if (userId && (!accessToken || !isCloudHydrated)) return;
 
     const saveToken = ++autosaveToken.current;
     const timeout = setTimeout(() => {
@@ -77,7 +79,7 @@ export function useDraftPersistence({
     }, DRAFT_AUTOSAVE_DELAY_MS);
 
     return () => clearTimeout(timeout);
-  }, [config, isDraftDirty, userId, isCloudHydrated, saveDraftSafely]);
+  }, [config, isDraftDirty, userId, accessToken, isCloudHydrated, saveDraftSafely]);
 
   return {
     isDraftDirty,

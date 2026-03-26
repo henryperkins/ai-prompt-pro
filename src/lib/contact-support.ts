@@ -1,4 +1,35 @@
-import { apiFetch } from "@/lib/api-client";
+const CF_API_BASE_URL = import.meta.env.VITE_API_WORKER_URL || "http://localhost:8000";
+const CF_TOKEN_KEY = "pf_tokens";
+
+function getCfAccessToken(): string | null {
+  try {
+    const stored = localStorage.getItem(CF_TOKEN_KEY);
+    if (!stored) return null;
+    const parsed = JSON.parse(stored) as { accessToken?: string };
+    return parsed.accessToken ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const url = `${CF_API_BASE_URL}${path}`;
+  const token = getCfAccessToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(options.headers as Record<string, string> || {}),
+  };
+  const response = await fetch(url, { ...options, headers });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    const msg = body && typeof body === "object" && typeof (body as { error?: unknown }).error === "string"
+      ? (body as { error: string }).error
+      : `Request failed (${response.status})`;
+    throw new Error(msg);
+  }
+  return response.json() as Promise<T>;
+}
 import { assertBackendConfigured } from "@/lib/backend-config";
 import { sanitizePostgresText } from "@/lib/saved-prompt-shared";
 

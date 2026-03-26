@@ -3,7 +3,7 @@ import { Toaster } from "@/components/base/toaster";
 import { Toaster as Sonner } from "@/components/base/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/hooks/auth-provider";
+import { AuthProvider } from "@/hooks/auth-provider-cf";
 import { ThemeProvider } from "@/hooks/theme-provider";
 import {
   BuilderRouteFallback,
@@ -21,6 +21,7 @@ const Library = lazy(() => import("./pages/Library"));
 const LibraryBulkEdit = lazy(() => import("./pages/LibraryBulkEdit"));
 const Presets = lazy(() => import("./pages/Presets"));
 const History = lazy(() => import("./pages/History"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
 const Contact = lazy(() => import("./pages/Contact"));
@@ -58,6 +59,7 @@ const App = () => (
               />
               <Route path="/presets" element={withRouteFallback(<Presets />, <BuilderRouteFallback />)} />
               <Route path="/history" element={withRouteFallback(<History />, <GenericRouteFallback />)} />
+              <Route path="/reset-password" element={withRouteFallback(<ResetPassword />, <GenericRouteFallback />)} />
               <Route path="/privacy" element={withRouteFallback(<Privacy />, <GenericRouteFallback />)} />
               <Route path="/terms" element={withRouteFallback(<Terms />, <GenericRouteFallback />)} />
               <Route path="/contact" element={withRouteFallback(<Contact />, <GenericRouteFallback />)} />

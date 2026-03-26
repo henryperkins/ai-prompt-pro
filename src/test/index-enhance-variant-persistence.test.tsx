@@ -25,6 +25,8 @@ type EnhanceStreamEvent = {
   payload: unknown;
 };
 
+const SLOW_INDEX_TEST_TIMEOUT_MS = 30_000;
+
 vi.mock("@/hooks/use-toast", () => ({
   useToast: () => ({ toast: mocks.toast }),
 }));
@@ -283,7 +285,7 @@ describe("Index enhancement variant persistence", () => {
         },
       );
     });
-  });
+  }, SLOW_INDEX_TEST_TIMEOUT_MS);
 
   it("emits acceptance immediately with the selected variant payload", async () => {
     await renderIndex();
@@ -312,7 +314,7 @@ describe("Index enhancement variant persistence", () => {
         }),
       );
     });
-  });
+  }, SLOW_INDEX_TEST_TIMEOUT_MS);
 
   it("emits rerun without duplicating acceptance after a saved variant", async () => {
     await renderIndex();

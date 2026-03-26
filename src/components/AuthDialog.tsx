@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+import { useEffect, type FormEvent, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -10,6 +10,7 @@ import { Button } from "@/components/base/buttons/button";
 import { InputBase, Input } from "@/components/base/input/input";
 import { InputGroup } from "@/components/base/input/input-group";
 import { useAuth } from "@/hooks/useAuth";
+import { fetchAuthCapabilities } from "@/lib/auth-api";
 import { createPersistedAuthThrottle } from "@/lib/auth-throttle";
 import { brandCopy } from "@/lib/brand-copy";
 import { DISPLAY_NAME_MAX_LENGTH } from "@/lib/profile";
@@ -20,18 +21,40 @@ interface AuthDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const PASSWORD_RESET_UNAVAILABLE_MESSAGE = "Password reset is not available yet. Contact support if you are locked out.";
-
 export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
-  const { signIn, signUp } = useAuth();
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const { signIn, signUp, requestPasswordReset } = useAuth();
+  const [mode, setMode] = useState<"login" | "signup" | "forgot-password">("login");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [confirmationSent, setConfirmationSent] = useState(false);
+  const [statusView, setStatusView] = useState<null | "signup-confirmation" | "reset-requested">(null);
+  const [passwordResetEnabled, setPasswordResetEnabled] = useState(false);
+  const [passwordResetSupportUrl, setPasswordResetSupportUrl] = useState("/contact");
+
+  useEffect(() => {
+    if (!open) return;
+
+    let isMounted = true;
+
+    void fetchAuthCapabilities()
+      .then((capabilities) => {
+        if (!isMounted) return;
+        setPasswordResetEnabled(capabilities.passwordResetEnabled);
+        setPasswordResetSupportUrl(capabilities.passwordResetSupportUrl || "/contact");
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setPasswordResetEnabled(false);
+        setPasswordResetSupportUrl("/contact");
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [open]);
 
   const formatCooldownError = (remainingCooldownMs: number) => {
     const remainingSeconds = Math.max(1, Math.ceil(remainingCooldownMs / 1000));
@@ -48,6 +71,20 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
 
     if (!normalizedEmail) {
       setError("Enter a valid email address.");
+      return;
+    }
+
+    if (mode === "forgot-password") {
+      setLoading(true);
+      const result = await requestPasswordReset(normalizedEmail);
+      setLoading(false);
+
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+
+      setStatusView("reset-requested");
       return;
     }
 
@@ -90,7 +127,7 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
         resetForm();
         return;
       }
-      setConfirmationSent(true);
+      setStatusView("signup-confirmation");
       return;
     }
 
@@ -106,16 +143,26 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
     setShowPassword(false);
     setError("");
     setLoading(false);
-    setConfirmationSent(false);
+    setStatusView(null);
   };
 
-  const toggleMode = () => {
-    setMode((currentMode) => (currentMode === "login" ? "signup" : "login"));
+  const switchToMode = (nextMode: "login" | "signup" | "forgot-password") => {
+    setMode(nextMode);
     setError("");
     setPassword("");
     setShowPassword(false);
-    setConfirmationSent(false);
+    setStatusView(null);
   };
+
+  const title = mode === "login"
+    ? "Sign in"
+    : mode === "signup"
+      ? "Create account"
+      : "Reset password";
+
+  const description = mode === "forgot-password"
+    ? "Enter your email and we’ll send a reset link if the account exists."
+    : "Sign in or create an account to save, remix, and share prompts.";
 
   return (
     <Dialog
@@ -137,26 +184,27 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
             />
           </div>
           <DialogTitle className="text-center">
-            {mode === "login" ? "Sign in" : "Create account"}
+            {title}
           </DialogTitle>
           <DialogDescription className="text-center text-xs text-tertiary">
-            Sign in or create an account to save, remix, and share prompts.
+            {description}
           </DialogDescription>
           <p className="text-center text-xs text-tertiary">
             {brandCopy.tagline}
           </p>
         </DialogHeader>
 
-        {confirmationSent ? (
+        {statusView ? (
           <div className="space-y-2 py-4 text-center">
             <p className="text-sm text-tertiary">
-              Check your email, confirm your account, then sign in.
+              {statusView === "signup-confirmation"
+                ? "Check your email, confirm your account, then sign in."
+                : "If an account exists for that email, we’ll send a password reset link."}
             </p>
             <Button
               variant="secondary"
               onClick={() => {
-                setMode("login");
-                setConfirmationSent(false);
+                switchToMode("login");
               }}
             >
               Back to sign in
@@ -191,40 +239,61 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
                 autoComplete="email"
               />
 
-              <InputGroup
-                label="Password"
-                isRequired
-                value={password}
-                onChange={setPassword}
-                hint={mode === "signup" ? "Use at least 8 characters." : undefined}
-                trailingAddon={
-                  <InputGroup.Prefix isDisabled={loading}>
-                    <button
-                      type="button"
-                      aria-label={showPassword ? "Hide password" : "Show password"}
-                      aria-pressed={showPassword}
-                      className="inline-flex h-full items-center justify-center px-3 text-tertiary transition duration-100 ease-linear hover:text-secondary disabled:cursor-not-allowed disabled:text-disabled"
-                      disabled={loading}
-                      onClick={() => setShowPassword((isVisible) => !isVisible)}
-                    >
-                      {showPassword ? <EyeSlash className="size-4" aria-hidden="true" /> : <Eye className="size-4" aria-hidden="true" />}
-                    </button>
-                  </InputGroup.Prefix>
-                }
-              >
-                <InputBase
-                  type={showPassword ? "text" : "password"}
-                  placeholder={mode === "signup" ? "At least 8 characters" : "Enter your password"}
-                  minLength={mode === "signup" ? 8 : undefined}
-                  autoComplete={mode === "login" ? "current-password" : "new-password"}
-                />
-              </InputGroup>
+              {mode !== "forgot-password" ? (
+                <>
+                  <InputGroup
+                    label="Password"
+                    isRequired
+                    value={password}
+                    onChange={setPassword}
+                    hint={mode === "signup" ? "Use at least 8 characters." : undefined}
+                    trailingAddon={
+                      <InputGroup.Prefix isDisabled={loading}>
+                        <button
+                          type="button"
+                          aria-label={showPassword ? "Hide password" : "Show password"}
+                          aria-pressed={showPassword}
+                          className="inline-flex h-full items-center justify-center px-3 text-tertiary transition duration-100 ease-linear hover:text-secondary disabled:cursor-not-allowed disabled:text-disabled"
+                          disabled={loading}
+                          onClick={() => setShowPassword((isVisible) => !isVisible)}
+                        >
+                          {showPassword ? <EyeSlash className="size-4" aria-hidden="true" /> : <Eye className="size-4" aria-hidden="true" />}
+                        </button>
+                      </InputGroup.Prefix>
+                    }
+                  >
+                    <InputBase
+                      type={showPassword ? "text" : "password"}
+                      placeholder={mode === "signup" ? "At least 8 characters" : "Enter your password"}
+                      minLength={mode === "signup" ? 8 : undefined}
+                      autoComplete={mode === "login" ? "current-password" : "new-password"}
+                    />
+                  </InputGroup>
 
-              {mode === "login" && (
-                <p className="text-sm text-tertiary">
-                  {PASSWORD_RESET_UNAVAILABLE_MESSAGE}
-                </p>
-              )}
+                  {mode === "login" && (
+                    passwordResetEnabled ? (
+                      <button
+                        type="button"
+                        className="text-sm text-brand-primary underline-offset-4 hover:underline"
+                        onClick={() => switchToMode("forgot-password")}
+                      >
+                        Forgot password?
+                      </button>
+                    ) : (
+                      <p className="text-sm text-tertiary">
+                        Password reset is not self-serve in this environment.{" "}
+                        <a
+                          href={passwordResetSupportUrl}
+                          className="text-brand-primary underline-offset-4 hover:underline"
+                        >
+                          Contact support
+                        </a>
+                        {" "}if you are locked out.
+                      </p>
+                    )
+                  )}
+                </>
+              ) : null}
 
               {error && (
                 <p className="text-sm text-error-primary">{error}</p>
@@ -236,20 +305,37 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
                 disabled={loading}
                 loading={loading}
               >
-                {mode === "login" ? "Sign in" : "Create account"}
+                {mode === "login"
+                  ? "Sign in"
+                  : mode === "signup"
+                    ? "Create account"
+                    : "Send reset link"}
               </Button>
             </form>
 
-            <p className="text-center text-sm text-tertiary">
-              {mode === "login" ? "No account? " : "Already have an account? "}
-              <button
-                type="button"
-                className="text-brand-primary underline-offset-4 hover:underline"
-                onClick={toggleMode}
-              >
-                {mode === "login" ? "Sign up" : "Sign in"}
-              </button>
-            </p>
+            {mode === "forgot-password" ? (
+              <p className="text-center text-sm text-tertiary">
+                Remembered it?{" "}
+                <button
+                  type="button"
+                  className="text-brand-primary underline-offset-4 hover:underline"
+                  onClick={() => switchToMode("login")}
+                >
+                  Back to sign in
+                </button>
+              </p>
+            ) : (
+              <p className="text-center text-sm text-tertiary">
+                {mode === "login" ? "No account? " : "Already have an account? "}
+                <button
+                  type="button"
+                  className="text-brand-primary underline-offset-4 hover:underline"
+                  onClick={() => switchToMode(mode === "login" ? "signup" : "login")}
+                >
+                  {mode === "login" ? "Sign up" : "Sign in"}
+                </button>
+              </p>
+            )}
           </div>
         )}
       </DialogContent>

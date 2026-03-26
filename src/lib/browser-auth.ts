@@ -1,3 +1,5 @@
+import { resolveAuthUrl } from "@/lib/worker-endpoints";
+
 export const AUTH_TOKEN_STORAGE_KEY = "pf_tokens";
 const AUTH_BASE_PATH = "/auth";
 const ACCESS_TOKEN_REFRESH_GRACE_SECONDS = 30;
@@ -112,7 +114,7 @@ function tokenNeedsRefresh(accessToken: string, minValiditySeconds = ACCESS_TOKE
 }
 
 async function requestJson<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(resolveRequestUrl(path), options);
+  const response = await fetch(resolveAuthUrl(path), options);
   const body = await response.json().catch(() => ({}));
 
   if (!response.ok) {
@@ -126,7 +128,7 @@ async function requestJson<T>(path: string, options: RequestInit = {}): Promise<
 export async function fetchAuthSession(
   accessToken: string,
 ): Promise<{ authenticated: boolean; user?: BrowserAuthUser }> {
-  const response = await fetch(resolveRequestUrl(`${AUTH_BASE_PATH}/session`), {
+  const response = await fetch(resolveAuthUrl(`${AUTH_BASE_PATH}/session`), {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
@@ -239,7 +241,7 @@ export async function logoutStoredSession(): Promise<void> {
 
   if (!refreshToken) return;
 
-  await fetch(resolveRequestUrl(`${AUTH_BASE_PATH}/logout`), {
+  await fetch(resolveAuthUrl(`${AUTH_BASE_PATH}/logout`), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
