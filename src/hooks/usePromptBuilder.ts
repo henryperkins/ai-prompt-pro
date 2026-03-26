@@ -51,6 +51,11 @@ export function usePromptBuilder() {
     persistence.PromptSummary[]
   >(() => listLocalTemplateSummaries().map(toPromptSummary));
   const [isCloudHydrated, setIsCloudHydrated] = useState(false);
+  const [activePromptMetadata, setActivePromptMetadata] = useState<{
+    id: string;
+    revision: number;
+    name: string;
+  } | null>(null);
   const [remixContext, setRemixContext] =
     useState<PromptBuilderRemixContext | null>(null);
 
@@ -99,6 +104,7 @@ export function usePromptBuilder() {
       setConfig(defaultConfig);
     }
     setTemplateSummaries([]);
+    setActivePromptMetadata(null);
     setVersions(
       nextUserId ? loadCachedCloudVersions(nextUserId) : loadLocalVersions(),
     );
@@ -252,6 +258,7 @@ export function usePromptBuilder() {
   const resetConfig = useCallback(() => {
     setConfig(defaultConfig);
     setEnhancedPrompt("");
+    setActivePromptMetadata(null);
     setRemixContext(null);
     if (!userId) {
       persistence.clearLocalDraft();
@@ -412,6 +419,7 @@ export function usePromptBuilder() {
         }),
       });
       setEnhancedPrompt("");
+      setActivePromptMetadata(null);
       setRemixContext(null);
       markDraftDirty();
     },
@@ -429,6 +437,7 @@ export function usePromptBuilder() {
     }) => {
       setConfig(hydrateConfig(input.publicConfig));
       setEnhancedPrompt("");
+      setActivePromptMetadata(null);
       setRemixContext({
         postId: input.postId,
         parentTitle: input.title,
@@ -467,6 +476,8 @@ export function usePromptBuilder() {
         remixNote: input.remixNote,
       });
       const result = await persistence.savePrompt(userId, {
+        id: activePromptMetadata?.id,
+        expectedRevision: activePromptMetadata?.revision,
         name: input.title,
         description: input.description,
         tags: input.tags,
@@ -478,6 +489,11 @@ export function usePromptBuilder() {
         enhancedPrompt: effectiveEnhancedPrompt || "",
         ...remixPayload,
       });
+      setActivePromptMetadata({
+        id: result.record.metadata.id,
+        revision: result.record.metadata.revision,
+        name: result.record.metadata.name,
+      });
       await refreshTemplateSummaries();
       if (remixContext) setRemixContext(null);
       return result;
@@ -487,6 +503,7 @@ export function usePromptBuilder() {
       builtPrompt,
       enhancedPrompt,
       userId,
+      activePromptMetadata,
       refreshTemplateSummaries,
       remixContext,
     ],
@@ -517,6 +534,8 @@ export function usePromptBuilder() {
         remixNote: input.remixNote,
       });
       const result = await persistence.savePrompt(userId, {
+        id: activePromptMetadata?.id,
+        expectedRevision: activePromptMetadata?.revision,
         name: input.title,
         description: input.description,
         tags: input.tags,
@@ -527,6 +546,11 @@ export function usePromptBuilder() {
         builtPrompt: builtPrompt || "",
         enhancedPrompt: effectiveEnhancedPrompt || "",
         ...remixPayload,
+      });
+      setActivePromptMetadata({
+        id: result.record.metadata.id,
+        revision: result.record.metadata.revision,
+        name: result.record.metadata.name,
       });
 
       const shareResult = await persistence.sharePrompt(
@@ -554,6 +578,7 @@ export function usePromptBuilder() {
       builtPrompt,
       enhancedPrompt,
       userId,
+      activePromptMetadata,
       refreshTemplateSummaries,
       remixContext,
     ],
@@ -610,6 +635,11 @@ export function usePromptBuilder() {
       if (!loaded) return null;
       setConfig(hydrateConfig(loaded.record.state.promptConfig));
       setEnhancedPrompt("");
+      setActivePromptMetadata({
+        id: loaded.record.metadata.id,
+        revision: loaded.record.metadata.revision,
+        name: loaded.record.metadata.name,
+      });
       setRemixContext(null);
       markDraftDirty();
       return loaded;

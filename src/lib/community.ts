@@ -1,45 +1,30 @@
-import { neon } from "@/integrations/neon/client";
 import type { Json } from "@/integrations/neon/types";
+import { apiFetch, apiFetchOptional, getAccessToken } from "@/lib/api-client";
 import { assertBackendConfigured } from "@/lib/backend-config";
-import {
-  GITHUB_SHARE_BLOCKED_REASON,
-  hasGithubSources,
-} from "@/lib/context-types";
-import { normalizePromptCategory } from "@/lib/prompt-categories";
-import type { PromptConfig } from "@/lib/prompt-builder";
-import { defaultConfig } from "@/lib/prompt-builder";
-import { requireUserId } from "@/lib/require-user-id";
+import type { PromptSummary as PersistencePromptSummary } from "@/lib/persistence";
 import {
   deletePrompt as deleteSavedPromptForUser,
+  loadPromptById as loadPromptTemplateById,
+  loadPrompts as loadPersistedPrompts,
+  savePrompt as savePersistedPrompt,
   sharePrompt as shareSavedPromptForUser,
   unsharePrompt as unshareSavedPromptForUser,
 } from "@/lib/persistence";
+import type { PromptConfig } from "@/lib/prompt-builder";
+import { defaultConfig } from "@/lib/prompt-builder";
+import { requireUserId } from "@/lib/require-user-id";
+import { normalizePromptTags, sanitizePostgresText } from "@/lib/saved-prompt-shared";
+import { assertCommunityTextAllowed } from "@/lib/content-moderation";
 import {
-  escapePostgrestLikePattern,
-  isPostgrestError,
-  normalizePromptTags,
-  sanitizePostgresJson,
-  sanitizePostgresText,
-  type SavedPromptRow,
-} from "@/lib/saved-prompt-shared";
-import {
-  collectTemplateWarnings,
-  computeTemplateFingerprint,
   inferTemplateStarterPrompt,
   normalizeTemplateConfig,
+  type TemplateLoadResult,
 } from "@/lib/template-store";
-import { assertCommunityTextAllowed } from "@/lib/content-moderation";
-
-const SAVED_PROMPT_SELECT_COLUMNS =
-  "id, user_id, title, description, category, tags, config, built_prompt, enhanced_prompt, fingerprint, revision, is_shared, target_model, use_case, remixed_from, remix_note, remix_diff, created_at, updated_at";
-const COMMUNITY_POST_SELECT_COLUMNS_BASE =
-  "id, saved_prompt_id, author_id, title, enhanced_prompt, description, use_case, category, tags, target_model, is_public, public_config, starter_prompt, remixed_from, remix_note, remix_diff, upvote_count, verified_count, remix_count, comment_count, created_at, updated_at";
-const COMMUNITY_POST_SELECT_COLUMNS =
-  `${COMMUNITY_POST_SELECT_COLUMNS_BASE}, rating_count, rating_avg`;
 
 export type PromptSort = "recent" | "name" | "revision";
 export type CommunitySort = "new" | "popular" | "most_remixed" | "verified";
 export type VoteType = "upvote" | "verified";
+
 export interface VoteState {
   upvote: boolean;
   verified: boolean;
@@ -200,7 +185,7 @@ export interface RemixDiff {
   category_changed: boolean;
 }
 
-interface CommunityPostRow {
+interface ApiCommunityPost {
   id: string;
   saved_prompt_id: string;
   author_id: string;
@@ -212,7 +197,7 @@ interface CommunityPostRow {
   tags: string[] | null;
   target_model: string;
   is_public: boolean;
-  public_config: Json;
+  public_config: unknown;
   starter_prompt: string;
   remixed_from: string | null;
   remix_note: string;
@@ -223,85 +208,97 @@ interface CommunityPostRow {
   comment_count: number;
   rating_count?: number | null;
   rating_avg?: number | null;
-  created_at: string;
-  updated_at: string;
+  created_at: number;
+  updated_at: number;
 }
 
-interface CommunityCommentRow {
+interface ApiCommunityComment {
   id: string;
   post_id: string;
   user_id: string;
   body: string;
-  created_at: string;
-  updated_at: string;
+  created_at: number;
+  updated_at: number;
 }
 
-interface CommunityProfileRow {
+interface ApiCommunityProfile {
   id: string;
   display_name: string | null;
   avatar_url: string | null;
-  created_at?: string | null;
+  created_at?: number | null;
 }
 
-function clampText(value: string | undefined, max: number): string {
-  return sanitizePostgresText(value || "").trim().slice(0, max);
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }
 
-function clampTitle(value: string): string {
-  const normalized = sanitizePostgresText(value).trim().slice(0, 200);
-  return normalized || "Untitled Prompt";
+function toError(error: unknown, fallback: string): Error {
+  if (error instanceof Error) return error;
+  return new Error(fallback);
 }
 
-function mapSavedPromptRow(row: SavedPromptRow): SavedPromptRecord {
-  const cfg = normalizeTemplateConfig((row.config ?? defaultConfig) as unknown as PromptConfig);
+function ensureCommunityBackend(featureLabel = "Community features"): void {
+  assertBackendConfigured(featureLabel);
+}
+
+function mapPersistedPromptSummary(row: PersistencePromptSummary): SavedPromptSummary {
   return {
     id: row.id,
-    userId: row.user_id,
-    title: row.title,
+    title: row.name,
     description: row.description,
     category: row.category,
-    tags: row.tags ?? [],
-    config: cfg,
-    builtPrompt: row.built_prompt,
-    enhancedPrompt: row.enhanced_prompt,
-    fingerprint: row.fingerprint ?? "",
+    tags: row.tags,
+    starterPrompt: row.starterPrompt,
+    updatedAt: row.updatedAt,
+    createdAt: row.createdAt,
     revision: row.revision,
-    isShared: row.is_shared,
-    targetModel: row.target_model,
-    useCase: row.use_case,
-    remixedFrom: row.remixed_from,
-    remixNote: row.remix_note,
-    remixDiff: row.remix_diff,
-    createdAt: new Date(row.created_at).getTime(),
-    updatedAt: new Date(row.updated_at).getTime(),
+    schemaVersion: row.schemaVersion,
+    sourceCount: row.sourceCount,
+    databaseCount: row.databaseCount,
+    ragEnabled: row.ragEnabled,
+    containsGithubSources: row.containsGithubSources,
+    isShared: row.isShared,
+    targetModel: row.targetModel,
+    useCase: row.useCase,
+    remixedFrom: row.remixedFrom,
   };
 }
 
-function mapSavedPromptSummary(row: SavedPromptRow): SavedPromptSummary {
-  const cfg = normalizeTemplateConfig((row.config ?? defaultConfig) as unknown as PromptConfig);
+function mapTemplateRecordToSavedPrompt(record: TemplateLoadResult): SavedPromptRecord {
+  const metadata = record.record.metadata as typeof record.record.metadata & {
+    category?: string;
+    isShared?: boolean;
+    targetModel?: string;
+    useCase?: string;
+    remixedFrom?: string | null;
+    builtPrompt?: string;
+    enhancedPrompt?: string;
+  };
+
   return {
-    id: row.id,
-    title: row.title,
-    description: row.description,
-    category: row.category,
-    tags: row.tags ?? [],
-    starterPrompt: inferTemplateStarterPrompt(cfg),
-    updatedAt: new Date(row.updated_at).getTime(),
-    createdAt: new Date(row.created_at).getTime(),
-    revision: row.revision,
-    schemaVersion: 2,
-    sourceCount: cfg.contextConfig.sources.length,
-    databaseCount: cfg.contextConfig.databaseConnections.length,
-    ragEnabled: cfg.contextConfig.rag.enabled,
-    containsGithubSources: hasGithubSources(cfg.contextConfig.sources),
-    isShared: row.is_shared,
-    targetModel: row.target_model,
-    useCase: row.use_case,
-    remixedFrom: row.remixed_from,
+    id: metadata.id,
+    userId: "",
+    title: metadata.name,
+    description: metadata.description,
+    category: metadata.category || "general",
+    tags: metadata.tags,
+    config: normalizeTemplateConfig(record.record.state.promptConfig),
+    builtPrompt: metadata.builtPrompt || "",
+    enhancedPrompt: metadata.enhancedPrompt || "",
+    fingerprint: metadata.fingerprint,
+    revision: metadata.revision,
+    isShared: Boolean(metadata.isShared),
+    targetModel: metadata.targetModel || "",
+    useCase: metadata.useCase || "",
+    remixedFrom: metadata.remixedFrom || null,
+    remixNote: "",
+    remixDiff: null,
+    createdAt: metadata.createdAt,
+    updatedAt: metadata.updatedAt,
   };
 }
 
-function mapCommunityPost(row: CommunityPostRow): CommunityPost {
+function mapCommunityPost(row: ApiCommunityPost): CommunityPost {
   return {
     id: row.id,
     savedPromptId: row.saved_prompt_id,
@@ -311,10 +308,10 @@ function mapCommunityPost(row: CommunityPostRow): CommunityPost {
     description: row.description,
     useCase: row.use_case,
     category: row.category,
-    tags: row.tags ?? [],
+    tags: Array.isArray(row.tags) ? row.tags : [],
     targetModel: row.target_model,
-    isPublic: row.is_public,
-    publicConfig: normalizeTemplateConfig((row.public_config ?? defaultConfig) as unknown as PromptConfig),
+    isPublic: Boolean(row.is_public),
+    publicConfig: normalizeTemplateConfig((row.public_config ?? defaultConfig) as PromptConfig),
     starterPrompt: row.starter_prompt,
     remixedFrom: row.remixed_from,
     remixNote: row.remix_note,
@@ -325,81 +322,29 @@ function mapCommunityPost(row: CommunityPostRow): CommunityPost {
     commentCount: row.comment_count,
     ratingCount: typeof row.rating_count === "number" ? row.rating_count : 0,
     ratingAverage: typeof row.rating_avg === "number" ? row.rating_avg : 0,
-    createdAt: new Date(row.created_at).getTime(),
-    updatedAt: new Date(row.updated_at).getTime(),
+    createdAt: row.created_at * 1000,
+    updatedAt: row.updated_at * 1000,
   };
 }
 
-function mapCommunityComment(row: CommunityCommentRow): CommunityComment {
+function mapCommunityComment(row: ApiCommunityComment): CommunityComment {
   return {
     id: row.id,
     postId: row.post_id,
     userId: row.user_id,
     body: row.body,
-    createdAt: new Date(row.created_at).getTime(),
-    updatedAt: new Date(row.updated_at).getTime(),
+    createdAt: row.created_at * 1000,
+    updatedAt: row.updated_at * 1000,
   };
 }
 
-function mapCommunityProfile(row: CommunityProfileRow): CommunityProfile {
+function mapCommunityProfile(row: ApiCommunityProfile): CommunityProfile {
   return {
     id: row.id,
     displayName: row.display_name?.trim() || "Community member",
     avatarUrl: row.avatar_url?.trim() || null,
-    createdAt: row.created_at ? new Date(row.created_at).getTime() : null,
+    createdAt: typeof row.created_at === "number" ? row.created_at * 1000 : null,
   };
-}
-
-function sanitizePostgrestMessage(message: string, fallback: string): string {
-  const lower = message.toLowerCase();
-  if (/permission denied|row.level security|forbidden/i.test(lower)) {
-    return "Sign in to access this content.";
-  }
-  if (/jwt expired|jwt/i.test(lower)) {
-    return "Your session has expired. Please sign in again.";
-  }
-  if (/invalid input syntax for type uuid/i.test(lower)) {
-    return "This link is invalid or expired.";
-  }
-  return fallback;
-}
-
-function toError(error: unknown, fallback: string): Error {
-  if (error instanceof Error) return error;
-  if (isPostgrestError(error)) {
-    const detail = [error.message, error.details, error.hint].filter(Boolean).join(" ");
-    if (/unsupported unicode escape sequence|\\u0000 cannot be converted to text/i.test(detail)) {
-      return new Error("Prompt text contains unsupported characters. Please remove hidden control characters.");
-    }
-    return new Error(sanitizePostgrestMessage(error.message || "", fallback));
-  }
-  return new Error(fallback);
-}
-
-function isInvalidUuidInputError(error: unknown): boolean {
-  if (!isPostgrestError(error)) return false;
-  if (error.code === "22P02") return true;
-  return error.message.toLowerCase().includes("invalid input syntax for type uuid");
-}
-
-function isMissingCommunityRatingColumnsError(error: unknown): boolean {
-  if (!isPostgrestError(error) || error.code !== "42703") return false;
-  const detail = [error.message, error.details, error.hint].filter(Boolean).join(" ").toLowerCase();
-  return detail.includes("rating_count") || detail.includes("rating_avg");
-}
-
-async function runCommunityPostsSelect<T>(
-  execute: (selectColumns: string) => PromiseLike<{ data: T; error: unknown | null }>,
-): Promise<{ data: T; error: unknown | null }> {
-  const primary = await execute(COMMUNITY_POST_SELECT_COLUMNS);
-  if (!primary.error || !isMissingCommunityRatingColumnsError(primary.error)) {
-    return primary;
-  }
-  return execute(COMMUNITY_POST_SELECT_COLUMNS_BASE);
-}
-
-function ensureCommunityBackend(featureLabel = "Community features"): void {
-  assertBackendConfigured(featureLabel);
 }
 
 export async function listMyPrompts(input: ListMyPromptsInput = {}): Promise<SavedPromptSummary[]> {
@@ -407,38 +352,34 @@ export async function listMyPrompts(input: ListMyPromptsInput = {}): Promise<Sav
   const userId = await requireUserId("Community prompts");
 
   try {
-    let builder = neon
-      .from("saved_prompts")
-      .select(SAVED_PROMPT_SELECT_COLUMNS)
-      .eq("user_id", userId)
-      .limit(Math.min(Math.max(limit, 1), 200));
+    const prompts = await loadPersistedPrompts(userId);
+    const normalizedQuery = query?.trim().toLowerCase() || "";
+    const normalizedTag = tag?.trim().toLowerCase();
+    let filtered = prompts.map(mapPersistedPromptSummary);
 
     if (category && category !== "all") {
-      builder = builder.eq("category", category);
+      filtered = filtered.filter((prompt) => prompt.category === category);
     }
-
-    if (tag) {
-      builder = builder.contains("tags", [tag.toLowerCase()]);
+    if (normalizedTag) {
+      filtered = filtered.filter((prompt) => prompt.tags.includes(normalizedTag));
     }
-
-    if (query?.trim()) {
-      const escaped = escapePostgrestLikePattern(query.trim());
-      builder = builder.or(
-        `title.ilike.%${escaped}%,description.ilike.%${escaped}%,use_case.ilike.%${escaped}%`,
+    if (normalizedQuery) {
+      filtered = filtered.filter((prompt) =>
+        [prompt.title, prompt.description, prompt.useCase].some((value) =>
+          value.toLowerCase().includes(normalizedQuery),
+        ),
       );
     }
 
     if (sort === "name") {
-      builder = builder.order("title", { ascending: true });
+      filtered.sort((a, b) => a.title.localeCompare(b.title));
     } else if (sort === "revision") {
-      builder = builder.order("revision", { ascending: false }).order("updated_at", { ascending: false });
+      filtered.sort((a, b) => b.revision - a.revision || b.updatedAt - a.updatedAt);
     } else {
-      builder = builder.order("updated_at", { ascending: false });
+      filtered.sort((a, b) => b.updatedAt - a.updatedAt);
     }
 
-    const { data, error } = await builder;
-    if (error) throw error;
-    return (data || []).map((row) => mapSavedPromptSummary(row as SavedPromptRow));
+    return filtered.slice(0, Math.min(Math.max(limit, 1), 200));
   } catch (error) {
     throw toError(error, "Failed to load your prompts.");
   }
@@ -448,16 +389,10 @@ export async function loadMyPromptById(id: string): Promise<SavedPromptRecord | 
   const userId = await requireUserId("Community prompts");
 
   try {
-    const { data, error } = await neon
-      .from("saved_prompts")
-      .select(SAVED_PROMPT_SELECT_COLUMNS)
-      .eq("id", id)
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (error) throw error;
-    if (!data) return null;
-    return mapSavedPromptRow(data as SavedPromptRow);
+    const loaded = await loadPromptTemplateById(userId, id);
+    if (!loaded) return null;
+    const record = mapTemplateRecordToSavedPrompt(loaded);
+    return { ...record, userId };
   } catch (error) {
     throw toError(error, "Failed to load prompt.");
   }
@@ -465,147 +400,34 @@ export async function loadMyPromptById(id: string): Promise<SavedPromptRecord | 
 
 export async function savePrompt(input: SavePromptInput): Promise<SavePromptResult> {
   const userId = await requireUserId("Community prompts");
-  const title = clampTitle(input.title);
-  const safeConfig = sanitizePostgresJson(input.config as unknown as Json) as unknown as PromptConfig;
-  const normalizedConfig = normalizeTemplateConfig(safeConfig);
-  const normalizedDescription = clampText(input.description, 500);
-  const normalizedCategory = normalizePromptCategory(input.category) ?? "general";
-  const normalizedTags = normalizePromptTags(input.tags);
-  const normalizedTargetModel = clampText(input.targetModel, 80);
-  const normalizedUseCase = clampText(input.useCase, 1000);
-  const normalizedBuiltPrompt = sanitizePostgresText(input.builtPrompt || "");
-  const normalizedEnhancedPrompt = sanitizePostgresText(input.enhancedPrompt || "");
-  const normalizedRemixNote = clampText(input.remixNote, 500);
-  const normalizedRemixDiff = sanitizePostgresJson((input.remixDiff ?? null) as Json);
-  const fingerprint = computeTemplateFingerprint(normalizedConfig);
-  const warnings = collectTemplateWarnings(normalizedConfig);
-  const persistedConfig = sanitizePostgresJson(normalizedConfig as unknown as Json);
-  if (input.isShared && hasGithubSources(normalizedConfig.contextConfig.sources)) {
-    throw new Error(GITHUB_SHARE_BLOCKED_REASON);
-  }
 
   try {
-    let existing: SavedPromptRow | null = null;
+    const result = await savePersistedPrompt(userId, {
+      id: input.id,
+      name: input.title,
+      description: input.description,
+      tags: input.tags,
+      category: input.category,
+      config: input.config,
+      builtPrompt: input.builtPrompt,
+      enhancedPrompt: input.enhancedPrompt,
+      targetModel: input.targetModel,
+      useCase: input.useCase,
+      isShared: input.isShared,
+      remixedFrom: input.remixedFrom,
+      remixNote: input.remixNote,
+      remixDiff: input.remixDiff,
+    });
 
-    if (input.id) {
-      const { data: byId, error: byIdError } = await neon
-        .from("saved_prompts")
-        .select(SAVED_PROMPT_SELECT_COLUMNS)
-        .eq("id", input.id)
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (byIdError) throw byIdError;
-      existing = (byId as SavedPromptRow | null) || null;
-    } else {
-      const { data: byTitle, error: lookupError } = await neon
-        .from("saved_prompts")
-        .select(SAVED_PROMPT_SELECT_COLUMNS)
-        .eq("user_id", userId)
-        .ilike("title", escapePostgrestLikePattern(title))
-        .order("updated_at", { ascending: false })
-        .limit(1);
-
-      if (lookupError) throw lookupError;
-      existing = ((byTitle && byTitle[0]) as SavedPromptRow | undefined) || null;
+    const prompt = await loadMyPromptById(result.record.metadata.id);
+    if (!prompt) {
+      throw new Error("Prompt save returned no data.");
     }
-
-    if (existing?.fingerprint === fingerprint) {
-      if (existing.is_shared !== !!input.isShared) {
-        const { data: sharedRow, error: shareError } = await neon
-          .from("saved_prompts")
-          .update({ is_shared: !!input.isShared })
-          .eq("id", existing.id)
-          .eq("user_id", userId)
-          .eq("revision", existing.revision)
-          .select(SAVED_PROMPT_SELECT_COLUMNS)
-          .maybeSingle();
-
-        if (shareError) throw shareError;
-        if (sharedRow) {
-          return {
-            outcome: "updated",
-            prompt: mapSavedPromptRow(sharedRow as SavedPromptRow),
-            warnings,
-          };
-        }
-      }
-
-      return {
-        outcome: "unchanged",
-        prompt: mapSavedPromptRow(existing),
-        warnings,
-      };
-    }
-
-    if (existing) {
-      const updatePayload: Record<string, unknown> = {
-        title,
-        description: normalizedDescription,
-        category: normalizedCategory,
-        tags: normalizedTags,
-        config: persistedConfig,
-        built_prompt: normalizedBuiltPrompt,
-        enhanced_prompt: normalizedEnhancedPrompt,
-        fingerprint,
-        revision: existing.revision + 1,
-        is_shared: input.isShared ?? existing.is_shared,
-        target_model: normalizedTargetModel,
-        use_case: normalizedUseCase,
-        remixed_from: input.remixedFrom ?? existing.remixed_from,
-        remix_note: normalizedRemixNote,
-        remix_diff: normalizedRemixDiff,
-      };
-
-      const { data: updated, error } = await neon
-        .from("saved_prompts")
-        .update(updatePayload)
-        .eq("id", existing.id)
-        .eq("user_id", userId)
-        .eq("revision", existing.revision)
-        .select(SAVED_PROMPT_SELECT_COLUMNS)
-        .maybeSingle();
-
-      if (error) throw error;
-      if (!updated) {
-        throw new Error("Prompt was modified elsewhere. Please refresh and try again.");
-      }
-
-      return {
-        outcome: "updated",
-        prompt: mapSavedPromptRow(updated as SavedPromptRow),
-        warnings,
-      };
-    }
-
-    const { data: created, error: insertError } = await neon
-      .from("saved_prompts")
-      .insert({
-        user_id: userId,
-        title,
-        description: normalizedDescription,
-        category: normalizedCategory,
-        tags: normalizedTags,
-        config: persistedConfig,
-        built_prompt: normalizedBuiltPrompt,
-        enhanced_prompt: normalizedEnhancedPrompt,
-        fingerprint,
-        is_shared: !!input.isShared,
-        target_model: normalizedTargetModel,
-        use_case: normalizedUseCase,
-        remixed_from: input.remixedFrom ?? null,
-        remix_note: normalizedRemixNote,
-        remix_diff: normalizedRemixDiff,
-      })
-      .select(SAVED_PROMPT_SELECT_COLUMNS)
-      .single();
-
-    if (insertError) throw insertError;
-    if (!created) throw new Error("Prompt save returned no data.");
 
     return {
-      outcome: "created",
-      prompt: mapSavedPromptRow(created as SavedPromptRow),
-      warnings,
+      outcome: result.outcome,
+      prompt,
+      warnings: result.warnings,
     };
   } catch (error) {
     throw toError(error, "Failed to save prompt.");
@@ -662,53 +484,20 @@ export async function unsharePrompt(savedPromptId: string): Promise<boolean> {
 
 export async function loadFeed(input: LoadFeedInput = {}): Promise<CommunityPost[]> {
   ensureCommunityBackend("Community feed");
-  const { sort = "new", category, tag, search, cursor, page = 0, limit = 25 } = input;
-  const normalizedLimit = Math.min(Math.max(limit, 1), 100);
-  const normalizedPage = Math.max(page, 0);
-  const normalizedTag = tag?.trim().toLowerCase();
+  const search = new URLSearchParams();
+  search.set("sort", input.sort || "new");
+  search.set("limit", String(Math.min(Math.max(input.limit || 25, 1), 100)));
+  search.set("page", String(Math.max(input.page || 0, 0)));
+  if (input.category && input.category !== "all") search.set("category", input.category);
+  if (input.tag) search.set("tag", input.tag.trim().toLowerCase());
+  if (input.search?.trim()) search.set("search", input.search.trim());
+  if (input.cursor) search.set("cursor", input.cursor);
 
   try {
-    const { data, error } = await runCommunityPostsSelect((selectColumns) => {
-      let builder = neon
-        .from("community_posts")
-        .select(selectColumns)
-        .eq("is_public", true)
-        .limit(normalizedLimit);
-
-      if (category && category !== "all") {
-        builder = builder.eq("category", category);
-      }
-
-      if (normalizedTag) {
-        builder = builder.contains("tags", [normalizedTag]);
-      }
-
-      if (search?.trim()) {
-        const escaped = escapePostgrestLikePattern(search.trim());
-        builder = builder.or(`title.ilike.%${escaped}%,use_case.ilike.%${escaped}%`);
-      }
-
-      if (cursor) {
-        builder = builder.lt("created_at", cursor);
-      } else if (normalizedPage > 0) {
-        const start = normalizedPage * normalizedLimit;
-        builder = builder.range(start, start + normalizedLimit - 1);
-      }
-
-      if (sort === "popular") {
-        builder = builder.order("upvote_count", { ascending: false }).order("created_at", { ascending: false });
-      } else if (sort === "most_remixed") {
-        builder = builder.order("remix_count", { ascending: false }).order("created_at", { ascending: false });
-      } else if (sort === "verified") {
-        builder = builder.order("verified_count", { ascending: false }).order("created_at", { ascending: false });
-      } else {
-        builder = builder.order("created_at", { ascending: false });
-      }
-
-      return builder;
-    });
-    if (error) throw error;
-    return (data || []).map((row) => mapCommunityPost(row as unknown as CommunityPostRow));
+    const result = await apiFetch<{ posts: ApiCommunityPost[]; next_cursor: string | null }>(
+      `/api/community?${search.toString()}`,
+    );
+    return (result.posts || []).map(mapCommunityPost);
   } catch (error) {
     throw toError(error, "Failed to load community feed.");
   }
@@ -719,84 +508,43 @@ export async function loadPostsByAuthor(
   options: { page?: number; limit?: number } = {},
 ): Promise<CommunityPost[]> {
   ensureCommunityBackend("Community profiles");
-  const { page = 0, limit = 25 } = options;
-  const normalizedLimit = Math.min(Math.max(limit, 1), 100);
-  const normalizedPage = Math.max(page, 0);
+  if (!isUuid(authorId)) {
+    throw new Error("This profile link is invalid or expired.");
+  }
+
+  const search = new URLSearchParams({
+    page: String(Math.max(options.page || 0, 0)),
+    limit: String(Math.min(Math.max(options.limit || 25, 1), 100)),
+  });
 
   try {
-    const { data, error } = await runCommunityPostsSelect((selectColumns) => {
-      let builder = neon
-        .from("community_posts")
-        .select(selectColumns)
-        .eq("author_id", authorId)
-        .eq("is_public", true)
-        .order("created_at", { ascending: false })
-        .limit(normalizedLimit);
-
-      if (normalizedPage > 0) {
-        const start = normalizedPage * normalizedLimit;
-        builder = builder.range(start, start + normalizedLimit - 1);
-      }
-
-      return builder;
-    });
-    if (error) throw error;
-    return (data || []).map((row) => mapCommunityPost(row as unknown as CommunityPostRow));
+    const rows = await apiFetch<ApiCommunityPost[]>(`/api/profiles/${authorId}/posts?${search.toString()}`);
+    return rows.map(mapCommunityPost);
   } catch (error) {
-    if (isInvalidUuidInputError(error)) {
-      throw new Error("This profile link is invalid or expired.");
-    }
     throw toError(error, "Failed to load profile posts.");
   }
 }
 
 export async function loadFollowingUserIds(): Promise<string[]> {
-  const userId = await requireUserId("Community follows");
+  await requireUserId("Community follows");
 
   try {
-    const { data, error } = await neon
-      .from("community_user_follows")
-      .select("followed_user_id")
-      .eq("follower_id", userId);
-
-    if (error) throw error;
-    return (data || [])
-      .map((row) => row.followed_user_id)
-      .filter((value): value is string => Boolean(value));
+    return await apiFetch<string[]>("/api/follows");
   } catch (error) {
     throw toError(error, "Failed to load follow list.");
   }
 }
 
 export async function loadPersonalFeed(options: { page?: number; limit?: number } = {}): Promise<CommunityPost[]> {
-  const userId = await requireUserId("Personal feed");
-  const { page = 0, limit = 25 } = options;
-  const normalizedLimit = Math.min(Math.max(limit, 1), 100);
-  const normalizedPage = Math.max(page, 0);
+  await requireUserId("Personal feed");
+  const search = new URLSearchParams({
+    page: String(Math.max(options.page || 0, 0)),
+    limit: String(Math.min(Math.max(options.limit || 25, 1), 100)),
+  });
 
   try {
-    const followedUserIds = await loadFollowingUserIds();
-    const authorIds = Array.from(new Set([userId, ...followedUserIds]));
-    if (authorIds.length === 0) return [];
-
-    const { data, error } = await runCommunityPostsSelect((selectColumns) => {
-      let builder = neon
-        .from("community_posts")
-        .select(selectColumns)
-        .eq("is_public", true)
-        .in("author_id", authorIds)
-        .order("created_at", { ascending: false })
-        .limit(normalizedLimit);
-
-      if (normalizedPage > 0) {
-        const start = normalizedPage * normalizedLimit;
-        builder = builder.range(start, start + normalizedLimit - 1);
-      }
-
-      return builder;
-    });
-    if (error) throw error;
-    return (data || []).map((row) => mapCommunityPost(row as unknown as CommunityPostRow));
+    const rows = await apiFetch<ApiCommunityPost[]>(`/api/community/personal?${search.toString()}`);
+    return rows.map(mapCommunityPost);
   } catch (error) {
     throw toError(error, "Failed to load personal feed.");
   }
@@ -804,18 +552,14 @@ export async function loadPersonalFeed(options: { page?: number; limit?: number 
 
 export async function loadPost(postId: string): Promise<CommunityPost | null> {
   ensureCommunityBackend("Community posts");
-  try {
-    const { data, error } = await runCommunityPostsSelect((selectColumns) =>
-      neon.from("community_posts").select(selectColumns).eq("id", postId).eq("is_public", true).maybeSingle(),
-    );
+  if (!isUuid(postId)) {
+    throw new Error("This link is invalid or expired.");
+  }
 
-    if (error) throw error;
-    if (!data) return null;
-    return mapCommunityPost(data as unknown as CommunityPostRow);
+  try {
+    const row = await apiFetchOptional<ApiCommunityPost>(`/api/community/${postId}`);
+    return row ? mapCommunityPost(row) : null;
   } catch (error) {
-    if (isInvalidUuidInputError(error)) {
-      throw new Error("This link is invalid or expired.");
-    }
     throw toError(error, "Failed to load community post.");
   }
 }
@@ -826,12 +570,11 @@ export async function loadPostsByIds(postIds: string[]): Promise<CommunityPost[]
   if (uniqueIds.length === 0) return [];
 
   try {
-    const { data, error } = await runCommunityPostsSelect((selectColumns) =>
-      neon.from("community_posts").select(selectColumns).in("id", uniqueIds).eq("is_public", true),
-    );
-
-    if (error) throw error;
-    return (data || []).map((row) => mapCommunityPost(row as unknown as CommunityPostRow));
+    const rows = await apiFetch<ApiCommunityPost[]>("/api/community/by-ids", {
+      method: "POST",
+      body: JSON.stringify({ ids: uniqueIds }),
+    });
+    return rows.map(mapCommunityPost);
   } catch (error) {
     throw toError(error, "Failed to load related community posts.");
   }
@@ -841,18 +584,17 @@ export async function loadProfilesByIds(userIds: string[]): Promise<CommunityPro
   ensureCommunityBackend("Community profiles");
   const uniqueIds = Array.from(new Set(userIds.filter(Boolean)));
   if (uniqueIds.length === 0) return [];
+  if (uniqueIds.some((id) => !isUuid(id))) {
+    throw new Error("This profile link is invalid or expired.");
+  }
 
   try {
-    const { data, error } = await neon.rpc("community_profiles_by_ids", {
-      input_ids: uniqueIds,
+    const rows = await apiFetch<ApiCommunityProfile[]>("/api/profiles/by-ids", {
+      method: "POST",
+      body: JSON.stringify({ ids: uniqueIds }),
     });
-
-    if (error) throw error;
-    return (data || []).map((row) => mapCommunityProfile(row as CommunityProfileRow));
+    return rows.map(mapCommunityProfile);
   } catch (error) {
-    if (isInvalidUuidInputError(error)) {
-      throw new Error("This profile link is invalid or expired.");
-    }
     throw toError(error, "Failed to load community profiles.");
   }
 }
@@ -862,25 +604,17 @@ export async function loadFollowStats(userId: string): Promise<FollowStats> {
   if (!userId) {
     return { followersCount: 0, followingCount: 0 };
   }
+  if (!isUuid(userId)) {
+    throw new Error("This profile link is invalid or expired.");
+  }
 
   try {
-    const [followersResult, followingResult] = await Promise.all([
-      neon
-        .from("community_user_follows")
-        .select("id", { count: "exact", head: true })
-        .eq("followed_user_id", userId),
-      neon
-        .from("community_user_follows")
-        .select("id", { count: "exact", head: true })
-        .eq("follower_id", userId),
-    ]);
-
-    if (followersResult.error) throw followersResult.error;
-    if (followingResult.error) throw followingResult.error;
-
+    const result = await apiFetch<{ followers_count: number; following_count: number }>(
+      `/api/profiles/${userId}/follow-stats`,
+    );
     return {
-      followersCount: followersResult.count ?? 0,
-      followingCount: followingResult.count ?? 0,
+      followersCount: result.followers_count ?? 0,
+      followingCount: result.following_count ?? 0,
     };
   } catch (error) {
     throw toError(error, "Failed to load follow stats.");
@@ -892,49 +626,23 @@ export async function loadProfileActivityStats(userId: string): Promise<ProfileA
   if (!userId) {
     return { totalPosts: 0, totalUpvotes: 0, totalVerified: 0, averageRating: 0 };
   }
+  if (!isUuid(userId)) {
+    throw new Error("This profile link is invalid or expired.");
+  }
 
   try {
-    const primary = await neon
-      .from("community_posts")
-      .select("upvote_count, verified_count, rating_avg, rating_count")
-      .eq("author_id", userId)
-      .eq("is_public", true);
-
-    const fallback = isMissingCommunityRatingColumnsError(primary.error)
-      ? await neon
-          .from("community_posts")
-          .select("upvote_count, verified_count")
-          .eq("author_id", userId)
-          .eq("is_public", true)
-      : null;
-
-    const data = fallback?.data ?? primary.data;
-    const error = fallback?.error ?? primary.error;
-
-    if (error) throw error;
-
-    const rows = (data ?? []) as Array<{
-      upvote_count?: number | null;
-      verified_count?: number | null;
-      rating_avg?: number | null;
-      rating_count?: number | null;
-    }>;
-    const totalPosts = rows.length;
-    const totalUpvotes = rows.reduce((sum, row) => sum + (row.upvote_count ?? 0), 0);
-    const totalVerified = rows.reduce((sum, row) => sum + (row.verified_count ?? 0), 0);
-
-    let averageRating = 0;
-    const ratedRows = rows.filter((row) => (row.rating_count ?? 0) > 0 && typeof row.rating_avg === "number");
-    if (ratedRows.length > 0) {
-      const weightedSum = ratedRows.reduce(
-        (sum, row) => sum + (row.rating_avg ?? 0) * (row.rating_count ?? 0),
-        0,
-      );
-      const totalRatings = ratedRows.reduce((sum, row) => sum + (row.rating_count ?? 0), 0);
-      averageRating = totalRatings > 0 ? weightedSum / totalRatings : 0;
-    }
-
-    return { totalPosts, totalUpvotes, totalVerified, averageRating };
+    const result = await apiFetch<{
+      total_posts: number;
+      total_upvotes: number;
+      total_verified: number;
+      average_rating: number;
+    }>(`/api/profiles/${userId}/activity`);
+    return {
+      totalPosts: result.total_posts ?? 0,
+      totalUpvotes: result.total_upvotes ?? 0,
+      totalVerified: result.total_verified ?? 0,
+      averageRating: result.average_rating ?? 0,
+    };
   } catch (error) {
     throw toError(error, "Failed to load profile activity stats.");
   }
@@ -942,20 +650,11 @@ export async function loadProfileActivityStats(userId: string): Promise<ProfileA
 
 export async function isFollowingCommunityUser(targetUserId: string): Promise<boolean> {
   ensureCommunityBackend("Community follows");
-  if (!targetUserId) return false;
-  const { data: userData, error: userError } = await neon.auth.getUser();
-  if (userError || !userData.user?.id) return false;
-  if (userData.user.id === targetUserId) return false;
+  if (!targetUserId || !getAccessToken()) return false;
 
   try {
-    const { data, error } = await neon
-      .from("community_user_follows")
-      .select("id")
-      .eq("follower_id", userData.user.id)
-      .eq("followed_user_id", targetUserId)
-      .maybeSingle();
-    if (error) throw error;
-    return Boolean(data?.id);
+    const result = await apiFetch<{ following: boolean }>(`/api/follows/${targetUserId}`);
+    return result.following;
   } catch {
     return false;
   }
@@ -968,52 +667,23 @@ export async function followCommunityUser(targetUserId: string): Promise<boolean
   }
 
   try {
-    const { data, error } = await neon
-      .from("community_user_follows")
-      .upsert(
-        {
-          follower_id: userId,
-          followed_user_id: targetUserId,
-        },
-        {
-          onConflict: "follower_id,followed_user_id",
-          ignoreDuplicates: true,
-        },
-      )
-      .select("id")
-      .maybeSingle();
-
-    if (error) throw error;
-    if (data?.id) return true;
-
-    const { data: existing, error: lookupError } = await neon
-      .from("community_user_follows")
-      .select("id")
-      .eq("follower_id", userId)
-      .eq("followed_user_id", targetUserId)
-      .maybeSingle();
-
-    if (lookupError) throw lookupError;
-    return Boolean(existing?.id);
+    const result = await apiFetch<{ following: boolean }>(`/api/follows/${targetUserId}`, {
+      method: "PUT",
+    });
+    return result.following;
   } catch (error) {
     throw toError(error, "Failed to follow user.");
   }
 }
 
 export async function unfollowCommunityUser(targetUserId: string): Promise<boolean> {
-  const userId = await requireUserId("Community follows");
+  await requireUserId("Community follows");
 
   try {
-    const { data, error } = await neon
-      .from("community_user_follows")
-      .delete()
-      .eq("follower_id", userId)
-      .eq("followed_user_id", targetUserId)
-      .select("id")
-      .maybeSingle();
-
-    if (error) throw error;
-    return Boolean(data?.id);
+    const result = await apiFetch<{ following: boolean }>(`/api/follows/${targetUserId}`, {
+      method: "DELETE",
+    });
+    return !result.following;
   } catch (error) {
     throw toError(error, "Failed to unfollow user.");
   }
@@ -1021,18 +691,10 @@ export async function unfollowCommunityUser(targetUserId: string): Promise<boole
 
 export async function loadRemixes(postId: string): Promise<CommunityPost[]> {
   ensureCommunityBackend("Community remixes");
-  try {
-    const { data, error } = await runCommunityPostsSelect((selectColumns) =>
-      neon
-        .from("community_posts")
-        .select(selectColumns)
-        .eq("remixed_from", postId)
-        .eq("is_public", true)
-        .order("created_at", { ascending: false }),
-    );
 
-    if (error) throw error;
-    return (data || []).map((row) => mapCommunityPost(row as unknown as CommunityPostRow));
+  try {
+    const rows = await apiFetch<ApiCommunityPost[]>(`/api/community/${postId}/remixes`);
+    return rows.map(mapCommunityPost);
   } catch (error) {
     throw toError(error, "Failed to load remixes.");
   }
@@ -1041,29 +703,18 @@ export async function loadRemixes(postId: string): Promise<CommunityPost[]> {
 export async function loadMyVotes(postIds: string[]): Promise<Record<string, VoteState>> {
   ensureCommunityBackend("Community reactions");
   const uniqueIds = Array.from(new Set(postIds.filter(Boolean)));
-  if (uniqueIds.length === 0) return {};
-
-  const { data: userData, error: userError } = await neon.auth.getUser();
-  if (userError) {
-    return {};
-  }
-  if (!userData.user) {
-    return {};
-  }
+  if (uniqueIds.length === 0 || !getAccessToken()) return {};
 
   try {
-    const { data, error } = await neon
-      .from("community_votes")
-      .select("post_id, vote_type")
-      .eq("user_id", userData.user.id)
-      .in("post_id", uniqueIds);
-
-    if (error) throw error;
+    const rows = await apiFetch<Array<{ post_id: string; vote_type: VoteType }>>("/api/community/votes/state", {
+      method: "POST",
+      body: JSON.stringify({ ids: uniqueIds }),
+    });
     const voteState: Record<string, VoteState> = {};
     uniqueIds.forEach((id) => {
       voteState[id] = { upvote: false, verified: false };
     });
-    (data || []).forEach((row) => {
+    rows.forEach((row) => {
       const entry = voteState[row.post_id] ?? { upvote: false, verified: false };
       if (row.vote_type === "upvote") entry.upvote = true;
       if (row.vote_type === "verified") entry.verified = true;
@@ -1078,28 +729,19 @@ export async function loadMyVotes(postIds: string[]): Promise<Record<string, Vot
 export async function loadMyRatings(postIds: string[]): Promise<Record<string, number>> {
   ensureCommunityBackend("Community ratings");
   const uniqueIds = Array.from(new Set(postIds.filter(Boolean)));
-  if (uniqueIds.length === 0) return {};
-
-  const { data: userData, error: userError } = await neon.auth.getUser();
-  if (userError || !userData.user?.id) {
-    return {};
-  }
+  if (uniqueIds.length === 0 || !getAccessToken()) return {};
 
   try {
-    const { data, error } = await neon
-      .from("community_prompt_ratings")
-      .select("post_id, rating")
-      .eq("user_id", userData.user.id)
-      .in("post_id", uniqueIds);
-
-    if (error) throw error;
-    const ratingByPost: Record<string, number> = {};
-    (data || []).forEach((row) => {
-      if (typeof row.post_id === "string" && typeof row.rating === "number") {
-        ratingByPost[row.post_id] = row.rating;
-      }
+    const rows = await apiFetch<Array<{ post_id: string; rating: number }>>("/api/community/ratings/state", {
+      method: "POST",
+      body: JSON.stringify({ ids: uniqueIds }),
     });
-    return ratingByPost;
+    return rows.reduce<Record<string, number>>((map, row) => {
+      if (typeof row.post_id === "string" && typeof row.rating === "number") {
+        map[row.post_id] = row.rating;
+      }
+      return map;
+    }, {});
   } catch {
     return {};
   }
@@ -1109,47 +751,27 @@ export async function setPromptRating(
   postId: string,
   rating: number | null,
 ): Promise<{ rating: number | null }> {
-  const userId = await requireUserId("Community ratings");
+  await requireUserId("Community ratings");
 
   if (!postId) {
     throw new Error("Prompt ID is required.");
   }
 
-  if (rating === null) {
-    try {
-      const { error } = await neon
-        .from("community_prompt_ratings")
-        .delete()
-        .eq("post_id", postId)
-        .eq("user_id", userId);
-      if (error) throw error;
-      return { rating: null };
-    } catch (error) {
-      throw toError(error, "Failed to clear rating.");
-    }
-  }
-
-  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
-    throw new Error("Rating must be between 1 and 5.");
-  }
-
   try {
-    const { data, error } = await neon
-      .from("community_prompt_ratings")
-      .upsert(
-        {
-          post_id: postId,
-          user_id: userId,
-          rating,
-        },
-        {
-          onConflict: "post_id,user_id",
-        },
-      )
-      .select("rating")
-      .maybeSingle();
-    if (error) throw error;
-    return { rating: typeof data?.rating === "number" ? data.rating : rating };
+    if (rating === null) {
+      return await apiFetch<{ rating: null }>(`/api/community/${postId}/rating`, {
+        method: "DELETE",
+      });
+    }
+
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+      throw new Error("Rating must be between 1 and 5.");
+    }
+
+    return await apiFetch<{ rating: number }>(`/api/community/${postId}/rating`, {
+      method: "PUT",
+      body: JSON.stringify({ rating }),
+    });
   } catch (error) {
     throw toError(error, "Failed to save rating.");
   }
@@ -1181,10 +803,7 @@ export function computeNextPromptRatingSummary(input: {
   }
 
   if (nextCount === 0) {
-    return {
-      ratingCount: 0,
-      ratingAverage: 0,
-    };
+    return { ratingCount: 0, ratingAverage: 0 };
   }
 
   return {
@@ -1197,79 +816,42 @@ export async function toggleVote(
   postId: string,
   voteType: VoteType,
 ): Promise<{ active: boolean; rowId: string | null }> {
-  const userId = await requireUserId("Community reactions");
+  await requireUserId("Community reactions");
 
   try {
-    const { data: removed, error: deleteError } = await neon
-      .from("community_votes")
-      .delete()
-      .eq("post_id", postId)
-      .eq("user_id", userId)
-      .eq("vote_type", voteType)
-      .select("id")
-      .maybeSingle();
+    const currentState = await loadMyVotes([postId]);
+    const isActive = currentState[postId]?.[voteType] ?? false;
 
-    if (deleteError) throw deleteError;
-    if (removed?.id) {
-      return { active: false, rowId: null };
+    if (isActive) {
+      const result = await apiFetch<{ active: boolean; row_id: string | null }>(
+        `/api/community/${postId}/vote?voteType=${voteType}`,
+        { method: "DELETE" },
+      );
+      return { active: result.active, rowId: result.row_id };
     }
 
-    const { data: upserted, error: upsertError } = await neon
-      .from("community_votes")
-      .upsert(
-        {
-          post_id: postId,
-          user_id: userId,
-          vote_type: voteType,
-        },
-        {
-          onConflict: "post_id,user_id,vote_type",
-          ignoreDuplicates: true,
-        },
-      )
-      .select("id")
-      .maybeSingle();
-
-    if (upsertError) throw upsertError;
-    if (upserted?.id) {
-      return { active: true, rowId: upserted.id };
-    }
-
-    const { data: existing, error: lookupError } = await neon
-      .from("community_votes")
-      .select("id")
-      .eq("post_id", postId)
-      .eq("user_id", userId)
-      .eq("vote_type", voteType)
-      .maybeSingle();
-
-    if (lookupError) throw lookupError;
-    return { active: true, rowId: existing?.id ?? null };
+    const result = await apiFetch<{ active: boolean; row_id: string | null }>(`/api/community/${postId}/vote`, {
+      method: "POST",
+      body: JSON.stringify({ voteType }),
+    });
+    return { active: result.active, rowId: result.row_id };
   } catch (error) {
     throw toError(error, "Failed to submit vote.");
   }
 }
 
 export async function addComment(postId: string, body: string): Promise<CommunityComment> {
-  const userId = await requireUserId("Community comments");
+  await requireUserId("Community comments");
   const content = sanitizePostgresText(body).trim();
   if (!content) throw new Error("Comment is required.");
   assertCommunityTextAllowed(content, "This comment violates community safety rules.");
 
   try {
-    const { data, error } = await neon
-      .from("community_comments")
-      .insert({
-        post_id: postId,
-        user_id: userId,
-        body: content,
-      })
-      .select("id, post_id, user_id, body, created_at, updated_at")
-      .single();
-
-    if (error) throw error;
-    if (!data) throw new Error("Comment creation returned no data.");
-    return mapCommunityComment(data as CommunityCommentRow);
+    const row = await apiFetch<ApiCommunityComment>(`/api/community/${postId}/comments`, {
+      method: "POST",
+      body: JSON.stringify({ body: content }),
+    });
+    return mapCommunityComment(row);
   } catch (error) {
     throw toError(error, "Failed to add comment.");
   }
@@ -1277,33 +859,14 @@ export async function addComment(postId: string, body: string): Promise<Communit
 
 export async function loadComments(postId: string, options: LoadCommentsInput = {}): Promise<CommunityComment[]> {
   ensureCommunityBackend("Community comments");
-  const { limit = 25, cursor } = options;
+  const search = new URLSearchParams({
+    limit: String(Math.min(Math.max(options.limit || 25, 1), 200)),
+  });
+  if (options.cursor) search.set("cursor", options.cursor);
 
   try {
-    const { data: visiblePost, error: postError } = await neon
-      .from("community_posts")
-      .select("id")
-      .eq("id", postId)
-      .eq("is_public", true)
-      .maybeSingle();
-
-    if (postError) throw postError;
-    if (!visiblePost) return [];
-
-    let builder = neon
-      .from("community_comments")
-      .select("id, post_id, user_id, body, created_at, updated_at")
-      .eq("post_id", postId)
-      .order("created_at", { ascending: false })
-      .limit(Math.min(Math.max(limit, 1), 200));
-
-    if (cursor) {
-      builder = builder.lt("created_at", cursor);
-    }
-
-    const { data, error } = await builder;
-    if (error) throw error;
-    return (data || []).map((row) => mapCommunityComment(row as CommunityCommentRow));
+    const rows = await apiFetch<ApiCommunityComment[]>(`/api/community/${postId}/comments?${search.toString()}`);
+    return rows.map(mapCommunityComment);
   } catch (error) {
     throw toError(error, "Failed to load comments.");
   }
@@ -1314,47 +877,31 @@ export async function remixToLibrary(
   options?: { title?: string; remixNote?: string },
 ): Promise<SavedPromptRecord> {
   const userId = await requireUserId("Community remixes");
-
-  try {
-    const { data: postRow, error: postError } = await runCommunityPostsSelect((selectColumns) =>
-      neon.from("community_posts").select(selectColumns).eq("id", postId).eq("is_public", true).single(),
-    );
-
-    if (postError) throw postError;
-    const post = mapCommunityPost(postRow as unknown as CommunityPostRow);
-    const title = clampTitle(options?.title || `Remix of ${post.title}`);
-    const config = normalizeTemplateConfig(
-      sanitizePostgresJson(post.publicConfig as unknown as Json) as unknown as PromptConfig,
-    );
-
-    const { data: created, error: insertError } = await neon
-      .from("saved_prompts")
-      .insert({
-        user_id: userId,
-        title,
-        description: clampText(post.description, 500),
-        category: post.category,
-        tags: normalizePromptTags(post.tags),
-        config: sanitizePostgresJson(config as unknown as Json),
-        built_prompt: sanitizePostgresText(post.starterPrompt),
-        enhanced_prompt: sanitizePostgresText(post.enhancedPrompt),
-        fingerprint: computeTemplateFingerprint(config),
-        is_shared: false,
-        target_model: clampText(post.targetModel, 80),
-        use_case: clampText(post.useCase, 1000),
-        remixed_from: post.id,
-        remix_note: clampText(options?.remixNote, 500),
-        remix_diff: null,
-      })
-      .select(SAVED_PROMPT_SELECT_COLUMNS)
-      .single();
-
-    if (insertError) throw insertError;
-    if (!created) throw new Error("Failed to create remixed prompt.");
-    return mapSavedPromptRow(created as SavedPromptRow);
-  } catch (error) {
-    throw toError(error, "Failed to remix prompt to your library.");
+  const post = await loadPost(postId);
+  if (!post) {
+    throw new Error("Failed to remix prompt to your library.");
   }
+
+  const result = await savePersistedPrompt(userId, {
+    name: sanitizePostgresText(options?.title || `Remix of ${post.title}`).trim().slice(0, 200) || `Remix of ${post.title}`,
+    description: sanitizePostgresText(post.description || "").trim().slice(0, 500),
+    tags: normalizePromptTags(post.tags),
+    category: post.category,
+    config: normalizeTemplateConfig(post.publicConfig),
+    builtPrompt: sanitizePostgresText(post.starterPrompt),
+    enhancedPrompt: sanitizePostgresText(post.enhancedPrompt),
+    targetModel: sanitizePostgresText(post.targetModel).trim().slice(0, 80),
+    useCase: sanitizePostgresText(post.useCase).trim().slice(0, 1000),
+    remixedFrom: post.id,
+    remixNote: sanitizePostgresText(options?.remixNote || "").trim().slice(0, 500),
+  });
+
+  const saved = await loadMyPromptById(result.record.metadata.id);
+  if (!saved) {
+    throw new Error("Failed to remix prompt to your library.");
+  }
+
+  return { ...saved, userId };
 }
 
 function toComparableValue(value: unknown): string | string[] {

@@ -1,0 +1,46 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "promptforge"
+main = "workers/index.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Cloudflare account
+[account]
+id = "a77e479f6736120eadd99973dbeb705e"
+
+# Static frontend assets (SPA)
+[assets]
+directory = "dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+# D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "promptforge-db"
+database_id = "4d0966a8-d953-4697-a92c-0cbb16faa5d0"
+
+# KV Namespace for sessions
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "dd1880363d344690b5d2451a15b251d9"
+preview_id = "4aab689f5bd64e22ace0843a0310653e"
+
+# JWT_SECRET must be set via `wrangler secret put JWT_SECRET`
+[vars]
+CORS_ORIGIN = "https://prompt.lakefrontdigital.io"
+
+# Development
+[dev]
+port = 8787
+local_protocol = "http"
+
+# Production environment
+[env.production]
+d1_databases = [
+  { binding = "DB", database_name = "promptforge-db", database_id = "4d0966a8-d953-4697-a92c-0cbb16faa5d0" }
+]
+kv_namespaces = [
+  { binding = "SESSIONS", id = "dd1880363d344690b5d2451a15b251d9" }
+]
+vars = { CORS_ORIGIN = "https://prompt.lakefrontdigital.io" }

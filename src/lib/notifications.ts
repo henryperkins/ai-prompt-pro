@@ -1,8 +1,5 @@
-import { neon } from "@/integrations/neon/client";
-import { type CommunityProfile, loadProfilesByIds } from "@/lib/community";
-import { toProfileMap } from "@/lib/community-utils";
+import { apiFetch } from "@/lib/api-client";
 import { requireUserId } from "@/lib/require-user-id";
-import { isPostgrestError } from "@/lib/saved-prompt-shared";
 
 export type NotificationType = "upvote" | "verified" | "comment" | "remix";
 
@@ -20,26 +17,18 @@ export interface Notification {
   postTitle: string;
 }
 
-interface NotificationRow {
+interface ApiNotificationRow {
   id: string;
   user_id: string;
   actor_id: string | null;
   type: string;
   post_id: string | null;
   comment_id: string | null;
-  read_at: string | null;
-  created_at: string;
-}
-
-interface PostTitleRow {
-  id: string;
-  title: string;
-}
-
-function toError(error: unknown, fallback: string): Error {
-  if (error instanceof Error) return error;
-  if (isPostgrestError(error)) return new Error(error.message || fallback);
-  return new Error(fallback);
+  read_at: number | null;
+  created_at: number;
+  actor_display_name: string;
+  actor_avatar_url: string | null;
+  post_title: string;
 }
 
 function normalizeNotificationType(value: string): NotificationType {
@@ -49,129 +38,50 @@ function normalizeNotificationType(value: string): NotificationType {
   return "comment";
 }
 
-function toPostTitleMap(posts: PostTitleRow[]): Record<string, string> {
-  return posts.reduce<Record<string, string>>((map, post) => {
-    map[post.id] = post.title;
-    return map;
-  }, {});
-}
-
-function uniqueNonEmpty(values: Array<string | null | undefined>): string[] {
-  return Array.from(new Set(values.filter((value): value is string => Boolean(value))));
+function mapNotification(row: ApiNotificationRow): Notification {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    actorId: row.actor_id,
+    type: normalizeNotificationType(row.type),
+    postId: row.post_id,
+    commentId: row.comment_id,
+    readAt: typeof row.read_at === "number" ? row.read_at * 1000 : null,
+    createdAt: row.created_at * 1000,
+    actorDisplayName: row.actor_display_name || "Community member",
+    actorAvatarUrl: row.actor_avatar_url,
+    postTitle: row.post_title || "your post",
+  };
 }
 
 export async function loadNotifications(limit = 25, offset = 0): Promise<Notification[]> {
-  const userId = await requireUserId("Notifications");
+  await requireUserId("Notifications");
   const normalizedLimit = Math.min(Math.max(limit, 1), 100);
   const normalizedOffset = Math.max(offset, 0);
-
-  try {
-    const { data, error } = await neon
-      .from("notifications")
-      .select("id, user_id, actor_id, type, post_id, comment_id, read_at, created_at")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .range(normalizedOffset, normalizedOffset + normalizedLimit - 1);
-
-    if (error) throw error;
-    const rows = (data || []) as NotificationRow[];
-    if (rows.length === 0) return [];
-
-    const actorIds = uniqueNonEmpty(rows.map((row) => row.actor_id));
-    const postIds = uniqueNonEmpty(rows.map((row) => row.post_id));
-
-    const [profilesResult, postsResult] = await Promise.allSettled([
-      loadProfilesByIds(actorIds),
-      postIds.length > 0
-        ? neon.from("community_posts").select("id, title").in("id", postIds)
-        : Promise.resolve({ data: [] as PostTitleRow[], error: null }),
-    ]);
-
-    const profiles =
-      profilesResult.status === "fulfilled"
-        ? profilesResult.value
-        : [];
-
-    const postRows =
-      postsResult.status === "fulfilled" && !postsResult.value.error
-        ? ((postsResult.value.data || []) as PostTitleRow[])
-        : [];
-
-    const profileById = toProfileMap(profiles);
-    const postTitleById = toPostTitleMap(postRows);
-
-    return rows.map((row) => {
-      const actor = row.actor_id ? profileById[row.actor_id] : undefined;
-      return {
-        id: row.id,
-        userId: row.user_id,
-        actorId: row.actor_id,
-        type: normalizeNotificationType(row.type),
-        postId: row.post_id,
-        commentId: row.comment_id,
-        readAt: row.read_at ? new Date(row.read_at).getTime() : null,
-        createdAt: new Date(row.created_at).getTime(),
-        actorDisplayName: actor?.displayName || "Community member",
-        actorAvatarUrl: actor?.avatarUrl || null,
-        postTitle: row.post_id ? postTitleById[row.post_id] || "your post" : "your post",
-      };
-    });
-  } catch (error) {
-    throw toError(error, "Failed to load notifications.");
-  }
+  const rows = await apiFetch<ApiNotificationRow[]>(
+    `/api/notifications?limit=${normalizedLimit}&offset=${normalizedOffset}`,
+  );
+  return rows.map(mapNotification);
 }
 
 export async function getUnreadCount(): Promise<number> {
-  const userId = await requireUserId("Notifications");
-
-  try {
-    const { count, error } = await neon
-      .from("notifications")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .is("read_at", null);
-
-    if (error) throw error;
-    return count ?? 0;
-  } catch (error) {
-    throw toError(error, "Failed to load unread notifications.");
-  }
+  await requireUserId("Notifications");
+  const result = await apiFetch<{ count: number }>("/api/notifications/unread-count");
+  return result.count ?? 0;
 }
 
 export async function markAsRead(notificationId: string): Promise<boolean> {
-  const userId = await requireUserId("Notifications");
-
-  try {
-    const { data, error } = await neon
-      .from("notifications")
-      .update({ read_at: new Date().toISOString() })
-      .eq("id", notificationId)
-      .eq("user_id", userId)
-      .is("read_at", null)
-      .select("id")
-      .maybeSingle();
-
-    if (error) throw error;
-    return Boolean(data?.id);
-  } catch (error) {
-    throw toError(error, "Failed to mark notification as read.");
-  }
+  await requireUserId("Notifications");
+  const result = await apiFetch<{ changed: boolean }>(`/api/notifications/${notificationId}/read`, {
+    method: "POST",
+  });
+  return result.changed;
 }
 
 export async function markAllAsRead(): Promise<number> {
-  const userId = await requireUserId("Notifications");
-
-  try {
-    const { data, error } = await neon
-      .from("notifications")
-      .update({ read_at: new Date().toISOString() })
-      .eq("user_id", userId)
-      .is("read_at", null)
-      .select("id");
-
-    if (error) throw error;
-    return (data || []).length;
-  } catch (error) {
-    throw toError(error, "Failed to mark all notifications as read.");
-  }
+  await requireUserId("Notifications");
+  const result = await apiFetch<{ changed: number }>("/api/notifications/read-all", {
+    method: "POST",
+  });
+  return result.changed ?? 0;
 }

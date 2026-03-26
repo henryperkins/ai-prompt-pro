@@ -1,51 +1,29 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { fromMock } = vi.hoisted(() => ({
-  fromMock: vi.fn(),
-}));
-
-vi.mock("@/integrations/neon/client", () => ({
-  neon: {
-    from: fromMock,
-    auth: {
-      getUser: vi.fn(),
-    },
-  },
-}));
-
-interface MaybeSingleResult {
-  data: Record<string, unknown> | null;
-  error: { code: string; message: string; details?: string | null; hint?: string | null } | null;
-}
-
-interface QueryResult {
-  data: Record<string, unknown> | Record<string, unknown>[] | null;
-  error: { code: string; message: string; details?: string | null; hint?: string | null } | null;
-}
-
-function mockLoadPostQuery(result: MaybeSingleResult) {
-  fromMock.mockReturnValueOnce({
-    select: () => ({
-      eq: () => ({
-        eq: () => ({
-          maybeSingle: async () => result,
-        }),
-      }),
-    }),
+function jsonResponse(body: unknown, init?: ResponseInit): Response {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+    ...init,
   });
 }
 
-function buildLegacyCommunityPostRow() {
+function getRequestDetails(fetchMock: ReturnType<typeof vi.fn>) {
+  const [url] = fetchMock.mock.calls[0] as [string, RequestInit];
+  return new URL(String(url), window.location.origin);
+}
+
+function buildWorkerCommunityPostRow(overrides: Record<string, unknown> = {}) {
   return {
     id: "00000000-0000-0000-0000-000000000001",
     saved_prompt_id: "00000000-0000-0000-0000-000000000010",
     author_id: "00000000-0000-0000-0000-000000000011",
-    title: "Legacy schema post",
+    title: "Worker schema post",
     enhanced_prompt: "Prompt",
     description: "Description",
     use_case: "Use case",
     category: "general",
-    tags: ["legacy"],
+    tags: ["worker"],
     target_model: "gpt-5",
     is_public: true,
     public_config: {},
@@ -56,141 +34,113 @@ function buildLegacyCommunityPostRow() {
     upvote_count: 1,
     verified_count: 0,
     remix_count: 0,
-    comment_count: 0,
-    created_at: "2026-02-21T00:00:00.000Z",
-    updated_at: "2026-02-21T00:00:00.000Z",
-  } satisfies Record<string, unknown>;
-}
-
-function createAwaitableQueryBuilder(result: QueryResult) {
-  const builder = Promise.resolve(result) as Promise<QueryResult> &
-    Record<string, (...args: unknown[]) => unknown> & {
-      maybeSingle: () => Promise<QueryResult>;
-      single: () => Promise<QueryResult>;
-    };
-  const chain = () => builder;
-  builder.eq = chain;
-  builder.in = chain;
-  builder.or = chain;
-  builder.lt = chain;
-  builder.limit = chain;
-  builder.range = chain;
-  builder.order = chain;
-  builder.maybeSingle = async () => result;
-  builder.single = async () => result;
-  return builder;
+    comment_count: 2,
+    rating_count: 3,
+    rating_avg: 4.67,
+    created_at: Math.floor(new Date("2026-02-21T00:00:00.000Z").getTime() / 1000),
+    updated_at: Math.floor(new Date("2026-02-21T00:05:00.000Z").getTime() / 1000),
+    ...overrides,
+  };
 }
 
 describe("community.loadPost", () => {
   beforeEach(() => {
-    fromMock.mockReset();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
-  it("maps invalid UUID database errors to a user-safe message", async () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("rejects invalid post ids before issuing a network request", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
     const { loadPost } = await import("@/lib/community");
 
-    mockLoadPostQuery({
-      data: null,
-      error: {
-        code: "22P02",
-        message: 'invalid input syntax for type uuid: "not-a-uuid"',
-      },
-    });
-
     await expect(loadPost("not-a-uuid")).rejects.toThrow("This link is invalid or expired.");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("returns null when no public post matches the id", async () => {
-    const { loadPost } = await import("@/lib/community");
+    const fetchMock = vi.fn().mockResolvedValueOnce(new Response(null, { status: 404 }));
+    vi.stubGlobal("fetch", fetchMock);
 
-    mockLoadPostQuery({
-      data: null,
-      error: null,
-    });
+    const { loadPost } = await import("@/lib/community");
 
     await expect(loadPost("00000000-0000-0000-0000-000000000000")).resolves.toBeNull();
+
+    const url = getRequestDetails(fetchMock);
+    expect(url.pathname).toBe("/api/community/00000000-0000-0000-0000-000000000000");
   });
 
-  it("falls back when rating columns are missing in the database schema", async () => {
+  it("maps Worker community post responses including ratings", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(buildWorkerCommunityPostRow()));
+    vi.stubGlobal("fetch", fetchMock);
+
     const { loadPost } = await import("@/lib/community");
-
-    fromMock.mockImplementation(() => ({
-      select: (selectColumns: string) => ({
-        eq: () => ({
-          eq: () => ({
-            maybeSingle: async () => {
-              if (selectColumns.includes("rating_count")) {
-                return {
-                  data: null,
-                  error: {
-                    code: "42703",
-                    message: 'column community_posts.rating_count does not exist',
-                  },
-                };
-              }
-
-              return {
-                data: buildLegacyCommunityPostRow(),
-                error: null,
-              };
-            },
-          }),
-        }),
-      }),
-    }));
-
     const post = await loadPost("00000000-0000-0000-0000-000000000001");
-    expect(post?.id).toBe("00000000-0000-0000-0000-000000000001");
-    expect(post?.ratingCount).toBe(0);
-    expect(post?.ratingAverage).toBe(0);
-    expect(fromMock).toHaveBeenCalledTimes(2);
+
+    expect(post).toMatchObject({
+      id: "00000000-0000-0000-0000-000000000001",
+      savedPromptId: "00000000-0000-0000-0000-000000000010",
+      authorId: "00000000-0000-0000-0000-000000000011",
+      title: "Worker schema post",
+      tags: ["worker"],
+      ratingCount: 3,
+      ratingAverage: 4.67,
+      commentCount: 2,
+    });
+    expect(post?.createdAt).toBe(new Date("2026-02-21T00:00:00.000Z").getTime());
+    expect(post?.updatedAt).toBe(new Date("2026-02-21T00:05:00.000Z").getTime());
   });
 
-  it("falls back for feed queries when rating columns are missing", async () => {
+  it("maps feed responses and forwards Worker query params", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        posts: [buildWorkerCommunityPostRow()],
+        next_cursor: "2026-02-21T00:00:00.000Z",
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
     const { loadFeed } = await import("@/lib/community");
-    const selectCalls: string[] = [];
-
-    fromMock.mockImplementation(() => ({
-      select: (selectColumns: string) => {
-        selectCalls.push(selectColumns);
-        if (selectColumns.includes("rating_count")) {
-          return createAwaitableQueryBuilder({
-            data: null,
-            error: {
-              code: "42703",
-              message: 'column community_posts.rating_count does not exist',
-            },
-          });
-        }
-        return createAwaitableQueryBuilder({
-          data: [buildLegacyCommunityPostRow()],
-          error: null,
-        });
-      },
-    }));
-
-    const posts = await loadFeed({ limit: 1 });
-    expect(posts).toHaveLength(1);
-    expect(posts[0]?.id).toBe("00000000-0000-0000-0000-000000000001");
-    expect(posts[0]?.ratingCount).toBe(0);
-    expect(posts[0]?.ratingAverage).toBe(0);
-    expect(selectCalls).toHaveLength(2);
-  });
-
-  it("does not retry unrelated missing-column errors", async () => {
-    const { loadPost } = await import("@/lib/community");
-
-    mockLoadPostQuery({
-      data: null,
-      error: {
-        code: "42703",
-        message: 'column community_posts.unrelated_column does not exist',
-      },
+    const posts = await loadFeed({
+      sort: "popular",
+      category: "general",
+      tag: "Worker",
+      search: "ratings",
+      page: 2,
+      limit: 1,
     });
 
-    await expect(loadPost("00000000-0000-0000-0000-000000000001")).rejects.toThrow(
-      "Failed to load community post.",
+    expect(posts).toHaveLength(1);
+    expect(posts[0]).toMatchObject({
+      id: "00000000-0000-0000-0000-000000000001",
+      ratingCount: 3,
+      ratingAverage: 4.67,
+    });
+
+    const url = getRequestDetails(fetchMock);
+    expect(url.pathname).toBe("/api/community");
+    expect(url.searchParams.get("sort")).toBe("popular");
+    expect(url.searchParams.get("category")).toBe("general");
+    expect(url.searchParams.get("tag")).toBe("worker");
+    expect(url.searchParams.get("search")).toBe("ratings");
+    expect(url.searchParams.get("page")).toBe("2");
+    expect(url.searchParams.get("limit")).toBe("1");
+  });
+
+  it("surfaces Worker API errors for non-404 load failures", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({ error: "Database offline" }, { status: 500 }),
     );
-    expect(fromMock).toHaveBeenCalledTimes(1);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { loadPost } = await import("@/lib/community");
+
+    await expect(loadPost("00000000-0000-0000-0000-000000000001")).rejects.toThrow("Database offline");
   });
 });

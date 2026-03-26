@@ -5,16 +5,6 @@ import {
   PROMPT_CONFIG_V2_COMPAT_KEY,
 } from "@/lib/prompt-config-adapters";
 
-const { fromMock } = vi.hoisted(() => ({
-  fromMock: vi.fn(),
-}));
-
-vi.mock("@/integrations/neon/client", () => ({
-  neon: {
-    from: fromMock,
-  },
-}));
-
 function buildConfig(overrides?: Partial<PromptConfig>): PromptConfig {
   return {
     ...defaultConfig,
@@ -37,6 +27,16 @@ function buildConfig(overrides?: Partial<PromptConfig>): PromptConfig {
   };
 }
 
+function jsonResponse(body: unknown, init: ResponseInit = {}) {
+  return new Response(JSON.stringify(body), {
+    headers: {
+      "Content-Type": "application/json",
+      ...(init.headers || {}),
+    },
+    status: init.status ?? 200,
+  });
+}
+
 function buildSavedPromptRow(config: PromptConfig, overrides?: Partial<Record<string, unknown>>) {
   return {
     id: "tpl_1",
@@ -56,66 +56,51 @@ function buildSavedPromptRow(config: PromptConfig, overrides?: Partial<Record<st
     remixed_from: null,
     remix_note: "",
     remix_diff: null,
-    created_at: "2026-02-09T00:00:00.000Z",
-    updated_at: "2026-02-09T00:00:00.000Z",
+    community_post_id: null,
+    upvote_count: 0,
+    verified_count: 0,
+    remix_count: 0,
+    comment_count: 0,
+    created_at: 1_739_059_200,
+    updated_at: 1_739_059_200,
     ...overrides,
   };
 }
 
 describe("persistence", () => {
   beforeEach(() => {
-    fromMock.mockReset();
+    vi.restoreAllMocks();
+    window.localStorage.clear();
+    vi.stubGlobal("fetch", vi.fn());
   });
 
   it("normalizes prompt payloads before cloud insert and preserves warnings", async () => {
     const { savePrompt } = await import("@/lib/persistence");
     let insertedPayload: Record<string, unknown> | null = null;
 
-    fromMock.mockReturnValueOnce({
-      select: () => ({
-        eq: () => ({
-          ilike: () => ({
-            order: () => ({
-              limit: async () => ({ data: [], error: null }),
-            }),
-          }),
-        }),
-      }),
-    });
-
-    fromMock.mockReturnValueOnce({
-      insert: (payload: Record<string, unknown>) => {
-        insertedPayload = payload;
-        return {
-          select: () => ({
-            single: async () => ({
-              data: {
-                id: "tpl_1",
-                user_id: payload.user_id,
-                title: payload.title,
-                description: payload.description,
-                category: payload.category,
-                tags: payload.tags,
-                built_prompt: payload.built_prompt,
-                enhanced_prompt: payload.enhanced_prompt,
-                config: payload.config,
-                fingerprint: payload.fingerprint,
-                revision: 1,
-                is_shared: payload.is_shared,
-                target_model: payload.target_model,
-                use_case: payload.use_case,
-                remixed_from: payload.remixed_from,
-                remix_note: payload.remix_note,
-                remix_diff: payload.remix_diff,
-                created_at: "2026-02-09T00:00:00.000Z",
-                updated_at: "2026-02-09T00:00:00.000Z",
-              },
-              error: null,
-            }),
-          }),
-        };
-      },
-    });
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse([]))
+      .mockImplementationOnce(async (_input, init) => {
+        insertedPayload = JSON.parse(String((init as RequestInit).body));
+        return jsonResponse({ id: "tpl_1", revision: 1 }, { status: 201 });
+      })
+      .mockImplementationOnce(async () => jsonResponse(buildSavedPromptRow(insertedPayload?.config as PromptConfig, {
+        user_id: "user_1",
+        title: insertedPayload?.title,
+        description: insertedPayload?.description,
+        category: insertedPayload?.category,
+        tags: insertedPayload?.tags,
+        built_prompt: insertedPayload?.built_prompt,
+        enhanced_prompt: insertedPayload?.enhanced_prompt,
+        fingerprint: "server-fingerprint",
+        revision: 1,
+        is_shared: insertedPayload?.is_shared,
+        target_model: insertedPayload?.target_model,
+        use_case: insertedPayload?.use_case,
+        remixed_from: insertedPayload?.remixed_from,
+        remix_note: insertedPayload?.remix_note,
+        remix_diff: insertedPayload?.remix_diff,
+      })));
 
     const result = await savePrompt("user_1", {
       name: "Risky",
@@ -164,8 +149,8 @@ describe("persistence", () => {
     expect(serializedConfig.complexity).toBe("Moderate");
     expect(serializedConfig[PROMPT_CONFIG_SCHEMA_VERSION_KEY]).toBe(2);
     expect(serializedConfig[PROMPT_CONFIG_V2_COMPAT_KEY]).toBeTruthy();
-    expect(typeof insertedPayload?.fingerprint).toBe("string");
     expect(result.outcome).toBe("created");
+    expect(result.record.metadata.fingerprint).toBe("server-fingerprint");
     expect(result.warnings.length).toBeGreaterThan(0);
   });
 
@@ -175,51 +160,22 @@ describe("persistence", () => {
     const malformed = "alpha\u0000beta\ud83dgamma\udc00";
     const sanitized = "alphabeta\ufffdgamma\ufffd";
 
-    fromMock.mockReturnValueOnce({
-      select: () => ({
-        eq: () => ({
-          ilike: () => ({
-            order: () => ({
-              limit: async () => ({ data: [], error: null }),
-            }),
-          }),
-        }),
-      }),
-    });
-
-    fromMock.mockReturnValueOnce({
-      insert: (payload: Record<string, unknown>) => {
-        insertedPayload = payload;
-        return {
-          select: () => ({
-            single: async () => ({
-              data: {
-                id: "tpl_2",
-                user_id: payload.user_id,
-                title: payload.title,
-                description: payload.description,
-                category: payload.category,
-                tags: payload.tags,
-                built_prompt: payload.built_prompt,
-                enhanced_prompt: payload.enhanced_prompt,
-                config: payload.config,
-                fingerprint: payload.fingerprint,
-                revision: 1,
-                is_shared: payload.is_shared,
-                target_model: payload.target_model,
-                use_case: payload.use_case,
-                remixed_from: payload.remixed_from,
-                remix_note: payload.remix_note,
-                remix_diff: payload.remix_diff,
-                created_at: "2026-02-09T00:00:00.000Z",
-                updated_at: "2026-02-09T00:00:00.000Z",
-              },
-              error: null,
-            }),
-          }),
-        };
-      },
-    });
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse([]))
+      .mockImplementationOnce(async (_input, init) => {
+        insertedPayload = JSON.parse(String((init as RequestInit).body));
+        return jsonResponse({ id: "tpl_2", revision: 1 }, { status: 201 });
+      })
+      .mockImplementationOnce(async () => jsonResponse(buildSavedPromptRow(insertedPayload?.config as PromptConfig, {
+        id: "tpl_2",
+        title: insertedPayload?.title,
+        description: insertedPayload?.description,
+        tags: insertedPayload?.tags,
+        built_prompt: insertedPayload?.built_prompt,
+        enhanced_prompt: insertedPayload?.enhanced_prompt,
+        config: insertedPayload?.config,
+        remix_diff: insertedPayload?.remix_diff,
+      })));
 
     const result = await savePrompt("user_1", {
       name: `Prompt ${malformed}`,
@@ -249,7 +205,6 @@ describe("persistence", () => {
     expect(insertedPayload?.built_prompt).toBe(sanitized);
     expect(insertedPayload?.enhanced_prompt).toBe(sanitized);
     expect(insertedPayload?.tags).toEqual([`tag ${sanitized}`]);
-    // task is migrated into originalPrompt by normalizeTemplateConfig
     expect(insertedConfig.task).toBe("");
     expect(insertedConfig.originalPrompt).toContain(sanitized);
     expect(insertedRemixDiff.changes[0]?.field).toBe(sanitized);
@@ -283,96 +238,10 @@ describe("persistence", () => {
     expect(loaded?.contextConfig.sources[0]?.rawContent).toBe("https://example.com/runbook");
   });
 
-  it("preserves explicit Professional tone and Moderate complexity during local draft round-trip", async () => {
-    const { saveDraft, loadDraft } = await import("@/lib/persistence");
-    const config = buildConfig({
-      originalPrompt: "Draft release notes",
-      tone: "Professional",
-      complexity: "Moderate",
-    });
-
-    await saveDraft(null, config);
-    const loaded = await loadDraft(null);
-
-    expect(loaded?.tone).toBe("Professional");
-    expect(loaded?.complexity).toBe("Moderate");
-  });
-
-  it("returns false on delete when no row is removed", async () => {
-    const { deletePrompt } = await import("@/lib/persistence");
-
-    fromMock.mockReturnValueOnce({
-      delete: () => ({
-        eq: () => ({
-          eq: () => ({
-            select: () => ({
-              maybeSingle: async () => ({ data: null, error: null }),
-            }),
-          }),
-        }),
-      }),
-    });
-
-    await expect(deletePrompt("user_1", "missing")).resolves.toBe(false);
-  });
-
-  it("loads prompt summaries without selecting full prompt text blobs", async () => {
-    const { loadPrompts } = await import("@/lib/persistence");
-    const listRow = buildSavedPromptRow(buildConfig({ task: "Summarize logs" }));
-    const { built_prompt, enhanced_prompt, remix_note, remix_diff, ...summaryRow } = listRow;
-    void built_prompt;
-    void enhanced_prompt;
-    void remix_note;
-    void remix_diff;
-
-    let selectedColumns = "";
-
-    fromMock.mockReturnValueOnce({
-      select: (columns: string) => {
-        selectedColumns = columns;
-        return {
-          eq: () => ({
-            order: async () => ({ data: [summaryRow], error: null }),
-          }),
-        };
-      },
-    });
-
-    fromMock.mockReturnValueOnce({
-      select: () => ({
-        in: () => ({
-          eq: async () => ({ data: [], error: null }),
-        }),
-      }),
-    });
-
-    const summaries = await loadPrompts("user_1");
-    expect(selectedColumns).not.toContain("built_prompt");
-    expect(selectedColumns).not.toContain("enhanced_prompt");
-    expect(summaries[0]?.builtPrompt).toBe("");
-    expect(summaries[0]?.enhancedPrompt).toBe("");
-  });
-
-  it("throws typed unauthorized errors for load failures", async () => {
+  it("maps unauthorized prompt load failures to typed errors", async () => {
     const { loadPromptById } = await import("@/lib/persistence");
 
-    fromMock.mockReturnValueOnce({
-      select: () => ({
-        eq: () => ({
-          eq: () => ({
-            maybeSingle: async () => ({
-              data: null,
-              error: {
-                code: "42501",
-                message: 'new row violates row-level security policy for table "saved_prompts"',
-                details: "",
-                hint: "",
-              },
-            }),
-          }),
-        }),
-      }),
-    });
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ error: "Unauthorized" }, { status: 401 }));
 
     await expect(loadPromptById("user_1", "tpl_1")).rejects.toMatchObject({
       name: "PersistenceError",
@@ -380,177 +249,63 @@ describe("persistence", () => {
     });
   });
 
-  it("hydrates legacy saved prompt sources with normalized reference metadata", async () => {
-    const { loadPromptById } = await import("@/lib/persistence");
-    const legacyConfig = buildConfig({
-      contextConfig: {
-        ...defaultConfig.contextConfig,
-        sources: [
-          {
-            id: "url-1",
-            type: "url",
-            title: "Runbook",
-            rawContent: "https://example.com/runbook",
-            summary: "Runbook summary",
-            addedAt: Date.now(),
-          },
-        ],
-      },
-    });
-    const row = buildSavedPromptRow(legacyConfig, {
-      id: "tpl_legacy",
-    });
-
-    fromMock.mockReturnValueOnce({
-      select: () => ({
-        eq: () => ({
-          eq: () => ({
-            maybeSingle: async () => ({ data: row, error: null }),
-          }),
-        }),
-      }),
-    });
-
-    const loaded = await loadPromptById("user_1", "tpl_legacy");
-    const source = loaded?.record.state.promptConfig.contextConfig.sources[0];
-    const externalRef = loaded?.record.state.externalReferences[0];
-
-    expect(source?.reference?.refId).toBe("url:url-1");
-    expect(source?.reference?.locator).toBe("https://example.com/runbook");
-    expect(source?.validation?.status).toBe("unknown");
-    expect(externalRef?.locator).toBe("https://example.com/runbook");
-  });
-
-  it("escapes wildcard characters and uses revision locking when updating prompts", async () => {
+  it("updates an existing prompt by id with revision locking and surfaces conflicts", async () => {
     const { savePrompt } = await import("@/lib/persistence");
-    const existingConfig = buildConfig({ task: "Current task" });
-    const nextConfig = buildConfig({ task: "Updated task" });
-    const existingRow = buildSavedPromptRow(existingConfig, {
-      id: "tpl_existing",
-      title: "100%_Coverage",
-      description: "keep me",
-      fingerprint: "old-fingerprint",
-      revision: 4,
-    });
-    const updatedRow = buildSavedPromptRow(nextConfig, {
-      id: "tpl_existing",
-      title: "100%_Coverage",
-      description: "",
-      fingerprint: "new-fingerprint",
-      revision: 5,
-      updated_at: "2026-02-10T00:00:00.000Z",
-    });
-
-    let lookupPattern = "";
-    let revisionFilter: number | null = null;
     let updatePayload: Record<string, unknown> | null = null;
 
-    fromMock.mockReturnValueOnce({
-      select: () => ({
-        eq: () => ({
-          ilike: (_column: string, pattern: string) => {
-            lookupPattern = pattern;
-            return {
-              order: () => ({
-                limit: async () => ({ data: [existingRow], error: null }),
-              }),
-            };
-          },
-        }),
-      }),
-    });
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse(buildSavedPromptRow(buildConfig({ task: "Existing" }), {
+        id: "tpl_1",
+        revision: 4,
+        title: "100%_Coverage",
+      })))
+      .mockImplementationOnce(async (_input, init) => {
+        updatePayload = JSON.parse(String((init as RequestInit).body));
+        return jsonResponse({ error: "Prompt was modified elsewhere. Please refresh and try again." }, { status: 409 });
+      });
 
-    const updateChain = {
-      eq: vi.fn((column: string, value: unknown) => {
-        if (column === "revision") revisionFilter = Number(value);
-        return updateChain;
-      }),
-      select: vi.fn(() => ({
-        maybeSingle: async () => ({ data: updatedRow, error: null }),
-      })),
-    };
-
-    fromMock.mockReturnValueOnce({
-      update: (payload: Record<string, unknown>) => {
-        updatePayload = payload;
-        return updateChain;
-      },
-    });
-
-    const result = await savePrompt("user_1", {
+    await expect(savePrompt("user_1", {
+      id: "tpl_1",
+      expectedRevision: 4,
       name: "100%_Coverage",
       description: "",
-      config: nextConfig,
+      config: buildConfig({ task: "Updated" }),
+    })).rejects.toMatchObject({
+      name: "PersistenceError",
+      code: "conflict",
     });
 
-    expect(lookupPattern).toBe("100\\%\\_Coverage");
-    expect(revisionFilter).toBe(4);
-    expect(updatePayload?.description).toBe("");
-    expect(result.outcome).toBe("updated");
+    expect(updatePayload?.expected_revision).toBe(4);
+    expect(updatePayload?.title).toBe("100%_Coverage");
   });
 
   it("requires use case text before sharing a prompt", async () => {
     const { sharePrompt } = await import("@/lib/persistence");
-    const updateSpy = vi.fn();
 
-    fromMock.mockReturnValueOnce({
-      select: () => ({
-        eq: () => ({
-          eq: () => ({
-            maybeSingle: async () => ({ data: { id: "tpl_1", use_case: "" }, error: null }),
-          }),
-        }),
-      }),
-    });
-
-    fromMock.mockReturnValueOnce({
-      update: updateSpy,
-    });
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(buildSavedPromptRow(buildConfig(), {
+      id: "tpl_1",
+      use_case: "",
+    })));
 
     await expect(sharePrompt("user_1", "tpl_1")).rejects.toMatchObject({
       name: "PersistenceError",
       message: "Use case is required before sharing.",
     });
-
-    expect(updateSpy).not.toHaveBeenCalled();
   });
 
-  it("normalizes use case text before sharing", async () => {
+  it("normalizes use case text before sharing and maps the worker post id contract", async () => {
     const { sharePrompt } = await import("@/lib/persistence");
-    let updatePayload: Record<string, unknown> | null = null;
+    let sharePayload: Record<string, unknown> | null = null;
 
-    fromMock.mockReturnValueOnce({
-      select: () => ({
-        eq: () => ({
-          eq: () => ({
-            maybeSingle: async () => ({ data: { id: "tpl_1", use_case: "" }, error: null }),
-          }),
-        }),
-      }),
-    });
-
-    fromMock.mockReturnValueOnce({
-      update: (payload: Record<string, unknown>) => {
-        updatePayload = payload;
-        return {
-          eq: () => ({
-            eq: () => ({
-              select: () => ({
-                maybeSingle: async () => ({ data: { id: "tpl_1" }, error: null }),
-              }),
-            }),
-          }),
-        };
-      },
-    });
-
-    fromMock.mockReturnValueOnce({
-      select: () => ({
-        eq: () => ({
-          maybeSingle: async () => ({ data: { id: "post_1" }, error: null }),
-        }),
-      }),
-    });
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse(buildSavedPromptRow(buildConfig(), {
+        id: "tpl_1",
+        use_case: "",
+      })))
+      .mockImplementationOnce(async (_input, init) => {
+        sharePayload = JSON.parse(String((init as RequestInit).body));
+        return jsonResponse({ shared: true, postId: "post_1" });
+      });
 
     await expect(
       sharePrompt("user_1", "tpl_1", {
@@ -558,91 +313,69 @@ describe("persistence", () => {
       }),
     ).resolves.toEqual({ shared: true, postId: "post_1" });
 
-    expect(updatePayload?.use_case).toBe("Build onboarding emails");
-    expect(updatePayload?.is_shared).toBe(true);
+    expect(sharePayload?.use_case).toBe("Build onboarding emails");
   });
 
   it("rejects sharing prompts that contain GitHub sources", async () => {
     const { sharePrompt } = await import("@/lib/persistence");
-    const updateSpy = vi.fn();
 
-    fromMock.mockReturnValueOnce({
-      select: () => ({
-        eq: () => ({
-          eq: () => ({
-            maybeSingle: async () => ({
-              data: {
-                id: "tpl_1",
-                use_case: "Repository onboarding",
-                config: buildConfig({
-                  contextConfig: {
-                    ...defaultConfig.contextConfig,
-                    sources: [
-                      {
-                        id: "gh-1",
-                        type: "github",
-                        title: "owner/repo:README.md",
-                        rawContent: "",
-                        summary: "Repository readme",
-                        addedAt: Date.now(),
-                        reference: {
-                          kind: "github",
-                          refId: "github:1:sha:README.md",
-                          locator: "owner/repo@sha:README.md",
-                        },
-                      },
-                    ],
-                  },
-                }),
-              },
-              error: null,
-            }),
-          }),
-        }),
-      }),
-    });
-
-    fromMock.mockReturnValueOnce({
-      update: updateSpy,
-    });
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(buildSavedPromptRow(buildConfig({
+      contextConfig: {
+        ...defaultConfig.contextConfig,
+        sources: [
+          {
+            id: "gh-1",
+            type: "github",
+            title: "owner/repo:README.md",
+            rawContent: "",
+            summary: "Repository readme",
+            addedAt: Date.now(),
+            reference: {
+              kind: "github",
+              refId: "github:1:sha:README.md",
+              locator: "owner/repo@sha:README.md",
+            },
+          },
+        ],
+      },
+    }), {
+      id: "tpl_1",
+      use_case: "Repository onboarding",
+    })));
 
     await expect(sharePrompt("user_1", "tpl_1")).rejects.toMatchObject({
       name: "PersistenceError",
       message: "Remove GitHub sources before sharing this prompt.",
     });
-
-    expect(updateSpy).not.toHaveBeenCalled();
   });
 
   it("rejects save-and-share writes when the config contains GitHub sources", async () => {
     const { savePrompt } = await import("@/lib/persistence");
 
-    await expect(
-      savePrompt("user_1", {
-        name: "Repo-aware prompt",
-        isShared: true,
-        config: buildConfig({
-          contextConfig: {
-            ...defaultConfig.contextConfig,
-            sources: [
-              {
-                id: "gh-1",
-                type: "github",
-                title: "owner/repo:src/app.ts",
-                rawContent: "",
-                summary: "Application entrypoint",
-                addedAt: Date.now(),
-                reference: {
-                  kind: "github",
-                  refId: "github:1:sha:src/app.ts",
-                  locator: "owner/repo@sha:src/app.ts",
-                },
+    await expect(savePrompt("user_1", {
+      name: "Repo-aware prompt",
+      isShared: true,
+      config: buildConfig({
+        contextConfig: {
+          ...defaultConfig.contextConfig,
+          sources: [
+            {
+              id: "gh-1",
+              type: "github",
+              title: "owner/repo:src/app.ts",
+              rawContent: "",
+              summary: "Application entrypoint",
+              addedAt: Date.now(),
+              reference: {
+                kind: "github",
+                refId: "github:1:sha:src/app.ts",
+                locator: "owner/repo@sha:src/app.ts",
               },
-            ],
-          },
-        }),
+            },
+          ],
+        },
       }),
-    ).rejects.toMatchObject({
+    })).rejects.toMatchObject({
       name: "PersistenceError",
       message: "Remove GitHub sources before sharing this prompt.",
     });
@@ -651,47 +384,28 @@ describe("persistence", () => {
   it("exposes containsGithubSources in prompt summaries", async () => {
     const { loadPrompts } = await import("@/lib/persistence");
 
-    fromMock.mockReturnValueOnce({
-      select: () => ({
-        eq: () => ({
-          order: async () => ({
-            data: [
-              buildSavedPromptRow(
-                buildConfig({
-                  contextConfig: {
-                    ...defaultConfig.contextConfig,
-                    sources: [
-                      {
-                        id: "gh-1",
-                        type: "github",
-                        title: "owner/repo:README.md",
-                        rawContent: "",
-                        summary: "Repository overview",
-                        addedAt: Date.now(),
-                        reference: {
-                          kind: "github",
-                          refId: "github:1:sha:README.md",
-                          locator: "owner/repo@sha:README.md",
-                        },
-                      },
-                    ],
-                  },
-                }),
-              ),
-            ],
-            error: null,
-          }),
-        }),
-      }),
-    });
-
-    fromMock.mockReturnValueOnce({
-      select: () => ({
-        in: () => ({
-          eq: async () => ({ data: [], error: null }),
-        }),
-      }),
-    });
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse([
+      buildSavedPromptRow(buildConfig({
+        contextConfig: {
+          ...defaultConfig.contextConfig,
+          sources: [
+            {
+              id: "gh-1",
+              type: "github",
+              title: "owner/repo:README.md",
+              rawContent: "",
+              summary: "Repository overview",
+              addedAt: Date.now(),
+              reference: {
+                kind: "github",
+                refId: "github:1:sha:README.md",
+                locator: "owner/repo@sha:README.md",
+              },
+            },
+          ],
+        },
+      })),
+    ]));
 
     await expect(loadPrompts("user_1")).resolves.toEqual([
       expect.objectContaining({

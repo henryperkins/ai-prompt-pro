@@ -34,6 +34,12 @@
     "swa:build": "swa build",
     "swa:deploy:dry-run": "swa deploy --env production --dry-run",
     "swa:deploy": "swa deploy --env production",
+    "worker:dev": "wrangler dev",
+    "worker:deploy": "wrangler deploy",
+    "d1:create": "wrangler d1 create promptforge-db",
+    "d1:migrate": "wrangler d1 execute promptforge-db --remote --file=workers/d1/schema.sql",
+    "d1:local-migrate": "wrangler d1 execute promptforge-db --local --file=workers/d1/schema.sql",
+    "kv:create": "wrangler kv:namespace create SESSIONS",
     "test": "vitest run",
     "test:unit": "vitest run --exclude 'src/test/rls-community-*.test.ts'",
     "test:desktop": "playwright test playwright/builder.desktop.spec.ts",
@@ -88,6 +94,7 @@
     "date-fns": "^4.1.0",
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
+    "hono": "^4.12.5",
     "jose": "^6.2.0",
     "next-themes": "^0.4.6",
     "react": "^19.2.4",
@@ -111,6 +118,8 @@
   },
   "devDependencies": {
     "@azure/static-web-apps-cli": "^2.0.8",
+    "@cloudflare/workers-types": "^4.20241224.0",
+    "wrangler": "^3.94.0",
     "@eslint/js": "^9.32.0",
     "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4.2.0",
@@ -143,7 +152,6 @@
   "overrides": {
     "@hono/node-server": "1.19.11",
     "fastify": "5.8.1",
-    "hono": "4.12.5",
     "tar": "7.5.10"
   }
 }

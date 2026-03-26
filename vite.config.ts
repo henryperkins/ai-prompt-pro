@@ -29,6 +29,11 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
+    proxy: {
+      "/api": "http://localhost:8787",
+      "/auth": "http://localhost:8787",
+      "/health": "http://localhost:8787",
+    },
   },
   plugins: [react(), tailwindcss(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {

@@ -9,9 +9,7 @@ import {
 import { Button } from "@/components/base/buttons/button";
 import { InputBase, Input } from "@/components/base/input/input";
 import { InputGroup } from "@/components/base/input/input-group";
-import { AppleOAuthIcon, GitHubOAuthIcon, GoogleOAuthIcon } from "@/components/icons/oauth-icons";
-import { useAuth, type AuthOAuthProvider } from "@/hooks/useAuth";
-import { neon } from "@/integrations/neon/client";
+import { useAuth } from "@/hooks/useAuth";
 import { createPersistedAuthThrottle } from "@/lib/auth-throttle";
 import { brandCopy } from "@/lib/brand-copy";
 import { DISPLAY_NAME_MAX_LENGTH } from "@/lib/profile";
@@ -22,8 +20,10 @@ interface AuthDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+const PASSWORD_RESET_UNAVAILABLE_MESSAGE = "Password reset is not available yet. Contact support if you are locked out.";
+
 export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
-  const { signIn, signUp, signInWithOAuth } = useAuth();
+  const { signIn, signUp } = useAuth();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
@@ -31,9 +31,6 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [oauthLoading, setOauthLoading] = useState<AuthOAuthProvider | null>(null);
-  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
-  const [forgotPasswordSent, setForgotPasswordSent] = useState(false);
   const [confirmationSent, setConfirmationSent] = useState(false);
 
   const formatCooldownError = (remainingCooldownMs: number) => {
@@ -43,12 +40,11 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (loading || oauthLoading || forgotPasswordLoading) return;
+    if (loading) return;
 
     const normalizedEmail = email.trim();
 
     setError("");
-    setForgotPasswordSent(false);
 
     if (!normalizedEmail) {
       setError("Enter a valid email address.");
@@ -99,59 +95,8 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
     }
 
     loginThrottle?.recordSuccess();
-
-    // Login succeeded — close
     onOpenChange(false);
     resetForm();
-  };
-
-  const handleOAuth = async (provider: AuthOAuthProvider) => {
-    if (loading || oauthLoading) return;
-
-    setError("");
-    setForgotPasswordSent(false);
-    setOauthLoading(provider);
-
-    try {
-      const result = await signInWithOAuth(provider);
-      if (result.error) {
-        setError(result.error);
-      }
-    } finally {
-      setOauthLoading(null);
-    }
-  };
-
-  const handleForgotPassword = async () => {
-    if (loading || oauthLoading || forgotPasswordLoading) return;
-
-    const normalizedEmail = email.trim();
-    setError("");
-    setForgotPasswordSent(false);
-
-    if (!normalizedEmail) {
-      setError("Enter your email first to reset your password.");
-      return;
-    }
-
-    setForgotPasswordLoading(true);
-    try {
-      const { error: forgotPasswordError } = await neon.auth.resetPasswordForEmail(
-        normalizedEmail,
-        { redirectTo: window.location.origin },
-      );
-
-      if (forgotPasswordError) {
-        setError(forgotPasswordError.message || "Failed to send reset email.");
-        return;
-      }
-
-      setForgotPasswordSent(true);
-    } catch (forgotPasswordError) {
-      setError(forgotPasswordError instanceof Error ? forgotPasswordError.message : "Failed to send reset email.");
-    } finally {
-      setForgotPasswordLoading(false);
-    }
   };
 
   const resetForm = () => {
@@ -161,9 +106,6 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
     setShowPassword(false);
     setError("");
     setLoading(false);
-    setOauthLoading(null);
-    setForgotPasswordLoading(false);
-    setForgotPasswordSent(false);
     setConfirmationSent(false);
   };
 
@@ -172,17 +114,15 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
     setError("");
     setPassword("");
     setShowPassword(false);
-    setForgotPasswordLoading(false);
-    setForgotPasswordSent(false);
     setConfirmationSent(false);
   };
 
   return (
     <Dialog
       open={open}
-      onOpenChange={(v) => {
-        onOpenChange(v);
-        if (!v) resetForm();
+      onOpenChange={(value) => {
+        onOpenChange(value);
+        if (!value) resetForm();
       }}
     >
       <DialogContent className="pf-dialog-surface sm:max-w-md">
@@ -208,7 +148,7 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
         </DialogHeader>
 
         {confirmationSent ? (
-          <div className="text-center py-4 space-y-2">
+          <div className="space-y-2 py-4 text-center">
             <p className="text-sm text-tertiary">
               Check your email, confirm your account, then sign in.
             </p>
@@ -224,50 +164,9 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
           </div>
         ) : (
           <div className="space-y-4">
-            {/* OAuth buttons */}
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              <Button
-                variant="secondary"
-                onClick={() => void handleOAuth("apple")}
-                disabled={loading || Boolean(oauthLoading)}
-                loading={oauthLoading === "apple"}
-                showTextWhileLoading
-                iconLeading={AppleOAuthIcon}
-              >
-                Apple
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => void handleOAuth("github")}
-                disabled={loading || Boolean(oauthLoading)}
-                loading={oauthLoading === "github"}
-                showTextWhileLoading
-                iconLeading={GitHubOAuthIcon}
-              >
-                GitHub
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => void handleOAuth("google")}
-                disabled={loading || Boolean(oauthLoading)}
-                loading={oauthLoading === "google"}
-                showTextWhileLoading
-                iconLeading={GoogleOAuthIcon}
-              >
-                Google
-              </Button>
-            </div>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-secondary px-2 text-tertiary">
-                  Or continue with email
-                </span>
-              </div>
-            </div>
+            <p className="text-center text-xs text-tertiary">
+              Email and password sign-in is currently the only available auth method.
+            </p>
 
             <form onSubmit={handleSubmit} className="space-y-3">
               {mode === "signup" && (
@@ -299,13 +198,13 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
                 onChange={setPassword}
                 hint={mode === "signup" ? "Use at least 8 characters." : undefined}
                 trailingAddon={
-                  <InputGroup.Prefix isDisabled={loading || Boolean(oauthLoading)}>
+                  <InputGroup.Prefix isDisabled={loading}>
                     <button
                       type="button"
                       aria-label={showPassword ? "Hide password" : "Show password"}
                       aria-pressed={showPassword}
                       className="inline-flex h-full items-center justify-center px-3 text-tertiary transition duration-100 ease-linear hover:text-secondary disabled:cursor-not-allowed disabled:text-disabled"
-                      disabled={loading || Boolean(oauthLoading)}
+                      disabled={loading}
                       onClick={() => setShowPassword((isVisible) => !isVisible)}
                     >
                       {showPassword ? <EyeSlash className="size-4" aria-hidden="true" /> : <Eye className="size-4" aria-hidden="true" />}
@@ -322,24 +221,8 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
               </InputGroup>
 
               {mode === "login" && (
-                <div className="flex justify-end">
-                  <Button
-                    type="button"
-                    variant="link" tone="brand"
-                    onClick={() => void handleForgotPassword()}
-                    disabled={loading || Boolean(oauthLoading) || forgotPasswordLoading}
-                    loading={forgotPasswordLoading}
-                    showTextWhileLoading
-                    className="text-sm"
-                  >
-                    Forgot password?
-                  </Button>
-                </div>
-              )}
-
-              {forgotPasswordSent && mode === "login" && (
                 <p className="text-sm text-tertiary">
-                  Password reset email sent. Check your inbox.
+                  {PASSWORD_RESET_UNAVAILABLE_MESSAGE}
                 </p>
               )}
 
@@ -350,7 +233,7 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={loading || Boolean(oauthLoading)}
+                disabled={loading}
                 loading={loading}
               >
                 {mode === "login" ? "Sign in" : "Create account"}

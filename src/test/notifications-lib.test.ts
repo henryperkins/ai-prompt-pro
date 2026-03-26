@@ -1,93 +1,72 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({
-  getUser: vi.fn(),
-  from: vi.fn(),
-  loadProfilesByIds: vi.fn(),
-}));
+function base64UrlEncode(value: string): string {
+  return btoa(value).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
 
-vi.mock("@/integrations/neon/client", () => ({
-  neon: {
-    auth: {
-      getUser: (...args: unknown[]) => mocks.getUser(...args),
-    },
-    from: (...args: unknown[]) => mocks.from(...args),
-  },
-}));
+function buildUnsignedJwt(payload: Record<string, unknown>): string {
+  const header = base64UrlEncode(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const body = base64UrlEncode(JSON.stringify(payload));
+  return `${header}.${body}.signature`;
+}
 
-vi.mock("@/lib/community", () => ({
-  loadProfilesByIds: (...args: unknown[]) => mocks.loadProfilesByIds(...args),
-}));
+function setAccessToken(sub: string): string {
+  const token = buildUnsignedJwt({ sub });
+  window.localStorage.setItem("pf_tokens", JSON.stringify({ accessToken: token }));
+  return token;
+}
 
-function mockAuthenticatedUser() {
-  mocks.getUser.mockResolvedValue({
-    data: {
-      user: {
-        id: "user-1",
-        is_anonymous: false,
-      },
-    },
-    error: null,
+function jsonResponse(body: unknown, init?: ResponseInit): Response {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+    ...init,
   });
+}
+
+function getRequestDetails(fetchMock: ReturnType<typeof vi.fn>) {
+  const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+  return {
+    url: new URL(String(url), window.location.origin),
+    init,
+    headers: (init.headers ?? {}) as Record<string, string>,
+  };
 }
 
 describe("notifications API helpers", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    mockAuthenticatedUser();
+    window.localStorage.clear();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
-  it("loads notifications with actor profile and post title context", async () => {
-    const createdAt = "2026-02-11T10:00:00.000Z";
+  afterEach(() => {
+    window.localStorage.clear();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
 
-    mocks.from.mockImplementation((table: string) => {
-      if (table === "notifications") {
-        return {
-          select: () => ({
-            eq: () => ({
-              order: () => ({
-                range: async () => ({
-                  data: [
-                    {
-                      id: "notif-1",
-                      user_id: "user-1",
-                      actor_id: "actor-1",
-                      type: "comment",
-                      post_id: "post-1",
-                      comment_id: "comment-1",
-                      read_at: null,
-                      created_at: createdAt,
-                    },
-                  ],
-                  error: null,
-                }),
-              }),
-            }),
-          }),
-        };
-      }
-
-      if (table === "community_posts") {
-        return {
-          select: () => ({
-            in: async () => ({
-              data: [{ id: "post-1", title: "Post title" }],
-              error: null,
-            }),
-          }),
-        };
-      }
-
-      throw new Error(`Unexpected table: ${table}`);
-    });
-
-    mocks.loadProfilesByIds.mockResolvedValue([
-      {
-        id: "actor-1",
-        displayName: "Alice",
-        avatarUrl: "https://example.com/alice.png",
-      },
-    ]);
+  it("loads notifications with actor profile and post title context from the Worker API", async () => {
+    const token = setAccessToken("user-1");
+    const createdAt = Math.floor(new Date("2026-02-11T10:00:00.000Z").getTime() / 1000);
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse([
+        {
+          id: "notif-1",
+          user_id: "user-1",
+          actor_id: "actor-1",
+          type: "comment",
+          post_id: "post-1",
+          comment_id: "comment-1",
+          read_at: null,
+          created_at: createdAt,
+          actor_display_name: "Alice",
+          actor_avatar_url: "https://example.com/alice.png",
+          post_title: "Post title",
+        },
+      ]),
+    );
+    vi.stubGlobal("fetch", fetchMock);
 
     const { loadNotifications } = await import("@/lib/notifications");
     const notifications = await loadNotifications(20, 0);
@@ -105,46 +84,39 @@ describe("notifications API helpers", () => {
       postTitle: "Post title",
       readAt: null,
     });
-    expect(notifications[0]?.createdAt).toBe(new Date(createdAt).getTime());
+    expect(notifications[0]?.createdAt).toBe(new Date("2026-02-11T10:00:00.000Z").getTime());
+
+    const { url, headers } = getRequestDetails(fetchMock);
+    expect(url.pathname).toBe("/api/notifications");
+    expect(url.searchParams.get("limit")).toBe("20");
+    expect(url.searchParams.get("offset")).toBe("0");
+    expect(headers.Authorization).toBe(`Bearer ${token}`);
   });
 
   it("returns unread notification count for current user", async () => {
-    mocks.from.mockImplementation((table: string) => {
-      if (table !== "notifications") throw new Error(`Unexpected table: ${table}`);
-      return {
-        select: () => ({
-          eq: () => ({
-            is: async () => ({
-              count: 7,
-              error: null,
-            }),
-          }),
-        }),
-      };
-    });
+    const token = setAccessToken("user-1");
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse({ count: 7 }));
+    vi.stubGlobal("fetch", fetchMock);
 
     const { getUnreadCount } = await import("@/lib/notifications");
     await expect(getUnreadCount()).resolves.toBe(7);
+
+    const { url, headers } = getRequestDetails(fetchMock);
+    expect(url.pathname).toBe("/api/notifications/unread-count");
+    expect(headers.Authorization).toBe(`Bearer ${token}`);
   });
 
   it("marks all unread notifications as read and returns affected row count", async () => {
-    mocks.from.mockImplementation((table: string) => {
-      if (table !== "notifications") throw new Error(`Unexpected table: ${table}`);
-      return {
-        update: () => ({
-          eq: () => ({
-            is: () => ({
-              select: async () => ({
-                data: [{ id: "a" }, { id: "b" }],
-                error: null,
-              }),
-            }),
-          }),
-        }),
-      };
-    });
+    const token = setAccessToken("user-1");
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse({ changed: 2 }));
+    vi.stubGlobal("fetch", fetchMock);
 
     const { markAllAsRead } = await import("@/lib/notifications");
     await expect(markAllAsRead()).resolves.toBe(2);
+
+    const { url, init, headers } = getRequestDetails(fetchMock);
+    expect(url.pathname).toBe("/api/notifications/read-all");
+    expect(init.method).toBe("POST");
+    expect(headers.Authorization).toBe(`Bearer ${token}`);
   });
 });

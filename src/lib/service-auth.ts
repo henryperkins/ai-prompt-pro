@@ -1,4 +1,11 @@
 import { neon } from "@/integrations/neon/client";
+import {
+  getStoredAccessToken,
+  getStoredAccessTokenExpiry,
+  getStoredRefreshToken,
+  logoutStoredSession,
+  restoreStoredAuthSession,
+} from "@/lib/browser-auth";
 
 const ACCESS_TOKEN_REFRESH_GRACE_SECONDS = 30;
 const PUBLISHABLE_KEY_AUTH_FALLBACK_WINDOW_MS = 2 * 60_000;
@@ -35,6 +42,85 @@ export interface ServiceAuthOptions {
   publishableKey?: string;
   authClient?: AuthClient;
 }
+
+function createStoredSession(accessToken?: string | null): SessionRecord | null {
+  if (!accessToken) return null;
+
+  return {
+    access_token: accessToken,
+    expires_at: getStoredAccessTokenExpiry(accessToken),
+  };
+}
+
+const storedTokenAuthClient: AuthClient = {
+  async getSession(options?: SessionReadOptions): Promise<SessionResult> {
+    const accessToken = getStoredAccessToken();
+    if (!accessToken) {
+      if (options?.forceFetch && getStoredRefreshToken()) {
+        try {
+          const restoredSession = await restoreStoredAuthSession();
+          return {
+            data: { session: createStoredSession(restoredSession?.accessToken ?? null) },
+            error: restoredSession ? null : new Error("Sign in required."),
+          };
+        } catch (error) {
+          return {
+            data: { session: null },
+            error,
+          };
+        }
+      }
+
+      return {
+        data: { session: null },
+        error: null,
+      };
+    }
+
+    if (!options?.forceFetch) {
+      return {
+        data: { session: createStoredSession(accessToken) },
+        error: null,
+      };
+    }
+
+    try {
+      const restoredSession = await restoreStoredAuthSession();
+      return {
+        data: { session: createStoredSession(restoredSession?.accessToken ?? null) },
+        error: restoredSession ? null : new Error("Sign in required."),
+      };
+    } catch (error) {
+      return {
+        data: { session: null },
+        error,
+      };
+    }
+  },
+
+  async signOut(): Promise<{ error: null }> {
+    await logoutStoredSession();
+    return { error: null };
+  },
+};
+
+const compatAuthClient: AuthClient = {
+  async getSession(options?: SessionReadOptions): Promise<SessionResult> {
+    const hasStoredWorkerTokens = Boolean(getStoredAccessToken() || getStoredRefreshToken());
+    if (hasStoredWorkerTokens) {
+      return storedTokenAuthClient.getSession(options);
+    }
+    return neon.auth.getSession(options);
+  },
+
+  async signOut(): Promise<unknown> {
+    const hasStoredWorkerTokens = Boolean(getStoredAccessToken() || getStoredRefreshToken());
+    if (hasStoredWorkerTokens) {
+      return storedTokenAuthClient.signOut?.();
+    }
+    return neon.auth.signOut?.();
+  },
+};
 
 function sessionExpiresSoon(expiresAt: number | null | undefined): boolean {
   if (typeof expiresAt !== "number" || !Number.isFinite(expiresAt)) return false;
@@ -96,7 +182,7 @@ function createSessionReadError(error: unknown): Error {
 export function createServiceAuth({
   serviceUrl,
   publishableKey,
-  authClient = neon.auth,
+  authClient = compatAuthClient,
 }: ServiceAuthOptions = {}) {
   let bootstrapTokenPromise: Promise<string> | null = null;
   let refreshTokenPromise: Promise<{

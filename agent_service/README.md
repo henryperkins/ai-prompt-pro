@@ -9,7 +9,7 @@ The frontend calls this service directly for AI endpoints.
 ```bash
 npm install
 export AZURE_OPENAI_API_KEY="<your-azure-openai-api-key>"
-export CODEX_CONFIG_JSON='{"model":"<your-azure-deployment-name>","model_provider":"azure","model_providers":{"azure":{"name":"Azure OpenAI","base_url":"https://fifteenmodels.openai.azure.com/openai/v1","env_key":"AZURE_OPENAI_API_KEY","wire_api":"responses"}}}'
+export CODEX_CONFIG_JSON='{"model":"<your-azure-deployment-name>","model_provider":"azure","model_providers":{"azure":{"name":"Azure OpenAI","base_url":"https://judas2.openai.azure.com/openai/v1","env_key":"AZURE_OPENAI_API_KEY","wire_api":"responses"}}}'
 npm run agent:codex
 ```
 

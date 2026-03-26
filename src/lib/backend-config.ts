@@ -18,6 +18,7 @@ export interface BackendConfigInput {
   authUrl?: string;
   mode?: string;
   vitest?: boolean;
+  sameOriginWorker?: boolean;
 }
 
 export interface BackendConfigResolution {
@@ -37,7 +38,7 @@ export function resolveBackendConfig(input: BackendConfigInput): BackendConfigRe
     dataApiUrl,
     authUrl,
     hasBackendEnvConfig,
-    isBackendConfigured: hasBackendEnvConfig || isTestEnv,
+    isBackendConfigured: hasBackendEnvConfig || input.sameOriginWorker === true || isTestEnv,
   };
 }
 
@@ -49,6 +50,7 @@ const runtimeBackendConfig = resolveBackendConfig({
   authUrl: import.meta.env.VITE_NEON_AUTH_URL,
   mode: import.meta.env.MODE,
   vitest: import.meta.env.VITEST,
+  sameOriginWorker: true,
 });
 
 export const NEON_DATA_API_URL = runtimeBackendConfig.dataApiUrl;

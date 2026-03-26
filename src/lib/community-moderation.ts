@@ -1,8 +1,7 @@
-import { neon } from "@/integrations/neon/client";
-import type { TablesInsert } from "@/integrations/neon/types";
+import { apiFetch } from "@/lib/api-client";
 import { assertBackendConfigured } from "@/lib/backend-config";
 import { requireUserId } from "@/lib/require-user-id";
-import { isPostgrestError, sanitizePostgresText } from "@/lib/saved-prompt-shared";
+import { sanitizePostgresText } from "@/lib/saved-prompt-shared";
 
 export type CommunityReportTargetType = "post" | "comment";
 
@@ -13,14 +12,6 @@ export interface CommunityReportInput {
   reportedUserId?: string | null;
   reason?: string;
   details?: string;
-}
-
-function toError(error: unknown, fallback: string): Error {
-  if (error instanceof Error) return error;
-  if (isPostgrestError(error)) {
-    return new Error(error.message || fallback);
-  }
-  return new Error(fallback);
 }
 
 function normalizeReason(value?: string): string {
@@ -34,28 +25,8 @@ function normalizeDetails(value?: string): string {
 
 export async function loadBlockedUserIds(): Promise<string[]> {
   assertBackendConfigured("Community moderation");
-
-  const { data: authData, error: authError } = await neon.auth.getUser();
-  if (authError) {
-    throw toError(authError, "Authentication failed.");
-  }
-  if (!authData.user?.id) {
-    return [];
-  }
-
-  try {
-    const { data, error } = await neon
-      .from("community_user_blocks")
-      .select("blocked_user_id")
-      .eq("blocker_id", authData.user.id)
-      .order("created_at", { ascending: false });
-
-    if (error) throw error;
-
-    return Array.from(new Set((data || []).map((row) => row.blocked_user_id).filter(Boolean)));
-  } catch (error) {
-    throw toError(error, "Failed to load blocked users.");
-  }
+  await requireUserId("Community moderation");
+  return apiFetch<string[]>("/api/moderation/blocks");
 }
 
 export async function blockCommunityUser(blockedUserId: string, reason?: string): Promise<boolean> {
@@ -69,67 +40,30 @@ export async function blockCommunityUser(blockedUserId: string, reason?: string)
     throw new Error("You cannot block your own account.");
   }
 
-  const safeReason = sanitizePostgresText(reason || "").trim().slice(0, 500);
+  const result = await apiFetch<{ blocked: boolean }>(`/api/moderation/blocks/${targetId}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      reason: sanitizePostgresText(reason || "").trim().slice(0, 500),
+    }),
+  });
 
-  try {
-    const { data, error } = await neon
-      .from("community_user_blocks")
-      .upsert(
-        {
-          blocker_id: blockerId,
-          blocked_user_id: targetId,
-          reason: safeReason,
-        },
-        {
-          onConflict: "blocker_id,blocked_user_id",
-          ignoreDuplicates: true,
-        },
-      )
-      .select("id")
-      .maybeSingle();
-
-    if (error) throw error;
-    if (data?.id) return true;
-
-    const { data: existing, error: lookupError } = await neon
-      .from("community_user_blocks")
-      .select("id")
-      .eq("blocker_id", blockerId)
-      .eq("blocked_user_id", targetId)
-      .maybeSingle();
-
-    if (lookupError) throw lookupError;
-    return Boolean(existing?.id);
-  } catch (error) {
-    throw toError(error, "Failed to block user.");
-  }
+  return result.blocked;
 }
 
 export async function unblockCommunityUser(blockedUserId: string): Promise<boolean> {
-  const blockerId = await requireUserId("Community moderation");
+  await requireUserId("Community moderation");
   const targetId = blockedUserId.trim();
   if (!targetId) return false;
 
-  try {
-    const { data, error } = await neon
-      .from("community_user_blocks")
-      .delete()
-      .eq("blocker_id", blockerId)
-      .eq("blocked_user_id", targetId)
-      .select("id")
-      .maybeSingle();
+  const result = await apiFetch<{ blocked: boolean }>(`/api/moderation/blocks/${targetId}`, {
+    method: "DELETE",
+  });
 
-    if (error) throw error;
-    return Boolean(data?.id);
-  } catch (error) {
-    throw toError(error, "Failed to unblock user.");
-  }
+  return !result.blocked;
 }
 
 export async function submitCommunityReport(input: CommunityReportInput): Promise<string> {
-  const reporterId = await requireUserId("Community moderation");
-  const reason = normalizeReason(input.reason);
-  const details = normalizeDetails(input.details);
+  await requireUserId("Community moderation");
 
   if (input.targetType === "post" && !input.postId) {
     throw new Error("Post report is missing a post id.");
@@ -138,33 +72,17 @@ export async function submitCommunityReport(input: CommunityReportInput): Promis
     throw new Error("Comment report is missing a comment id.");
   }
 
-  const payload: TablesInsert<"community_reports"> = {
-    reporter_id: reporterId,
-    reported_user_id: input.reportedUserId?.trim() || null,
-    target_type: input.targetType,
-    reason,
-    details,
-    post_id: input.postId?.trim() || null,
-    comment_id: input.commentId?.trim() || null,
-  };
+  const result = await apiFetch<{ id: string }>("/api/moderation/reports", {
+    method: "POST",
+    body: JSON.stringify({
+      targetType: input.targetType,
+      postId: input.postId?.trim() || null,
+      commentId: input.commentId?.trim() || null,
+      reportedUserId: input.reportedUserId?.trim() || null,
+      reason: normalizeReason(input.reason),
+      details: normalizeDetails(input.details),
+    }),
+  });
 
-  if (input.targetType === "post") {
-    payload.comment_id = null;
-  }
-
-  try {
-    const { data, error } = await neon
-      .from("community_reports")
-      .insert(payload)
-      .select("id")
-      .single();
-
-    if (error) throw error;
-    if (!data?.id) {
-      throw new Error("Report submission returned no id.");
-    }
-    return data.id;
-  } catch (error) {
-    throw toError(error, "Failed to submit report.");
-  }
+  return result.id;
 }

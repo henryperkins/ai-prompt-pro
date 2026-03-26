@@ -21,6 +21,7 @@ Use this file as the starting point for repo documentation.
 ## Active planning docs
 
 - `docs/plans/2026-03-13-builder-review-findings-remediation.md` - implementation plan and execution log for the 2026-03-13 builder UX/design-system review covering vocabulary normalization, pre-run hierarchy, draft-state compression, control architecture, reset demotion, mobile glanceability, accessibility hardening, degraded-service handling, and the scripted review-artifact refresh flow.
+- `docs/plans/2026-03-26-cloudflare-regressions-remediation.md` - implementation plan for the Cloudflare migration regressions covering auth truthfulness, session refresh, profile consistency, persistence invariants, share contract fixes, and worker-backed test alignment.
 
 ## Campaign and launch docs
 

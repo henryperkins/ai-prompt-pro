@@ -1,7 +1,6 @@
-import { neon } from "@/integrations/neon/client";
-import type { TablesInsert } from "@/integrations/neon/types";
+import { apiFetch } from "@/lib/api-client";
 import { assertBackendConfigured } from "@/lib/backend-config";
-import { isPostgrestError, sanitizePostgresText } from "@/lib/saved-prompt-shared";
+import { sanitizePostgresText } from "@/lib/saved-prompt-shared";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 const MAX_NAME_LENGTH = 80;
@@ -37,12 +36,18 @@ export interface ContactMessageRecord {
   updatedAt: string;
 }
 
-function toError(error: unknown, fallback: string): Error {
-  if (error instanceof Error) return error;
-  if (isPostgrestError(error)) {
-    return new Error(error.message || fallback);
-  }
-  return new Error(fallback);
+interface ApiContactMessageRecord {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone_country: string;
+  phone_number: string;
+  message: string;
+  status: ContactMessageStatus;
+  requester_user_id: string | null;
+  created_at: number;
+  updated_at: number;
 }
 
 function normalizeRequiredText(value: string, label: string, maxLength: number): string {
@@ -62,51 +67,30 @@ function normalizeStatus(value: string): ContactMessageStatus {
   return "new";
 }
 
-async function requireReviewerUserId(): Promise<string> {
-  const { data: authData, error: authError } = await neon.auth.getUser();
-  if (authError) {
-    throw toError(authError, "Authentication failed.");
-  }
-  const userId = authData.user?.id;
-  if (!userId) {
-    throw new Error("Sign in required.");
-  }
+function toIsoString(value: number): string {
+  return new Date(value * 1000).toISOString();
+}
 
-  const { data: reviewer, error } = await neon
-    .from("support_reviewers")
-    .select("user_id")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (error) {
-    throw toError(error, "Failed to verify reviewer access.");
-  }
-  if (!reviewer?.user_id) {
-    throw new Error("You do not have support inbox access.");
-  }
-
-  return userId;
+function mapContactMessage(row: ApiContactMessageRecord): ContactMessageRecord {
+  return {
+    id: row.id,
+    firstName: row.first_name,
+    lastName: row.last_name,
+    email: row.email,
+    phoneCountry: row.phone_country,
+    phoneNumber: row.phone_number,
+    message: row.message,
+    status: normalizeStatus(row.status),
+    requesterUserId: row.requester_user_id,
+    createdAt: toIsoString(row.created_at),
+    updatedAt: toIsoString(row.updated_at),
+  };
 }
 
 export async function isSupportReviewer(): Promise<boolean> {
   assertBackendConfigured("Contact support");
-  const { data: authData, error: authError } = await neon.auth.getUser();
-  if (authError) throw toError(authError, "Authentication failed.");
-
-  const userId = authData.user?.id;
-  if (!userId) return false;
-
-  const { data, error } = await neon
-    .from("support_reviewers")
-    .select("user_id")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (error) {
-    throw toError(error, "Failed to verify reviewer access.");
-  }
-
-  return Boolean(data?.user_id);
+  const result = await apiFetch<{ allowed: boolean }>("/api/support/reviewer");
+  return result.allowed;
 }
 
 export async function submitContactMessage(input: ContactMessageInput): Promise<string> {
@@ -127,64 +111,28 @@ export async function submitContactMessage(input: ContactMessageInput): Promise<
     throw new Error("Please accept the privacy policy before sending.");
   }
 
-  const payload: TablesInsert<"contact_messages"> = {
-    first_name: firstName,
-    last_name: lastName,
-    email,
-    phone_country: phoneCountry,
-    phone_number: phoneNumber,
-    message,
-    privacy_consent: true,
-  };
+  const result = await apiFetch<{ id: string }>("/api/support/contact", {
+    method: "POST",
+    body: JSON.stringify({
+      firstName,
+      lastName,
+      email,
+      phoneCountry,
+      phoneNumber,
+      message,
+      privacyConsent: true,
+    }),
+  });
 
-  try {
-    const { data, error } = await neon
-      .from("contact_messages")
-      .insert(payload)
-      .select("id")
-      .single();
-
-    if (error) throw error;
-    if (!data?.id) {
-      throw new Error("Contact message was submitted without an id.");
-    }
-
-    return data.id;
-  } catch (error) {
-    throw toError(error, "Failed to send message.");
-  }
+  return result.id;
 }
 
 export async function listContactMessagesForReviewer(limit = SUPPORT_INBOX_PAGE_SIZE): Promise<ContactMessageRecord[]> {
   assertBackendConfigured("Contact support");
-  await requireReviewerUserId();
 
   const pageSize = Math.max(1, Math.min(limit, 500));
-  try {
-    const { data, error } = await neon
-      .from("contact_messages")
-      .select("id, first_name, last_name, email, phone_country, phone_number, message, status, requester_user_id, created_at, updated_at")
-      .order("created_at", { ascending: false })
-      .limit(pageSize);
-
-    if (error) throw error;
-
-    return (data || []).map((row) => ({
-      id: row.id,
-      firstName: row.first_name,
-      lastName: row.last_name,
-      email: row.email,
-      phoneCountry: row.phone_country,
-      phoneNumber: row.phone_number,
-      message: row.message,
-      status: normalizeStatus(row.status),
-      requesterUserId: row.requester_user_id,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    }));
-  } catch (error) {
-    throw toError(error, "Failed to load contact messages.");
-  }
+  const rows = await apiFetch<ApiContactMessageRecord[]>(`/api/support/messages?limit=${pageSize}`);
+  return rows.map(mapContactMessage);
 }
 
 export async function updateContactMessageStatus(
@@ -192,21 +140,14 @@ export async function updateContactMessageStatus(
   status: ContactMessageStatus,
 ): Promise<void> {
   assertBackendConfigured("Contact support");
-  await requireReviewerUserId();
 
   const id = sanitizePostgresText(messageId).trim();
   if (!id) {
     throw new Error("Message id is required.");
   }
 
-  try {
-    const { error } = await neon
-      .from("contact_messages")
-      .update({ status })
-      .eq("id", id);
-
-    if (error) throw error;
-  } catch (error) {
-    throw toError(error, "Failed to update contact message status.");
-  }
+  await apiFetch(`/api/support/messages/${id}/status`, {
+    method: "PUT",
+    body: JSON.stringify({ status }),
+  });
 }
