@@ -2,7 +2,7 @@
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 # More info on Node.js, GitHub Actions, and Azure App Service: https://aka.ms/node-webapps-actions
 
-name: Build and deploy Node app to Azure Web App - ai-prompt-pro-agent
+name: Build and deploy Node app to Azure Web App - promptforge-agent
 
 on:
   push:
@@ -49,9 +49,9 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_D7F1A836321C404BB27EE0628B2A255D }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_6108801119154E0DB94F9CD80314E673 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_A34CBAD9B8184248B9A31387985B7908 }}
+          client-id: ${{ secrets.AZURE_AGENT_WEBAPP_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_AGENT_WEBAPP_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_AGENT_WEBAPP_SUBSCRIPTION_ID }}
 
       - name: Validate Azure OpenAI settings
         run: |
@@ -61,6 +61,10 @@ jobs:
           fi
           if [ -z "${{ secrets.CODEX_CONFIG_JSON }}" ]; then
             echo "Missing required secret: CODEX_CONFIG_JSON"
+            exit 1
+          fi
+          if [ -z "${{ secrets.VITE_AGENT_PUBLIC_API_KEY }}" ] && [ -z "${{ secrets.VITE_NEON_PUBLISHABLE_KEY }}" ] && [ -z "${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}" ]; then
+            echo "Missing required secret: VITE_AGENT_PUBLIC_API_KEY (or legacy VITE_NEON_PUBLISHABLE_KEY / VITE_SUPABASE_PUBLISHABLE_KEY)"
             exit 1
           fi
           if [ "${{ secrets.GH_CONTEXT_ENABLED }}" = "true" ]; then
@@ -95,41 +99,76 @@ jobs:
           fi
 
       - name: Enforce Web App Runtime Configuration
+        env:
+          AGENT_PUBLIC_API_KEY: ${{ secrets.VITE_AGENT_PUBLIC_API_KEY }}
+          LEGACY_NEON_PUBLISHABLE_KEY: ${{ secrets.VITE_NEON_PUBLISHABLE_KEY }}
+          LEGACY_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          OPTIONAL_NEON_AUTH_URL: ${{ secrets.VITE_NEON_AUTH_URL }}
+          AZURE_OPENAI_API_KEY_SECRET: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          CODEX_CONFIG_JSON_SECRET: ${{ secrets.CODEX_CONFIG_JSON }}
+          GH_CONTEXT_ENABLED_SECRET: ${{ secrets.GH_CONTEXT_ENABLED }}
+          GH_APP_ID_SECRET: ${{ secrets.GH_APP_ID }}
+          GH_APP_PRIVATE_KEY_SECRET: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          GH_APP_SLUG_SECRET: ${{ secrets.GH_APP_SLUG }}
+          GH_APP_STATE_SECRET_SECRET: ${{ secrets.GH_APP_STATE_SECRET }}
+          GH_WEBHOOK_SECRET_SECRET: ${{ secrets.GH_WEBHOOK_SECRET }}
+          GH_POST_INSTALL_REDIRECT_URL_SECRET: ${{ secrets.GH_POST_INSTALL_REDIRECT_URL }}
+          NEON_DATABASE_URL_SECRET: ${{ secrets.NEON_DATABASE_URL }}
         run: |
+          agent_public_api_key="${AGENT_PUBLIC_API_KEY:-$LEGACY_NEON_PUBLISHABLE_KEY}"
+          if [ -z "$agent_public_api_key" ]; then
+            agent_public_api_key="$LEGACY_SUPABASE_PUBLISHABLE_KEY"
+          fi
+
           az webapp config set \
-            --resource-group rg-ai-prompt-pro \
-            --name ai-prompt-pro-agent \
+            --resource-group rg-promptforge \
+            --name promptforge-agent \
             --linux-fx-version "NODE|24-lts" \
-            --startup-file "node agent_service/codex_service.mjs"
+            --startup-file "node agent_service/codex_service.mjs" \
+            -o none
+
+          settings=(
+            "CODEX_SKIP_GIT_REPO_CHECK=true"
+            "FUNCTION_PUBLIC_API_KEY=$agent_public_api_key"
+            "GITHUB_CONTEXT_ENABLED=${GH_CONTEXT_ENABLED_SECRET}"
+            "AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY_SECRET}"
+            "CODEX_CONFIG_JSON=${CODEX_CONFIG_JSON_SECRET}"
+            "REQUIRE_PROVIDER_CONFIG=true"
+            "CODEX_MODEL=gpt-5.4-mini"
+            "CODEX_MODEL_REASONING_EFFORT=xhigh"
+            "ALLOWED_ORIGINS=https://promptforge.pages.dev,https://prompt.lakefrontdigital.io,http://localhost:8080,http://localhost:5173"
+          )
+
+          if [ -n "$OPTIONAL_NEON_AUTH_URL" ]; then
+            settings+=(
+              "NEON_AUTH_URL=$OPTIONAL_NEON_AUTH_URL"
+              "NEON_JWKS_URL=$OPTIONAL_NEON_AUTH_URL/.well-known/jwks.json"
+            )
+          fi
+
+          if [ "$GH_CONTEXT_ENABLED_SECRET" = "true" ]; then
+            settings+=(
+              "GITHUB_APP_ID=${GH_APP_ID_SECRET}"
+              "GITHUB_APP_PRIVATE_KEY=${GH_APP_PRIVATE_KEY_SECRET}"
+              "GITHUB_APP_SLUG=${GH_APP_SLUG_SECRET}"
+              "GITHUB_APP_STATE_SECRET=${GH_APP_STATE_SECRET_SECRET}"
+              "GITHUB_WEBHOOK_SECRET=${GH_WEBHOOK_SECRET_SECRET}"
+              "GITHUB_POST_INSTALL_REDIRECT_URL=${GH_POST_INSTALL_REDIRECT_URL_SECRET}"
+              "NEON_DATABASE_URL=${NEON_DATABASE_URL_SECRET}"
+            )
+          fi
+
           az webapp config appsettings set \
-            --resource-group rg-ai-prompt-pro \
-            --name ai-prompt-pro-agent \
-            --settings \
-              CODEX_SKIP_GIT_REPO_CHECK=true \
-              NEON_AUTH_URL="${{ secrets.VITE_NEON_AUTH_URL }}" \
-              NEON_JWKS_URL="${{ secrets.VITE_NEON_AUTH_URL }}/.well-known/jwks.json" \
-              FUNCTION_PUBLIC_API_KEY="${{ secrets.VITE_NEON_PUBLISHABLE_KEY }}" \
-              NEON_PUBLISHABLE_KEY="${{ secrets.VITE_NEON_PUBLISHABLE_KEY }}" \
-              GITHUB_CONTEXT_ENABLED="${{ secrets.GH_CONTEXT_ENABLED }}" \
-              GITHUB_APP_ID="${{ secrets.GH_APP_ID }}" \
-              GITHUB_APP_PRIVATE_KEY="${{ secrets.GH_APP_PRIVATE_KEY }}" \
-              GITHUB_APP_SLUG="${{ secrets.GH_APP_SLUG }}" \
-              GITHUB_APP_STATE_SECRET="${{ secrets.GH_APP_STATE_SECRET }}" \
-              GITHUB_WEBHOOK_SECRET="${{ secrets.GH_WEBHOOK_SECRET }}" \
-              GITHUB_POST_INSTALL_REDIRECT_URL="${{ secrets.GH_POST_INSTALL_REDIRECT_URL }}" \
-              NEON_DATABASE_URL="${{ secrets.NEON_DATABASE_URL }}" \
-              AZURE_OPENAI_API_KEY="${{ secrets.AZURE_OPENAI_API_KEY }}" \
-              CODEX_CONFIG_JSON='${{ secrets.CODEX_CONFIG_JSON }}' \
-              REQUIRE_PROVIDER_CONFIG=true \
-              CODEX_MODEL="gpt-5.4-mini" \
-              CODEX_MODEL_REASONING_EFFORT="xhigh" \
-              ALLOWED_ORIGINS="https://promptforge.pages.dev,https://prompt.lakefrontdigital.io,http://localhost:8080,http://localhost:5173"
+            --resource-group rg-promptforge \
+            --name promptforge-agent \
+            --settings "${settings[@]}" \
+            -o none
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         id: deploy-to-webapp
         with:
-          app-name: "ai-prompt-pro-agent"
+          app-name: "promptforge-agent"
           slot-name: "Production"
           package: .
           startup-command: "node agent_service/codex_service.mjs"

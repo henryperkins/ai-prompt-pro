@@ -40,6 +40,7 @@ describe("ai-client auth recovery", () => {
     vi.resetModules();
     vi.clearAllMocks();
     vi.stubEnv("VITE_AGENT_SERVICE_URL", "https://agent.test");
+    vi.stubEnv("VITE_AGENT_PUBLIC_API_KEY", undefined);
     vi.stubEnv("VITE_NEON_PUBLISHABLE_KEY", "\"sb_publishable_test\"");
     vi.stubEnv("VITE_ENHANCE_TRANSPORT", "sse");
 
@@ -174,6 +175,59 @@ describe("ai-client auth recovery", () => {
     expect(onError).not.toHaveBeenCalled();
     expect(onDelta).toHaveBeenCalledWith("public-key-recovery");
     expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it("prefers VITE_AGENT_PUBLIC_API_KEY for auth fallback when configured", async () => {
+    vi.resetModules();
+    vi.stubEnv("VITE_AGENT_SERVICE_URL", "https://agent.test");
+    vi.stubEnv("VITE_AGENT_PUBLIC_API_KEY", "\"pk_live_agent_public_test\"");
+    vi.stubEnv("VITE_NEON_PUBLISHABLE_KEY", undefined);
+    vi.stubEnv("VITE_SUPABASE_PUBLISHABLE_KEY", undefined);
+    vi.stubEnv("VITE_ENHANCE_TRANSPORT", "sse");
+
+    const nowSeconds = Math.floor(Date.now() / 1000);
+
+    mocks.getSession.mockImplementation(async (options?: { forceFetch?: boolean }) => ({
+      data: {
+        session: options?.forceFetch
+          ? null
+          : {
+            access_token: "session-token",
+            expires_at: nowSeconds + 3600,
+          },
+      },
+      error: null,
+    }));
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            error: "Authentication service is unavailable because Neon auth is not configured.",
+          }),
+          {
+            status: 503,
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
+      )
+      .mockResolvedValueOnce(streamingResponse("agent-public-key-recovery"));
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { streamEnhance } = await import("@/lib/ai-client");
+
+    await streamEnhance({
+      prompt: "Improve this",
+      onDelta: vi.fn(),
+      onDone: vi.fn(),
+      onError: vi.fn(),
+    });
+
+    const secondHeaders = (fetchMock.mock.calls[1]?.[1] as RequestInit).headers as Record<string, string>;
+    expect(secondHeaders.apikey).toBe("pk_live_agent_public_test");
+    expect(secondHeaders.Authorization).toBeUndefined();
   });
 
   it("surfaces payload_too_large when enhance request input exceeds service limits", async () => {

@@ -48,7 +48,10 @@ function parsePositiveInteger(value?: string): number | null {
 
 const AGENT_SERVICE_URL = normalizeEnvValue(import.meta.env.VITE_AGENT_SERVICE_URL);
 const PUBLIC_FUNCTION_API_KEY =
-  normalizeEnvValue(import.meta.env.VITE_NEON_PUBLISHABLE_KEY)
+  normalizeEnvValue(import.meta.env.VITE_AGENT_PUBLIC_API_KEY)
+  // Backward-compatible fallback for deployments that still expose
+  // legacy Neon-publishable env names.
+  || normalizeEnvValue(import.meta.env.VITE_NEON_PUBLISHABLE_KEY)
   // Backward-compatible fallback for deployments that still expose
   // legacy Supabase-prefixed env names.
   || normalizeEnvValue(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);

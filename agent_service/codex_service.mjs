@@ -1384,7 +1384,11 @@ async function streamWithCodex(req, res, body, corsHeaders, requestContext) {
     json(
       res,
       preparedRequest.status,
-      { detail: preparedRequest.detail, code: preparedRequestCode },
+      {
+        error: preparedRequest.detail,
+        detail: preparedRequest.detail,
+        code: preparedRequestCode,
+      },
       corsHeaders,
     );
     return;
@@ -1818,7 +1822,7 @@ function enforceRateLimit(res, corsHeaders, options, failureMessage, requestCont
   json(
     res,
     429,
-    { error: failureMessage },
+    { error: failureMessage, code: "rate_limited" },
     {
       ...corsHeaders,
       "Retry-After": String(result.retryAfterSeconds),
@@ -2572,7 +2576,7 @@ async function requestHandler(req, res) {
 
     if (req.method !== "POST") {
       setRequestError(requestContext, inferErrorCodeFromStatus(405), "Method not allowed.", 405);
-      json(res, 405, { error: "Method not allowed." }, cors.headers);
+      json(res, 405, { error: "Method not allowed.", code: "method_not_allowed" }, cors.headers);
       return;
     }
 
@@ -2584,7 +2588,7 @@ async function requestHandler(req, res) {
       const errorCode = statusCode === 413 ? "payload_too_large" : "bad_request";
       const errorMessage = toErrorMessage(error);
       setRequestError(requestContext, errorCode, errorMessage, statusCode);
-      json(res, statusCode, { error: errorMessage }, cors.headers);
+      json(res, statusCode, { error: errorMessage, code: errorCode }, cors.headers);
       return;
     }
 
@@ -2622,7 +2626,7 @@ async function requestHandler(req, res) {
   }
 
   setRequestError(requestContext, inferErrorCodeFromStatus(404), "Not found.", 404);
-  json(res, 404, { detail: "Not found." });
+  json(res, 404, { error: "Not found.", code: "not_found" });
 }
 
 const enhanceWebSocketServer = new WebSocketServer({

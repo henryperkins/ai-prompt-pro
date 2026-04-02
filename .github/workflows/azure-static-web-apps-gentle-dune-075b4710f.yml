@@ -10,8 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     name: Build and Deploy Job
     permissions:
-       id-token: write
-       contents: read
+      id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v3
         with:
@@ -23,10 +23,10 @@ jobs:
         uses: actions/github-script@v6
         id: idtoken
         with:
-           script: |
-               const coredemo = require('@actions/core')
-               return await coredemo.getIDToken()
-           result-encoding: string
+          script: |
+            const coredemo = require('@actions/core')
+            return await coredemo.getIDToken()
+          result-encoding: string
       - name: Validate frontend build secrets
         run: |
           if [ -z "${{ secrets.VITE_NEON_DATA_API_URL }}" ]; then
@@ -41,8 +41,8 @@ jobs:
             echo "Missing required secret: VITE_AGENT_SERVICE_URL"
             exit 1
           fi
-          if [ -z "${{ secrets.VITE_NEON_PUBLISHABLE_KEY }}" ] && [ -z "${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}" ]; then
-            echo "Missing required secret: VITE_NEON_PUBLISHABLE_KEY (or legacy VITE_SUPABASE_PUBLISHABLE_KEY)"
+          if [ -z "${{ secrets.VITE_AGENT_PUBLIC_API_KEY }}" ] && [ -z "${{ secrets.VITE_NEON_PUBLISHABLE_KEY }}" ] && [ -z "${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}" ]; then
+            echo "Missing required secret: VITE_AGENT_PUBLIC_API_KEY (or legacy VITE_NEON_PUBLISHABLE_KEY / VITE_SUPABASE_PUBLISHABLE_KEY)"
             exit 1
           fi
       - name: Validate documentation references
@@ -54,6 +54,7 @@ jobs:
           VITE_NEON_PROJECT_ID: ${{ secrets.VITE_NEON_PROJECT_ID }}
           VITE_NEON_DATA_API_URL: ${{ secrets.VITE_NEON_DATA_API_URL }}
           VITE_NEON_AUTH_URL: ${{ secrets.VITE_NEON_AUTH_URL }}
+          VITE_AGENT_PUBLIC_API_KEY: ${{ secrets.VITE_AGENT_PUBLIC_API_KEY }}
           VITE_NEON_PUBLISHABLE_KEY: ${{ secrets.VITE_NEON_PUBLISHABLE_KEY }}
           # Backward-compatible env for older clients/builds.
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
