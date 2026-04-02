@@ -1,20 +1,10 @@
-const CF_API_BASE_URL = import.meta.env.VITE_API_WORKER_URL || "http://localhost:8000";
-const CF_TOKEN_KEY = "pf_tokens";
-
-function getCfAccessToken(): string | null {
-  try {
-    const stored = localStorage.getItem(CF_TOKEN_KEY);
-    if (!stored) return null;
-    const parsed = JSON.parse(stored) as { accessToken?: string };
-    return parsed.accessToken ?? null;
-  } catch {
-    return null;
-  }
-}
+import { getStoredAccessToken } from "@/lib/browser-auth";
+import { requireUserId } from "@/lib/require-user-id";
+import { resolveApiUrl } from "@/lib/worker-endpoints";
 
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const url = `${CF_API_BASE_URL}${path}`;
-  const token = getCfAccessToken();
+  const url = resolveApiUrl(path);
+  const token = getStoredAccessToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -30,7 +20,6 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
   }
   return response.json() as Promise<T>;
 }
-import { requireUserId } from "@/lib/require-user-id";
 
 export type NotificationType = "upvote" | "verified" | "comment" | "remix";
 

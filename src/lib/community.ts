@@ -1,18 +1,8 @@
 type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
 
-const CF_API_BASE_URL = import.meta.env.VITE_API_WORKER_URL || "http://localhost:8000";
-const CF_TOKEN_KEY = "pf_tokens";
-
-function getAccessToken(): string | null {
-  try {
-    const stored = localStorage.getItem(CF_TOKEN_KEY);
-    if (!stored) return null;
-    const parsed = JSON.parse(stored) as { accessToken?: string };
-    return parsed.accessToken ?? null;
-  } catch {
-    return null;
-  }
-}
+import { assertBackendConfigured } from "@/lib/backend-config";
+import { getStoredAccessToken } from "@/lib/browser-auth";
+import { resolveApiUrl } from "@/lib/worker-endpoints";
 
 class ApiClientError extends Error {
   readonly status: number;
@@ -24,8 +14,8 @@ class ApiClientError extends Error {
 }
 
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const url = `${CF_API_BASE_URL}${path}`;
-  const token = getAccessToken();
+  const url = resolveApiUrl(path);
+  const token = getStoredAccessToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -43,8 +33,8 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
 }
 
 async function apiFetchOptional<T>(path: string, options: RequestInit = {}): Promise<T | null> {
-  const url = `${CF_API_BASE_URL}${path}`;
-  const token = getAccessToken();
+  const url = resolveApiUrl(path);
+  const token = getStoredAccessToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -61,7 +51,6 @@ async function apiFetchOptional<T>(path: string, options: RequestInit = {}): Pro
   }
   return response.json() as Promise<T>;
 }
-import { assertBackendConfigured } from "@/lib/backend-config";
 import type { PromptSummary as PersistencePromptSummary } from "@/lib/persistence";
 import {
   deletePrompt as deleteSavedPromptForUser,
@@ -73,7 +62,7 @@ import {
 } from "@/lib/persistence";
 import type { PromptConfig } from "@/lib/prompt-builder";
 import { defaultConfig } from "@/lib/prompt-builder";
-import { requireUserId } from "@/lib/require-user-id";
+import { requireAuthContext, requireUserId } from "@/lib/require-user-id";
 import { normalizePromptTags, sanitizePostgresText } from "@/lib/saved-prompt-shared";
 import { assertCommunityTextAllowed } from "@/lib/content-moderation";
 import {
@@ -410,10 +399,10 @@ function mapCommunityProfile(row: ApiCommunityProfile): CommunityProfile {
 
 export async function listMyPrompts(input: ListMyPromptsInput = {}): Promise<SavedPromptSummary[]> {
   const { query, category, tag, sort = "recent", limit = 100 } = input;
-  const userId = await requireUserId("Community prompts");
+  const { accessToken } = await requireAuthContext("Community prompts");
 
   try {
-    const prompts = await loadPersistedPrompts(userId);
+    const prompts = await loadPersistedPrompts(accessToken);
     const normalizedQuery = query?.trim().toLowerCase() || "";
     const normalizedTag = tag?.trim().toLowerCase();
     let filtered = prompts.map(mapPersistedPromptSummary);
@@ -447,10 +436,10 @@ export async function listMyPrompts(input: ListMyPromptsInput = {}): Promise<Sav
 }
 
 export async function loadMyPromptById(id: string): Promise<SavedPromptRecord | null> {
-  const userId = await requireUserId("Community prompts");
+  const { userId, accessToken } = await requireAuthContext("Community prompts");
 
   try {
-    const loaded = await loadPromptTemplateById(userId, id);
+    const loaded = await loadPromptTemplateById(accessToken, id);
     if (!loaded) return null;
     const record = mapTemplateRecordToSavedPrompt(loaded);
     return { ...record, userId };
@@ -460,10 +449,10 @@ export async function loadMyPromptById(id: string): Promise<SavedPromptRecord | 
 }
 
 export async function savePrompt(input: SavePromptInput): Promise<SavePromptResult> {
-  const userId = await requireUserId("Community prompts");
+  const { accessToken } = await requireAuthContext("Community prompts");
 
   try {
-    const result = await savePersistedPrompt(userId, {
+    const result = await savePersistedPrompt(accessToken, {
       id: input.id,
       name: input.title,
       description: input.description,
@@ -496,10 +485,10 @@ export async function savePrompt(input: SavePromptInput): Promise<SavePromptResu
 }
 
 export async function deletePrompt(id: string): Promise<boolean> {
-  const userId = await requireUserId("Community prompts");
+  const { accessToken } = await requireAuthContext("Community prompts");
 
   try {
-    return await deleteSavedPromptForUser(userId, id);
+    return await deleteSavedPromptForUser(accessToken, id);
   } catch (error) {
     throw toError(error, "Failed to delete prompt.");
   }
@@ -516,10 +505,10 @@ export async function sharePrompt(
     description?: string;
   },
 ): Promise<boolean> {
-  const userId = await requireUserId("Community sharing");
+  const { accessToken } = await requireAuthContext("Community sharing");
 
   try {
-    const result = await shareSavedPromptForUser(userId, savedPromptId, {
+    const result = await shareSavedPromptForUser(accessToken, savedPromptId, {
       useCase: shareMeta?.useCase,
       targetModel: shareMeta?.targetModel,
       category: shareMeta?.category,
@@ -534,10 +523,10 @@ export async function sharePrompt(
 }
 
 export async function unsharePrompt(savedPromptId: string): Promise<boolean> {
-  const userId = await requireUserId("Community sharing");
+  const { accessToken } = await requireAuthContext("Community sharing");
 
   try {
-    return await unshareSavedPromptForUser(userId, savedPromptId);
+    return await unshareSavedPromptForUser(accessToken, savedPromptId);
   } catch (error) {
     throw toError(error, "Failed to unshare prompt.");
   }
@@ -711,7 +700,7 @@ export async function loadProfileActivityStats(userId: string): Promise<ProfileA
 
 export async function isFollowingCommunityUser(targetUserId: string): Promise<boolean> {
   ensureCommunityBackend("Community follows");
-  if (!targetUserId || !getAccessToken()) return false;
+  if (!targetUserId || !getStoredAccessToken()) return false;
 
   try {
     const result = await apiFetch<{ following: boolean }>(`/api/follows/${targetUserId}`);
@@ -764,7 +753,7 @@ export async function loadRemixes(postId: string): Promise<CommunityPost[]> {
 export async function loadMyVotes(postIds: string[]): Promise<Record<string, VoteState>> {
   ensureCommunityBackend("Community reactions");
   const uniqueIds = Array.from(new Set(postIds.filter(Boolean)));
-  if (uniqueIds.length === 0 || !getAccessToken()) return {};
+  if (uniqueIds.length === 0 || !getStoredAccessToken()) return {};
 
   try {
     const rows = await apiFetch<Array<{ post_id: string; vote_type: VoteType }>>("/api/community/votes/state", {
@@ -790,7 +779,7 @@ export async function loadMyVotes(postIds: string[]): Promise<Record<string, Vot
 export async function loadMyRatings(postIds: string[]): Promise<Record<string, number>> {
   ensureCommunityBackend("Community ratings");
   const uniqueIds = Array.from(new Set(postIds.filter(Boolean)));
-  if (uniqueIds.length === 0 || !getAccessToken()) return {};
+  if (uniqueIds.length === 0 || !getStoredAccessToken()) return {};
 
   try {
     const rows = await apiFetch<Array<{ post_id: string; rating: number }>>("/api/community/ratings/state", {
@@ -937,13 +926,13 @@ export async function remixToLibrary(
   postId: string,
   options?: { title?: string; remixNote?: string },
 ): Promise<SavedPromptRecord> {
-  const userId = await requireUserId("Community remixes");
+  const { userId, accessToken } = await requireAuthContext("Community remixes");
   const post = await loadPost(postId);
   if (!post) {
     throw new Error("Failed to remix prompt to your library.");
   }
 
-  const result = await savePersistedPrompt(userId, {
+  const result = await savePersistedPrompt(accessToken, {
     name: sanitizePostgresText(options?.title || `Remix of ${post.title}`).trim().slice(0, 200) || `Remix of ${post.title}`,
     description: sanitizePostgresText(post.description || "").trim().slice(0, 500),
     tags: normalizePromptTags(post.tags),
