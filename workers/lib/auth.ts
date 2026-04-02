@@ -97,6 +97,7 @@ export async function verifyPassword(
 interface JwtPayload extends JWTPayload {
   sub: string;
   email?: string;
+  sid?: string;
 }
 
 export async function generateJwt(

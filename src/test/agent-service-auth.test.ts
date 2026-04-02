@@ -27,6 +27,76 @@ function createJwt(claims: Record<string, unknown>) {
 }
 
 describe("agent service auth hardening", () => {
+  it("derives worker session validation from AUTH_WORKER_URL", () => {
+    const authConfig = resolveAuthConfig({
+      AUTH_WORKER_URL: "https://promptforge-auth.example.workers.dev/",
+    });
+
+    expect(authConfig.sessionValidationUrl).toBe(
+      "https://promptforge-auth.example.workers.dev/auth/session",
+    );
+  });
+
+  it("uses the configured worker session validation endpoint for bearer auth", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        authenticated: true,
+        user: { id: "worker-user-1", email: "worker@example.com" },
+      }),
+    });
+    const authService = createAuthService(createAuthServiceOptions({
+      env: {
+        AUTH_SESSION_VALIDATION_URL: "https://auth.promptforge.test/auth/session",
+      },
+      authConfig: resolveAuthConfig({
+        AUTH_SESSION_VALIDATION_URL: "https://auth.promptforge.test/auth/session",
+      }),
+      fetchImpl,
+    }));
+
+    const result = await authService.authenticateRequestContext(
+      createRequest({
+        authorization: "Bearer header.payload.signature",
+      }),
+      {},
+      { allowPublicKey: false, allowServiceToken: false, allowUserJwt: true, requireActiveSession: true },
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      userId: "worker-user-1",
+      authMode: "user_session",
+    });
+    expect(fetchImpl).toHaveBeenCalledWith(
+      new URL("https://auth.promptforge.test/auth/session"),
+      expect.objectContaining({
+        headers: {
+          Authorization: "Bearer header.payload.signature",
+        },
+      }),
+    );
+  });
+
+  it("reports worker-backed active session validation in readiness", () => {
+    const authService = createAuthService(createAuthServiceOptions({
+      env: {
+        AUTH_SESSION_VALIDATION_URL: "https://auth.promptforge.test/auth/session",
+      },
+      authConfig: resolveAuthConfig({
+        AUTH_SESSION_VALIDATION_URL: "https://auth.promptforge.test/auth/session",
+      }),
+    }));
+
+    expect(authService.getReadiness()).toMatchObject({
+      sessionValidationConfigured: true,
+      activeSessionValidationConfigured: true,
+      sessionValidationMode: "worker",
+    });
+    expect(authService.getReadiness().authModes).toContain("user_session");
+  });
+
   it("prefers Neon auth validation keys over FUNCTION_PUBLIC_API_KEY", () => {
     const authConfig = resolveAuthConfig({
       FUNCTION_PUBLIC_API_KEY: "public-key",

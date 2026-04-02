@@ -7,7 +7,13 @@ import {
 function createStubDeps(overrides: Record<string, unknown> = {}) {
   const authService = {
     authenticateRequestContext: vi.fn(),
-    getReadiness: vi.fn(() => ({ issues: [], warnings: [] })),
+    getReadiness: vi.fn(() => ({
+      issues: [],
+      warnings: [],
+      activeSessionValidationConfigured: true,
+      sessionValidationConfigured: true,
+      sessionValidationMode: "worker",
+    })),
     getStartupSummary: vi.fn(() => ({ auth_summary: "configured" })),
   };
 
@@ -271,6 +277,38 @@ describe("agent service runtime extraction", () => {
       requireActiveSession: true,
     });
     expect(runtime.buildReadinessReport().warnings).not.toContain("github_config_incomplete");
+  });
+
+  it("fails readiness when GitHub context is enabled without active session validation", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const { deps, authService } = createStubDeps();
+    authService.getReadiness.mockReturnValue({
+      issues: [],
+      warnings: [],
+      activeSessionValidationConfigured: false,
+      sessionValidationConfigured: false,
+      sessionValidationMode: undefined,
+    });
+
+    const runtime = await createServiceRuntime({
+      env: {
+        OPENAI_API_KEY: "sk-test",
+        GITHUB_CONTEXT_ENABLED: "true",
+        GITHUB_APP_ID: "12345",
+        GITHUB_APP_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----",
+        GITHUB_APP_SLUG: "promptforge-app",
+        GITHUB_APP_STATE_SECRET: "state-secret",
+        GITHUB_WEBHOOK_SECRET: "webhook-secret",
+        GITHUB_POST_INSTALL_REDIRECT_URL: "https://promptforge.test/builder",
+        NEON_DATABASE_URL: "postgres://promptforge:test@db.example.neon.tech/neondb",
+      },
+      deps,
+    });
+
+    expect(runtime.buildReadinessReport()).toMatchObject({
+      ok: false,
+    });
+    expect(runtime.buildReadinessReport().issues).toContain("github_user_session_validation_missing");
   });
 
   it("defaults GitHub debug logging to false", async () => {

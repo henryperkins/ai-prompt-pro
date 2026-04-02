@@ -20,16 +20,19 @@ Build, enhance, and share AI prompts with a structured prompt builder, a private
 ## Local development
 
 1. Install dependencies:
+
 ```sh
 npm install
 ```
 
 2. Configure environment:
+
 ```sh
 cp .env.example .env
 ```
 
 3. Start the dev server:
+
 ```sh
 npm run dev
 ```
@@ -73,11 +76,10 @@ See `.env.example` for the full list.
 
 Key frontend vars:
 
-- `VITE_NEON_PROJECT_ID`
-- `VITE_NEON_DATA_API_URL`
-- `VITE_NEON_AUTH_URL`
-- `VITE_NEON_PUBLISHABLE_KEY` (optional fallback key for signed-out calls)
+- `VITE_AUTH_WORKER_URL`
+- `VITE_API_WORKER_URL`
 - `VITE_AGENT_SERVICE_URL` (required for Enhance/Extract/Infer features)
+- `VITE_AGENT_PUBLIC_API_KEY` (optional fallback key for signed-out agent calls)
 - `VITE_GITHUB_CONTEXT_ENABLED` (optional; enables the Builder GitHub picker UI)
 - `VITE_ENHANCE_REQUEST_TIMEOUT_MS` (optional; unset by default, set a positive ms value to enable a client-side enhance timeout)
 - `VITE_ENHANCE_TRANSPORT` (`auto` | `sse` | `ws`)
@@ -90,10 +92,11 @@ backed flow.
 
 - Enable the UI with `VITE_GITHUB_CONTEXT_ENABLED=true`.
 - Enable the service routes with `GITHUB_CONTEXT_ENABLED=true`.
+- Keep browser auth pointed at the worker via `VITE_AUTH_WORKER_URL`.
 - Configure the service with `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`,
   `GITHUB_APP_SLUG`, `GITHUB_APP_STATE_SECRET`, `GITHUB_WEBHOOK_SECRET`,
-  `GITHUB_POST_INSTALL_REDIRECT_URL`, and `NEON_DATABASE_URL`
-  (or `DATABASE_URL`).
+  `GITHUB_POST_INSTALL_REDIRECT_URL`, `NEON_DATABASE_URL`
+  (or `DATABASE_URL`), and `AUTH_SESSION_VALIDATION_URL`.
 - For local PromptForge development, use `http://localhost:8080` for both
   `ALLOWED_ORIGINS` and `GITHUB_POST_INSTALL_REDIRECT_URL`.
 - Apply `supabase/migrations/20260316010000_github_context_schema.sql` before
@@ -104,7 +107,22 @@ backed flow.
 See `docs/github-context-reference.md` for the active rollout guide and
 `agent_service/README.md` for the backend routes/configuration.
 
-## Deploy to Azure Static Web Apps (production)
+## Deploy to Cloudflare Pages (production frontend)
+
+This repo now ships the public frontend via Cloudflare Pages using:
+
+- Workflow: `.github/workflows/cloudflare-pages.yml`
+
+Required GitHub repository secrets include:
+
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+- `VITE_AUTH_WORKER_URL`
+- `VITE_API_WORKER_URL`
+- `VITE_AGENT_SERVICE_URL`
+- `VITE_AGENT_PUBLIC_API_KEY` (or legacy `VITE_NEON_PUBLISHABLE_KEY` / `VITE_SUPABASE_PUBLISHABLE_KEY`)
+
+## Deploy to Azure Static Web Apps (legacy/manual path)
 
 This repo is configured for Azure Static Web Apps using:
 
@@ -146,6 +164,7 @@ CI/CD flow:
 This project can route prompt enhancement through a Node service that uses `@openai/codex-sdk`.
 
 1. Start the Codex service:
+
 ```sh
 npm install
 # Prefer `.env` for local dev, but exporting also works.
@@ -155,6 +174,7 @@ npm run agent:codex
 ```
 
 2. Configure frontend + runtime env:
+
 ```sh
 export VITE_AGENT_SERVICE_URL="http://localhost:8001"
 export VITE_NEON_DATA_API_URL="https://<your-endpoint>.apirest.c-<region>.aws.neon.tech/neondb/rest/v1"
@@ -164,16 +184,19 @@ export VITE_NEON_PUBLISHABLE_KEY="<neon-publishable-key>"
 ```
 
 Optional hardening:
+
 ```sh
 export AGENT_SERVICE_TOKEN="<shared-secret>"
 ```
 
 Local dev note:
+
 - If `VITE_NEON_PUBLISHABLE_KEY` (frontend) and `FUNCTION_PUBLIC_API_KEY` (service) are set, enhancement can fall back to anonymous key auth when Neon Auth is not configured.
 - `ALLOW_UNVERIFIED_JWT_FALLBACK=true` enables decoded-JWT fallback only when Neon Auth config/service is unavailable.
 - Use this for local development only and keep it disabled in production.
 
 3. Run the frontend as usual:
+
 ```sh
 npm run dev
 ```

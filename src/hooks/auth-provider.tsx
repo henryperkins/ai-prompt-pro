@@ -6,6 +6,7 @@ import {
 } from "react";
 import { AuthContext } from "@/hooks/auth-context";
 import {
+  AUTH_TOKENS_CLEARED_EVENT,
   clearStoredTokens,
   getValidAccessToken,
   logoutStoredSession,
@@ -83,6 +84,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let isMounted = true;
 
+    const handleStoredTokenClear = () => {
+      if (!isMounted) return;
+      setUser(null);
+      setSession(null);
+      setLoading(false);
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener(AUTH_TOKENS_CLEARED_EVENT, handleStoredTokenClear);
+    }
+
     void restoreStoredAuthSession()
       .then((restoredSession) => {
         if (!isMounted) return;
@@ -110,6 +122,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       isMounted = false;
+      if (typeof window !== "undefined") {
+        window.removeEventListener(AUTH_TOKENS_CLEARED_EVENT, handleStoredTokenClear);
+      }
     };
   }, []);
 

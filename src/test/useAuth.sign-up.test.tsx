@@ -3,6 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "@/hooks/auth-provider-cf";
 import { useAuth } from "@/hooks/useAuth";
+import { clearStoredTokens } from "@/lib/browser-auth";
 
 function wrapper({ children }: { children: ReactNode }) {
   return <AuthProvider>{children}</AuthProvider>;
@@ -150,6 +151,35 @@ describe("useAuth", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(window.localStorage.getItem("pf_tokens")).toBeNull();
+    await waitFor(() => {
+      expect(result.current.user).toBeNull();
+      expect(result.current.session).toBeNull();
+    });
+  });
+
+  it("clears AuthProvider state when stored worker tokens are cleared externally", async () => {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    seedTokens({
+      sub: "user-1",
+      sid: "session-1",
+      email: "user-1@example.com",
+      exp: nowSeconds + 3600,
+    });
+
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({
+      authenticated: true,
+      sessionId: "session-1",
+      user: { id: "user-1", email: "user-1@example.com" },
+    }));
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.user?.id).toBe("user-1");
+
+    await act(async () => {
+      clearStoredTokens();
+    });
+
     await waitFor(() => {
       expect(result.current.user).toBeNull();
       expect(result.current.session).toBeNull();

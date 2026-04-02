@@ -307,9 +307,10 @@ async function getRequestHeaders(
   try {
     return await serviceAuth.getHeaders({
       ...options,
-      // The backend still enforces the JWT. This only smooths over the short
-      // post-redirect window where Neon's forced revalidation can momentarily
-      // return null while a valid cached session is already present.
+      // The backend still enforces an authenticated PromptForge user session.
+      // This only smooths over the short post-redirect window where a forced
+      // revalidation can momentarily return null while a valid cached session
+      // is already present.
       allowCachedSessionFallbackOnForceRefresh: true,
       allowPublicKeyFallback: false,
     });

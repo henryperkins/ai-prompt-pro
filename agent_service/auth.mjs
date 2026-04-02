@@ -42,6 +42,12 @@ export function normalizeNeonAuthUrl(rawValue) {
   return trimmed;
 }
 
+function normalizeAuthWorkerUrl(rawValue) {
+  const raw = typeof rawValue === "string" ? rawValue.trim() : "";
+  if (!raw) return undefined;
+  return raw.replace(/\/+$/, "");
+}
+
 function isProductionEnvironment(env) {
   if (normalizeEnvValue(env, "DENO_DEPLOYMENT_ID")) return true;
 
@@ -130,6 +136,12 @@ export function resolveAuthConfig(env = process.env) {
   const neonAuthUrl = normalizeNeonAuthUrl(normalizeEnvValue(env, "NEON_AUTH_URL"));
   const neonJwksUrl = normalizeEnvValue(env, "NEON_JWKS_URL")
     || (neonAuthUrl ? `${neonAuthUrl}/.well-known/jwks.json` : undefined);
+  const authWorkerUrl = normalizeAuthWorkerUrl(
+    normalizeEnvValue(env, "AUTH_WORKER_URL")
+    || normalizeEnvValue(env, "VITE_AUTH_WORKER_URL"),
+  );
+  const sessionValidationUrl = normalizeEnvValue(env, "AUTH_SESSION_VALIDATION_URL")
+    || (authWorkerUrl ? `${authWorkerUrl}/auth/session` : undefined);
 
   const configuredPublicApiKeyValues = [
     normalizeEnvValue(env, "FUNCTION_PUBLIC_API_KEY"),
@@ -155,6 +167,7 @@ export function resolveAuthConfig(env = process.env) {
     neonAuthUrl,
     neonJwksUrl,
     neonAuthUserUrl: neonAuthUrl ? `${neonAuthUrl}/v1/user` : undefined,
+    sessionValidationUrl,
     authValidationApiKey,
     authValidationApiKeySource,
     configuredPublicApiKeys: new Set(configuredPublicApiKeyValues),
@@ -185,6 +198,9 @@ export function createAuthService({
   let parsedNeonJwksUrl = undefined;
   let hasResolvedNeonJwksUrl = false;
   let hasLoggedJwksConfigWarning = false;
+  let parsedSessionValidationUrl = undefined;
+  let hasResolvedSessionValidationUrl = false;
+  let hasLoggedSessionValidationConfigWarning = false;
   let hasLoggedAuthConfigWarning = false;
   let hasLoggedJwtFallbackWarning = false;
   let hasLoggedJwtFallbackProductionWarning = false;
@@ -250,6 +266,16 @@ export function createAuthService({
     });
   }
 
+  function logInvalidSessionValidationConfig(error) {
+    if (hasLoggedSessionValidationConfigWarning) return;
+    hasLoggedSessionValidationConfigWarning = true;
+    logEvent("error", "auth_config_warning", {
+      error_code: "auth_config_invalid",
+      message:
+        `AUTH_SESSION_VALIDATION_URL is invalid and worker session validation is disabled until it is fixed (${toErrorMessage(error)}).`,
+    });
+  }
+
   function getParsedNeonJwksUrl() {
     if (!authConfig.neonJwksUrl) return null;
     if (hasResolvedNeonJwksUrl) return parsedNeonJwksUrl;
@@ -276,6 +302,21 @@ export function createAuthService({
       }
     }
     return neonJwksResolver;
+  }
+
+  function getParsedSessionValidationUrl() {
+    if (!authConfig.sessionValidationUrl) return null;
+    if (hasResolvedSessionValidationUrl) return parsedSessionValidationUrl;
+
+    hasResolvedSessionValidationUrl = true;
+    try {
+      parsedSessionValidationUrl = new URL(authConfig.sessionValidationUrl);
+    } catch (error) {
+      parsedSessionValidationUrl = null;
+      logInvalidSessionValidationConfig(error);
+    }
+
+    return parsedSessionValidationUrl;
   }
 
   async function verifyNeonJwt(token) {
@@ -342,6 +383,59 @@ export function createAuthService({
     }
   }
 
+  async function verifyWorkerSession(token) {
+    const sessionValidationUrl = getParsedSessionValidationUrl();
+    if (!sessionValidationUrl) {
+      return { ok: false, reason: "config" };
+    }
+
+    try {
+      const response = await fetchImpl(sessionValidationUrl, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.status === 401 || response.status === 403 || response.status === 404) {
+        return { ok: false, reason: "invalid" };
+      }
+      if (!response.ok) {
+        return { ok: false, reason: "unavailable" };
+      }
+
+      const data = await response.json().catch(() => null);
+      if (data?.authenticated !== true) {
+        return { ok: false, reason: "invalid" };
+      }
+
+      const authUser = extractUserIdentity(data?.user, "id");
+      if (!authUser) {
+        return { ok: false, reason: "invalid" };
+      }
+
+      return { ok: true, userId: authUser.userId, isAnonymous: authUser.isAnonymous, authMode: "user_session" };
+    } catch {
+      return { ok: false, reason: "unavailable" };
+    }
+  }
+
+  async function verifyConfiguredSession(token) {
+    if (authConfig.sessionValidationUrl) {
+      const workerValidation = await verifyWorkerSession(token);
+      if (workerValidation.ok || workerValidation.reason === "invalid") {
+        return workerValidation;
+      }
+
+      const neonValidation = await verifyNeonSessionWithAuthApi(token);
+      if (neonValidation.reason === "config") {
+        return workerValidation;
+      }
+      return neonValidation;
+    }
+
+    return verifyNeonSessionWithAuthApi(token);
+  }
+
   function buildAuthenticatedUserResult(userId, authMode, clientIp, { isAnonymous = false } = {}) {
     const minuteRateKey = `${userId}:${clientIp}`;
     const dayRateKey = isAnonymous ? minuteRateKey : userId;
@@ -395,8 +489,8 @@ export function createAuthService({
       logEvent("error", "auth_config_warning", {
         error_code: "auth_config_missing",
         message:
-          "NEON_AUTH_URL or NEON_JWKS_URL is required to validate bearer tokens. "
-          + "Set one of those env vars, configure NEON_AUTH_API_KEY (or NEON_PUBLISHABLE_KEY) "
+          "AUTH_SESSION_VALIDATION_URL, NEON_AUTH_URL, or NEON_JWKS_URL is required to validate bearer tokens. "
+          + "Set AUTH_SESSION_VALIDATION_URL for worker-backed session validation, configure NEON_AUTH_API_KEY (or NEON_PUBLISHABLE_KEY) "
           + "for Neon session validation, provide FUNCTION_PUBLIC_API_KEY for explicit anonymous access, "
           + "or enable ALLOW_UNVERIFIED_JWT_FALLBACK for local development only.",
       });
@@ -441,7 +535,7 @@ export function createAuthService({
     }
 
     if (!looksLikeJwt(bearerToken)) {
-      const authApiVerification = await verifyNeonSessionWithAuthApi(bearerToken);
+      const authApiVerification = await verifyConfiguredSession(bearerToken);
       if (authApiVerification.ok) {
         return buildAuthenticatedUserResult(
           authApiVerification.userId,
@@ -481,7 +575,7 @@ export function createAuthService({
     const verified = await verifyNeonJwt(bearerToken);
     const requireActiveSession = policy?.requireActiveSession === true;
     const authApiVerification = (!verified.ok || requireActiveSession)
-      ? await verifyNeonSessionWithAuthApi(bearerToken)
+      ? await verifyConfiguredSession(bearerToken)
       : { ok: false, reason: "skipped" };
 
     if (requireActiveSession) {
@@ -630,11 +724,17 @@ export function createAuthService({
     const publicKeyEnabled = authConfig.configuredPublicApiKeys.size > 0 || strictPublicApiKey === false;
     const serviceTokenEnabled = typeof serviceToken === "string" && serviceToken.trim().length > 0;
     const jwtValidationConfigured = Boolean(getParsedNeonJwksUrl());
-    const sessionValidationConfigured = Boolean(authConfig.neonAuthUserUrl && authConfig.authValidationApiKey);
+    const sessionValidationConfigured = Boolean(
+      getParsedSessionValidationUrl()
+      || (authConfig.neonAuthUserUrl && authConfig.authValidationApiKey),
+    );
     const jwtFallbackEnabled = allowUnverifiedJwtFallback();
 
-    if (jwtValidationConfigured || sessionValidationConfigured || jwtFallbackEnabled) {
+    if (jwtValidationConfigured || jwtFallbackEnabled) {
       authModes.push("user_jwt");
+    }
+    if (sessionValidationConfigured) {
+      authModes.push("user_session");
     }
     if (publicKeyEnabled) {
       authModes.push("public_key");
@@ -648,6 +748,9 @@ export function createAuthService({
     }
     if (authConfig.neonJwksUrl && !jwtValidationConfigured) {
       warnings.push("neon_jwks_url_invalid");
+    }
+    if (authConfig.sessionValidationUrl && !getParsedSessionValidationUrl()) {
+      warnings.push("session_validation_url_invalid");
     }
     if (authConfig.neonAuthUserUrl && !authConfig.authValidationApiKey) {
       warnings.push("neon_auth_api_key_missing");
@@ -665,7 +768,11 @@ export function createAuthService({
       serviceTokenEnabled,
       jwtValidationConfigured,
       sessionValidationConfigured,
+      activeSessionValidationConfigured: sessionValidationConfigured,
       jwtFallbackEnabled,
+      sessionValidationMode: getParsedSessionValidationUrl()
+        ? "worker"
+        : (authConfig.neonAuthUserUrl && authConfig.authValidationApiKey ? "neon" : undefined),
       authValidationApiKeySource: authConfig.authValidationApiKeySource,
       audienceCount: authConfig.audiences?.length ?? 0,
     };
@@ -679,6 +786,7 @@ export function createAuthService({
       auth_service_token_enabled: readiness.serviceTokenEnabled,
       auth_jwt_validation_configured: readiness.jwtValidationConfigured,
       auth_session_validation_configured: readiness.sessionValidationConfigured,
+      auth_session_validation_mode: readiness.sessionValidationMode,
       auth_jwt_fallback_enabled: readiness.jwtFallbackEnabled,
       auth_validation_api_key_source: readiness.authValidationApiKeySource,
       auth_audience_count: readiness.audienceCount,

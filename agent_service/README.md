@@ -15,36 +15,36 @@ npm run agent:codex
 
 ## Endpoints
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/` | Service info |
-| `GET` | `/health` | Health check (returns model and sandbox mode) |
-| `POST` | `/enhance` | Stream-enhanced prompt via SSE |
-| `WS` | `/enhance/ws` | Stream-enhanced prompt via WebSocket |
-| `POST` | `/extract-url` | Fetch URL content and return extracted bullet points |
-| `POST` | `/infer-builder-fields` | Heuristic builder-field suggestions |
+| Method | Path                    | Description                                          |
+| ------ | ----------------------- | ---------------------------------------------------- |
+| `GET`  | `/`                     | Service info                                         |
+| `GET`  | `/health`               | Health check (returns model and sandbox mode)        |
+| `POST` | `/enhance`              | Stream-enhanced prompt via SSE                       |
+| `WS`   | `/enhance/ws`           | Stream-enhanced prompt via WebSocket                 |
+| `POST` | `/extract-url`          | Fetch URL content and return extracted bullet points |
+| `POST` | `/infer-builder-fields` | Heuristic builder-field suggestions                  |
 
 ### Optional GitHub repository context routes
 
 When `GITHUB_CONTEXT_ENABLED=true`, the service also exposes:
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/github/install-url` | Return the GitHub App installation URL for the signed-in PromptForge user |
-| `GET` | `/github/app/setup` | GitHub post-install callback; validates signed setup state and redirects back to Builder |
-| `GET` | `/github/installations` | List the current user's active GitHub installations |
-| `GET` | `/github/installations/:installationId/repositories` | List repositories for one installation |
-| `GET` | `/github/connections` | List connected repositories for the current user |
-| `POST` | `/github/connections` | Connect a repository and persist the repo connection |
-| `DELETE` | `/github/connections/:connectionId` | Remove a stored repo connection |
-| `POST` | `/github/connections/:connectionId/manifest/refresh` | Force-refresh a cached repository manifest |
-| `GET` | `/github/connections/:connectionId/search` | Search cached manifest entries for one connected repo |
-| `GET` | `/github/connections/:connectionId/file` | Preview one file from a connected repo |
-| `POST` | `/github/connections/:connectionId/context-sources` | Build Builder-ready context source payloads from selected files |
-| `POST` | `/github/webhooks` | GitHub webhook receiver for manifest invalidation and installation lifecycle changes |
+| Method   | Path                                                 | Description                                                                              |
+| -------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `GET`    | `/github/install-url`                                | Return the GitHub App installation URL for the signed-in PromptForge user                |
+| `GET`    | `/github/app/setup`                                  | GitHub post-install callback; validates signed setup state and redirects back to Builder |
+| `GET`    | `/github/installations`                              | List the current user's active GitHub installations                                      |
+| `GET`    | `/github/installations/:installationId/repositories` | List repositories for one installation                                                   |
+| `GET`    | `/github/connections`                                | List connected repositories for the current user                                         |
+| `POST`   | `/github/connections`                                | Connect a repository and persist the repo connection                                     |
+| `DELETE` | `/github/connections/:connectionId`                  | Remove a stored repo connection                                                          |
+| `POST`   | `/github/connections/:connectionId/manifest/refresh` | Force-refresh a cached repository manifest                                               |
+| `GET`    | `/github/connections/:connectionId/search`           | Search cached manifest entries for one connected repo                                    |
+| `GET`    | `/github/connections/:connectionId/file`             | Preview one file from a connected repo                                                   |
+| `POST`   | `/github/connections/:connectionId/context-sources`  | Build Builder-ready context source payloads from selected files                          |
+| `POST`   | `/github/webhooks`                                   | GitHub webhook receiver for manifest invalidation and installation lifecycle changes     |
 
 GitHub repository routes require a signed-in PromptForge user bearer token plus
-live Neon session revalidation. They do not allow publishable-key fallback,
+active session validation. They do not allow publishable-key fallback,
 cached-session fallback, or service-token fallback. The setup callback and
 webhook receiver use explicit custom auth instead of the standard route auth
 policy.
@@ -53,29 +53,31 @@ Standard route auth is evaluated in this order: `x-agent-token`, then
 publishable-key auth for requests without a bearer token, then bearer-session
 auth. Bearer requests never downgrade to publishable-key auth. If
 `NEON_JWKS_URL` is malformed, JWKS verification is disabled and the service
-falls back to Neon `/v1/user` validation when available; otherwise it returns a
-controlled `503` instead of throwing. Anonymous bearer sessions keep IP-scoped
-daily rate limits.
+falls back to configured active-session validation when available; otherwise it
+returns a controlled `503` instead of throwing. Anonymous bearer sessions keep
+IP-scoped daily rate limits.
 
 ### `POST /enhance` body
 
 ```jsonc
 {
-  "prompt": "Your draft prompt text",       // required
-  "thread_id": "thread_abc123",             // optional: resume a previous thread
-  "builder_mode": "guided",                 // optional: quick|guided|advanced
-  "rewrite_strictness": "balanced",         // optional: preserve|balanced|aggressive
+  "prompt": "Your draft prompt text", // required
+  "thread_id": "thread_abc123", // optional: resume a previous thread
+  "builder_mode": "guided", // optional: quick|guided|advanced
+  "rewrite_strictness": "balanced", // optional: preserve|balanced|aggressive
   "ambiguity_mode": "infer_conservatively", // optional: ask_me|placeholders|infer_conservatively
-  "intent_override": "code",               // optional: explicit intent route (brainstorm|rewrite|instruction|analysis|code|extraction|planning|research) — must match PRIMARY_INTENT_ROUTES in enhancement-pipeline.mjs
-  "builder_fields": {                       // optional but recommended: pass all 6 keys, even empty
+  "intent_override": "code", // optional: explicit intent route (brainstorm|rewrite|instruction|analysis|code|extraction|planning|research) — must match PRIMARY_INTENT_ROUTES in enhancement-pipeline.mjs
+  "builder_fields": {
+    // optional but recommended: pass all 6 keys, even empty
     "role": "",
     "context": "",
     "task": "",
     "output_format": "",
     "examples": "",
-    "guardrails": ""
+    "guardrails": "",
   },
-  "context_sources": [                      // optional: the service appends these summaries to the enhancement prompt and can expand raw context on demand
+  "context_sources": [
+    // optional: the service appends these summaries to the enhancement prompt and can expand raw context on demand
     {
       "id": "readme",
       "type": "file",
@@ -88,13 +90,14 @@ daily rate limits.
       "reference": {
         "kind": "file",
         "ref_id": "file:README.md",
-        "locator": "README.md"
-      }
-    }
+        "locator": "README.md",
+      },
+    },
   ],
-  "thread_options": {                       // optional
-    "modelReasoningEffort": "medium"        // minimal|low|medium|high|xhigh
-  }
+  "thread_options": {
+    // optional
+    "modelReasoningEffort": "medium", // minimal|low|medium|high|xhigh
+  },
 }
 ```
 
@@ -110,12 +113,12 @@ If your prompt already contains a real `"<sources>...</sources>"` block or the a
 {
   "type": "enhance.start",
   "auth": {
-    "bearer_token": "<jwt>",   // required unless using apikey/service token fallback
-    "apikey": "<key>"          // optional
+    "bearer_token": "<jwt>", // required unless using apikey/service token fallback
+    "apikey": "<key>", // optional
   },
   "payload": {
-    "prompt": "Your draft prompt text"
-  }
+    "prompt": "Your draft prompt text",
+  },
 }
 ```
 
@@ -127,7 +130,7 @@ If your prompt already contains a real `"<sources>...</sources>"` block or the a
 
 ```jsonc
 {
-  "url": "https://example.com/article" // required
+  "url": "https://example.com/article", // required
 }
 ```
 
@@ -135,34 +138,39 @@ If your prompt already contains a real `"<sources>...</sources>"` block or the a
 
 ```jsonc
 {
-  "prompt": "Draft prompt text",          // required
-  "source_summaries": [                   // optional
+  "prompt": "Draft prompt text", // required
+  "source_summaries": [
+    // optional
     "API authentication uses PAT tokens.",
-    "Rate limits reset every 60 seconds."
+    "Rate limits reset every 60 seconds.",
   ],
-  "current_fields": {                     // optional
+  "current_fields": {
+    // optional
     "role": "",
     "tone": "",
     "lengthPreference": "",
     "format": [],
-    "constraints": []
+    "constraints": [],
   },
-  "lock_metadata": {                      // optional
+  "lock_metadata": {
+    // optional
     "role": "user",
-    "tone": "empty"
+    "tone": "empty",
   },
-  "request_context": {                    // optional
+  "request_context": {
+    // optional
     "hasAttachedSources": true,
     "attachedSourceCount": 2,
     "hasPresetOrRemix": true,
     "hasSessionContext": true,
     "selectedOutputFormats": ["Markdown", "Table"],
-    "hasPastedSourceMaterial": false
-  }
+    "hasPastedSourceMaterial": false,
+  },
 }
 ```
 
 Notes:
+
 - Only the documented `current_fields` and `lock_metadata` keys are used.
 - `request_context.selectedOutputFormats` is capped to the first 8 entries.
 - If the composed inference prompt exceeds the runtime budget, the service returns `413 payload_too_large` instead of falling back to an empty `200` response.
@@ -171,15 +179,22 @@ Notes:
 
 ### Required
 
-| Variable | Description |
-|----------|-------------|
-| `AZURE_OPENAI_API_KEY` | Azure OpenAI API key (required when using Azure provider config) |
-| `OPENAI_API_KEY` or `CODEX_API_KEY` | Fallback OpenAI API key (used only when no provider config is resolved) |
-| `NEON_AUTH_URL` or `NEON_JWKS_URL` | Neon Auth URL (or direct JWKS URL) for bearer-session validation (recommended in production) |
+| Variable                            | Description                                                                                                   |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `AZURE_OPENAI_API_KEY`              | Azure OpenAI API key (required when using Azure provider config)                                              |
+| `OPENAI_API_KEY` or `CODEX_API_KEY` | Fallback OpenAI API key (used only when no provider config is resolved)                                       |
+| `AUTH_SESSION_VALIDATION_URL`       | Worker/session validation endpoint for active PromptForge sessions (recommended in worker-backed deployments) |
+| `NEON_AUTH_URL` or `NEON_JWKS_URL`  | Neon Auth URL (or direct JWKS URL) for bearer-session validation (legacy/compatibility path)                  |
 
 If `GITHUB_CONTEXT_ENABLED=true`, also configure `NEON_DATABASE_URL` (or
 `DATABASE_URL`) so the service can persist GitHub installations, repo
 connections, manifests, and setup states.
+
+When GitHub routes are enabled, configure at least one active-session
+validation path:
+
+- `AUTH_SESSION_VALIDATION_URL` for worker-issued PromptForge sessions
+- or `NEON_AUTH_URL` / `NEON_JWKS_URL` plus a Neon validation key for legacy Neon auth
 
 ### Provider resolution order
 
@@ -193,52 +208,52 @@ Set `REQUIRE_PROVIDER_CONFIG=true` to disable step 3 and fail fast instead of fa
 
 ### Service configuration
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `HOST` | `0.0.0.0` | Bind address |
-| `PORT` | `8001` | Listen port |
-| `AGENT_SERVICE_TOKEN` | _(none)_ | Optional service-to-service token (`x-agent-token`) |
-| `ALLOWED_ORIGINS` | `*` | Comma-separated list of allowed browser origins; use an explicit list if you want origin-scoped GitHub setup redirects |
-| `REQUIRE_PROVIDER_CONFIG` | `false` | If `true`, startup fails unless provider config is resolved from `~/.codex/config.toml` or `CODEX_CONFIG_JSON` |
-| `FUNCTION_PUBLIC_API_KEY` | _(none)_ | Optional publishable key accepted for unauthenticated calls |
-| `STRICT_PUBLIC_API_KEY` | `true` | Require exact match with configured public key values; if `false`, allows publishable-format fallback when no key is configured (not recommended) |
-| `TRUST_PROXY` | `false` | If `true`, honors forwarded IP headers for rate limiting/auth context |
-| `TRUSTED_PROXY_IPS` | _(none)_ | Optional JSON array or comma-delimited list of trusted proxy source IPs when `TRUST_PROXY=true` |
-| `ENHANCE_WS_INITIAL_MESSAGE_TIMEOUT_MS` | `5000` | Time allowed for first websocket message before the socket is closed |
-| `ENHANCE_WS_MAX_PAYLOAD_BYTES` | `131072` | Maximum websocket message payload size in bytes |
-| `ENHANCE_WS_MAX_CONNECTIONS_PER_IP` | `10` | Maximum concurrent `/enhance/ws` connections allowed per client IP |
-| `MAX_HTTP_BODY_BYTES` | `524288` | Maximum HTTP JSON body size in bytes before returning `413 payload_too_large` |
-| `ALLOW_UNVERIFIED_JWT_FALLBACK` | `false` | Dev-only: allow decoded JWT fallback when Neon Auth config/service is unavailable |
-| `ALLOW_UNVERIFIED_JWT_FALLBACK_IN_PRODUCTION` | `false` | Explicit override to permit decoded-JWT fallback in production (emergency use only) |
-| `MAX_PROMPT_CHARS` | `64000` | Maximum prompt character length |
-| `MAX_INFERENCE_PROMPT_CHARS` | `24000` | Maximum inference prompt length |
-| `MAX_URL_CHARS` | `4096` | Maximum extract-url input URL length |
-| `EXTRACT_FETCH_TIMEOUT_MS` | `15000` | Timeout for page/OpenAI extraction calls |
-| `EXTRACT_FETCH_MAX_REDIRECTS` | `5` | Maximum redirects followed during `/extract-url` fetch (each hop re-validates public-network target) |
-| `EXTRACT_MAX_RESPONSE_BYTES` | `2097152` | Max downloaded page size (bytes) |
-| `EXTRACT_MODEL` | Inherits `CODEX_MODEL`/provider model (or `gpt-4.1-mini` for non-Azure) | OpenAI model for URL extraction summarization |
-| `INFER_MODEL` | `gpt-5.4` (non-Azure) or inherits `CODEX_MODEL` (Azure) | Model for `/infer-builder-fields` via Codex structured output (`outputSchema`, with reasoning effort normalized for model compatibility) |
-| `SHUTDOWN_DRAIN_TIMEOUT_MS` | `10000` | Time to wait for in-flight connections to drain before forced exit on SIGTERM/SIGINT |
-| `EXTRACT_URL_CACHE_TTL_MS` | `600000` | TTL for cached `/extract-url` responses (milliseconds) |
-| `EXTRACT_URL_CACHE_MAX_ENTRIES` | `200` | Maximum number of cached `/extract-url` responses |
+| Variable                                      | Default                                                                 | Description                                                                                                                                       |
+| --------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `HOST`                                        | `0.0.0.0`                                                               | Bind address                                                                                                                                      |
+| `PORT`                                        | `8001`                                                                  | Listen port                                                                                                                                       |
+| `AGENT_SERVICE_TOKEN`                         | _(none)_                                                                | Optional service-to-service token (`x-agent-token`)                                                                                               |
+| `ALLOWED_ORIGINS`                             | `*`                                                                     | Comma-separated list of allowed browser origins; use an explicit list if you want origin-scoped GitHub setup redirects                            |
+| `REQUIRE_PROVIDER_CONFIG`                     | `false`                                                                 | If `true`, startup fails unless provider config is resolved from `~/.codex/config.toml` or `CODEX_CONFIG_JSON`                                    |
+| `FUNCTION_PUBLIC_API_KEY`                     | _(none)_                                                                | Optional publishable key accepted for unauthenticated calls                                                                                       |
+| `STRICT_PUBLIC_API_KEY`                       | `true`                                                                  | Require exact match with configured public key values; if `false`, allows publishable-format fallback when no key is configured (not recommended) |
+| `TRUST_PROXY`                                 | `false`                                                                 | If `true`, honors forwarded IP headers for rate limiting/auth context                                                                             |
+| `TRUSTED_PROXY_IPS`                           | _(none)_                                                                | Optional JSON array or comma-delimited list of trusted proxy source IPs when `TRUST_PROXY=true`                                                   |
+| `ENHANCE_WS_INITIAL_MESSAGE_TIMEOUT_MS`       | `5000`                                                                  | Time allowed for first websocket message before the socket is closed                                                                              |
+| `ENHANCE_WS_MAX_PAYLOAD_BYTES`                | `131072`                                                                | Maximum websocket message payload size in bytes                                                                                                   |
+| `ENHANCE_WS_MAX_CONNECTIONS_PER_IP`           | `10`                                                                    | Maximum concurrent `/enhance/ws` connections allowed per client IP                                                                                |
+| `MAX_HTTP_BODY_BYTES`                         | `524288`                                                                | Maximum HTTP JSON body size in bytes before returning `413 payload_too_large`                                                                     |
+| `ALLOW_UNVERIFIED_JWT_FALLBACK`               | `false`                                                                 | Dev-only: allow decoded JWT fallback when Neon Auth config/service is unavailable                                                                 |
+| `ALLOW_UNVERIFIED_JWT_FALLBACK_IN_PRODUCTION` | `false`                                                                 | Explicit override to permit decoded-JWT fallback in production (emergency use only)                                                               |
+| `MAX_PROMPT_CHARS`                            | `64000`                                                                 | Maximum prompt character length                                                                                                                   |
+| `MAX_INFERENCE_PROMPT_CHARS`                  | `24000`                                                                 | Maximum inference prompt length                                                                                                                   |
+| `MAX_URL_CHARS`                               | `4096`                                                                  | Maximum extract-url input URL length                                                                                                              |
+| `EXTRACT_FETCH_TIMEOUT_MS`                    | `15000`                                                                 | Timeout for page/OpenAI extraction calls                                                                                                          |
+| `EXTRACT_FETCH_MAX_REDIRECTS`                 | `5`                                                                     | Maximum redirects followed during `/extract-url` fetch (each hop re-validates public-network target)                                              |
+| `EXTRACT_MAX_RESPONSE_BYTES`                  | `2097152`                                                               | Max downloaded page size (bytes)                                                                                                                  |
+| `EXTRACT_MODEL`                               | Inherits `CODEX_MODEL`/provider model (or `gpt-4.1-mini` for non-Azure) | OpenAI model for URL extraction summarization                                                                                                     |
+| `INFER_MODEL`                                 | `gpt-5.4` (non-Azure) or inherits `CODEX_MODEL` (Azure)                 | Model for `/infer-builder-fields` via Codex structured output (`outputSchema`, with reasoning effort normalized for model compatibility)          |
+| `SHUTDOWN_DRAIN_TIMEOUT_MS`                   | `10000`                                                                 | Time to wait for in-flight connections to drain before forced exit on SIGTERM/SIGINT                                                              |
+| `EXTRACT_URL_CACHE_TTL_MS`                    | `600000`                                                                | TTL for cached `/extract-url` responses (milliseconds)                                                                                            |
+| `EXTRACT_URL_CACHE_MAX_ENTRIES`               | `200`                                                                   | Maximum number of cached `/extract-url` responses                                                                                                 |
 
 ### GitHub context configuration
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `GITHUB_CONTEXT_ENABLED` | `false` | Enable GitHub repository-context routes and storage-backed manifest flow |
-| `GITHUB_APP_ID` | _(none)_ | GitHub App ID |
-| `GITHUB_APP_PRIVATE_KEY` | _(none)_ | PEM private key for the GitHub App |
-| `GITHUB_APP_SLUG` | _(none)_ | GitHub App slug used to build the install URL |
-| `GITHUB_APP_STATE_SECRET` | _(none)_ | Secret used to sign GitHub setup state payloads |
-| `GITHUB_WEBHOOK_SECRET` | _(none)_ | Secret used to verify GitHub webhook signatures |
-| `GITHUB_POST_INSTALL_REDIRECT_URL` | _(none)_ | Absolute Builder URL that receives the setup-return redirect |
-| `GITHUB_DEBUG_LOGGING` | `false` | Include short SQL query previews in GitHub storage logs; keep disabled outside short-lived debugging sessions |
-| `GITHUB_API_BASE_URL` | `https://api.github.com` | Optional GitHub API base URL override |
-| `GITHUB_REPOSITORY_PAGE_SIZE` | `50` | Default repository page size for installation listings |
-| `GITHUB_PER_MINUTE` | `30` | Per-user minute rate limit for GitHub routes |
-| `GITHUB_PER_DAY` | `600` | Per-user daily rate limit for GitHub routes |
-| `NEON_DATABASE_URL` / `DATABASE_URL` | _(none)_ | Direct Neon Postgres connection string used by the GitHub storage layer |
+| Variable                             | Default                  | Description                                                                                                   |
+| ------------------------------------ | ------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| `GITHUB_CONTEXT_ENABLED`             | `false`                  | Enable GitHub repository-context routes and storage-backed manifest flow                                      |
+| `GITHUB_APP_ID`                      | _(none)_                 | GitHub App ID                                                                                                 |
+| `GITHUB_APP_PRIVATE_KEY`             | _(none)_                 | PEM private key for the GitHub App                                                                            |
+| `GITHUB_APP_SLUG`                    | _(none)_                 | GitHub App slug used to build the install URL                                                                 |
+| `GITHUB_APP_STATE_SECRET`            | _(none)_                 | Secret used to sign GitHub setup state payloads                                                               |
+| `GITHUB_WEBHOOK_SECRET`              | _(none)_                 | Secret used to verify GitHub webhook signatures                                                               |
+| `GITHUB_POST_INSTALL_REDIRECT_URL`   | _(none)_                 | Absolute Builder URL that receives the setup-return redirect                                                  |
+| `GITHUB_DEBUG_LOGGING`               | `false`                  | Include short SQL query previews in GitHub storage logs; keep disabled outside short-lived debugging sessions |
+| `GITHUB_API_BASE_URL`                | `https://api.github.com` | Optional GitHub API base URL override                                                                         |
+| `GITHUB_REPOSITORY_PAGE_SIZE`        | `50`                     | Default repository page size for installation listings                                                        |
+| `GITHUB_PER_MINUTE`                  | `30`                     | Per-user minute rate limit for GitHub routes                                                                  |
+| `GITHUB_PER_DAY`                     | `600`                    | Per-user daily rate limit for GitHub routes                                                                   |
+| `NEON_DATABASE_URL` / `DATABASE_URL` | _(none)_                 | Direct Neon Postgres connection string used by the GitHub storage layer                                       |
 
 GitHub setup redirects only rewrite onto the requesting frontend origin when
 that origin is explicitly present in `ALLOWED_ORIGINS`. If `ALLOWED_ORIGINS`
@@ -253,49 +268,49 @@ GitHub storage logs omit SQL previews by default. Set
 
 ### Codex client options
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `OPENAI_BASE_URL` / `CODEX_BASE_URL` | _(none)_ | OpenAI-compatible API base URL |
-| `CODEX_PATH_OVERRIDE` | _(none)_ | Absolute path to Codex CLI binary |
-| `CODEX_PROFILE` | _(none)_ | Optional named profile from `~/.codex/config.toml` to use for this service only; ensure the profile's `env_key` variable is also set in the service environment |
-| `CODEX_CONFIG_JSON` | _(none)_ | JSON object of CLI `--config` overrides, including `model_provider` and `model_providers` when `~/.codex/config.toml` is unavailable |
-| `CODEX_ENV_JSON` | _(none)_ | JSON object of env vars for the CLI process |
-| `CODEX_MAX_OUTPUT_TOKENS` | _(none)_ | Max output tokens (passed via CLI config) |
+| Variable                             | Default  | Description                                                                                                                                                     |
+| ------------------------------------ | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OPENAI_BASE_URL` / `CODEX_BASE_URL` | _(none)_ | OpenAI-compatible API base URL                                                                                                                                  |
+| `CODEX_PATH_OVERRIDE`                | _(none)_ | Absolute path to Codex CLI binary                                                                                                                               |
+| `CODEX_PROFILE`                      | _(none)_ | Optional named profile from `~/.codex/config.toml` to use for this service only; ensure the profile's `env_key` variable is also set in the service environment |
+| `CODEX_CONFIG_JSON`                  | _(none)_ | JSON object of CLI `--config` overrides, including `model_provider` and `model_providers` when `~/.codex/config.toml` is unavailable                            |
+| `CODEX_ENV_JSON`                     | _(none)_ | JSON object of env vars for the CLI process                                                                                                                     |
+| `CODEX_MAX_OUTPUT_TOKENS`            | _(none)_ | Max output tokens (passed via CLI config)                                                                                                                       |
 
 ### Default thread options
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CODEX_MODEL` | Provider model (`config.toml`), `AZURE_OPENAI_DEPLOYMENT`, or `gpt-5.4` (non-Azure fallback) | Model/deployment name (for Azure, set this to your deployment name) |
-| `CODEX_SANDBOX_MODE` | _(none)_ | `read-only` \| `workspace-write` \| `danger-full-access` |
-| `CODEX_WORKING_DIRECTORY` | _(none)_ | Working directory for the Codex agent |
-| `CODEX_SKIP_GIT_REPO_CHECK` | `false` | Skip git repo validation |
-| `CODEX_MODEL_REASONING_EFFORT` | `high` | `minimal` \| `low` \| `medium` \| `high` \| `xhigh` |
-| `CODEX_MODEL_REASONING_SUMMARY` | `detailed` | `auto` \| `concise` \| `detailed` |
-| `CODEX_NETWORK_ACCESS_ENABLED` | `false` | Enable network access |
-| `CODEX_WEB_SEARCH_MODE` | _(none)_ | `disabled` \| `cached` \| `live` |
-| `CODEX_WEB_SEARCH_ENABLED` | `false` | Enable web search |
-| `CODEX_APPROVAL_POLICY` | _(none)_ | `never` \| `on-request` \| `on-failure` \| `untrusted` |
-| `CODEX_ADDITIONAL_DIRECTORIES` | _(none)_ | JSON array or comma-delimited paths |
+| Variable                        | Default                                                                                      | Description                                                         |
+| ------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `CODEX_MODEL`                   | Provider model (`config.toml`), `AZURE_OPENAI_DEPLOYMENT`, or `gpt-5.4` (non-Azure fallback) | Model/deployment name (for Azure, set this to your deployment name) |
+| `CODEX_SANDBOX_MODE`            | _(none)_                                                                                     | `read-only` \| `workspace-write` \| `danger-full-access`            |
+| `CODEX_WORKING_DIRECTORY`       | _(none)_                                                                                     | Working directory for the Codex agent                               |
+| `CODEX_SKIP_GIT_REPO_CHECK`     | `false`                                                                                      | Skip git repo validation                                            |
+| `CODEX_MODEL_REASONING_EFFORT`  | `high`                                                                                       | `minimal` \| `low` \| `medium` \| `high` \| `xhigh`                 |
+| `CODEX_MODEL_REASONING_SUMMARY` | `detailed`                                                                                   | `auto` \| `concise` \| `detailed`                                   |
+| `CODEX_NETWORK_ACCESS_ENABLED`  | `false`                                                                                      | Enable network access                                               |
+| `CODEX_WEB_SEARCH_MODE`         | _(none)_                                                                                     | `disabled` \| `cached` \| `live`                                    |
+| `CODEX_WEB_SEARCH_ENABLED`      | `false`                                                                                      | Enable web search                                                   |
+| `CODEX_APPROVAL_POLICY`         | _(none)_                                                                                     | `never` \| `on-request` \| `on-failure` \| `untrusted`              |
+| `CODEX_ADDITIONAL_DIRECTORIES`  | _(none)_                                                                                     | JSON array or comma-delimited paths                                 |
 
 ### Rate-limit retry
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CODEX_429_MAX_RETRIES` | `2` | Max retry attempts on 429 errors |
-| `CODEX_429_BACKOFF_BASE_SECONDS` | `1.0` | Base delay for exponential backoff |
-| `CODEX_429_BACKOFF_MAX_SECONDS` | `20.0` | Maximum backoff delay |
+| Variable                         | Default | Description                        |
+| -------------------------------- | ------- | ---------------------------------- |
+| `CODEX_429_MAX_RETRIES`          | `2`     | Max retry attempts on 429 errors   |
+| `CODEX_429_BACKOFF_BASE_SECONDS` | `1.0`   | Base delay for exponential backoff |
+| `CODEX_429_BACKOFF_MAX_SECONDS`  | `20.0`  | Maximum backoff delay              |
 
 ### Endpoint rate limits
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `ENHANCE_PER_MINUTE` | `12` | `/enhance` requests per minute |
-| `ENHANCE_PER_DAY` | `300` | `/enhance` requests per day |
-| `EXTRACT_PER_MINUTE` | `6` | `/extract-url` requests per minute |
-| `EXTRACT_PER_DAY` | `120` | `/extract-url` requests per day |
-| `INFER_PER_MINUTE` | `15` | `/infer-builder-fields` requests per minute |
-| `INFER_PER_DAY` | `400` | `/infer-builder-fields` requests per day |
+| Variable             | Default | Description                                 |
+| -------------------- | ------- | ------------------------------------------- |
+| `ENHANCE_PER_MINUTE` | `12`    | `/enhance` requests per minute              |
+| `ENHANCE_PER_DAY`    | `300`   | `/enhance` requests per day                 |
+| `EXTRACT_PER_MINUTE` | `6`     | `/extract-url` requests per minute          |
+| `EXTRACT_PER_DAY`    | `120`   | `/extract-url` requests per day             |
+| `INFER_PER_MINUTE`   | `15`    | `/infer-builder-fields` requests per minute |
+| `INFER_PER_DAY`      | `400`   | `/infer-builder-fields` requests per day    |
 
 ## Known limitations
 

@@ -68,6 +68,10 @@ jobs:
             exit 1
           fi
           if [ "${{ secrets.GH_CONTEXT_ENABLED }}" = "true" ]; then
+            if [ -z "${{ secrets.VITE_AUTH_WORKER_URL }}" ] && [ -z "${{ secrets.VITE_NEON_AUTH_URL }}" ]; then
+              echo "Missing required secret: VITE_AUTH_WORKER_URL or VITE_NEON_AUTH_URL"
+              exit 1
+            fi
             if [ -z "${{ secrets.GH_APP_ID }}" ]; then
               echo "Missing required secret: GH_APP_ID"
               exit 1
@@ -103,6 +107,7 @@ jobs:
           AGENT_PUBLIC_API_KEY: ${{ secrets.VITE_AGENT_PUBLIC_API_KEY }}
           LEGACY_NEON_PUBLISHABLE_KEY: ${{ secrets.VITE_NEON_PUBLISHABLE_KEY }}
           LEGACY_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          OPTIONAL_AUTH_WORKER_URL: ${{ secrets.VITE_AUTH_WORKER_URL }}
           OPTIONAL_NEON_AUTH_URL: ${{ secrets.VITE_NEON_AUTH_URL }}
           AZURE_OPENAI_API_KEY_SECRET: ${{ secrets.AZURE_OPENAI_API_KEY }}
           CODEX_CONFIG_JSON_SECRET: ${{ secrets.CODEX_CONFIG_JSON }}
@@ -143,6 +148,13 @@ jobs:
             settings+=(
               "NEON_AUTH_URL=$OPTIONAL_NEON_AUTH_URL"
               "NEON_JWKS_URL=$OPTIONAL_NEON_AUTH_URL/.well-known/jwks.json"
+            )
+          fi
+
+          if [ -n "$OPTIONAL_AUTH_WORKER_URL" ]; then
+            auth_worker_base_url="${OPTIONAL_AUTH_WORKER_URL%/}"
+            settings+=(
+              "AUTH_SESSION_VALIDATION_URL=${auth_worker_base_url}/auth/session"
             )
           fi
 

@@ -1,6 +1,7 @@
 import { resolveAuthUrl } from "@/lib/worker-endpoints";
 
 export const AUTH_TOKEN_STORAGE_KEY = "pf_tokens";
+export const AUTH_TOKENS_CLEARED_EVENT = "promptforge:auth-tokens-cleared";
 const AUTH_BASE_PATH = "/auth";
 const ACCESS_TOKEN_REFRESH_GRACE_SECONDS = 30;
 
@@ -72,6 +73,7 @@ export function clearStoredTokens(): void {
 
   try {
     window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+    window.dispatchEvent(new CustomEvent(AUTH_TOKENS_CLEARED_EVENT));
   } catch {
     // ignore
   }

@@ -55,6 +55,14 @@ const RESET_REQUEST_WINDOW_SECONDS = 60 * 60;
 const RESET_CONFIRM_LIMIT = 10;
 const RESET_CONFIRM_WINDOW_SECONDS = 60 * 60;
 
+function extractStringClaim(source: unknown, key: string): string | null {
+  if (!source || typeof source !== "object" || Array.isArray(source)) return null;
+  const value = (source as Record<string, unknown>)[key];
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed || null;
+}
+
 function rateLimitResponse(c: AuthContext, retryAfterSeconds: number) {
   c.header("Retry-After", String(retryAfterSeconds));
   return c.json({
@@ -215,8 +223,9 @@ app.post("/register", async (c) => {
     .run();
 
   // Generate tokens
+  const sessionId = crypto.randomUUID();
   const accessToken = await generateJwt(
-    { sub: userId, email },
+    { sub: userId, email, sid: sessionId },
     c.env.JWT_SECRET,
     60 * 15 // 15 minutes
   );
@@ -231,7 +240,7 @@ app.post("/register", async (c) => {
       `INSERT INTO sessions (id, user_id, refresh_token_hash, expires_at, created_at)
        VALUES (?, ?, ?, ?, ?)`
     )
-    .bind(crypto.randomUUID(), userId, refreshTokenHash, expiresAt, now)
+    .bind(sessionId, userId, refreshTokenHash, expiresAt, now)
     .run();
 
   // Store session in KV for fast lookup
@@ -325,8 +334,9 @@ app.post("/login", async (c) => {
   await clearRateLimit(c.env.SESSIONS, failureKey);
 
   // Generate tokens
+  const sessionId = crypto.randomUUID();
   const accessToken = await generateJwt(
-    { sub: user.id, email: user.email },
+    { sub: user.id, email: user.email, sid: sessionId },
     c.env.JWT_SECRET,
     60 * 15 // 15 minutes
   );
@@ -341,7 +351,7 @@ app.post("/login", async (c) => {
       `INSERT INTO sessions (id, user_id, refresh_token_hash, expires_at, created_at)
        VALUES (?, ?, ?, ?, ?)`
     )
-    .bind(crypto.randomUUID(), user.id, refreshTokenHash, expiresAt, Math.floor(Date.now() / 1000))
+    .bind(sessionId, user.id, refreshTokenHash, expiresAt, Math.floor(Date.now() / 1000))
     .run();
 
   // Store session in KV
@@ -419,8 +429,14 @@ app.post("/refresh", async (c) => {
   }
 
   // Generate new access token
+  const sessionId = typeof session.id === "string" ? session.id : "";
+  if (!sessionId) {
+    await c.env.SESSIONS.delete(`session:${refreshToken}`);
+    return c.json({ error: "Invalid or expired refresh token" }, 401);
+  }
+
   const newAccessToken = await generateJwt(
-    { sub: user.id, email: user.email },
+    { sub: user.id, email: user.email, sid: sessionId },
     c.env.JWT_SECRET,
     60 * 15 // 15 minutes
   );
@@ -467,7 +483,31 @@ app.get("/session", async (c) => {
     return c.json({ authenticated: false }, 401);
   }
 
-  const userId = (payload as Record<string, unknown>).sub as string;
+  const userId = extractStringClaim(payload, "sub");
+  const sessionId = extractStringClaim(payload, "sid");
+  if (!userId || !sessionId) {
+    return c.json({ authenticated: false }, 401);
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const activeSession = await c.env.DB
+    .prepare(
+      `SELECT id, user_id, expires_at, revoked
+       FROM sessions
+       WHERE id = ? AND user_id = ?`
+    )
+    .bind(sessionId, userId)
+    .first<{ id: string; user_id: string; expires_at: number; revoked: number | boolean | null }>();
+
+  if (!activeSession) {
+    return c.json({ authenticated: false }, 401);
+  }
+
+  const isRevoked = activeSession.revoked === true || Number(activeSession.revoked || 0) !== 0;
+  if (isRevoked || activeSession.expires_at <= now) {
+    return c.json({ authenticated: false }, 401);
+  }
+
   const user = await c.env.DB
     .prepare(
       `SELECT
@@ -489,6 +529,7 @@ app.get("/session", async (c) => {
 
   return c.json({
     authenticated: true,
+    sessionId: activeSession.id,
     user: {
       id: user.id,
       email: user.email,
@@ -514,7 +555,7 @@ app.delete("/account", async (c) => {
     return c.json({ error: "Unauthorized" }, 401);
   }
 
-  const userId = (payload as Record<string, unknown>).sub as string;
+  const userId = extractStringClaim(payload, "sub");
   if (!userId) {
     return c.json({ error: "Unauthorized" }, 401);
   }

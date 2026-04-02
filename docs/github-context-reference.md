@@ -24,11 +24,13 @@ configuration are present.
 Frontend:
 
 - `VITE_AGENT_SERVICE_URL`
+- `VITE_AUTH_WORKER_URL`
 - `VITE_GITHUB_CONTEXT_ENABLED`
 
 Agent service:
 
 - `GITHUB_CONTEXT_ENABLED`
+- `AUTH_SESSION_VALIDATION_URL` (recommended for worker-issued PromptForge sessions)
 - `GITHUB_APP_ID`
 - `GITHUB_APP_PRIVATE_KEY`
 - `GITHUB_APP_SLUG`
@@ -38,6 +40,11 @@ Agent service:
 - `ALLOWED_ORIGINS` as an explicit list if you want origin-scoped setup redirects
 - `GITHUB_DEBUG_LOGGING` only for short-lived GitHub storage debugging
 - `NEON_DATABASE_URL` or `DATABASE_URL`
+
+Legacy compatibility:
+
+- `NEON_AUTH_URL` / `NEON_JWKS_URL` can still provide bearer validation, but the
+  active frontend auth path now comes from the worker-issued PromptForge session.
 
 For local PromptForge development, set both `ALLOWED_ORIGINS` and
 `GITHUB_POST_INSTALL_REDIRECT_URL` to `http://localhost:8080`.
@@ -55,7 +62,7 @@ Attached GitHub files count toward the shared builder source cap.
 
 ## Security and product constraints
 
-- Repository routes accept signed-in PromptForge user JWTs only. They do not
+- Repository routes accept signed-in PromptForge user sessions only. They do not
   allow publishable-key fallback or service-token fallback.
 - `GET /github/app/setup` uses signed setup-state validation instead of normal
   user auth.

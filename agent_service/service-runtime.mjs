@@ -667,6 +667,9 @@ export async function createServiceRuntime({ env = process.env, deps = {} } = {}
     ) {
       warnings.push("github_config_incomplete");
     }
+    if (githubConfig.enabled && authReadiness.activeSessionValidationConfigured !== true) {
+      issues.push("github_user_session_validation_missing");
+    }
     warnings.push(...authReadiness.warnings);
     issues.push(...authReadiness.issues);
 
