@@ -84,7 +84,10 @@ import {
   resolveRequestCompletionStatus,
   statusFromErrorCode,
 } from "./stream-errors.mjs";
-import { resolveActiveCodexThreadId } from "./codex-thread-state.mjs";
+import {
+  isInvalidResumeThreadError,
+  resolveActiveCodexThreadId,
+} from "./codex-thread-state.mjs";
 import {
   isAbortLikeError,
   throwIfAborted,
@@ -873,443 +876,508 @@ async function runEnhanceTurnStream(requestData, options) {
     }
     throwIfAborted(signal);
     if (isClosed()) return;
+    let resumedRequestedThread = Boolean(requestedThreadId);
     const executionThreadOptions = normalizeExecutionThreadOptions(
       threadOptions,
       threadOptions.model || runtime.defaultThreadOptions.model,
       {
-        phase: requestedThreadId ? "enhance_resume_thread" : "enhance_start_thread",
+        phase: resumedRequestedThread ? "enhance_resume_thread" : "enhance_start_thread",
         requestContext,
         requestedThreadId,
       },
     );
-    thread = requestedThreadId
-      ? codex.resumeThread(requestedThreadId, executionThreadOptions)
-      : codex.startThread(executionThreadOptions);
-    const { events } = await runStreamedWithRetry(
-      thread,
-      enhancementInput,
-      {
-        signal,
-        outputSchema: ENHANCEMENT_OUTPUT_SCHEMA,
-      },
-      { requestContext, ...RETRY_TELEMETRY },
-    );
-    activeThreadId = resolveActiveCodexThreadId(activeThreadId, thread);
 
-    let turnFailed = false;
-    let turnError = false;
-    const buildSessionPayload = (status, overrides = {}) => {
-      const payload = {
-        threadId: activeThreadId,
-        turnId,
-        status,
-        transport: requestContext.transport,
-        resumed: Boolean(requestedThreadId),
+    const runThreadTurn = async (resumeRequestedThread) => {
+      const nextThread = resumeRequestedThread && requestedThreadId
+        ? codex.resumeThread(requestedThreadId, executionThreadOptions)
+        : codex.startThread(executionThreadOptions);
+      const streamResult = await runStreamedWithRetry(
+        nextThread,
+        enhancementInput,
+        {
+          signal,
+          outputSchema: ENHANCEMENT_OUTPUT_SCHEMA,
+        },
+        { requestContext, ...RETRY_TELEMETRY },
+      );
+      return {
+        thread: nextThread,
+        events: streamResult.events,
       };
-
-      if (Object.prototype.hasOwnProperty.call(overrides, "contextSummary")) {
-        payload.contextSummary = overrides.contextSummary;
-      }
-      if (Object.prototype.hasOwnProperty.call(overrides, "latestEnhancedPrompt")) {
-        payload.latestEnhancedPrompt = overrides.latestEnhancedPrompt;
-      }
-
-      return buildEnhanceSessionEnvelope(payload);
     };
 
-    for await (const event of events) {
-      if (signal.aborted || isClosed()) break;
+    const logResumeThreadRestart = (error) => {
+      logEvent("warn", "enhance_resume_thread_restarted", cleanLogFields({
+        request_id: requestContext?.requestId,
+        endpoint: requestContext?.endpoint,
+        requested_thread_id: requestedThreadId,
+        error_message: toErrorMessage(error),
+      }));
+    };
 
-      if (event.type === "thread.started") {
-        activeThreadId = event.thread_id;
-        emit({
-          event: "thread.started",
-          type: "thread.started",
-          thread_id: activeThreadId,
-          turn_id: turnId,
-          session: buildSessionPayload("starting"),
-        });
-        continue;
+    resumeThreadLoop: while (true) {
+      let streamResult;
+      try {
+        streamResult = await runThreadTurn(resumedRequestedThread);
+      } catch (error) {
+        if (
+          resumedRequestedThread
+          && requestedThreadId
+          && isInvalidResumeThreadError(error)
+          && !signal?.aborted
+          && !isClosed()
+        ) {
+          logResumeThreadRestart(error);
+          resumedRequestedThread = false;
+          activeThreadId = null;
+          continue resumeThreadLoop;
+        }
+        throw error;
       }
 
-      if (event.type === "turn.started") {
-        emit({
-          event: "turn.started",
-          type: "response.created",
-          turn_id: turnId,
-          thread_id: activeThreadId,
-          kind: "enhance",
-          session: buildSessionPayload("streaming"),
-        });
-        emitEnhancementWorkflowStep({
-          emit,
-          turnId,
+      thread = streamResult.thread;
+      const { events } = streamResult;
+      activeThreadId = resolveActiveCodexThreadId(activeThreadId, thread);
+
+      let turnFailed = false;
+      let turnError = false;
+      let shouldRestartWithoutResume = false;
+      let resumeRestartError = null;
+      const buildSessionPayload = (status, overrides = {}) => {
+        const payload = {
           threadId: activeThreadId,
-          stepId: "generate_prompt",
-          label: "Generate enhanced prompt",
-          status: "running",
-          detail: "Generating the enhanced prompt and supporting artifacts.",
-        });
-        continue;
-      }
-
-      if (event.type === "turn.completed") {
-        sawUpstreamTurnCompleted = true;
-        upstreamTurnUsage = event.usage;
-        captureUsageMetrics(requestContext, event.usage);
-        continue;
-      }
-
-      if (event.type === "turn.failed") {
-        turnFailed = true;
-        const failure = classifyStreamFailure(event.error, {
-          defaultCode: "service_error",
-          defaultStatus: 503,
-        });
-        emittedGenerateWorkflowTerminal = true;
-        emitEnhancementWorkflowStep({
-          emit,
           turnId,
-          threadId: activeThreadId,
-          stepId: "generate_prompt",
-          label: "Generate enhanced prompt",
-          status: "failed",
-          detail: failure.message,
-        });
-        setRequestError(requestContext, failure.code, failure.message, failure.status);
-        emit({
-          event: "turn.failed",
-          type: "turn.failed",
-          turn_id: turnId,
-          thread_id: activeThreadId,
-          error: {
-            message: failure.message,
-            code: failure.code,
-            status: failure.status,
-          },
-          code: failure.code,
-          status: failure.status,
-          session: buildSessionPayload("failed"),
-        });
-        continue;
-      }
+          status,
+          transport: requestContext.transport,
+          resumed: resumedRequestedThread,
+        };
 
-      if (event.type === "error") {
-        turnError = true;
-        const failure = classifyStreamFailure({ message: event.message }, {
-          defaultCode: "service_error",
-          defaultStatus: 503,
-        });
-        emittedGenerateWorkflowTerminal = true;
-        emitEnhancementWorkflowStep({
-          emit,
-          turnId,
-          threadId: activeThreadId,
-          stepId: "generate_prompt",
-          label: "Generate enhanced prompt",
-          status: "failed",
-          detail: failure.message,
-        });
-        setRequestError(requestContext, failure.code, failure.message, failure.status);
-        emit({
-          event: "thread.error",
-          type: "error",
-          turn_id: turnId,
-          thread_id: activeThreadId,
-          error: {
-            message: failure.message,
-            code: failure.code,
-            status: failure.status,
-          },
-          code: failure.code,
-          status: failure.status,
-          session: buildSessionPayload("failed"),
-        });
-        continue;
-      }
+        if (Object.prototype.hasOwnProperty.call(overrides, "contextSummary")) {
+          payload.contextSummary = overrides.contextSummary;
+        }
+        if (Object.prototype.hasOwnProperty.call(overrides, "latestEnhancedPrompt")) {
+          payload.latestEnhancedPrompt = overrides.latestEnhancedPrompt;
+        }
 
-      if (event.type === "item.started") {
-        const itemId = idFromItem(event.item);
-        const itemType = typeFromItem(event.item);
-        if (isWorkflowWebSearchItemType(itemType)) {
-          const nextQuery = extractWorkflowWebSearchQuery(event.item) || lastWebSearchQuery;
+        return buildEnhanceSessionEnvelope(payload);
+      };
+
+      for await (const event of events) {
+        if (signal.aborted || isClosed()) break;
+
+        if (event.type === "thread.started") {
+          activeThreadId = event.thread_id;
+          emit({
+            event: "thread.started",
+            type: "thread.started",
+            thread_id: activeThreadId,
+            turn_id: turnId,
+            session: buildSessionPayload("starting"),
+          });
+          continue;
+        }
+
+        if (event.type === "turn.started") {
+          emit({
+            event: "turn.started",
+            type: "response.created",
+            turn_id: turnId,
+            thread_id: activeThreadId,
+            kind: "enhance",
+            session: buildSessionPayload("streaming"),
+          });
+          emitEnhancementWorkflowStep({
+            emit,
+            turnId,
+            threadId: activeThreadId,
+            stepId: "generate_prompt",
+            label: "Generate enhanced prompt",
+            status: "running",
+            detail: "Generating the enhanced prompt and supporting artifacts.",
+          });
+          continue;
+        }
+
+        if (event.type === "turn.completed") {
+          sawUpstreamTurnCompleted = true;
+          upstreamTurnUsage = event.usage;
+          captureUsageMetrics(requestContext, event.usage);
+          continue;
+        }
+
+        if (event.type === "turn.failed") {
           if (
-            itemId
-            && isCountableWorkflowWebSearchItemType(itemType)
-            && !seenWebSearchItemIds.has(itemId)
+            resumedRequestedThread
+            && requestedThreadId
+            && isInvalidResumeThreadError(event.error)
+            && !emittedAgentOutput
+            && !sawUpstreamTurnCompleted
           ) {
-            seenWebSearchItemIds.add(itemId);
-            webSearchCount += 1;
+            shouldRestartWithoutResume = true;
+            resumeRestartError = event.error;
+            break;
           }
-          lastWebSearchQuery = nextQuery;
+
+          turnFailed = true;
+          const failure = classifyStreamFailure(event.error, {
+            defaultCode: "service_error",
+            defaultStatus: 503,
+          });
+          emittedGenerateWorkflowTerminal = true;
+          emitEnhancementWorkflowStep({
+            emit,
+            turnId,
+            threadId: activeThreadId,
+            stepId: "generate_prompt",
+            label: "Generate enhanced prompt",
+            status: "failed",
+            detail: failure.message,
+          });
+          setRequestError(requestContext, failure.code, failure.message, failure.status);
+          emit({
+            event: "turn.failed",
+            type: "turn.failed",
+            turn_id: turnId,
+            thread_id: activeThreadId,
+            error: {
+              message: failure.message,
+              code: failure.code,
+              status: failure.status,
+            },
+            code: failure.code,
+            status: failure.status,
+            session: buildSessionPayload("failed"),
+          });
+          continue;
+        }
+
+        if (event.type === "error") {
+          turnError = true;
+          const failure = classifyStreamFailure({ message: event.message }, {
+            defaultCode: "service_error",
+            defaultStatus: 503,
+          });
+          emittedGenerateWorkflowTerminal = true;
+          emitEnhancementWorkflowStep({
+            emit,
+            turnId,
+            threadId: activeThreadId,
+            stepId: "generate_prompt",
+            label: "Generate enhanced prompt",
+            status: "failed",
+            detail: failure.message,
+          });
+          setRequestError(requestContext, failure.code, failure.message, failure.status);
+          emit({
+            event: "thread.error",
+            type: "error",
+            turn_id: turnId,
+            thread_id: activeThreadId,
+            error: {
+              message: failure.message,
+              code: failure.code,
+              status: failure.status,
+            },
+            code: failure.code,
+            status: failure.status,
+            session: buildSessionPayload("failed"),
+          });
+          continue;
+        }
+
+        if (event.type === "item.started") {
+          const itemId = idFromItem(event.item);
+          const itemType = typeFromItem(event.item);
+          if (isWorkflowWebSearchItemType(itemType)) {
+            const nextQuery = extractWorkflowWebSearchQuery(event.item) || lastWebSearchQuery;
+            if (
+              itemId
+              && isCountableWorkflowWebSearchItemType(itemType)
+              && !seenWebSearchItemIds.has(itemId)
+            ) {
+              seenWebSearchItemIds.add(itemId);
+              webSearchCount += 1;
+            }
+            lastWebSearchQuery = nextQuery;
+            emitEnhancementWorkflowStep({
+              emit,
+              turnId,
+              threadId: activeThreadId,
+              stepId: "web_search",
+              label: "Search the web",
+              status: "running",
+              detail: nextQuery
+                ? `Searching the web for ${truncateWorkflowDetail(nextQuery, 120)}`
+                : "Searching the web for supporting context.",
+            });
+          }
+          emit({
+            event: "item.started",
+            type: "item.started",
+            turn_id: turnId,
+            threadId: activeThreadId,
+            item_id: itemId,
+            item_type: itemType,
+            item: event.item,
+          });
+          continue;
+        }
+
+        if (event.type === "item.updated") {
+          const itemId = idFromItem(event.item);
+          const itemType = typeFromItem(event.item);
+          const isAgentMessage = isAgentMessageItemType(itemType);
+          const currentText = extractItemText(event.item);
+          if (isWorkflowWebSearchItemType(itemType)) {
+            const nextQuery = extractWorkflowWebSearchQuery(event.item) || lastWebSearchQuery;
+            if (
+              itemId
+              && isCountableWorkflowWebSearchItemType(itemType)
+              && !seenWebSearchItemIds.has(itemId)
+            ) {
+              seenWebSearchItemIds.add(itemId);
+              webSearchCount += 1;
+            }
+            lastWebSearchQuery = nextQuery;
+          }
+          if (isAgentMessage) {
+            const agentItemKey = itemId || "__agent_message__";
+            if (!agentMessageByItemId.has(agentItemKey)) {
+              agentMessageItemOrder.push(agentItemKey);
+            }
+            agentMessageByItemId.set(agentItemKey, currentText);
+            if (hasText(currentText)) {
+              emittedAgentOutput = true;
+            }
+          }
+
+          emit({
+            event: "item.updated",
+            type: "item.updated",
+            turn_id: turnId,
+            thread_id: activeThreadId,
+            item_id: itemId,
+            item_type: itemType,
+            item: event.item,
+          });
+          continue;
+        }
+
+        if (event.type === "item.completed") {
+          const itemId = idFromItem(event.item);
+          const itemType = typeFromItem(event.item);
+          const isAgentMessage = isAgentMessageItemType(itemType);
+          const text = extractItemText(event.item);
+          if (isWorkflowWebSearchItemType(itemType)) {
+            const nextQuery = extractWorkflowWebSearchQuery(event.item) || lastWebSearchQuery;
+            if (
+              itemId
+              && isCountableWorkflowWebSearchItemType(itemType)
+              && !seenWebSearchItemIds.has(itemId)
+            ) {
+              seenWebSearchItemIds.add(itemId);
+              webSearchCount += 1;
+            }
+            lastWebSearchQuery = nextQuery;
+          }
+          if (isAgentMessage) {
+            const agentItemKey = itemId || "__agent_message__";
+            if (!agentMessageByItemId.has(agentItemKey)) {
+              agentMessageItemOrder.push(agentItemKey);
+            }
+            agentMessageByItemId.set(agentItemKey, text);
+            if (hasText(text)) {
+              emittedAgentOutput = true;
+            }
+          }
+
+          emit({
+            event: "item.completed",
+            type: "item.completed",
+            turn_id: turnId,
+            thread_id: activeThreadId,
+            item_id: itemId,
+            item_type: itemType,
+            item: event.item,
+          });
+          continue;
+        }
+      }
+
+      if (shouldRestartWithoutResume) {
+        logResumeThreadRestart(resumeRestartError);
+        resumedRequestedThread = false;
+        activeThreadId = null;
+        thread = null;
+        continue resumeThreadLoop;
+      }
+
+      if (!signal.aborted && !isClosed() && !turnFailed && !turnError) {
+        if (!sawUpstreamTurnCompleted) {
+          throw createBadResponseError(
+            "Enhancement stream ended without a completion event. Please retry.",
+          );
+        }
+
+        if (threadOptions.webSearchEnabled === true) {
           emitEnhancementWorkflowStep({
             emit,
             turnId,
             threadId: activeThreadId,
             stepId: "web_search",
             label: "Search the web",
-            status: "running",
-            detail: nextQuery
-              ? `Searching the web for ${truncateWorkflowDetail(nextQuery, 120)}`
-              : "Searching the web for supporting context.",
+            status: webSearchCount > 0 ? "completed" : "skipped",
+            detail: webSearchCount > 0
+              ? buildWebSearchWorkflowDetail(webSearchCount, lastWebSearchQuery)
+              : "No web lookup was needed for this enhancement.",
           });
         }
-        emit({
-          event: "item.started",
-          type: "item.started",
-          turn_id: turnId,
-          thread_id: activeThreadId,
-          item_id: itemId,
-          item_type: itemType,
-          item: event.item,
+
+        const rawEnhancerOutput = pickPrimaryAgentMessageText(agentMessageByItemId, agentMessageItemOrder);
+        const postProcessed = postProcessEnhancementResponse({
+          llmResponseText: rawEnhancerOutput,
+          userInput: prompt,
+          context: enhancementContext,
         });
-        continue;
-      }
+        const parsedEnhancerOutput =
+          postProcessed.parse_status === "json"
+            ? parseEnhancementJsonResponse(rawEnhancerOutput)
+            : null;
+        const outputContract = validateEnhancementOutputContract(parsedEnhancerOutput);
+        const missingEnhancementPlan =
+          parsedEnhancerOutput != null
+          && !Object.prototype.hasOwnProperty.call(parsedEnhancerOutput, "enhancement_plan");
 
-      if (event.type === "item.updated") {
-        const itemId = idFromItem(event.item);
-        const itemType = typeFromItem(event.item);
-        const isAgentMessage = isAgentMessageItemType(itemType);
-        const currentText = extractItemText(event.item);
-        if (isWorkflowWebSearchItemType(itemType)) {
-          const nextQuery = extractWorkflowWebSearchQuery(event.item) || lastWebSearchQuery;
-          if (
-            itemId
-            && isCountableWorkflowWebSearchItemType(itemType)
-            && !seenWebSearchItemIds.has(itemId)
-          ) {
-            seenWebSearchItemIds.add(itemId);
-            webSearchCount += 1;
-          }
-          lastWebSearchQuery = nextQuery;
-        }
-        if (isAgentMessage) {
-          const agentItemKey = itemId || "__agent_message__";
-          if (!agentMessageByItemId.has(agentItemKey)) {
-            agentMessageItemOrder.push(agentItemKey);
-          }
-          agentMessageByItemId.set(agentItemKey, currentText);
-          if (hasText(currentText)) {
-            emittedAgentOutput = true;
-          }
+        // ── Enhancement response diagnostics ─────────────────────────────
+        const agentItemCount = agentMessageByItemId.size;
+        const rawOutputLength = rawEnhancerOutput.length;
+        if (rawOutputLength === 0) {
+          logEvent("warn", "enhance_empty_agent_output", cleanLogFields({
+            request_id: requestContext?.requestId,
+            endpoint: requestContext?.endpoint,
+            thread_id: activeThreadId,
+            turn_id: turnId,
+            agent_item_count: agentItemCount,
+            agent_item_order: agentMessageItemOrder.length,
+            emitted_agent_output: emittedAgentOutput,
+            message: "Codex turn completed but no agent_message text was collected. The model may have only produced reasoning or tool-use items.",
+          }));
         }
 
-        emit({
-          event: "item.updated",
-          type: "item.updated",
-          turn_id: turnId,
-          thread_id: activeThreadId,
-          item_id: itemId,
-          item_type: itemType,
-          item: event.item,
-        });
-        continue;
-      }
-
-      if (event.type === "item.completed") {
-        const itemId = idFromItem(event.item);
-        const itemType = typeFromItem(event.item);
-        const isAgentMessage = isAgentMessageItemType(itemType);
-        const text = extractItemText(event.item);
-        if (isWorkflowWebSearchItemType(itemType)) {
-          const nextQuery = extractWorkflowWebSearchQuery(event.item) || lastWebSearchQuery;
-          if (
-            itemId
-            && isCountableWorkflowWebSearchItemType(itemType)
-            && !seenWebSearchItemIds.has(itemId)
-          ) {
-            seenWebSearchItemIds.add(itemId);
-            webSearchCount += 1;
-          }
-          lastWebSearchQuery = nextQuery;
-        }
-        if (isAgentMessage) {
-          const agentItemKey = itemId || "__agent_message__";
-          if (!agentMessageByItemId.has(agentItemKey)) {
-            agentMessageItemOrder.push(agentItemKey);
-          }
-          agentMessageByItemId.set(agentItemKey, text);
-          if (hasText(text)) {
-            emittedAgentOutput = true;
-          }
-        }
-
-        emit({
-          event: "item.completed",
-          type: "item.completed",
-          turn_id: turnId,
-          thread_id: activeThreadId,
-          item_id: itemId,
-          item_type: itemType,
-          item: event.item,
-        });
-        continue;
-      }
-    }
-
-    if (!signal.aborted && !isClosed() && !turnFailed && !turnError) {
-      if (!sawUpstreamTurnCompleted) {
-        throw createBadResponseError(
-          "Enhancement stream ended without a completion event. Please retry.",
+        // Log parse outcome for every enhancement to aid failure triage.
+        const diag = postProcessed.parse_diagnostics;
+        logEvent(
+          postProcessed.parse_status === "json" ? "info" : "warn",
+          "enhance_post_process",
+          cleanLogFields({
+            request_id: requestContext?.requestId,
+            endpoint: requestContext?.endpoint,
+            thread_id: activeThreadId,
+            turn_id: turnId,
+            parse_status: postProcessed.parse_status,
+            raw_output_chars: rawOutputLength,
+            enhanced_prompt_chars: postProcessed.enhanced_prompt?.length ?? 0,
+            quality_overall: postProcessed.quality_score?.overall,
+            improvement_delta: postProcessed.improvement_delta,
+            missing_parts: postProcessed.missing_parts?.length > 0
+              ? postProcessed.missing_parts.join(",")
+              : undefined,
+            word_count_original: postProcessed.word_count?.original,
+            word_count_enhanced: postProcessed.word_count?.enhanced,
+            detected_intent: postProcessed.detected_context?.intent?.join(",") || undefined,
+            detected_domain: postProcessed.detected_context?.domain?.join(",") || undefined,
+            builder_mode: postProcessed.detected_context?.mode,
+            // Parse diagnostics (especially useful when parse_status is "fallback")
+            parse_had_code_fence: diag?.had_code_fence,
+            parse_had_json_candidate: diag?.had_json_candidate,
+            parse_json_candidate_chars: diag?.json_candidate_chars || undefined,
+            parse_json_ok: diag?.json_parse_ok,
+            parse_json_error: diag?.json_parse_error || undefined,
+            parse_has_enhanced_prompt: diag?.has_enhanced_prompt_field,
+            parse_has_parts_breakdown: diag?.has_parts_breakdown_field,
+            parse_has_quality_score: diag?.has_quality_score_field,
+          }),
         );
-      }
 
-      if (threadOptions.webSearchEnabled === true) {
+        if (missingEnhancementPlan) {
+          logEvent("warn", "enhance_missing_enhancement_plan", cleanLogFields({
+            request_id: requestContext?.requestId,
+            endpoint: requestContext?.endpoint,
+            thread_id: activeThreadId,
+            turn_id: turnId,
+            raw_output_chars: rawOutputLength,
+          }));
+        }
+
+        if (postProcessed.parse_status !== "json" || !outputContract.ok) {
+          const validationDetail = [
+            outputContract.missingFields.length > 0
+              ? `missing=${outputContract.missingFields.join(",")}`
+              : null,
+            outputContract.invalidFields.length > 0
+              ? `invalid=${outputContract.invalidFields.join(",")}`
+              : null,
+          ].filter(Boolean).join(" ");
+          logEvent("error", "enhance_invalid_structured_output", cleanLogFields({
+            request_id: requestContext?.requestId,
+            endpoint: requestContext?.endpoint,
+            thread_id: activeThreadId,
+            turn_id: turnId,
+            parse_status: postProcessed.parse_status,
+            raw_output_chars: rawOutputLength,
+            validation_detail: validationDetail || undefined,
+            parse_json_error: diag?.json_parse_error || undefined,
+            raw_output_sha256: hashTextForLogs(rawEnhancerOutput),
+          }));
+          throw createBadResponseError(
+            "Enhancement returned invalid structured output. Please retry.",
+          );
+        }
+
+        if (sourceExpansion) {
+          postProcessed.source_context = sourceExpansion;
+        }
+
+        const finalEnhancedPrompt = postProcessed.enhanced_prompt.trim();
+        const finalContextSummary = postProcessed.session_context_summary || "";
+        if (!finalEnhancedPrompt) {
+          throw createBadResponseError(
+            "Enhancement returned an empty prompt. Please retry.",
+          );
+        }
+
+        emittedGenerateWorkflowTerminal = true;
         emitEnhancementWorkflowStep({
           emit,
           turnId,
           threadId: activeThreadId,
-          stepId: "web_search",
-          label: "Search the web",
-          status: webSearchCount > 0 ? "completed" : "skipped",
-          detail: webSearchCount > 0
-            ? buildWebSearchWorkflowDetail(webSearchCount, lastWebSearchQuery)
-            : "No web lookup was needed for this enhancement.",
+          stepId: "generate_prompt",
+          label: "Generate enhanced prompt",
+          status: "completed",
+          detail: buildGeneratePromptWorkflowDetail(postProcessed),
         });
-      }
 
-      const rawEnhancerOutput = pickPrimaryAgentMessageText(agentMessageByItemId, agentMessageItemOrder);
-      const postProcessed = postProcessEnhancementResponse({
-        llmResponseText: rawEnhancerOutput,
-        userInput: prompt,
-        context: enhancementContext,
-      });
-      const parsedEnhancerOutput =
-        postProcessed.parse_status === "json"
-          ? parseEnhancementJsonResponse(rawEnhancerOutput)
-          : null;
-      const outputContract = validateEnhancementOutputContract(parsedEnhancerOutput);
-      const missingEnhancementPlan =
-        parsedEnhancerOutput != null
-        && !Object.prototype.hasOwnProperty.call(parsedEnhancerOutput, "enhancement_plan");
-
-      // ── Enhancement response diagnostics ─────────────────────────────
-      const agentItemCount = agentMessageByItemId.size;
-      const rawOutputLength = rawEnhancerOutput.length;
-      if (rawOutputLength === 0) {
-        logEvent("warn", "enhance_empty_agent_output", cleanLogFields({
-          request_id: requestContext?.requestId,
-          endpoint: requestContext?.endpoint,
-          thread_id: activeThreadId,
-          turn_id: turnId,
-          agent_item_count: agentItemCount,
-          agent_item_order: agentMessageItemOrder.length,
-          emitted_agent_output: emittedAgentOutput,
-          message: "Codex turn completed but no agent_message text was collected. The model may have only produced reasoning or tool-use items.",
-        }));
-      }
-
-      // Log parse outcome for every enhancement to aid failure triage.
-      const diag = postProcessed.parse_diagnostics;
-      logEvent(
-        postProcessed.parse_status === "json" ? "info" : "warn",
-        "enhance_post_process",
-        cleanLogFields({
-          request_id: requestContext?.requestId,
-          endpoint: requestContext?.endpoint,
-          thread_id: activeThreadId,
-          turn_id: turnId,
-          parse_status: postProcessed.parse_status,
-          raw_output_chars: rawOutputLength,
-          enhanced_prompt_chars: postProcessed.enhanced_prompt?.length ?? 0,
-          quality_overall: postProcessed.quality_score?.overall,
-          improvement_delta: postProcessed.improvement_delta,
-          missing_parts: postProcessed.missing_parts?.length > 0
-            ? postProcessed.missing_parts.join(",")
-            : undefined,
-          word_count_original: postProcessed.word_count?.original,
-          word_count_enhanced: postProcessed.word_count?.enhanced,
-          detected_intent: postProcessed.detected_context?.intent?.join(",") || undefined,
-          detected_domain: postProcessed.detected_context?.domain?.join(",") || undefined,
-          builder_mode: postProcessed.detected_context?.mode,
-          // Parse diagnostics (especially useful when parse_status is "fallback")
-          parse_had_code_fence: diag?.had_code_fence,
-          parse_had_json_candidate: diag?.had_json_candidate,
-          parse_json_candidate_chars: diag?.json_candidate_chars || undefined,
-          parse_json_ok: diag?.json_parse_ok,
-          parse_json_error: diag?.json_parse_error || undefined,
-          parse_has_enhanced_prompt: diag?.has_enhanced_prompt_field,
-          parse_has_parts_breakdown: diag?.has_parts_breakdown_field,
-          parse_has_quality_score: diag?.has_quality_score_field,
-        }),
-      );
-
-      if (missingEnhancementPlan) {
-        logEvent("warn", "enhance_missing_enhancement_plan", cleanLogFields({
-          request_id: requestContext?.requestId,
-          endpoint: requestContext?.endpoint,
-          thread_id: activeThreadId,
-          turn_id: turnId,
-          raw_output_chars: rawOutputLength,
-        }));
-      }
-
-      if (postProcessed.parse_status !== "json" || !outputContract.ok) {
-        const validationDetail = [
-          outputContract.missingFields.length > 0
-            ? `missing=${outputContract.missingFields.join(",")}`
-            : null,
-          outputContract.invalidFields.length > 0
-            ? `invalid=${outputContract.invalidFields.join(",")}`
-            : null,
-        ].filter(Boolean).join(" ");
-        logEvent("error", "enhance_invalid_structured_output", cleanLogFields({
-          request_id: requestContext?.requestId,
-          endpoint: requestContext?.endpoint,
-          thread_id: activeThreadId,
-          turn_id: turnId,
-          parse_status: postProcessed.parse_status,
-          raw_output_chars: rawOutputLength,
-          validation_detail: validationDetail || undefined,
-          parse_json_error: diag?.json_parse_error || undefined,
-          raw_output_sha256: hashTextForLogs(rawEnhancerOutput),
-        }));
-        throw createBadResponseError(
-          "Enhancement returned invalid structured output. Please retry.",
-        );
-      }
-
-      if (sourceExpansion) {
-        postProcessed.source_context = sourceExpansion;
-      }
-
-      const finalEnhancedPrompt = postProcessed.enhanced_prompt.trim();
-      const finalContextSummary = postProcessed.session_context_summary || "";
-      if (!finalEnhancedPrompt) {
-        throw createBadResponseError(
-          "Enhancement returned an empty prompt. Please retry.",
-        );
-      }
-
-      emittedGenerateWorkflowTerminal = true;
-      emitEnhancementWorkflowStep({
-        emit,
-        turnId,
-        threadId: activeThreadId,
-        stepId: "generate_prompt",
-        label: "Generate enhanced prompt",
-        status: "completed",
-        detail: buildGeneratePromptWorkflowDetail(postProcessed),
-      });
-
-      const completedSession = buildSessionPayload("completed", {
-        contextSummary: finalContextSummary,
-        latestEnhancedPrompt: finalEnhancedPrompt,
-      });
-      for (const payload of buildEnhanceSuccessfulTerminalEvents({
-        turnId,
-        threadId: activeThreadId,
-        usage: upstreamTurnUsage,
-        payload: postProcessed,
-        requestWarnings: threadOptionWarnings,
-        session: completedSession,
-        emittedAgentOutput,
-        finalEnhancedPrompt,
-      })) {
-        emit({
-          ...payload,
+        const completedSession = buildSessionPayload("completed", {
+          contextSummary: finalContextSummary,
+          latestEnhancedPrompt: finalEnhancedPrompt,
         });
+        for (const payload of buildEnhanceSuccessfulTerminalEvents({
+          turnId,
+          threadId: activeThreadId,
+          usage: upstreamTurnUsage,
+          payload: postProcessed,
+          requestWarnings: threadOptionWarnings,
+          session: completedSession,
+          emittedAgentOutput,
+          finalEnhancedPrompt,
+        })) {
+          emit({
+            ...payload,
+          });
+        }
       }
+
+      break resumeThreadLoop;
     }
   } catch (error) {
     activeThreadId = resolveActiveCodexThreadId(activeThreadId, thread);
