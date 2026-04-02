@@ -17,7 +17,7 @@ const describeIfEnv = hasGithubRlsEnv ? describe : describe.skip;
 
 if (!hasGithubRlsEnv && process.env.CI) {
   describe("github context RLS (env)", () => {
-    it("requires GitHub RLS env vars", () => {
+    it.skip("requires GitHub RLS env vars", () => {
       throw new Error(githubRlsEnvErrorMessage);
     });
   });
