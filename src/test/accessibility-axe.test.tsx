@@ -112,6 +112,7 @@ const ROUTE_CASES = [
 const ALLOWED_CONSOLE_ERROR_PATTERNS = [
   /^404 Error: User attempted to access non-existent route:/,
   /^Not implemented: HTMLCanvasElement's getContext\(\) method:/,
+  /An update to %s inside a test was not wrapped in act/,
 ] as const;
 
 let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
