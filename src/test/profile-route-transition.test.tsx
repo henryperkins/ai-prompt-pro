@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import type { CommunityPost, CommunityProfile } from "@/lib/community";
 import { defaultConfig } from "@/lib/prompt-builder";
@@ -17,6 +17,10 @@ const mocks = vi.hoisted(() => ({
   loadPostsByIds: vi.fn(),
   loadMyVotes: vi.fn(),
   loadMyRatings: vi.fn(),
+  loadBlockedUserIds: vi.fn(),
+  blockCommunityUser: vi.fn(),
+  unblockCommunityUser: vi.fn(),
+  submitCommunityReport: vi.fn(),
 }));
 
 vi.mock("@/hooks/useAuth", () => ({
@@ -43,11 +47,29 @@ vi.mock("@/components/community/CommunityFeed", () => ({
     featuredPostId,
     selectedPostId,
     featuredPostBadgeLabel,
+    currentUserId,
+    blockFilterReady,
+    blockedUserIds,
+    rawPostCount,
+    hiddenPostCount,
+    onReportPost,
+    onReportComment,
+    onBlockUser,
+    onUnblockUser,
   }: {
     posts: CommunityPost[];
     featuredPostId?: string | null;
     selectedPostId?: string | null;
     featuredPostBadgeLabel?: string;
+    currentUserId?: string | null;
+    blockFilterReady?: boolean;
+    blockedUserIds?: string[];
+    rawPostCount?: number;
+    hiddenPostCount?: number;
+    onReportPost?: (post: CommunityPost) => void;
+    onReportComment?: (commentId: string, userId: string, postId: string) => void;
+    onBlockUser?: (userId: string) => void;
+    onUnblockUser?: (userId: string) => void;
   }) => (
     <div>
       <div data-testid="community-feed-count">{posts.length}</div>
@@ -55,6 +77,13 @@ vi.mock("@/components/community/CommunityFeed", () => ({
       <div data-testid="community-feed-selected-id">{selectedPostId ?? "none"}</div>
       <div data-testid="community-feed-featured-label">{featuredPostBadgeLabel ?? "none"}</div>
       <div data-testid="community-feed-first-title">{posts[0]?.title ?? "none"}</div>
+      <div data-testid="community-feed-current-user">{currentUserId ?? "none"}</div>
+      <div data-testid="community-feed-block-ready">{String(blockFilterReady ?? true)}</div>
+      <div data-testid="community-feed-blocked-ids">{blockedUserIds?.join(",") || "none"}</div>
+      <div data-testid="community-feed-raw-count">{String(rawPostCount ?? posts.length)}</div>
+      <div data-testid="community-feed-hidden-count">{String(hiddenPostCount ?? 0)}</div>
+      <div data-testid="community-feed-report-enabled">{String(Boolean(onReportPost && onReportComment))}</div>
+      <div data-testid="community-feed-block-enabled">{String(Boolean(onBlockUser && onUnblockUser))}</div>
     </div>
   ),
 }));
@@ -73,6 +102,13 @@ vi.mock("@/lib/community", async () => {
     loadMyRatings: (...args: unknown[]) => mocks.loadMyRatings(...args),
   };
 });
+
+vi.mock("@/lib/community-moderation", () => ({
+  loadBlockedUserIds: (...args: unknown[]) => mocks.loadBlockedUserIds(...args),
+  blockCommunityUser: (...args: unknown[]) => mocks.blockCommunityUser(...args),
+  unblockCommunityUser: (...args: unknown[]) => mocks.unblockCommunityUser(...args),
+  submitCommunityReport: (...args: unknown[]) => mocks.submitCommunityReport(...args),
+}));
 
 function buildPost(overrides: Partial<CommunityPost> = {}): CommunityPost {
   return {
@@ -124,6 +160,28 @@ function ProfileRouteHarness() {
 }
 
 describe("Profile route transitions", () => {
+  beforeEach(() => {
+    mocks.toast.mockReset();
+    mocks.loadProfilesByIds.mockReset();
+    mocks.loadFollowStats.mockReset();
+    mocks.loadProfileActivityStats.mockReset();
+    mocks.loadPostsByAuthor.mockReset();
+    mocks.isFollowingCommunityUser.mockReset();
+    mocks.loadPostsByIds.mockReset();
+    mocks.loadMyVotes.mockReset();
+    mocks.loadMyRatings.mockReset();
+    mocks.loadBlockedUserIds.mockReset();
+    mocks.blockCommunityUser.mockReset();
+    mocks.unblockCommunityUser.mockReset();
+    mocks.submitCommunityReport.mockReset();
+
+    mocks.user = { id: "viewer-1" };
+    mocks.loadBlockedUserIds.mockResolvedValue([]);
+    mocks.blockCommunityUser.mockResolvedValue(true);
+    mocks.unblockCommunityUser.mockResolvedValue(true);
+    mocks.submitCommunityReport.mockResolvedValue("report-1");
+  });
+
   it("clears stale profile content while loading the next profile", async () => {
     const neverResolve = new Promise<CommunityProfile[]>(() => undefined);
 
@@ -219,5 +277,103 @@ describe("Profile route transitions", () => {
     expect(screen.getByTestId("community-feed-selected-id")).toHaveTextContent("post-legendary");
     expect(screen.getByTestId("community-feed-featured-label")).toHaveTextContent("Top Prompt");
     expect(screen.getByTestId("community-feed-first-title")).toHaveTextContent("Legendary Prompt");
+  });
+
+  it("keeps the profile route available when ancillary profile stats fail", async () => {
+    mocks.loadProfilesByIds.mockResolvedValue([
+      buildProfile({
+        id: "user-1",
+        displayName: "Alpha User",
+      }),
+    ]);
+    mocks.loadFollowStats.mockRejectedValue(new Error("follow stats unavailable"));
+    mocks.loadProfileActivityStats.mockRejectedValue(new Error("activity stats unavailable"));
+    mocks.loadPostsByAuthor.mockResolvedValue([buildPost()]);
+    mocks.isFollowingCommunityUser.mockResolvedValue(false);
+    mocks.loadPostsByIds.mockResolvedValue([]);
+    mocks.loadMyVotes.mockResolvedValue({});
+    mocks.loadMyRatings.mockResolvedValue({});
+
+    render(
+      <MemoryRouter initialEntries={["/profile/user-1"]}>
+        <Routes>
+          <Route path="/profile/:userId" element={<ProfileRouteHarness />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Alpha User" });
+    expect(screen.getByTestId("community-feed-count")).toHaveTextContent("1");
+    expect(screen.queryByText("Couldn't load profile")).not.toBeInTheDocument();
+  });
+
+  it("passes moderation context into the profile feed for signed-in viewers", async () => {
+    mocks.loadProfilesByIds.mockResolvedValue([
+      buildProfile({
+        id: "user-1",
+        displayName: "Alpha User",
+      }),
+    ]);
+    mocks.loadFollowStats.mockResolvedValue({ followersCount: 3, followingCount: 5 });
+    mocks.loadProfileActivityStats.mockResolvedValue({
+      totalPosts: 1,
+      totalUpvotes: 0,
+      totalVerified: 0,
+      averageRating: 0,
+    });
+    mocks.loadPostsByAuthor.mockResolvedValue([buildPost()]);
+    mocks.isFollowingCommunityUser.mockResolvedValue(false);
+    mocks.loadPostsByIds.mockResolvedValue([]);
+    mocks.loadMyVotes.mockResolvedValue({});
+    mocks.loadMyRatings.mockResolvedValue({});
+    mocks.loadBlockedUserIds.mockResolvedValue([]);
+
+    render(
+      <MemoryRouter initialEntries={["/profile/user-1"]}>
+        <Routes>
+          <Route path="/profile/:userId" element={<ProfileRouteHarness />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Alpha User" });
+    expect(screen.getByTestId("community-feed-current-user")).toHaveTextContent("viewer-1");
+    expect(screen.getByTestId("community-feed-block-ready")).toHaveTextContent("true");
+    expect(screen.getByTestId("community-feed-report-enabled")).toHaveTextContent("true");
+    expect(screen.getByTestId("community-feed-block-enabled")).toHaveTextContent("true");
+  });
+
+  it("blocks direct profile visits for authors in the viewer's blocked list", async () => {
+    mocks.loadProfilesByIds.mockResolvedValue([
+      buildProfile({
+        id: "user-1",
+        displayName: "Alpha User",
+      }),
+    ]);
+    mocks.loadFollowStats.mockResolvedValue({ followersCount: 3, followingCount: 5 });
+    mocks.loadProfileActivityStats.mockResolvedValue({
+      totalPosts: 1,
+      totalUpvotes: 0,
+      totalVerified: 0,
+      averageRating: 0,
+    });
+    mocks.loadPostsByAuthor.mockResolvedValue([buildPost()]);
+    mocks.isFollowingCommunityUser.mockResolvedValue(false);
+    mocks.loadPostsByIds.mockResolvedValue([]);
+    mocks.loadMyVotes.mockResolvedValue({});
+    mocks.loadMyRatings.mockResolvedValue({});
+    mocks.loadBlockedUserIds.mockResolvedValue(["user-1"]);
+
+    render(
+      <MemoryRouter initialEntries={["/profile/user-1"]}>
+        <Routes>
+          <Route path="/profile/:userId" element={<ProfileRouteHarness />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("You blocked this user");
+    expect(screen.getByRole("button", { name: "Unblock user" })).toBeInTheDocument();
+    expect(screen.queryByTestId("community-feed-count")).toBeNull();
   });
 });

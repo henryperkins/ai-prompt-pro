@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { CommunityFeed } from "@/components/community/CommunityFeed";
+import { CommunityReportDialog } from "@/components/community/CommunityReportDialog";
 import { ProfileHero } from "@/components/community/ProfileHero";
 import { getBestRarityFromPosts } from "@/components/community/profile-rarity";
 import { PageShell } from "@/components/PageShell";
@@ -31,6 +32,12 @@ import {
   unfollowCommunityUser,
 } from "@/lib/community";
 import { getCommunityPostRarity } from "@/lib/community-rarity";
+import {
+  blockCommunityUser,
+  loadBlockedUserIds,
+  submitCommunityReport,
+  unblockCommunityUser,
+} from "@/lib/community-moderation";
 import { toParentTitleMap, toProfileMap } from "@/lib/community-utils";
 import { toCommunityErrorState, type CommunityErrorState } from "@/lib/community-errors";
 import { copyTextToClipboard } from "@/lib/clipboard";
@@ -43,6 +50,15 @@ const EMPTY_ACTIVITY_STATS: ProfileActivityStats = {
   totalVerified: 0,
   averageRating: 0,
 };
+
+interface CommunityReportTarget {
+  targetType: "post" | "comment";
+  postId: string;
+  commentId?: string;
+  reportedUserId: string | null;
+}
+
+type RelationshipLoadStatus = "idle" | "loading" | "ready" | "error";
 
 const Profile = () => {
   const { userId: routeUserId } = useParams<{ userId: string }>();
@@ -69,6 +85,11 @@ const Profile = () => {
   const [page, setPage] = useState(0);
   const [errorState, setErrorState] = useState<CommunityErrorState | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
+  const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
+  const [blockedUsersStatus, setBlockedUsersStatus] = useState<RelationshipLoadStatus>("idle");
+  const [hasResolvedBlockedUsersOnce, setHasResolvedBlockedUsersOnce] = useState(false);
+  const [reportTarget, setReportTarget] = useState<CommunityReportTarget | null>(null);
+  const [reportSubmitting, setReportSubmitting] = useState(false);
 
   const isOwnProfile = Boolean(user?.id && profileUserId && user.id === profileUserId);
 
@@ -138,6 +159,39 @@ const Profile = () => {
   );
 
   useEffect(() => {
+    setReportTarget(null);
+
+    if (!user?.id) {
+      setBlockedUserIds([]);
+      setBlockedUsersStatus("idle");
+      setHasResolvedBlockedUsersOnce(false);
+      return;
+    }
+
+    let cancelled = false;
+    setBlockedUsersStatus("loading");
+
+    void loadBlockedUserIds()
+      .then((ids) => {
+        if (!cancelled) {
+          setBlockedUserIds(ids);
+          setBlockedUsersStatus("ready");
+          setHasResolvedBlockedUsersOnce(true);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.error("Failed to load blocked users:", error);
+          setBlockedUsersStatus("error");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
     const token = ++requestToken.current;
 
     if (!profileUserId) {
@@ -180,7 +234,7 @@ const Profile = () => {
 
     void (async () => {
       try {
-        const [profiles, stats, activity, firstPage, following] = await Promise.all([
+        const [profilesResult, statsResult, activityResult, firstPageResult, followingResult] = await Promise.allSettled([
           loadProfilesByIds([profileUserId]),
           loadFollowStats(profileUserId),
           loadProfileActivityStats(profileUserId),
@@ -192,7 +246,14 @@ const Profile = () => {
 
         if (token !== requestToken.current) return;
 
-        const loadedProfile = profiles[0] ?? null;
+        if (profilesResult.status !== "fulfilled") {
+          throw profilesResult.reason;
+        }
+        if (firstPageResult.status !== "fulfilled") {
+          throw firstPageResult.reason;
+        }
+
+        const loadedProfile = profilesResult.value[0] ?? null;
         if (!loadedProfile) {
           setProfile(null);
           setProfileStats({ followersCount: 0, followingCount: 0 });
@@ -212,6 +273,25 @@ const Profile = () => {
           });
           return;
         }
+
+        if (statsResult.status === "rejected") {
+          console.error("Failed to load follow stats:", statsResult.reason);
+        }
+        if (activityResult.status === "rejected") {
+          console.error("Failed to load profile activity stats:", activityResult.reason);
+        }
+        if (followingResult.status === "rejected") {
+          console.error("Failed to load follow status:", followingResult.reason);
+        }
+
+        const stats = statsResult.status === "fulfilled"
+          ? statsResult.value
+          : { followersCount: 0, followingCount: 0 };
+        const activity = activityResult.status === "fulfilled"
+          ? activityResult.value
+          : EMPTY_ACTIVITY_STATS;
+        const firstPage = firstPageResult.value;
+        const following = followingResult.status === "fulfilled" ? followingResult.value : false;
 
         setProfile(loadedProfile);
         setProfileStats(stats);
@@ -436,9 +516,131 @@ const Profile = () => {
     );
   }, []);
 
+  const handleBlockUser = useCallback(async (targetUserId: string) => {
+    if (!user) {
+      toast({ title: "Sign in required", description: "Sign in to block users." });
+      return;
+    }
+    if (!targetUserId || targetUserId === user.id) {
+      return;
+    }
+
+    try {
+      await blockCommunityUser(targetUserId);
+      setBlockedUserIds((previous) => (
+        previous.includes(targetUserId) ? previous : [...previous, targetUserId]
+      ));
+      setBlockedUsersStatus("ready");
+      setHasResolvedBlockedUsersOnce(true);
+      toast({
+        title: "User blocked",
+        description: "Posts and comments from this user are now hidden.",
+      });
+    } catch (error) {
+      toast({
+        title: "Unable to block user",
+        description: error instanceof Error ? error.message : "Unexpected error",
+        variant: "destructive",
+      });
+    }
+  }, [toast, user]);
+
+  const handleUnblockUser = useCallback(async (targetUserId: string) => {
+    if (!user) {
+      toast({ title: "Sign in required", description: "Sign in to manage blocked users." });
+      return;
+    }
+
+    try {
+      await unblockCommunityUser(targetUserId);
+      setBlockedUserIds((previous) => previous.filter((id) => id !== targetUserId));
+      setBlockedUsersStatus("ready");
+      setHasResolvedBlockedUsersOnce(true);
+      toast({ title: "User unblocked" });
+    } catch (error) {
+      toast({
+        title: "Unable to unblock user",
+        description: error instanceof Error ? error.message : "Unexpected error",
+        variant: "destructive",
+      });
+    }
+  }, [toast, user]);
+
+  const handleReportPost = useCallback((post: CommunityPost) => {
+    if (!user) {
+      toast({ title: "Sign in required", description: "Sign in to submit reports." });
+      return;
+    }
+
+    setReportTarget({
+      targetType: "post",
+      postId: post.id,
+      reportedUserId: post.authorId,
+    });
+  }, [toast, user]);
+
+  const handleReportComment = useCallback((commentId: string, userId: string, postId: string) => {
+    if (!user) {
+      toast({ title: "Sign in required", description: "Sign in to submit reports." });
+      return;
+    }
+
+    setReportTarget({
+      targetType: "comment",
+      postId,
+      commentId,
+      reportedUserId: userId,
+    });
+  }, [toast, user]);
+
+  const handleSubmitReport = useCallback(async ({ reason, details }: { reason: string; details: string }) => {
+    if (!reportTarget) return;
+
+    setReportSubmitting(true);
+    try {
+      await submitCommunityReport({
+        targetType: reportTarget.targetType,
+        postId: reportTarget.postId,
+        commentId: reportTarget.commentId ?? null,
+        reportedUserId: reportTarget.reportedUserId,
+        reason,
+        details,
+      });
+      setReportTarget(null);
+      toast({
+        title: "Thanks for the report",
+        description: "We review reports and take action when needed.",
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to submit report",
+        description: error instanceof Error ? error.message : "Unexpected error",
+        variant: "destructive",
+      });
+    } finally {
+      setReportSubmitting(false);
+    }
+  }, [reportTarget, toast]);
+
   const handleRetry = useCallback(() => {
     setRetryNonce((prev) => prev + 1);
   }, []);
+
+  const blockFilterReady =
+    !user?.id || blockedUsersStatus === "ready" || hasResolvedBlockedUsersOnce;
+  const effectiveBlockedUserIds = useMemo(
+    () => (blockFilterReady ? blockedUserIds : []),
+    [blockFilterReady, blockedUserIds],
+  );
+  const profileAuthorBlocked = profile ? effectiveBlockedUserIds.includes(profile.id) : false;
+  const visiblePosts = useMemo(
+    () =>
+      blockFilterReady
+        ? orderedPosts.filter((post) => !effectiveBlockedUserIds.includes(post.authorId))
+        : [],
+    [blockFilterReady, effectiveBlockedUserIds, orderedPosts],
+  );
+  const hiddenPostCount = blockFilterReady ? orderedPosts.length - visiblePosts.length : 0;
 
   return (
     <PageShell>
@@ -474,7 +676,26 @@ const Profile = () => {
           </div>
         )}
 
-        {!errorState && profile && (
+        {!loading && !errorState && profile && !blockFilterReady && (
+          <StateCard
+            variant="empty"
+            title="Loading content protections"
+            description="We’re checking your blocked-user list before showing this profile."
+            primaryAction={{ label: "Back to community", onClick: () => navigate("/community") }}
+          />
+        )}
+
+        {!loading && !errorState && profile && blockFilterReady && profileAuthorBlocked && (
+          <StateCard
+            variant="empty"
+            title="You blocked this user"
+            description="Posts and comments from blocked users are hidden until you unblock them."
+            primaryAction={{ label: "Unblock user", onClick: () => void handleUnblockUser(profile.id) }}
+            secondaryAction={{ label: "Back to community", to: "/community" }}
+          />
+        )}
+
+        {!errorState && profile && blockFilterReady && !profileAuthorBlocked && (
           <>
             <ProfileHero
               profile={profile}
@@ -489,10 +710,11 @@ const Profile = () => {
             />
 
             <CommunityFeed
-              posts={orderedPosts}
+              posts={visiblePosts}
               loading={loading}
               errorMessage={errorState?.message}
               errorType={errorState?.kind}
+              blockFilterReady={blockFilterReady}
               authorById={authorById}
               parentTitleById={parentTitleById}
               onCopyPrompt={handleCopyPrompt}
@@ -503,11 +725,18 @@ const Profile = () => {
               canRate={Boolean(user)}
               ratingByPost={ratingByPost}
               onRatePrompt={handleRatePrompt}
-              currentUserId={null}
+              currentUserId={user?.id ?? null}
+              blockedUserIds={effectiveBlockedUserIds}
+              onReportPost={handleReportPost}
+              onReportComment={handleReportComment}
+              onBlockUser={handleBlockUser}
+              onUnblockUser={handleUnblockUser}
               featuredPostId={topPromptPostId}
               selectedPostId={topPromptPostId}
               featuredPostBadgeLabel={topPromptPostId ? "Top Prompt" : undefined}
               suppressAutoFeatured={Boolean(topPromptPostId)}
+              rawPostCount={orderedPosts.length}
+              hiddenPostCount={hiddenPostCount}
               hasMore={hasMore}
               isLoadingMore={isLoadingMore}
               onLoadMore={handleLoadMore}
@@ -525,6 +754,18 @@ const Profile = () => {
             secondaryAction={{ label: "Go to Builder", to: "/" }}
           />
         )}
+
+        <CommunityReportDialog
+          open={reportTarget !== null}
+          targetLabel={reportTarget?.targetType ?? "content"}
+          submitting={reportSubmitting}
+          onOpenChange={(open) => {
+            if (!open && !reportSubmitting) {
+              setReportTarget(null);
+            }
+          }}
+          onSubmit={handleSubmitReport}
+        />
 
         <div className="mt-4 flex justify-end">
           <Button

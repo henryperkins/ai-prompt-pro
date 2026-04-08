@@ -237,4 +237,40 @@ describe("Community relationship state resets", () => {
       await Promise.resolve();
     });
   });
+
+  it("hides stale follow controls until the next viewer's follow state resolves", async () => {
+    const followingReload = createDeferred<string[]>();
+
+    mocks.loadBlockedUserIds.mockResolvedValueOnce([]);
+    mocks.loadBlockedUserIds.mockResolvedValueOnce([]);
+    mocks.loadFollowingUserIds.mockResolvedValueOnce(["author-1"]);
+    mocks.loadFollowingUserIds.mockImplementationOnce(() => followingReload.promise);
+
+    const { Community, rerender } = await renderCommunity();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("community-card-follow")).toHaveTextContent("Following");
+    });
+
+    mocks.user = { id: "viewer-2" };
+    rerender(
+      <MemoryRouter initialEntries={["/community"]}>
+        <Community />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Relationship state post")).toBeInTheDocument();
+      expect(screen.queryByTestId("community-card-follow")).toBeNull();
+    });
+
+    await act(async () => {
+      followingReload.resolve([]);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("community-card-follow")).toHaveTextContent("Follow");
+    });
+  });
 });

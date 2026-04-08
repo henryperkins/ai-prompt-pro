@@ -194,6 +194,8 @@ const Community = () => {
 
     setBlockedUsersStatus("loading");
     setFollowingUsersStatus("loading");
+    setFollowingUserIds(new Set());
+    setHasResolvedFollowingUsersOnce(false);
 
     void (async () => {
       try {
