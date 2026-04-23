@@ -85,6 +85,10 @@ Key frontend vars:
 - `VITE_ENHANCE_TRANSPORT` (`auto` | `sse` | `ws`)
 - `VITE_ENHANCE_WS_CONNECT_TIMEOUT_MS` (optional; defaults to 3500ms)
 
+For the full inventory of feature flags (frontend build-time, runtime
+experiments, agent service booleans, worker toggles, and CI gates), see
+[`docs/feature-flags.md`](docs/feature-flags.md).
+
 ## GitHub repository context (optional)
 
 PromptForge can attach repository files as Builder context through a GitHub App

@@ -18,6 +18,7 @@ Use this file as the starting point for repo documentation.
 - `docs/community-mobile-qa-checklist.md` - manual mobile QA checks.
 - `docs/community-mobile-social-backlog.md` - active backlog for mobile social UX.
 - `docs/github-context-reference.md` - GitHub repository-context setup, constraints, and verification guide.
+- `docs/feature-flags.md` - canonical inventory of feature flags and experiment toggles across frontend, agent service, workers, and CI.
 
 ## Active planning docs
 

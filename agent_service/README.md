@@ -177,6 +177,10 @@ Notes:
 
 ## Environment variables
 
+> For the full cross-component flag inventory (frontend, agent service,
+> workers, CI), see [`../docs/feature-flags.md`](../docs/feature-flags.md).
+> The tables below are the agent-service-specific reference.
+
 ### Required
 
 | Variable                            | Description                                                                                                   |
