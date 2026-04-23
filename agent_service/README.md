@@ -292,8 +292,8 @@ GitHub storage logs omit SQL previews by default. Set
 | `CODEX_MODEL_REASONING_EFFORT`  | `high`                                                                                       | `minimal` \| `low` \| `medium` \| `high` \| `xhigh`                 |
 | `CODEX_MODEL_REASONING_SUMMARY` | `detailed`                                                                                   | `auto` \| `concise` \| `detailed`                                   |
 | `CODEX_NETWORK_ACCESS_ENABLED`  | `false`                                                                                      | Enable network access                                               |
-| `CODEX_WEB_SEARCH_MODE`         | _(none)_                                                                                     | `disabled` \| `cached` \| `live`                                    |
-| `CODEX_WEB_SEARCH_ENABLED`      | `false`                                                                                      | Enable web search                                                   |
+| `CODEX_WEB_SEARCH_ENABLED`      | `false`                                                                                      | Master toggle for the web-search tool (SDK `webSearchEnabled`). Distinct from `_MODE`; both map to separate Codex SDK options. Per-request thread options still override. |
+| `CODEX_WEB_SEARCH_MODE`         | _(none)_                                                                                     | `disabled` \| `cached` \| `live`. Refines tool behavior when enabled (SDK `webSearchMode`).                   |
 | `CODEX_APPROVAL_POLICY`         | _(none)_                                                                                     | `never` \| `on-request` \| `on-failure` \| `untrusted`              |
 | `CODEX_ADDITIONAL_DIRECTORIES`  | _(none)_                                                                                     | JSON array or comma-delimited paths                                 |
 

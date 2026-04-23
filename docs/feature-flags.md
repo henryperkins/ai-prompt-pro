@@ -8,6 +8,11 @@ this document whenever a flag is added, removed, or has its default changed,
 and cross-link from the feature's own runbook rather than re-documenting
 individual flags elsewhere.
 
+See also
+[`plans/2026-04-23-feature-flag-consolidation.md`](plans/2026-04-23-feature-flag-consolidation.md)
+for the active plan to retire redundant flags and the reasoning behind what
+stays configurable.
+
 Scope legend:
 
 - **Frontend build-time** — `import.meta.env.VITE_*`, baked into the Vite bundle
@@ -59,8 +64,8 @@ All booleans pass through `normalizeBool(value, defaultValue)` in
 |---|---|---|---|
 | `GITHUB_CONTEXT_ENABLED` | `false` | Exposes GitHub repository-context routes and the storage-backed manifest flow. Paired with `VITE_GITHUB_CONTEXT_ENABLED`. Also requires `NEON_DATABASE_URL` / `DATABASE_URL` when enabled. | `service-runtime.mjs` |
 | `GITHUB_DEBUG_LOGGING` | `false` | Adds verbose structured logging for GitHub API calls, manifest builds, and rate-limit handling. | `service-runtime.mjs` |
-| `CODEX_WEB_SEARCH_ENABLED` | `false` | Allows the Codex SDK to use the web-search tool during enhancement. | `service-runtime.mjs` |
-| `CODEX_WEB_SEARCH_MODE` | _(unset)_ | Enum: `disabled` \| `cached` \| `live`. Refines the web-search tool mode when enabled. | `service-runtime.mjs` |
+| `CODEX_WEB_SEARCH_ENABLED` | `false` | Master toggle for the Codex SDK web-search tool at service-default level (per-request `webSearchEnabled` in thread options still overrides). Maps to the SDK's `webSearchEnabled` field. | `service-runtime.mjs` |
+| `CODEX_WEB_SEARCH_MODE` | _(unset)_ | Enum: `disabled` \| `cached` \| `live`. Refines how the web-search tool behaves when enabled. Maps to the SDK's `webSearchMode` field (distinct from `webSearchEnabled`). | `service-runtime.mjs` |
 | `REQUIRE_PROVIDER_CONFIG` | `false` | Fails service startup if no Codex provider config is discovered, instead of falling back to process-level defaults. | `service-runtime.mjs` |
 | `STRICT_PUBLIC_API_KEY` | `true` | When `false`, accepts publishable-format keys without explicit configuration (logs a warning). Leave at default in production. | `service-runtime.mjs` |
 | `TRUST_PROXY` | `false` | Enables X-Forwarded-For rate-limit resolution behind a trusted reverse proxy. | `service-runtime.mjs` |
