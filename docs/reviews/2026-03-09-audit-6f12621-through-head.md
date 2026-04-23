@@ -1,3 +1,10 @@
+# Code Audit: `6f12621` Through HEAD
+
+Last updated: 2026-03-09
+
+> Historical snapshot.
+> Do not treat this file as current operational guidance; use `docs/README.md` to find active docs.
+
 No critical or high-severity range-introduced defects stood up under review. The range does introduce several medium and low issues.
 
 ## Medium
@@ -16,9 +23,9 @@ No critical or high-severity range-introduced defects stood up under review. The
 
 2. `7cee196` introduces a personalization subsystem that never runs in production. The whole feature lives in [prompt-enhancement-profile.ts](/home/azureuser/ai-prompt-pro/src/lib/prompt-enhancement-profile.ts#L1), but there are no production imports or call sites; repo-wide usage is tests only. Blast radius: the shipped app does not actually learn from accepted/rerun/variant behavior despite the feature and tests implying otherwise. Remediation: either wire `recordEnhancementAction(...)` into enhance-complete / variant-apply / rerun flows or remove the dead module until the product uses it.
 
-3. `91e4e33` documents unsupported `intent_override` values. [agent_service/README.md](/home/azureuser/ai-prompt-pro/agent_service/README.md#L33) advertises `critique` and `explanation`, but the implementation only accepts the routes in [enhancement-pipeline.mjs](/home/azureuser/ai-prompt-pro/agent_service/enhancement-pipeline.mjs#L382) and silently drops anything else in [enhancement-pipeline.mjs](/home/azureuser/ai-prompt-pro/agent_service/enhancement-pipeline.mjs#L1053). Blast radius: external callers following the README get silent fallback to auto-detect instead of the requested route. Remediation: align the docs to the real enum or reject unsupported overrides with a 400.
+3. `91e4e33` documents unsupported `intent_override` values. [agent_service/README.md](/agent_service/README.md) advertises `critique` and `explanation`, but the implementation only accepts the routes in [enhancement-pipeline.mjs](/home/azureuser/ai-prompt-pro/agent_service/enhancement-pipeline.mjs#L382) and silently drops anything else in [enhancement-pipeline.mjs](/home/azureuser/ai-prompt-pro/agent_service/enhancement-pipeline.mjs#L1053). Blast radius: external callers following the README get silent fallback to auto-detect instead of the requested route. Remediation: align the docs to the real enum or reject unsupported overrides with a 400.
 
-4. `a198cda` checks transient audit artifacts into source control. New tracked files such as [git-diff-full.txt](/home/azureuser/ai-prompt-pro/output/git-diff-full.txt#L1), [git-log-patch.txt](/home/azureuser/ai-prompt-pro/output/git-log-patch.txt#L1), and [audit-3ae0c61-post-enhance-phase0.md](/home/azureuser/ai-prompt-pro/plans/audit-3ae0c61-post-enhance-phase0.md#L1) are generated review outputs, not product source. Blast radius: noisier history, avoidable repo growth, and precedent for checking in ephemeral investigation artifacts. Remediation: drop them from git and ignore that class of file if it is meant to stay local.
+4. `a198cda` checks transient audit artifacts into source control. New tracked files such as [git-diff-full.txt](/home/azureuser/ai-prompt-pro/output/git-diff-full.txt#L1), [git-log-patch.txt](/home/azureuser/ai-prompt-pro/output/git-log-patch.txt#L1), and `audit-3ae0c61-post-enhance-phase0.md` (later moved to `docs/reviews/2026-03-09-audit-3ae0c61-post-enhance-phase0.md`) are generated review outputs, not product source. Blast radius: noisier history, avoidable repo growth, and precedent for checking in ephemeral investigation artifacts. Remediation: drop them from git and ignore that class of file if it is meant to stay local.
 
 ## Commit Notes
 

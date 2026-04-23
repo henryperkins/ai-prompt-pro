@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-16  
 **Status:** Proposed  
-**Depends on:** [`github-integration-implementation-plan.md`](github-integration-implementation-plan.md) Phase 1 (GitHub App connection flow)
+**Depends on:** [`2026-03-16-github-integration-implementation.md`](2026-03-16-github-integration-implementation.md) Phase 1 (GitHub App connection flow)
 
 ## 1. Concept
 

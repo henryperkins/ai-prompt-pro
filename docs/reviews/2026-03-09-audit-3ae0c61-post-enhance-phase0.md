@@ -1,5 +1,10 @@
 # Code Audit: Post-Merge Commit 3ae0c61 ("yp")
 
+Last updated: 2026-03-09
+
+> Historical snapshot.
+> Do not treat this file as current operational guidance; use `docs/README.md` to find active docs.
+
 **Audit scope:** All changes from `6f12621` (Merge PR #7: feature/enhance-phase0) to HEAD  
 **Commits in range:** 1 — `3ae0c619e84a93e4f474e8c9dd9fedb55d459cd3` ("yp")  
 **Files changed:** 14 (1,107 insertions, 45 deletions)  
@@ -289,7 +294,7 @@ feat(enhance): add analysis intent routing, text-position tie-breaking, and meta
 #### L-4 · Plan document at 977 lines is a maintenance burden
 
 **Commit:** `3ae0c61`  
-**File:** [`docs/plans/2026-03-09-prompt-enhancement-improvements.md`](docs/plans/2026-03-09-prompt-enhancement-improvements.md)
+**File:** `2026-03-09-prompt-enhancement-improvements.md` (never created)
 
 **Problem:** At 977 lines, this plan document includes detailed implementation steps, code snippets, and feasibility notes. While comprehensive, it will quickly become stale as implementation progresses and may create confusion about what's been implemented vs. planned.
 

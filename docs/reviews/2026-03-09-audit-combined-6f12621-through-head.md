@@ -1,5 +1,10 @@
 # Consolidated Audit: `6f12621` Through `HEAD`
 
+Last updated: 2026-03-09
+
+> Historical snapshot.
+> Do not treat this file as current operational guidance; use `docs/README.md` to find active docs.
+
 This document merges:
 
 - `plans/audit-6f12621-through-head.md`

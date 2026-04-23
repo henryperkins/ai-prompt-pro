@@ -1,5 +1,10 @@
 # Authentication Review
 
+Last updated: 2026-03-26
+
+> Historical snapshot.
+> Do not treat this file as current operational guidance; use `docs/README.md` to find active docs.
+
 Date: 2026-03-26
 
 ## Executive Summary

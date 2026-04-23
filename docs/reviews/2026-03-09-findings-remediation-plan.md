@@ -1,5 +1,10 @@
 # PromptForge Verified Remediation Plan (2026-03-09)
 
+Last updated: 2026-03-09
+
+> Historical snapshot.
+> Do not treat this file as current operational guidance; use `docs/README.md` to find active docs.
+
 ## Scope
 
 This plan supersedes the earlier draft remediation list and only covers issues still present after verifying `plans/audit-combined-6f12621-through-head.md` against current `HEAD`.

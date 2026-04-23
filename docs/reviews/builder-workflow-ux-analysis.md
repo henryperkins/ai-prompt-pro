@@ -1,3 +1,10 @@
+# Builder Workflow UX Analysis
+
+Last updated: 2026-03-12
+
+> Historical snapshot.
+> Do not treat this file as current operational guidance; use `docs/README.md` to find active docs.
+
 I traced the implemented journey end-to-end, and the short version is: the workflow is strong for serious iteration, but it turns into expert mode a bit too fast.
 
 Big-picture read

@@ -191,7 +191,7 @@ graph TD
 | `src/test/enhance-web-search-stream.test.ts` | Create | Unit tests for activity extraction |
 | `src/test/web-search-activity-indicator.test.tsx` | Create | Component render tests |
 | `src/test/index-web-search-streaming.test.tsx` | Modify | Add integration test for activity display during streaming |
-| `docs/prompt-build-and-enhancement.md` | Modify | Document web search activity events |
+| `prompt-build-and-enhancement.md` | Modify | Document web search activity events |
 
 ## Implementation Order
 

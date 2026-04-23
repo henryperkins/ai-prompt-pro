@@ -2,7 +2,7 @@
 
 **Reviewed:** 2026-03-16  
 **Reviewer:** Codex  
-**Plan under review:** [`github-integration-implementation-plan.md`](github-integration-implementation-plan.md)  
+**Plan under review:** [`2026-03-16-github-integration-implementation.md`](2026-03-16-github-integration-implementation.md)  
 **Verdict:** Approved. The implementation plan is now complete enough to begin execution.
 
 ## 1. Overall Assessment

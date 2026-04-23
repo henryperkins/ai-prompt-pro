@@ -1,5 +1,10 @@
 # Missing `community_user_blocks` Table — Remediation Plan
 
+Last updated: 2026-03-13
+
+> Historical snapshot.
+> Do not treat this file as current operational guidance; use `docs/README.md` to find active docs.
+
 **Date:** 2026-03-13
 **Severity:** Medium (console errors on every authenticated Community page load; blocks/reports features non-functional)
 **Status:** RESOLVED (2026-03-13)
@@ -85,7 +90,7 @@ Add a migration tracking mechanism. Options in order of preference:
 
 1. **Neon schema migration table:** Create a `schema_migrations` tracking table and a simple script that compares `supabase/migrations/*.sql` filenames against applied records.
 2. **CI check:** Add a GitHub Actions step that connects to Neon and verifies all migration files have been applied (read-only check, not auto-apply).
-3. **Documentation:** At minimum, update the [Neon cutover runbook](docs/neon-cutover-runbook.md) with a "Applying Migrations" section listing the manual process.
+3. **Documentation:** At minimum, update the [Neon cutover runbook](../neon-cutover-runbook.md) with a "Applying Migrations" section listing the manual process.
 
 ## Files Referenced
 
@@ -94,4 +99,4 @@ Add a migration tracking mechanism. Options in order of preference:
 - [`src/lib/community-moderation.ts`](src/lib/community-moderation.ts) — all block/unblock/report functions that query missing tables
 - [`src/pages/Community.tsx:174`](src/pages/Community.tsx:174) — `Promise.allSettled` call that gracefully handles the failure
 - [`src/pages/CommunityPost.tsx:95`](src/pages/CommunityPost.tsx:95) — the `console.error` producing the visible log message
-- [`docs/neon-cutover-runbook.md`](docs/neon-cutover-runbook.md) — runbook that needs a migrations section
+- [`docs/neon-cutover-runbook.md`](../neon-cutover-runbook.md) — runbook that needs a migrations section

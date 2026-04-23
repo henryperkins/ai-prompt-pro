@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-16  
 **Status:** Proposed  
-**Inputs:** [`../githubintegrationcandidate.md`](../githubintegrationcandidate.md), [`github-integration-recommendation-critique.md`](github-integration-recommendation-critique.md)
+**Inputs:** [`2026-03-16-github-integration-recommendation.md`](2026-03-16-github-integration-recommendation.md), [`2026-03-16-github-integration-recommendation-critique.md`](2026-03-16-github-integration-recommendation-critique.md)
 
 ## 1. Goal
 
@@ -24,7 +24,7 @@ This plan targets the current codebase and deployment topology:
 | Decision | Choice | Why |
 |---|---|---|
 | Backend host | Extend the existing agent service | Reuses the deployed Azure Web App, existing bearer-token auth, and existing frontend service-origin plumbing in `src/lib/ai-client.ts`. Avoids introducing a second production backend. |
-| Backend shape | Land the Phase 5 router/bootstrap cleanup from `agent-service-refactoring.md` first, then add GitHub handlers as separate modules | `agent_service/codex_service.mjs` still dispatches requests via raw pathname checks. GitHub routes require extracted handlers plus path-parameter-aware routing for `:installationId` and `:connectionId`. |
+| Backend shape | Land the Phase 5 router/bootstrap cleanup from `2026-03-12-agent-service-refactoring.md` first, then add GitHub handlers as separate modules | `agent_service/codex_service.mjs` still dispatches requests via raw pathname checks. GitHub routes require extracted handlers plus path-parameter-aware routing for `:installationId` and `:connectionId`. |
 | GitHub auth model | GitHub App only for v1 | Avoids PAT handling, supports private/org repos, and matches the reviewed recommendation. |
 | Agent-service database connectivity | Use the Neon Data API over HTTP from a lightweight shared helper inside `agent_service/` | This matches the existing Neon stack, avoids introducing long-lived Postgres pool management into the Azure Web App, and is sufficient for installation/connection/manifest CRUD. |
 | Custom-auth routes | Extend route auth policies to support explicit GitHub-owned auth paths for setup-return state verification and webhook signature verification | The existing `{ allowPublicKey, allowServiceToken, allowUserJwt }` policy shape is not sufficient for browser redirects or GitHub webhook requests. |
@@ -130,7 +130,7 @@ Add these modules under `agent_service/`:
 Modify:
 
 - `agent_service/codex_service.mjs`
-  - complete the router/bootstrap cleanup described in `agent-service-refactoring.md` Phase 5 before GitHub work begins
+  - complete the router/bootstrap cleanup described in `2026-03-12-agent-service-refactoring.md` Phase 5 before GitHub work begins
   - import the new handlers
   - route new `/github/*` endpoints through a path-parameter-aware router instead of extending raw pathname `if` branches
   - resolve params, method handling, and auth from the matched route record instead of looking up auth from the raw pathname after routing
@@ -555,7 +555,7 @@ Goal: create clean backend seams before any GitHub logic lands.
 
 Tasks:
 
-- land the router/bootstrap cleanup from [`agent-service-refactoring.md`](agent-service-refactoring.md) Phase 5, including path-parameter-aware route dispatch for extracted handlers and mixed GET/POST/DELETE route handling
+- land the router/bootstrap cleanup from [`2026-03-12-agent-service-refactoring.md`](2026-03-12-agent-service-refactoring.md) Phase 5, including path-parameter-aware route dispatch for extracted handlers and mixed GET/POST/DELETE route handling
 - add a small server-side Neon Data API helper for agent-service reads/writes; do not introduce a direct Postgres pool in v1
 - add GitHub env parsing and route auth stubs in `agent_service/service-runtime.mjs`
 - add explicit `customAuth`/`skipStandardAuth` handling for `/github/app/setup` and `/github/webhooks`

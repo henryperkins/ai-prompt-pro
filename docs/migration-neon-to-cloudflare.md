@@ -1,5 +1,7 @@
 # Migration Guide: Neon Postgres + Neon Auth → Cloudflare Workers
 
+Last updated: 2026-03-26
+
 This guide walks through migrating from Neon Postgres + Neon Auth to Cloudflare Workers with custom authentication.
 
 ## Overview

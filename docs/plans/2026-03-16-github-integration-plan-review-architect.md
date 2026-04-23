@@ -2,9 +2,9 @@
 
 **Reviewed:** 2026-03-16  
 **Reviewer:** Architect  
-**Plan under review:** [`github-integration-implementation-plan.md`](github-integration-implementation-plan.md)  
-**Prior review:** [`github-integration-plan-review.md`](github-integration-plan-review.md) (Codex — approved without issues)  
-**Source critique:** [`github-integration-recommendation-critique.md`](github-integration-recommendation-critique.md)
+**Plan under review:** [`2026-03-16-github-integration-implementation.md`](2026-03-16-github-integration-implementation.md)  
+**Prior review:** [`2026-03-16-github-integration-plan-review-codex.md`](2026-03-16-github-integration-plan-review-codex.md) (Codex — approved without issues)  
+**Source critique:** [`2026-03-16-github-integration-recommendation-critique.md`](2026-03-16-github-integration-recommendation-critique.md)
 
 ---
 
@@ -72,11 +72,11 @@ The justification is "more files, tighter each." For prose-oriented sources like
 
 ### 3.2 Phase 5 dependency is a large prerequisite with its own risk
 
-The plan requires completing the Phase 5 router/bootstrap cleanup from [`agent-service-refactoring.md`](agent-service-refactoring.md:123) before any GitHub work begins. Phase 5 is currently listed as **"planned"** (not in progress) and includes extracting:
+The plan requires completing the Phase 5 router/bootstrap cleanup from [`2026-03-12-agent-service-refactoring.md`](2026-03-12-agent-service-refactoring.md:123) before any GitHub work begins. Phase 5 is currently listed as **"planned"** (not in progress) and includes extracting:
 
-- [`enhance-request.mjs`](agent-service-refactoring.md:129) — session extraction, request building
-- [`enhance-source-context.mjs`](agent-service-refactoring.md:135) — source expansion resolution
-- [`enhance-turn-runner.mjs`](agent-service-refactoring.md:137) — the 540-line `runEnhanceTurnStream()`
+- [`enhance-request.mjs`](2026-03-12-agent-service-refactoring.md:129) — session extraction, request building
+- [`enhance-source-context.mjs`](2026-03-12-agent-service-refactoring.md:135) — source expansion resolution
+- [`enhance-turn-runner.mjs`](2026-03-12-agent-service-refactoring.md:137) — the 540-line `runEnhanceTurnStream()`
 - SSE and WebSocket handler modules
 - Router/bootstrap cleanup in `codex_service.mjs`
 
@@ -90,7 +90,7 @@ It does **not** need the enhance-request/turn-runner/transport extractions. A mi
 
 ### 3.3 Manifest-in-Postgres is heavyweight for v1
 
-The plan stores full manifest JSONB in [`github_repo_manifest_cache`](github-integration-implementation-plan.md:228). For a large repo with 10,000+ files, each manifest entry at ~100 bytes = ~1 MB of JSONB per row. With user-scoped rows, a user connecting 5 repos generates 5 MB of manifest data that must be read/written through the Neon Data API over HTTP on every search warm-up.
+The plan stores full manifest JSONB in [`github_repo_manifest_cache`](2026-03-16-github-integration-implementation.md:228). For a large repo with 10,000+ files, each manifest entry at ~100 bytes = ~1 MB of JSONB per row. With user-scoped rows, a user connecting 5 repos generates 5 MB of manifest data that must be read/written through the Neon Data API over HTTP on every search warm-up.
 
 The plan also specifies an in-memory LRU cache, but the primary store and source of truth is Postgres. This creates a pattern where:
 - Cold start = HTTP round-trip to read 1+ MB JSONB from Neon
