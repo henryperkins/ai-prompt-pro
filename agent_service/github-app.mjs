@@ -439,6 +439,8 @@ export function createGitHubAppClient(config = {}, deps = {}) {
   }
 
   return {
+    assertContextAvailable: assertAppConfigured,
+    assertFeatureEnabled,
     buildInstallUrl,
     createNonce,
     createSetupState,

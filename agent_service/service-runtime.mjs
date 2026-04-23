@@ -338,7 +338,7 @@ export async function createServiceRuntime({ env = process.env, deps = {} } = {}
       }
     }
 
-    return {
+    const config = {
       enabled,
       apiBaseUrl: normalizeEnvValue("GITHUB_API_BASE_URL", env),
       appId: normalizeEnvValue("GITHUB_APP_ID", env),
@@ -351,6 +351,22 @@ export async function createServiceRuntime({ env = process.env, deps = {} } = {}
       stateSecret: normalizeEnvValue("GITHUB_APP_STATE_SECRET", env),
       webhookSecret: normalizeEnvValue("GITHUB_WEBHOOK_SECRET", env),
     };
+    // Derived capability booleans (Phase 1 of feature-flag consolidation).
+    // `configured` = all mandatory GitHub App credentials are present.
+    // `available`  = configured AND the paired active-session validation is
+    //               wired up (routes run under requireActiveSession: true).
+    // Consumers (readiness, /health/details, dispatcher) should prefer these
+    // over `enabled`, which is the legacy opt-in gate we plan to retire.
+    config.configured = Boolean(
+      config.appId
+      && config.appPrivateKey
+      && config.appSlug
+      && config.databaseUrl
+      && config.postInstallRedirectUrl
+      && config.stateSecret
+      && config.webhookSecret,
+    );
+    return config;
   })();
 
   // --- Diagnostic: port mismatch detection ---
@@ -620,11 +636,20 @@ export async function createServiceRuntime({ env = process.env, deps = {} } = {}
   }
 
   function buildRuntimeSummary() {
+    const authSummary = authService.getStartupSummary();
+    const activeSessionValidationConfigured = Boolean(
+      authSummary?.auth_session_validation_configured
+      ?? authService.getReadiness()?.activeSessionValidationConfigured,
+    );
     return {
       provider_source: codexConfigSource,
       provider_name: codexConfig?.name || "OpenAI",
       provider_base_url: openaiApiBaseUrl,
       github_context_enabled: githubConfig.enabled,
+      github_context_configured: githubConfig.configured,
+      github_context_available: Boolean(
+        githubConfig.enabled && githubConfig.configured && activeSessionValidationConfigured,
+      ),
       model: defaultThreadOptions.model || null,
       extract_model: extractModel || null,
       infer_model: inferModel || null,
@@ -632,7 +657,7 @@ export async function createServiceRuntime({ env = process.env, deps = {} } = {}
       strict_public_api_key: strictPublicApiKey,
       trust_proxy: trustProxy,
       rate_limit_backend: rateLimitBackend,
-      ...authService.getStartupSummary(),
+      ...authSummary,
     };
   }
 
@@ -653,18 +678,7 @@ export async function createServiceRuntime({ env = process.env, deps = {} } = {}
     if (hasMissingAzureModel) {
       issues.push("provider_model_missing");
     }
-    if (
-      githubConfig.enabled
-      && (
-        !githubConfig.appId
-        || !githubConfig.appPrivateKey
-        || !githubConfig.appSlug
-        || !githubConfig.databaseUrl
-        || !githubConfig.postInstallRedirectUrl
-        || !githubConfig.stateSecret
-        || !githubConfig.webhookSecret
-      )
-    ) {
+    if (githubConfig.enabled && !githubConfig.configured) {
       warnings.push("github_config_incomplete");
     }
     if (githubConfig.enabled && authReadiness.activeSessionValidationConfigured !== true) {
@@ -683,11 +697,20 @@ export async function createServiceRuntime({ env = process.env, deps = {} } = {}
   }
 
   function buildHealthDetails() {
+    const authSummary = authService.getStartupSummary();
+    const activeSessionValidationConfigured = Boolean(
+      authSummary?.auth_session_validation_configured
+      ?? authService.getReadiness()?.activeSessionValidationConfigured,
+    );
     return {
       provider_source: codexConfigSource,
       provider_name: codexConfig?.name || "OpenAI",
       provider_base_url: openaiApiBaseUrl,
       github_context_enabled: githubConfig.enabled,
+      github_context_configured: githubConfig.configured,
+      github_context_available: Boolean(
+        githubConfig.enabled && githubConfig.configured && activeSessionValidationConfigured,
+      ),
       model: defaultThreadOptions.model || null,
       sandbox_mode: defaultThreadOptions.sandboxMode || null,
       strict_public_api_key: strictPublicApiKey,
