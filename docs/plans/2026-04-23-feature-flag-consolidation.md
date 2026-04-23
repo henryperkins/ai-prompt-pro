@@ -34,6 +34,19 @@ deployment/security configuration or product experiments.
 
 ## Plan A — GitHub context flag (biggest impact, needs care)
 
+### Progress
+
+- [x] **Phase 1 — backend capability derivation.** `github_context_configured`
+  / `github_context_available` now exist in runtime health/readiness, and all
+  GitHub routes fail uniformly when the deployment is misconfigured.
+- [x] **Phase 2 — frontend capability probe.** The frontend no longer reads
+  `VITE_GITHUB_CONTEXT_ENABLED`; it probes `/health/details` at app bootstrap
+  and keeps `GitHubSourcePickerDialog` lazy-mounted.
+- [x] **Phase 3 — retire the backend flag.** `GITHUB_CONTEXT_ENABLED` is gone
+  from env/docs/tests/CI. GitHub availability now derives from config
+  presence, and deployment workflows validate complete GitHub secret sets
+  instead of toggling a separate boolean.
+
 ### Why the naive "always-on" collapse is unsafe
 
 Rubber-duck audit surfaced these blockers for a straightforward removal:
@@ -138,15 +151,15 @@ handling, `promptforge:launch-exp:hero-copy` storage, and the
 1. **Now — documentation clarifications.** Update `docs/feature-flags.md`
    and `agent_service/README.md` to describe `CODEX_WEB_SEARCH_ENABLED` vs
    `CODEX_WEB_SEARCH_MODE` as two SDK options, not one.
-2. **Next — Plan A Phase 1 (backend capability derivation).** Introduce the
+2. **Done — Plan A Phase 1 (backend capability derivation).** Introduce the
    computed `github_context_configured` / `_available` booleans and make all
    handlers consistently assert config. `GITHUB_CONTEXT_ENABLED` still read
    but its default becomes `true` when configured. Ships behind the existing
    flag, so no UX change.
-3. **Then — Plan A Phase 2 (frontend capability probe).** Replace
+3. **Done — Plan A Phase 2 (frontend capability probe).** Replace
    `VITE_GITHUB_CONTEXT_ENABLED` with a `/capabilities` probe + React
    context. Lazy-mount `GitHubSourcePickerDialog`.
-4. **Then — Plan A Phase 3 (retire the flag).** Delete
+4. **Done — Plan A Phase 3 (retire the flag).** Delete
    `GITHUB_CONTEXT_ENABLED`/`VITE_GITHUB_CONTEXT_ENABLED` from env, CI,
    tests, docs. Add optional `GITHUB_CONTEXT_DISABLED` opt-out only if an
    operational need emerges.

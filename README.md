@@ -80,7 +80,6 @@ Key frontend vars:
 - `VITE_API_WORKER_URL`
 - `VITE_AGENT_SERVICE_URL` (required for Enhance/Extract/Infer features)
 - `VITE_AGENT_PUBLIC_API_KEY` (optional fallback key for signed-out agent calls)
-- `VITE_GITHUB_CONTEXT_ENABLED` (optional; enables the Builder GitHub picker UI)
 - `VITE_ENHANCE_REQUEST_TIMEOUT_MS` (optional; unset by default, set a positive ms value to enable a client-side enhance timeout)
 - `VITE_ENHANCE_TRANSPORT` (`auto` | `sse` | `ws`)
 - `VITE_ENHANCE_WS_CONNECT_TIMEOUT_MS` (optional; defaults to 3500ms)
@@ -94,8 +93,9 @@ experiments, agent service booleans, worker toggles, and CI gates), see
 PromptForge can attach repository files as Builder context through a GitHub App
 backed flow.
 
-- Enable the UI with `VITE_GITHUB_CONTEXT_ENABLED=true`.
-- Enable the service routes with `GITHUB_CONTEXT_ENABLED=true`.
+- The Builder automatically shows `Add from GitHub` only when the public
+  agent-service `/health/details` response reports
+  `github_context_available=true`.
 - Keep browser auth pointed at the worker via `VITE_AUTH_WORKER_URL`.
 - Configure the service with `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`,
   `GITHUB_APP_SLUG`, `GITHUB_APP_STATE_SECRET`, `GITHUB_WEBHOOK_SECRET`,

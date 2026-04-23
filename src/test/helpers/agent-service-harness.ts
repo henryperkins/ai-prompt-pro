@@ -12,7 +12,6 @@ export const BASE_ENV = Object.freeze({
   REQUIRE_PROVIDER_CONFIG: "false",
   AGENT_SERVICE_TOKEN: "e2e-test-token",
   FUNCTION_PUBLIC_API_KEY: "e2e-test-pubkey",
-  GITHUB_CONTEXT_ENABLED: "false",
   CODEX_PROFILE: "",
   CODEX_CONFIG_JSON: "",
 });

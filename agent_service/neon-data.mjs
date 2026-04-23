@@ -31,7 +31,7 @@ export function createNeonDatabaseClient({
   debug = false,
 } = {}) {
   const connectionString = normalizeDatabaseUrl(databaseUrl);
-  const sql = connectionString ? neon(connectionString) : null;
+  let sql = null;
 
   function buildQueryPreviewLogField(queryText) {
     if (!debug) {
@@ -44,7 +44,7 @@ export function createNeonDatabaseClient({
   }
 
   function assertConfigured() {
-    if (!connectionString || !sql) {
+    if (!connectionString) {
       throw createGitHubError(
         "GitHub backend storage is not configured.",
         "github_storage_unconfigured",
@@ -53,11 +53,27 @@ export function createNeonDatabaseClient({
     }
   }
 
-  async function queryRows(queryText, params = []) {
+  function getSqlClient() {
     assertConfigured();
+    if (!sql) {
+      try {
+        sql = neon(connectionString);
+      } catch {
+        throw createGitHubError(
+          "GitHub backend storage is not configured.",
+          "github_storage_unconfigured",
+          503,
+        );
+      }
+    }
+    return sql;
+  }
+
+  async function queryRows(queryText, params = []) {
+    const sqlClient = getSqlClient();
 
     try {
-      const rows = await sql.query(queryText, params);
+      const rows = await sqlClient.query(queryText, params);
       // --- Diagnostic: log unexpected return shape ---
       if (!Array.isArray(rows)) {
         console.log(JSON.stringify({

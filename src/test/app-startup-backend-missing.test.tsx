@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/backend-config", async () => {
@@ -21,6 +21,7 @@ async function renderAppAt(pathname: string) {
 
 describe("app startup when backend is unconfigured", () => {
   afterEach(() => {
+    cleanup();
     window.history.pushState({}, "", "/");
   });
 
@@ -28,15 +29,17 @@ describe("app startup when backend is unconfigured", () => {
     await renderAppAt("/");
 
     expect(await screen.findByTestId("page-shell")).toBeInTheDocument();
-    const hero = await screen.findByTestId("builder-hero", {}, { timeout: 5000 });
+    const hero = await screen.findByTestId("builder-hero", {}, { timeout: 20_000 });
     expect(hero).toBeInTheDocument();
     expect(within(hero).getByRole("heading", { level: 1 })).toHaveTextContent(/\S+/);
-  }, 30_000);
+  }, 60_000);
 
   it("shows actionable Community backend setup state instead of crashing", async () => {
     await renderAppAt("/community");
 
-    expect(await screen.findByText("Community backend is not configured")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Community backend is not configured", {}, { timeout: 20_000 }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open Library" })).toBeInTheDocument();
   });

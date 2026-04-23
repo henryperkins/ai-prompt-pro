@@ -328,9 +328,8 @@ export async function createServiceRuntime({ env = process.env, deps = {} } = {}
   const githubPerMinute = parsePositiveIntegerEnv("GITHUB_PER_MINUTE", 30, env);
   const githubPerDay = parsePositiveIntegerEnv("GITHUB_PER_DAY", 600, env);
   const githubConfig = (() => {
-    const enabled = normalizeBool(env?.GITHUB_CONTEXT_ENABLED, false);
     const postInstallRedirectUrl = normalizeEnvValue("GITHUB_POST_INSTALL_REDIRECT_URL", env);
-    if (enabled && postInstallRedirectUrl) {
+    if (postInstallRedirectUrl) {
       try {
         new URL(postInstallRedirectUrl);
       } catch {
@@ -339,7 +338,6 @@ export async function createServiceRuntime({ env = process.env, deps = {} } = {}
     }
 
     const config = {
-      enabled,
       apiBaseUrl: normalizeEnvValue("GITHUB_API_BASE_URL", env),
       appId: normalizeEnvValue("GITHUB_APP_ID", env),
       appPrivateKey: normalizeEnvValue("GITHUB_APP_PRIVATE_KEY", env),
@@ -351,12 +349,16 @@ export async function createServiceRuntime({ env = process.env, deps = {} } = {}
       stateSecret: normalizeEnvValue("GITHUB_APP_STATE_SECRET", env),
       webhookSecret: normalizeEnvValue("GITHUB_WEBHOOK_SECRET", env),
     };
-    // Derived capability booleans (Phase 1 of feature-flag consolidation).
-    // `configured` = all mandatory GitHub App credentials are present.
-    // `available`  = configured AND the paired active-session validation is
-    //               wired up (routes run under requireActiveSession: true).
-    // Consumers (readiness, /health/details, dispatcher) should prefer these
-    // over `enabled`, which is the legacy opt-in gate we plan to retire.
+    config.hasAnyConfig = Boolean(
+      config.apiBaseUrl
+      || config.appId
+      || config.appPrivateKey
+      || config.appSlug
+      || config.databaseUrl
+      || config.postInstallRedirectUrl
+      || config.stateSecret
+      || config.webhookSecret,
+    );
     config.configured = Boolean(
       config.appId
       && config.appPrivateKey
@@ -370,7 +372,7 @@ export async function createServiceRuntime({ env = process.env, deps = {} } = {}
   })();
 
   // --- Diagnostic: port mismatch detection ---
-  if (githubConfig.enabled) {
+  if (githubConfig.hasAnyConfig) {
     const redirectUrl = githubConfig.postInstallRedirectUrl || "";
     const originsRaw = normalizeEnvValue("ALLOWED_ORIGINS", env) || "";
     const vitePort = normalizeEnvValue("PORT", env) || "8001";
@@ -635,6 +637,10 @@ export async function createServiceRuntime({ env = process.env, deps = {} } = {}
     return Boolean(directApiKey);
   }
 
+  function isGitHubContextAvailable(activeSessionValidationConfigured) {
+    return Boolean(githubConfig.configured && activeSessionValidationConfigured);
+  }
+
   function buildRuntimeSummary() {
     const authSummary = authService.getStartupSummary();
     const activeSessionValidationConfigured = Boolean(
@@ -645,11 +651,8 @@ export async function createServiceRuntime({ env = process.env, deps = {} } = {}
       provider_source: codexConfigSource,
       provider_name: codexConfig?.name || "OpenAI",
       provider_base_url: openaiApiBaseUrl,
-      github_context_enabled: githubConfig.enabled,
       github_context_configured: githubConfig.configured,
-      github_context_available: Boolean(
-        githubConfig.enabled && githubConfig.configured && activeSessionValidationConfigured,
-      ),
+      github_context_available: isGitHubContextAvailable(activeSessionValidationConfigured),
       model: defaultThreadOptions.model || null,
       extract_model: extractModel || null,
       infer_model: inferModel || null,
@@ -678,10 +681,10 @@ export async function createServiceRuntime({ env = process.env, deps = {} } = {}
     if (hasMissingAzureModel) {
       issues.push("provider_model_missing");
     }
-    if (githubConfig.enabled && !githubConfig.configured) {
+    if (githubConfig.hasAnyConfig && !githubConfig.configured) {
       warnings.push("github_config_incomplete");
     }
-    if (githubConfig.enabled && authReadiness.activeSessionValidationConfigured !== true) {
+    if (githubConfig.configured && authReadiness.activeSessionValidationConfigured !== true) {
       issues.push("github_user_session_validation_missing");
     }
     warnings.push(...authReadiness.warnings);
@@ -706,11 +709,8 @@ export async function createServiceRuntime({ env = process.env, deps = {} } = {}
       provider_source: codexConfigSource,
       provider_name: codexConfig?.name || "OpenAI",
       provider_base_url: openaiApiBaseUrl,
-      github_context_enabled: githubConfig.enabled,
       github_context_configured: githubConfig.configured,
-      github_context_available: Boolean(
-        githubConfig.enabled && githubConfig.configured && activeSessionValidationConfigured,
-      ),
+      github_context_available: isGitHubContextAvailable(activeSessionValidationConfigured),
       model: defaultThreadOptions.model || null,
       sandbox_mode: defaultThreadOptions.sandboxMode || null,
       strict_public_api_key: strictPublicApiKey,

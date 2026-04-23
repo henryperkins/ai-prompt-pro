@@ -1,12 +1,13 @@
 import type { ReactNode } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { defaultConfig } from "@/lib/prompt-builder";
 import { renderWithAuthContext } from "@/test/render-with-auth-context";
 
 const mocks = vi.hoisted(() => ({
   toast: vi.fn(),
+  useAgentServiceCapabilities: vi.fn(),
   usePromptBuilder: vi.fn(),
 }));
 
@@ -16,6 +17,10 @@ vi.mock("@/hooks/use-toast", () => ({
 
 vi.mock("@/hooks/use-mobile", () => ({
   useIsMobile: () => false,
+}));
+
+vi.mock("@/hooks/useAgentServiceCapabilities", () => ({
+  useAgentServiceCapabilities: () => mocks.useAgentServiceCapabilities(),
 }));
 
 vi.mock("@/lib/ai-client", () => ({
@@ -119,14 +124,28 @@ async function renderIndex() {
 }
 
 describe("Index redesign phase 1 gating", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
+    mocks.useAgentServiceCapabilities.mockReturnValue({
+      resolved: true,
+      githubContextConfigured: false,
+      githubContextAvailable: false,
+    });
     mocks.usePromptBuilder.mockReturnValue(buildPromptBuilderState());
   });
 
-  it("mounts without an auth provider when GitHub context is disabled", async () => {
+  it("mounts without an auth provider even when GitHub context is available but the picker is closed", async () => {
     const { default: Index } = await import("@/pages/Index");
+    mocks.useAgentServiceCapabilities.mockReturnValue({
+      resolved: true,
+      githubContextConfigured: true,
+      githubContextAvailable: true,
+    });
 
     render(
       <MemoryRouter>

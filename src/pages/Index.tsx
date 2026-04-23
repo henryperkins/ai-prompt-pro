@@ -18,6 +18,7 @@ import {
   type ApplyToBuilderUpdate,
 } from "@/components/OutputPanel";
 import { EnhancePrimaryButton } from "@/components/OutputPanelEnhanceControls";
+import { useAgentServiceCapabilities } from "@/hooks/useAgentServiceCapabilities";
 import { usePromptBuilder } from "@/hooks/usePromptBuilder";
 import {
   inferBuilderFields,
@@ -82,7 +83,6 @@ import {
   getMostUsedPreference,
   resetEnhancementProfile,
 } from "@/lib/prompt-enhancement-profile";
-import { GITHUB_CONTEXT_ENABLED } from "@/lib/github-client";
 import { trackBuilderEvent } from "@/lib/telemetry";
 import {
   parseEnhanceMetadata,
@@ -1001,6 +1001,10 @@ const Index = () => {
     updateProjectNotes,
     toggleDelimiters,
   } = usePromptBuilder();
+  const {
+    githubContextAvailable,
+    resolved: githubCapabilitiesResolved,
+  } = useAgentServiceCapabilities();
   const builderSignature = useMemo(
     () => buildPromptConfigSignature(config),
     [config],
@@ -1157,7 +1161,9 @@ const Index = () => {
       nonce: Date.now(),
     };
 
-    if (GITHUB_CONTEXT_ENABLED) {
+    if (!githubCapabilitiesResolved) return;
+
+    if (githubContextAvailable) {
       persistedSetShowAdvancedControls(true);
       setIsSourcesAdvancedOpen(true);
       setIsGithubSourcePickerOpen(true);
@@ -1183,6 +1189,8 @@ const Index = () => {
   }, [
     githubSetupMessage,
     githubSetupResult,
+    githubCapabilitiesResolved,
+    githubContextAvailable,
     persistedSetShowAdvancedControls,
     searchParams,
     setSearchParams,
@@ -1293,10 +1301,10 @@ const Index = () => {
   }, [handleOpenSessionDrawer]);
 
   const handleOpenGithubSourcePicker = useCallback(() => {
-    if (!GITHUB_CONTEXT_ENABLED) {
+    if (!githubContextAvailable) {
       toast({
         title: "GitHub context unavailable",
-        description: "GitHub context is not enabled for this deployment.",
+        description: "GitHub context is not available for this deployment.",
         variant: "destructive",
       });
       return;
@@ -1313,7 +1321,7 @@ const Index = () => {
     persistedSetShowAdvancedControls(true);
     setIsSourcesAdvancedOpen(true);
     setIsGithubSourcePickerOpen(true);
-  }, [isSignedIn, persistedSetShowAdvancedControls, toast]);
+  }, [githubContextAvailable, isSignedIn, persistedSetShowAdvancedControls, toast]);
 
   const handleAttachGithubSources = useCallback(
     (sources: ContextSource[]) => {
@@ -3189,7 +3197,7 @@ const Index = () => {
                 onUpdateRag={updateRagParameters}
                 onUpdateProjectNotes={updateProjectNotes}
                 onToggleDelimiters={toggleDelimiters}
-                githubPickerEnabled={GITHUB_CONTEXT_ENABLED}
+                githubPickerEnabled={githubContextAvailable}
                 githubPickerDisabledReason={githubPickerDisabledReason}
                 onOpenGithubPicker={handleOpenGithubSourcePicker}
               />
@@ -3641,7 +3649,7 @@ const Index = () => {
         </Drawer>
       )}
 
-      {GITHUB_CONTEXT_ENABLED ? (
+      {githubContextAvailable && isGithubSourcePickerOpen ? (
         <GitHubSourcePickerDialog
           open={isGithubSourcePickerOpen}
           onOpenChange={(nextOpen) => {

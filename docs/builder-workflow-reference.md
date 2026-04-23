@@ -59,7 +59,8 @@ doing a before/after comparison against older collateral:
 
 ## GitHub context flow
 
-When `VITE_GITHUB_CONTEXT_ENABLED=true` and the user is signed in:
+When the agent-service `/health/details` endpoint reports
+`github_context_available=true` and the user is signed in:
 
 - `Context and sources` includes `GitHub repository context`
 - `Add from GitHub` opens the repository picker dialog

@@ -10,9 +10,6 @@ export default defineConfig({
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
     testTimeout: 30_000,
-    env: {
-      VITE_GITHUB_CONTEXT_ENABLED: "false",
-    },
   },
   resolve: {
     alias: { "@": path.resolve(__dirname, "./src") },

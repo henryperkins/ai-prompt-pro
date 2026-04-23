@@ -1,6 +1,6 @@
 # GitHub Context Reference
 
-Last updated: 2026-03-17
+Last updated: 2026-04-23
 
 > Status: Active operational reference for PromptForge GitHub repository context.
 
@@ -9,15 +9,19 @@ Last updated: 2026-03-17
 Document the shipped GitHub repository-context flow, required configuration, and
 the guardrails around storage, sharing, and cache invalidation.
 
-## Feature gates
+## Availability model
 
-- Frontend: `VITE_GITHUB_CONTEXT_ENABLED=true`
-- Agent service: `GITHUB_CONTEXT_ENABLED=true`
+- Frontend: no dedicated `VITE_` flag. The Builder probes
+  `/health/details` and exposes `Add from GitHub` only when
+  `github_context_available=true`.
+- Agent service: GitHub context becomes available when the required GitHub App,
+  storage, and session-validation config is present.
 - Database: apply `supabase/migrations/20260316010000_github_context_schema.sql`
 
-The Builder only exposes `Add from GitHub` when the frontend flag is on. The
-service routes stay disabled unless the backend flag and GitHub App/storage
-configuration are present.
+The Builder only exposes `Add from GitHub` when the runtime capability probe
+reports GitHub context as available. The service routes stay disabled unless
+the backend flag and GitHub App/storage/session-validation configuration are
+present.
 
 ## Required runtime configuration
 
@@ -25,11 +29,9 @@ Frontend:
 
 - `VITE_AGENT_SERVICE_URL`
 - `VITE_AUTH_WORKER_URL`
-- `VITE_GITHUB_CONTEXT_ENABLED`
 
 Agent service:
 
-- `GITHUB_CONTEXT_ENABLED`
 - `AUTH_SESSION_VALIDATION_URL` (recommended for worker-issued PromptForge sessions)
 - `GITHUB_APP_ID`
 - `GITHUB_APP_PRIVATE_KEY`
@@ -53,7 +55,8 @@ For local PromptForge development, set both `ALLOWED_ORIGINS` and
 
 1. Sign in to PromptForge.
 2. Open `Show advanced controls` if needed, then open `Context and sources`.
-3. Choose `Add from GitHub`.
+3. Choose `Add from GitHub` once the runtime capability probe marks GitHub
+   context as available.
 4. Install or reuse the PromptForge GitHub App installation.
 5. Pick a repository, connect it, search files, preview content, and attach the
    selected files as context sources.

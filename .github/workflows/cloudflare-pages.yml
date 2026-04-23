@@ -22,7 +22,6 @@ jobs:
       VITE_AGENT_PUBLIC_API_KEY: ${{ secrets.VITE_AGENT_PUBLIC_API_KEY }}
       VITE_NEON_PUBLISHABLE_KEY: ${{ secrets.VITE_NEON_PUBLISHABLE_KEY }}
       VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-      VITE_GITHUB_CONTEXT_ENABLED: "false"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -91,7 +90,6 @@ jobs:
       VITE_AGENT_PUBLIC_API_KEY: ${{ secrets.VITE_AGENT_PUBLIC_API_KEY }}
       VITE_NEON_PUBLISHABLE_KEY: ${{ secrets.VITE_NEON_PUBLISHABLE_KEY }}
       VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-      VITE_GITHUB_CONTEXT_ENABLED: ${{ secrets.VITE_GITHUB_CONTEXT_ENABLED }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

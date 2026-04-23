@@ -59,7 +59,6 @@ jobs:
           # Backward-compatible env for older clients/builds.
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
           VITE_AGENT_SERVICE_URL: ${{ secrets.VITE_AGENT_SERVICE_URL }}
-          VITE_GITHUB_CONTEXT_ENABLED: ${{ secrets.VITE_GITHUB_CONTEXT_ENABLED }}
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_GENTLE_DUNE_075B4710F }}
           action: "upload"

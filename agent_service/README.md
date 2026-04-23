@@ -26,7 +26,8 @@ npm run agent:codex
 
 ### Optional GitHub repository context routes
 
-When `GITHUB_CONTEXT_ENABLED=true`, the service also exposes:
+When GitHub App/storage/session-validation configuration is complete, the
+service can serve:
 
 | Method   | Path                                                 | Description                                                                              |
 | -------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------- |
@@ -190,7 +191,7 @@ Notes:
 | `AUTH_SESSION_VALIDATION_URL`       | Worker/session validation endpoint for active PromptForge sessions (recommended in worker-backed deployments) |
 | `NEON_AUTH_URL` or `NEON_JWKS_URL`  | Neon Auth URL (or direct JWKS URL) for bearer-session validation (legacy/compatibility path)                  |
 
-If `GITHUB_CONTEXT_ENABLED=true`, also configure `NEON_DATABASE_URL` (or
+To make GitHub context available, also configure `NEON_DATABASE_URL` (or
 `DATABASE_URL`) so the service can persist GitHub installations, repo
 connections, manifests, and setup states.
 
@@ -199,6 +200,10 @@ validation path:
 
 - `AUTH_SESSION_VALIDATION_URL` for worker-issued PromptForge sessions
 - or `NEON_AUTH_URL` / `NEON_JWKS_URL` plus a Neon validation key for legacy Neon auth
+
+The frontend Builder no longer needs a paired `VITE_GITHUB_CONTEXT_ENABLED`
+flag. It probes `/health/details` and only renders the GitHub picker UI when
+that endpoint reports `github_context_available=true`.
 
 ### Provider resolution order
 
@@ -245,7 +250,6 @@ Set `REQUIRE_PROVIDER_CONFIG=true` to disable step 3 and fail fast instead of fa
 
 | Variable                             | Default                  | Description                                                                                                   |
 | ------------------------------------ | ------------------------ | ------------------------------------------------------------------------------------------------------------- |
-| `GITHUB_CONTEXT_ENABLED`             | `false`                  | Enable GitHub repository-context routes and storage-backed manifest flow                                      |
 | `GITHUB_APP_ID`                      | _(none)_                 | GitHub App ID                                                                                                 |
 | `GITHUB_APP_PRIVATE_KEY`             | _(none)_                 | PEM private key for the GitHub App                                                                            |
 | `GITHUB_APP_SLUG`                    | _(none)_                 | GitHub App slug used to build the install URL                                                                 |

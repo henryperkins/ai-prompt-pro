@@ -18,15 +18,6 @@ describe("agent service CORS preflight", () => {
       env: {
         PORT: String(TEST_PORT),
         ALLOWED_ORIGINS: `${TEST_ORIGIN},http://localhost:8080`,
-        GITHUB_CONTEXT_ENABLED: "true",
-        GITHUB_APP_ID: "12345",
-        GITHUB_APP_PRIVATE_KEY:
-          "-----BEGIN PRIVATE KEY-----\\nMIIBVwIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAoQ==\\n-----END PRIVATE KEY-----",
-        GITHUB_APP_SLUG: "promptforge-app",
-        GITHUB_APP_STATE_SECRET: "state-secret",
-        GITHUB_WEBHOOK_SECRET: "webhook-secret",
-        GITHUB_POST_INSTALL_REDIRECT_URL: `${TEST_ORIGIN}/builder`,
-        NEON_DATABASE_URL: "postgres://promptforge:test@db.example.neon.tech/neondb",
       },
     });
   });

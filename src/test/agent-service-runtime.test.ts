@@ -249,7 +249,6 @@ describe("agent service runtime extraction", () => {
     const runtime = await createServiceRuntime({
       env: {
         OPENAI_API_KEY: "sk-test",
-        GITHUB_CONTEXT_ENABLED: "true",
         GITHUB_APP_ID: "12345",
         GITHUB_APP_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----",
         GITHUB_APP_SLUG: "promptforge-app",
@@ -263,7 +262,7 @@ describe("agent service runtime extraction", () => {
     });
 
     expect(runtime.githubConfig).toMatchObject({
-      enabled: true,
+      configured: true,
       appId: "12345",
       appSlug: "promptforge-app",
       debug: true,
@@ -276,10 +275,14 @@ describe("agent service runtime extraction", () => {
       allowUserJwt: true,
       requireActiveSession: true,
     });
+    expect(runtime.buildHealthDetails()).toMatchObject({
+      github_context_configured: true,
+      github_context_available: true,
+    });
     expect(runtime.buildReadinessReport().warnings).not.toContain("github_config_incomplete");
   });
 
-  it("fails readiness when GitHub context is enabled without active session validation", async () => {
+  it("fails readiness when GitHub context is configured without active session validation", async () => {
     vi.spyOn(console, "log").mockImplementation(() => undefined);
     const { deps, authService } = createStubDeps();
     authService.getReadiness.mockReturnValue({
@@ -293,7 +296,6 @@ describe("agent service runtime extraction", () => {
     const runtime = await createServiceRuntime({
       env: {
         OPENAI_API_KEY: "sk-test",
-        GITHUB_CONTEXT_ENABLED: "true",
         GITHUB_APP_ID: "12345",
         GITHUB_APP_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----",
         GITHUB_APP_SLUG: "promptforge-app",
@@ -318,7 +320,6 @@ describe("agent service runtime extraction", () => {
     const runtime = await createServiceRuntime({
       env: {
         OPENAI_API_KEY: "sk-test",
-        GITHUB_CONTEXT_ENABLED: "true",
       },
       deps,
     });

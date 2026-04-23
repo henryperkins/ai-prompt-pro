@@ -71,18 +71,7 @@ export function createGitHubAppClient(config = {}, deps = {}) {
   const installationTokenCache = new Map();
   let privateKey = null;
 
-  function assertFeatureEnabled() {
-    if (!config.enabled) {
-      throw createGitHubError(
-        "GitHub context is disabled.",
-        "github_context_disabled",
-        404,
-      );
-    }
-  }
-
   function assertAppConfigured() {
-    assertFeatureEnabled();
     if (!appId || !appSlug || !stateSecret || !privateKeyPem) {
       throw createGitHubError(
         "GitHub App credentials are not configured.",
@@ -93,7 +82,6 @@ export function createGitHubAppClient(config = {}, deps = {}) {
   }
 
   function assertWebhookConfigured() {
-    assertFeatureEnabled();
     if (!webhookSecret) {
       throw createGitHubError(
         "GitHub webhook secret is not configured.",
@@ -142,7 +130,7 @@ export function createGitHubAppClient(config = {}, deps = {}) {
     auth = "app",
     installationId,
   } = {}) {
-    assertFeatureEnabled();
+    assertAppConfigured();
     if (typeof fetchImpl !== "function") {
       throw createGitHubError(
         "Fetch is unavailable for GitHub requests.",
@@ -439,8 +427,6 @@ export function createGitHubAppClient(config = {}, deps = {}) {
   }
 
   return {
-    assertContextAvailable: assertAppConfigured,
-    assertFeatureEnabled,
     buildInstallUrl,
     createNonce,
     createSetupState,

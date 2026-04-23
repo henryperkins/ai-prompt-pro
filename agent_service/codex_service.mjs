@@ -2123,37 +2123,12 @@ async function handleGitHubRoute(req, res, url, route, routesForPath, requestCon
     return;
   }
 
-  // --- Uniform capability gate (Phase 1 of feature-flag consolidation) ---
-  // Historically only handlers that went through github-app asserted config.
-  // Store-only routes (installations, connections, delete-connection,
-  // manifest-search) would return `200 []` when credentials were missing,
-  // producing a half-working picker UX. Asserting here guarantees every
-  // GitHub route returns a uniform 503 when the deployment is misconfigured.
-  try {
-    githubApp.assertContextAvailable();
-  } catch (error) {
-    const status = Number.isFinite(error?.status) ? error.status : 500;
-    const code = classifyGitHubErrorCode(error, status);
-    const message = isGitHubError(error) ? error.message : toErrorMessage(error);
-    setRequestError(requestContext, code, message, status);
-    json(res, status, { error: message, code }, cors.headers);
+  if (!runtime.githubConfig.configured) {
+    const message = "GitHub context is not fully configured.";
+    setRequestError(requestContext, "github_config_unavailable", message, 503);
+    json(res, 503, { error: message, code: "github_config_unavailable" }, cors.headers);
     return;
   }
-  // --- End uniform capability gate ---
-
-  // --- Diagnostic: log when GitHub routes fire while feature is disabled ---
-  if (!runtime.githubConfig.enabled) {
-    logEvent("warn", "github_route_dispatched_while_disabled", cleanLogFields({
-      request_id: requestContext.requestId,
-      endpoint: route.pattern,
-      method: route.method,
-      github_context_enabled: false,
-      message:
-        "A GitHub route was dispatched even though GITHUB_CONTEXT_ENABLED=false. "
-        + "The route registry is created unconditionally — handlers that bypass assertFeatureEnabled() may still succeed.",
-    }));
-  }
-  // --- End diagnostic ---
 
   try {
     const result = await route.handler({

@@ -29,11 +29,12 @@ Scope legend:
 
 | Flag | Default | Purpose | Consumers |
 |---|---|---|---|
-| `VITE_GITHUB_CONTEXT_ENABLED` | `"false"` | Gates the Builder "Add from GitHub" context picker, manifest fetch, and related GitHub UI. Paired with the agent-service `GITHUB_CONTEXT_ENABLED` flag. See [`github-context-reference.md`](github-context-reference.md). | [`src/lib/github-client.ts`](../src/lib/github-client.ts), [`src/pages/Index.tsx`](../src/pages/Index.tsx) |
 | `VITE_ENHANCE_TRANSPORT` | `"auto"` | Selects the enhancement transport: `auto` \| `sse` \| `ws`. `auto` prefers WS when the service advertises support and falls back to SSE. | [`src/lib/ai-client.ts`](../src/lib/ai-client.ts) |
 
-Both flags are also gated in CI (`.github/workflows/cloudflare-pages.yml`,
-`azure-static-web-apps-gentle-dune-075b4710f.yml`) via repository secrets.
+GitHub repository-context UI is no longer gated by a frontend build-time flag.
+The Builder now probes the public agent-service `/health/details` endpoint at
+runtime and only shows `Add from GitHub` when
+`github_context_available === true`.
 
 ## Frontend runtime experiments
 
@@ -62,7 +63,6 @@ All booleans pass through `normalizeBool(value, defaultValue)` in
 
 | Flag | Default | Purpose | Location |
 |---|---|---|---|
-| `GITHUB_CONTEXT_ENABLED` | `false` | Exposes GitHub repository-context routes and the storage-backed manifest flow. Paired with `VITE_GITHUB_CONTEXT_ENABLED`. Also requires `NEON_DATABASE_URL` / `DATABASE_URL` when enabled. | `service-runtime.mjs` |
 | `GITHUB_DEBUG_LOGGING` | `false` | Adds verbose structured logging for GitHub API calls, manifest builds, and rate-limit handling. | `service-runtime.mjs` |
 | `CODEX_WEB_SEARCH_ENABLED` | `false` | Master toggle for the Codex SDK web-search tool at service-default level (per-request `webSearchEnabled` in thread options still overrides). Maps to the SDK's `webSearchEnabled` field. | `service-runtime.mjs` |
 | `CODEX_WEB_SEARCH_MODE` | _(unset)_ | Enum: `disabled` \| `cached` \| `live`. Refines how the web-search tool behaves when enabled. Maps to the SDK's `webSearchMode` field (distinct from `webSearchEnabled`). | `service-runtime.mjs` |
@@ -75,6 +75,11 @@ All booleans pass through `normalizeBool(value, defaultValue)` in
 See [`agent_service/README.md`](../agent_service/README.md) for related
 non-flag configuration (`CODEX_SANDBOX_MODE`, `CODEX_APPROVAL_POLICY`,
 `CODEX_MODEL_REASONING_EFFORT`, etc.).
+
+GitHub repository context no longer uses a dedicated env flag. Availability is
+derived from the presence of the required GitHub App + storage config and
+active-session validation, then surfaced via `/health/details` as
+`github_context_available`.
 
 ## Cloudflare worker flags
 

@@ -1,31 +1,6 @@
 import type { ContextSource } from "@/lib/context-types";
+import { AGENT_SERVICE_URL, buildAgentServiceUrl } from "@/lib/agent-service-url";
 import { createServiceAuth } from "@/lib/service-auth";
-
-function normalizeEnvValue(value?: string): string | undefined {
-  if (typeof value !== "string") return undefined;
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
-
-  const hasDoubleQuotes = trimmed.startsWith("\"") && trimmed.endsWith("\"");
-  const hasSingleQuotes = trimmed.startsWith("'") && trimmed.endsWith("'");
-  if (hasDoubleQuotes || hasSingleQuotes) {
-    const unquoted = trimmed.slice(1, -1).trim();
-    return unquoted || undefined;
-  }
-
-  return trimmed;
-}
-
-function normalizeBooleanEnv(value?: string): boolean {
-  if (typeof value !== "string") return false;
-  const normalized = value.trim().toLowerCase();
-  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
-}
-
-const AGENT_SERVICE_URL = normalizeEnvValue(import.meta.env.VITE_AGENT_SERVICE_URL);
-export const GITHUB_CONTEXT_ENABLED = normalizeBooleanEnv(
-  normalizeEnvValue(import.meta.env.VITE_GITHUB_CONTEXT_ENABLED),
-);
 const serviceAuth = createServiceAuth({
   serviceUrl: AGENT_SERVICE_URL,
 });
@@ -233,16 +208,6 @@ function classifyLocalErrorCode(message: string): string {
   return "network_error";
 }
 
-function buildServiceUrl(path: string): string {
-  const baseUrl = AGENT_SERVICE_URL?.trim();
-  if (!baseUrl) {
-    throw new Error("Missing function runtime env. Set VITE_AGENT_SERVICE_URL.");
-  }
-  const normalizedBaseUrl = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
-  const normalizedPath = path.replace(/^\/+/, "");
-  return new URL(normalizedPath, normalizedBaseUrl).toString();
-}
-
 function appendQuery(
   url: URL,
   query?: Record<string, string | number | boolean | null | undefined>,
@@ -353,7 +318,7 @@ async function requestJson<T>(
   path: string,
   options: GitHubRequestOptions = {},
 ): Promise<T> {
-  const url = new URL(buildServiceUrl(path));
+  const url = new URL(buildAgentServiceUrl(path));
   appendQuery(url, options.query);
 
   const requestResult = await executeRequest(
