@@ -3,10 +3,7 @@ name = "promptforge"
 main = "workers/index.ts"
 compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
-
-# Cloudflare account
-[account]
-id = "a77e479f6736120eadd99973dbeb705e"
+account_id = "a77e479f6736120eadd99973dbeb705e"
 
 # Static frontend assets (SPA)
 [assets]
