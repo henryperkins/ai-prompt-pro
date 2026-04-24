@@ -1,0 +1,86 @@
+name: promptforge-agent
+region: nyc
+
+ingress:
+  rules:
+    - component:
+        name: promptforge-agent
+      match:
+        path:
+          prefix: /
+
+services:
+  - name: promptforge-agent
+    github:
+      repo: henryperkins/ai-prompt-pro
+      branch: main
+      deploy_on_push: false
+    source_dir: /
+    dockerfile_path: Dockerfile.agent
+    http_port: 8080
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-1gb
+    health_check:
+      http_path: /health
+      initial_delay_seconds: 10
+      period_seconds: 10
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 6
+    envs:
+      - key: NODE_ENV
+        scope: RUN_TIME
+        type: GENERAL
+        value: production
+      - key: HOST
+        scope: RUN_TIME
+        type: GENERAL
+        value: 0.0.0.0
+      - key: CODEX_SKIP_GIT_REPO_CHECK
+        scope: RUN_TIME
+        type: GENERAL
+        value: "true"
+      - key: REQUIRE_PROVIDER_CONFIG
+        scope: RUN_TIME
+        type: GENERAL
+        value: "false"
+      - key: CODEX_MODEL
+        scope: RUN_TIME
+        type: GENERAL
+        value: gpt-5.4-mini
+      - key: CODEX_MODEL_REASONING_EFFORT
+        scope: RUN_TIME
+        type: GENERAL
+        value: xhigh
+      - key: EXTRACT_MODEL
+        scope: RUN_TIME
+        type: GENERAL
+        value: gpt-4.1-mini
+      - key: INFER_MODEL
+        scope: RUN_TIME
+        type: GENERAL
+        value: gpt-5.4
+      - key: ALLOWED_ORIGINS
+        scope: RUN_TIME
+        type: GENERAL
+        value: https://promptforge-lwu.pages.dev,https://prompt.lakefrontdigital.io,http://localhost:8080
+      - key: OPENAI_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+        value: ${OPENAI_API_KEY:-}
+      - key: FUNCTION_PUBLIC_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+        value: ${FUNCTION_PUBLIC_API_KEY}
+      - key: AUTH_SESSION_VALIDATION_URL
+        scope: RUN_TIME
+        type: SECRET
+        value: ${AUTH_SESSION_VALIDATION_URL}
+      - key: AZURE_OPENAI_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+        value: ${AZURE_OPENAI_API_KEY:-}
+      - key: CODEX_CONFIG_JSON
+        scope: RUN_TIME
+        type: SECRET
+        value: ${CODEX_CONFIG_JSON:-}

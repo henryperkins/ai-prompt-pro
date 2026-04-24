@@ -33,6 +33,7 @@ Use this file as the starting point for repo documentation.
 - `docs/plans/2026-03-16-github-integration-plan-review-architect.md` - architect review of the implementation plan.
 - `docs/plans/2026-03-16-github-sandbox-exploration-approach.md` - sandbox filesystem approach for autonomous repo exploration, dependent on the GitHub-integration Phase 1 connection flow.
 - `docs/plans/2026-04-23-feature-flag-consolidation.md` - completed feature-flag consolidation plan and remaining experiment-retirement notes.
+- `docs/plans/2026-04-24-agent-service-azure-exit.md` - DigitalOcean App Platform migration plan and Droplet fallback notes for replacing Azure App Service as the production agent-service host.
 
 ## Agentic-worker plans
 

@@ -10,9 +10,16 @@ The frontend calls this service directly for AI endpoints.
 
 ```bash
 npm install
+export OPENAI_API_KEY="<your-openai-api-key>"
+export CODEX_MODEL="gpt-5.4-mini"
+npm run agent:codex
+```
+
+Azure OpenAI is still supported as an optional provider override:
+
+```bash
 export AZURE_OPENAI_API_KEY="<your-azure-openai-api-key>"
 export CODEX_CONFIG_JSON='{"model":"<your-azure-deployment-name>","model_provider":"azure","model_providers":{"azure":{"name":"Azure OpenAI","base_url":"https://<resource>.openai.azure.com/openai/v1","env_key":"AZURE_OPENAI_API_KEY","wire_api":"responses"}}}'
-npm run agent:codex
 ```
 
 ## Endpoints

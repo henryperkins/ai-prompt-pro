@@ -180,8 +180,8 @@ This project can route prompt enhancement through a Node service that uses `@ope
 ```sh
 npm install
 # Prefer `.env` for local dev, but exporting also works.
-export AZURE_OPENAI_API_KEY="<your-azure-openai-api-key>"
-export CODEX_CONFIG_JSON='{"model_provider":"azure","model_providers":{"azure":{"name":"Azure OpenAI","base_url":"https://<resource>.openai.azure.com/openai/v1","env_key":"AZURE_OPENAI_API_KEY","wire_api":"responses"}}}'
+export OPENAI_API_KEY="<your-openai-api-key>"
+export CODEX_MODEL="gpt-5.4-mini"
 npm run agent:codex
 ```
 
@@ -207,6 +207,23 @@ Local dev note:
 - If `VITE_AGENT_PUBLIC_API_KEY` (frontend) and `FUNCTION_PUBLIC_API_KEY` (service) are set, enhancement can fall back to anonymous key auth when user-session auth is not configured. Legacy `VITE_NEON_PUBLISHABLE_KEY` / `VITE_SUPABASE_PUBLISHABLE_KEY` names are still accepted for older deployments.
 - `ALLOW_UNVERIFIED_JWT_FALLBACK=true` enables decoded-JWT fallback only when Neon Auth config/service is unavailable.
 - Use this for local development only and keep it disabled in production.
+
+### Deploy the agent outside Azure
+
+The recommended Azure App Service replacement is DigitalOcean App Platform,
+with a Droplet + Docker fallback if staging shows managed-platform limits for
+long SSE or WebSocket sessions. The current agent service is a long-running
+Node HTTP server with SSE and WebSocket routes, so a container host is a better
+fit than a direct edge-function port.
+
+- Container: `Dockerfile.agent`
+- App Platform spec: `.do/app.yaml`
+- Manual deployment workflow: `.github/workflows/digitalocean-agent.yml`
+- Migration plan: `docs/plans/2026-04-24-agent-service-azure-exit.md`
+
+After DigitalOcean is healthy, set the Cloudflare Pages secret
+`VITE_AGENT_SERVICE_URL` to the DigitalOcean app URL or custom domain and rerun
+the Pages workflow.
 
 3. Run the frontend as usual:
 
