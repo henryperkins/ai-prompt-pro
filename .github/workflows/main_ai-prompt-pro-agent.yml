@@ -5,9 +5,6 @@
 name: Build and deploy Node app to Azure Web App - promptforge-agent
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
