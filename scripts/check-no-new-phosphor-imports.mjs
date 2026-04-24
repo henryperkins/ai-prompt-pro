@@ -65,6 +65,7 @@ const approvedPhosphorImportFiles = new Set([
   "src/pages/Index.tsx",
   "src/pages/Library.tsx",
   "src/pages/Presets.tsx",
+  "src/pages/ResetPassword.tsx",
 ]);
 
 async function* walk(dir) {

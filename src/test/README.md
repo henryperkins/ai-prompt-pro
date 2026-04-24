@@ -1,6 +1,6 @@
 # Tests
 
-Unit and integration tests for AI Prompt Pro, powered by [Vitest](https://vitest.dev/) with `jsdom` and [Testing Library](https://testing-library.com/).
+Unit and integration tests for PromptForge, powered by [Vitest](https://vitest.dev/) with `jsdom` and [Testing Library](https://testing-library.com/).
 
 ## Running tests
 

@@ -1,20 +1,26 @@
 # Migration Guide: Neon Postgres + Neon Auth → Cloudflare Workers
 
-Last updated: 2026-03-26
+Last updated: 2026-04-24
 
-This guide walks through migrating from Neon Postgres + Neon Auth to Cloudflare Workers with custom authentication.
+This guide records the Neon Postgres + Neon Auth to Cloudflare Workers migration.
+The migration has landed for the active frontend/auth/API persistence path; keep
+this file as the status reference and rollback checklist while legacy
+Neon/Postgres paths remain available for compatibility and GitHub-context
+metadata.
 
 ## Overview
 
-### Current Architecture
+### Previous Architecture
 - **Auth**: Neon Auth (Better Auth) - email/password, OAuth, JWT sessions
 - **Database**: Neon Postgres via Data API (PostgREST-like)
 - **Deployment**: Azure Static Web Apps
 
-### Target Architecture
+### Current Architecture
 - **Auth**: Custom Auth Worker (JWT, PBKDF2 password hashing, KV sessions)
 - **Database**: Cloudflare D1 (SQLite at edge)
 - **Deployment**: Cloudflare Pages + Workers
+- **Compatibility**: Legacy Neon env names and Postgres migrations remain for
+  rollback and for the GitHub-context service storage path.
 
 ## Prerequisites
 
@@ -52,16 +58,12 @@ openssl rand -hex 32 | wrangler secret put JWT_SECRET
 ### 1.4 Deploy Workers
 
 ```bash
-# Deploy API Worker
+# Deploy app Worker (auth + API + assets)
 wrangler deploy
-
-# Deploy Auth Worker
-wrangler deploy --config wrangler.auth.toml
 ```
 
-Record the worker URLs from output:
+Record the worker URL from output:
 - `https://promptforge.<subdomain>.workers.dev`
-- `https://promptforge-auth.<subdomain>.workers.dev`
 
 ## Phase 2: Database Migration
 
@@ -117,7 +119,7 @@ Update `.env` and deployment secrets:
 # VITE_NEON_PUBLISHABLE_KEY
 
 # Add Cloudflare vars
-VITE_AUTH_WORKER_URL="https://promptforge-auth.<subdomain>.workers.dev"
+VITE_AUTH_WORKER_URL="https://promptforge.<subdomain>.workers.dev"
 VITE_API_WORKER_URL="https://promptforge.<subdomain>.workers.dev"
 ```
 
@@ -138,13 +140,15 @@ CLOUDFLARE_API_TOKEN
 CLOUDFLARE_ACCOUNT_ID
 ```
 
-### 3.3 Swap Auth Provider (Code Change)
+### 3.3 Verify Auth and Persistence Providers
 
-The frontend currently uses `src/hooks/auth-provider.tsx`. After migration:
+The active app path should already point at the Cloudflare-backed providers:
 
-1. Update `src/main.tsx` or wherever `AuthProvider` is imported
-2. Point to new CF auth provider if needed
-3. Update persistence layer imports to use `cf-persistence.ts`
+1. `src/App.tsx` imports `AuthProvider` from `src/hooks/auth-provider-cf.tsx`.
+2. `src/lib/persistence.ts` re-exports the Cloudflare Worker implementation
+   from `src/lib/cf-persistence.ts`.
+3. `.env` and deployment secrets provide `VITE_AUTH_WORKER_URL` and
+   `VITE_API_WORKER_URL`.
 
 ## Phase 4: Testing
 

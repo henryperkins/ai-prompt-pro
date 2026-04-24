@@ -1,15 +1,14 @@
 # Feature Flag Consolidation Plan
 
-Last updated: 2026-04-23
+Last updated: 2026-04-24
 
 ## Scope
 
-Investigate every flag inventoried in
+Document the completed consolidation of redundant flags inventoried in
 [`../feature-flags.md`](../feature-flags.md) and classify whether it is a
 removable feature gate (collapse to always-on), a legitimate configuration
 knob that must stay, or a live product experiment that requires a PM decision
-before retirement. Then execute the safe collapses and document the rest so
-the "configuration chaos" decreases monotonically with each sweep.
+before retirement.
 
 ## Classification summary
 
@@ -18,7 +17,7 @@ the "configuration chaos" decreases monotonically with each sweep.
 | `VITE_GITHUB_CONTEXT_ENABLED` + `GITHUB_CONTEXT_ENABLED` | Paired feature gate; redundant with presence of required config | Collapse with transitional shape (see Plan A below) |
 | `CODEX_WEB_SEARCH_ENABLED` + `CODEX_WEB_SEARCH_MODE` | Two distinct Codex SDK options (`webSearchEnabled` + `webSearchMode`), not truly redundant | **Keep both** — documentation clarification only |
 | Hero copy A/B (`exp_hero`, `promptforge:launch-exp:hero-copy`) | Live experiment | **Product decision required** — see "Experiment retirement" |
-| `STRICT_DOC_DATES` | CI strictness toggle | Leave as-is; `check:prod` already enables it |
+| `STRICT_DOC_DATES` | CI strictness toggle | Leave as opt-in strictness; enable only in jobs that should fail on missing freshness dates |
 | `STRICT_PRIMITIVE_IMPORTS` | CI strictness toggle | Leave as-is; `check:prod` already enables it |
 | `VITE_ENHANCE_TRANSPORT` | Mode selector (`auto`/`sse`/`ws`), defaults to smart `auto` | **Keep** — not a feature flag; `auto` already does the right thing |
 | `GITHUB_DEBUG_LOGGING` | Diagnostic verbosity | **Keep** — diagnostic toggle, default off is correct |
@@ -45,7 +44,8 @@ deployment/security configuration or product experiments.
 - [x] **Phase 3 — retire the backend flag.** `GITHUB_CONTEXT_ENABLED` is gone
   from env/docs/tests/CI. GitHub availability now derives from config
   presence, and deployment workflows validate complete GitHub secret sets
-  instead of toggling a separate boolean.
+  instead of toggling a separate boolean. The legacy `GH_CONTEXT_ENABLED`
+  deployment secret is no longer read by `.github/workflows/main_ai-prompt-pro-agent.yml`.
 
 ### Why the naive "always-on" collapse is unsafe
 
@@ -64,7 +64,7 @@ Rubber-duck audit surfaced these blockers for a straightforward removal:
    dialog breaks tests/stories that render `Index` outside `AuthProvider`.
 4. **Setup + webhook routes use custom auth**, so the "user JWT + active
    session" security story doesn't apply uniformly to all 11 GitHub routes.
-5. **Test harnesses hardcode `GITHUB_CONTEXT_ENABLED=false`** in
+5. **Test harnesses used to hardcode `GITHUB_CONTEXT_ENABLED=false`** in
    `vitest.config.ts`, `playwright.config.ts`, and
    `src/test/helpers/agent-service-harness.ts`. Tests for the "disabled"
    behavior class (404 `github_context_disabled`) would need rewriting, not
@@ -148,14 +148,12 @@ handling, `promptforge:launch-exp:hero-copy` storage, and the
 
 ## Execution order (recommended)
 
-1. **Now — documentation clarifications.** Update `docs/feature-flags.md`
+1. **Done — documentation clarifications.** Update `docs/feature-flags.md`
    and `agent_service/README.md` to describe `CODEX_WEB_SEARCH_ENABLED` vs
    `CODEX_WEB_SEARCH_MODE` as two SDK options, not one.
 2. **Done — Plan A Phase 1 (backend capability derivation).** Introduce the
    computed `github_context_configured` / `_available` booleans and make all
-   handlers consistently assert config. `GITHUB_CONTEXT_ENABLED` still read
-   but its default becomes `true` when configured. Ships behind the existing
-   flag, so no UX change.
+   handlers consistently assert config.
 3. **Done — Plan A Phase 2 (frontend capability probe).** Replace
    `VITE_GITHUB_CONTEXT_ENABLED` with a `/capabilities` probe + React
    context. Lazy-mount `GitHubSourcePickerDialog`.

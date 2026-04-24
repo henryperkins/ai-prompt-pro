@@ -67,41 +67,6 @@ jobs:
             echo "Missing required secret: VITE_AGENT_PUBLIC_API_KEY (or legacy VITE_NEON_PUBLISHABLE_KEY / VITE_SUPABASE_PUBLISHABLE_KEY)"
             exit 1
           fi
-          if [ "${{ secrets.GH_CONTEXT_ENABLED }}" = "true" ]; then
-            if [ -z "${{ secrets.VITE_AUTH_WORKER_URL }}" ] && [ -z "${{ secrets.VITE_NEON_AUTH_URL }}" ]; then
-              echo "Missing required secret: VITE_AUTH_WORKER_URL or VITE_NEON_AUTH_URL"
-              exit 1
-            fi
-            if [ -z "${{ secrets.GH_APP_ID }}" ]; then
-              echo "Missing required secret: GH_APP_ID"
-              exit 1
-            fi
-            if [ -z "${{ secrets.GH_APP_PRIVATE_KEY }}" ]; then
-              echo "Missing required secret: GH_APP_PRIVATE_KEY"
-              exit 1
-            fi
-            if [ -z "${{ secrets.GH_APP_SLUG }}" ]; then
-              echo "Missing required secret: GH_APP_SLUG"
-              exit 1
-            fi
-            if [ -z "${{ secrets.GH_APP_STATE_SECRET }}" ]; then
-              echo "Missing required secret: GH_APP_STATE_SECRET"
-              exit 1
-            fi
-            if [ -z "${{ secrets.GH_WEBHOOK_SECRET }}" ]; then
-              echo "Missing required secret: GH_WEBHOOK_SECRET"
-              exit 1
-            fi
-            if [ -z "${{ secrets.GH_POST_INSTALL_REDIRECT_URL }}" ]; then
-              echo "Missing required secret: GH_POST_INSTALL_REDIRECT_URL"
-              exit 1
-            fi
-            if [ -z "${{ secrets.NEON_DATABASE_URL }}" ]; then
-              echo "Missing required secret: NEON_DATABASE_URL"
-              exit 1
-            fi
-          fi
-
       - name: Enforce Web App Runtime Configuration
         env:
           AGENT_PUBLIC_API_KEY: ${{ secrets.VITE_AGENT_PUBLIC_API_KEY }}

@@ -1,6 +1,6 @@
 # GitHub Context Reference
 
-Last updated: 2026-04-23
+Last updated: 2026-04-24
 
 > Status: Active operational reference for PromptForge GitHub repository context.
 
@@ -19,9 +19,8 @@ the guardrails around storage, sharing, and cache invalidation.
 - Database: apply `supabase/migrations/20260316010000_github_context_schema.sql`
 
 The Builder only exposes `Add from GitHub` when the runtime capability probe
-reports GitHub context as available. The service routes stay disabled unless
-the backend flag and GitHub App/storage/session-validation configuration are
-present.
+reports GitHub context as available. The service routes stay unavailable unless
+the complete GitHub App/storage/session-validation configuration is present.
 
 ## Required runtime configuration
 

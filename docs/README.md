@@ -1,6 +1,6 @@
 # Documentation Index
 
-Last updated: 2026-04-23
+Last updated: 2026-04-24
 
 Use this file as the starting point for repo documentation.
 
@@ -12,8 +12,8 @@ Use this file as the starting point for repo documentation.
 - `docs/design-system-baseline-inventory.md` - generated baseline inventory for DS refactor planning.
 - `docs/design-system-state-matrix.md` - live state coverage artifact for primitives and branded wrappers.
 - `docs/design-system-state-matrix-template.md` - reusable state coverage template for core primitives.
-- `docs/neon-cutover-runbook.md` - Neon production operations, validation, and rollback runbook.
-- `docs/migration-neon-to-cloudflare.md` - Neon-to-Cloudflare migration runbook and status reference.
+- `docs/neon-cutover-runbook.md` - legacy Neon/Postgres compatibility, agent operations, validation, and rollback runbook.
+- `docs/migration-neon-to-cloudflare.md` - landed Neon-to-Cloudflare migration status reference and rollback checklist.
 - `docs/typography-regression-checklist.md` - typography validation checks.
 - `docs/community-mobile-qa-checklist.md` - manual mobile QA checks.
 - `docs/community-mobile-social-backlog.md` - active backlog for mobile social UX.
@@ -32,6 +32,7 @@ Use this file as the starting point for repo documentation.
 - `docs/plans/2026-03-16-github-integration-plan-review-codex.md` - Codex review of the implementation plan.
 - `docs/plans/2026-03-16-github-integration-plan-review-architect.md` - architect review of the implementation plan.
 - `docs/plans/2026-03-16-github-sandbox-exploration-approach.md` - sandbox filesystem approach for autonomous repo exploration, dependent on the GitHub-integration Phase 1 connection flow.
+- `docs/plans/2026-04-23-feature-flag-consolidation.md` - completed feature-flag consolidation plan and remaining experiment-retirement notes.
 
 ## Agentic-worker plans
 
@@ -78,4 +79,3 @@ Use this file as the starting point for repo documentation.
 - Move point-in-time review snapshots to `docs/reviews/` once they are superseded; each review must start with a `Last updated:` line and the standard historical-snapshot warning block enforced by `npm run check:docs`.
 - Preserve historical context in archive files; do not delete unless content is duplicate and safely recoverable from git history.
 - Run `npm run check:docs` before merge to catch missing local doc references and enforce historical warning headers in `docs/reviews/`.
-

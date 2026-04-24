@@ -1,16 +1,19 @@
 # PromptForge Cloudflare Workers
 
+Last updated: 2026-04-24
+
 This directory contains the Cloudflare Workers implementation for PromptForge's backend:
 
 ## Structure
 
 ```
 workers/
+├── index.ts             # Single Worker entry point for /auth/*, /api/*, health, and assets
 ├── api/
-│   ├── index.ts          # API Worker entry point (Hono router)
+│   ├── index.ts          # API route module (Hono router)
 │   └── handlers.ts       # Database handlers for REST endpoints
 ├── auth/
-│   └── index.ts          # Auth Worker entry point (JWT, email/password, OAuth)
+│   └── index.ts          # Auth route module (JWT, email/password, OAuth)
 ├── email/
 │   └── index.ts          # Email delivery Worker (Resend webhook)
 ├── lib/
@@ -21,7 +24,12 @@ workers/
 
 ## Workers
 
-### Auth Worker (`promptforge-auth`)
+### App Worker (`promptforge`)
+
+The main worker is configured by `wrangler.toml` and serves auth routes, API
+routes, health checks, and static frontend assets from one deployment.
+
+#### Auth Routes
 
 Handles authentication:
 - `GET /auth/capabilities` - Discover enabled auth capabilities
@@ -35,7 +43,7 @@ Handles authentication:
 - `POST /auth/reset-password/confirm` - Confirm password reset
 - `GET /auth/oauth/:provider/callback` - OAuth callback (placeholder)
 
-### API Worker (`promptforge`)
+#### API Routes
 
 Handles data operations:
 - `GET/POST/DELETE /api/drafts` - Draft management
@@ -63,11 +71,8 @@ through the Resend API.
 # Install dependencies
 npm install
 
-# Start API Worker locally
+# Start the app Worker locally (auth + API + assets on port 8787)
 wrangler dev
-
-# Start Auth Worker locally
-wrangler dev --config wrangler.auth.toml
 
 # Start Email Worker locally (port 8788)
 wrangler dev --config wrangler.email.toml
@@ -85,11 +90,8 @@ wrangler kv:namespace create SESSIONS
 ## Deployment
 
 ```bash
-# Deploy API Worker
+# Deploy app Worker
 wrangler deploy
-
-# Deploy Auth Worker
-wrangler deploy --config wrangler.auth.toml
 
 # Deploy Email Worker
 wrangler deploy --config wrangler.email.toml
@@ -102,15 +104,12 @@ wrangler deploy --env production
 
 Set via `wrangler secret put`:
 
-### Auth Worker
+### App Worker
 - `JWT_SECRET` - HMAC secret for JWT signing (min 32 bytes)
+- `CORS_ORIGIN` - Allowed CORS origin (default: production URL)
 - `PASSWORD_RESET_DELIVERY_WEBHOOK_URL` - Optional webhook that sends password reset emails
 - `PASSWORD_RESET_DELIVERY_WEBHOOK_TOKEN` - Optional bearer token for the webhook
 - `PASSWORD_RESET_PUBLIC_ORIGIN` - Optional public app origin for reset links (falls back to request origin)
-
-### API Worker
-- `JWT_SECRET` - Same as auth worker (for token verification)
-- `CORS_ORIGIN` - Allowed CORS origin (default: production URL)
 
 ### Email Worker
 - `RESEND_API_KEY` - API key from [resend.com](https://resend.com)
@@ -200,9 +199,12 @@ See `docs/migration-neon-to-cloudflare.md` for the full migration guide.
 4. Deploy workers:
    ```bash
    wrangler deploy
-   wrangler deploy --config wrangler.auth.toml
    ```
 
 5. Update frontend env vars:
    - `VITE_AUTH_WORKER_URL`
    - `VITE_API_WORKER_URL`
+
+For the single-worker deployment, both frontend env vars can point to the same
+base URL, for example `https://promptforge.<subdomain>.workers.dev` or
+`http://localhost:8787`.

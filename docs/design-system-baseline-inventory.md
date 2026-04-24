@@ -8,8 +8,8 @@ Product screens are `src/pages/*.tsx` route-level files.
 
 | Component | Canonical import | Pages using canonical import | Page count |
 | --- | --- | --- | --- |
-| Button | `@/components/base/buttons/button` | `src/pages/Community.tsx`, `src/pages/CommunityPost.tsx`, `src/pages/History.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx`, `src/pages/Profile.tsx`, `src/pages/SupportInbox.tsx` | 8 |
-| Input | `@/components/base/input/input` | `src/pages/Community.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx` | 3 |
+| Button | `@/components/base/buttons/button` | `src/pages/Community.tsx`, `src/pages/CommunityPost.tsx`, `src/pages/History.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx`, `src/pages/Profile.tsx`, `src/pages/ResetPassword.tsx`, _+1 more_ | 9 |
+| Input | `@/components/base/input/input` | `src/pages/Community.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx`, `src/pages/ResetPassword.tsx` | 4 |
 | Textarea | `@/components/base/textarea` | _none_ | 0 |
 | Label | `@/components/base/label` | _none_ | 0 |
 | Select | `@/components/base/select/select` | `src/pages/Library.tsx` | 1 |
@@ -24,10 +24,10 @@ Product screens are `src/pages/*.tsx` route-level files.
 | Import specifier | Page count | Pages |
 | --- | --- | --- |
 | `@/components/base/card` | 10 | `src/pages/Community.tsx`, `src/pages/CommunityPost.tsx`, `src/pages/ComponentsShowcase.tsx`, `src/pages/History.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx`, `src/pages/Privacy.tsx`, _+2 more_ |
-| `@/components/base/buttons/button` | 8 | `src/pages/Community.tsx`, `src/pages/CommunityPost.tsx`, `src/pages/History.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx`, `src/pages/Profile.tsx`, `src/pages/SupportInbox.tsx` |
+| `@/components/base/buttons/button` | 9 | `src/pages/Community.tsx`, `src/pages/CommunityPost.tsx`, `src/pages/History.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx`, `src/pages/Profile.tsx`, `src/pages/ResetPassword.tsx`, _+1 more_ |
 | `@/components/base/badges/badges` | 5 | `src/pages/ComponentsShowcase.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx`, `src/pages/SupportInbox.tsx` |
+| `@/components/base/input/input` | 4 | `src/pages/Community.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx`, `src/pages/ResetPassword.tsx` |
 | `@/components/base/state-card` | 4 | `src/pages/CommunityPost.tsx`, `src/pages/Library.tsx`, `src/pages/NotFound.tsx`, `src/pages/Profile.tsx` |
-| `@/components/base/input/input` | 3 | `src/pages/Community.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx` |
 | `@/components/base/drawer` | 2 | `src/pages/Community.tsx`, `src/pages/Index.tsx` |
 | `@/components/base/skeleton` | 2 | `src/pages/CommunityPost.tsx`, `src/pages/Profile.tsx` |
 | `@/components/base/toast` | 2 | `src/pages/Index.tsx`, `src/pages/Library.tsx` |
@@ -37,6 +37,7 @@ Product screens are `src/pages/*.tsx` route-level files.
 | `@/components/base/buttons/button-utility` | 1 | `src/pages/ComponentsShowcase.tsx` |
 | `@/components/base/checkbox` | 1 | `src/pages/Library.tsx` |
 | `@/components/base/dropdown-menu` | 1 | `src/pages/Library.tsx` |
+| `@/components/base/input/input-group` | 1 | `src/pages/ResetPassword.tsx` |
 | `@/components/base/progress-indicators/progress-circles` | 1 | `src/pages/ComponentsShowcase.tsx` |
 | `@/components/base/progress-indicators/progress-indicators` | 1 | `src/pages/ComponentsShowcase.tsx` |
 | `@/components/base/scroll-area` | 1 | `src/pages/Community.tsx` |
@@ -66,7 +67,7 @@ Scope: `src/**/*.ts(x)` excluding `src/styles/**` and `src/test/**`.
 | --- | --- | --- |
 | `pf-card` | 14 | `src/components/PageShell.stories.tsx`, `src/components/community/CommunityFeed.tsx`, `src/components/community/CommunityPostCard.tsx`, `src/components/community/CommunityPostDetail.tsx`, `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFTemplateCard.tsx`, `src/pages/CommunityPost.tsx`, `src/pages/ComponentsShowcase.tsx`, _+6 more_ |
 | `pf-community-page` | 6 | `src/components/PageShell.stories.tsx`, `src/pages/Community.tsx`, `src/pages/CommunityPost.tsx`, `src/pages/Contact.tsx`, `src/pages/NotFound.tsx`, `src/pages/Profile.tsx` |
-| `pf-gilded-frame` | 4 | `src/components/PageShell.tsx`, `src/components/community/ProfileHero.tsx`, `src/pages/Index.tsx`, `src/pages/Profile.tsx` |
+| `pf-gilded-frame` | 5 | `src/components/PageShell.tsx`, `src/components/community/ProfileHero.tsx`, `src/pages/Index.tsx`, `src/pages/Profile.tsx`, `src/pages/ResetPassword.tsx` |
 | `pf-gold` | 4 | `src/components/community/ProfileHero.tsx`, `src/components/fantasy/PFTemplateCard.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx` |
 | `pf-hero-surface` | 4 | `src/components/PageShell.stories.tsx`, `src/components/PageShell.tsx`, `src/components/community/ProfileHero.tsx`, `src/pages/Index.tsx` |
 | `pf-panel` | 4 | `src/pages/Community.tsx`, `src/pages/Index.tsx`, `src/pages/Library.tsx`, `src/pages/Presets.tsx` |

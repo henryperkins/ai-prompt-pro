@@ -1,11 +1,12 @@
-# AI Prompt Pro
+# PromptForge
 
 Build, enhance, and share AI prompts with a structured prompt builder, a private library, and a public community feed.
 
 - Production: `https://prompt.lakefrontdigital.io`
 - Frontend: Vite + React + TypeScript + Tailwind + shadcn/ui
-- Backend: Neon Postgres via Neon Data API + Neon Auth
+- Backend: Cloudflare Pages + Cloudflare Workers + D1/KV
 - Optional: prompt enhancement via a local Codex SDK agent service (`agent_service/`)
+- Legacy compatibility: Neon/Postgres remains in selected migration and GitHub-context storage paths until those are fully retired.
 
 ## Features
 
@@ -63,7 +64,8 @@ The frontend Vite app runs at `http://localhost:8080`.
 - `src/test/`: Vitest tests
 - `playwright/`: Playwright mobile E2E coverage + viewport baselines
 - `archive/supabase/functions/`: archived legacy Edge functions (reference only)
-- `supabase/migrations/`: SQL migrations
+- `supabase/migrations/`: legacy Postgres migrations; GitHub context still uses the GitHub-context migration while that service storage remains Postgres-backed
+- `workers/`: Cloudflare Workers backend for auth, API persistence, and email delivery
 - `agent_service/`: Codex SDK service for prompt enhancement
 - `docs/`: specs + runbooks + QA checklists (`docs/README.md` is the index)
 - `docs/reviews/`: historical point-in-time review snapshots (not operational source of truth)
@@ -103,8 +105,9 @@ backed flow.
   (or `DATABASE_URL`), and `AUTH_SESSION_VALIDATION_URL`.
 - For local PromptForge development, use `http://localhost:8080` for both
   `ALLOWED_ORIGINS` and `GITHUB_POST_INSTALL_REDIRECT_URL`.
-- Apply `supabase/migrations/20260316010000_github_context_schema.sql` before
-  enabling the feature outside local development.
+- Apply `supabase/migrations/20260316010000_github_context_schema.sql` to the
+  Postgres database used by `NEON_DATABASE_URL` / `DATABASE_URL` before enabling
+  the feature outside local development.
 - GitHub-backed prompts cannot be shared publicly. The Builder blocks share
   attempts and the database enforces the same rule.
 
@@ -126,9 +129,14 @@ Required GitHub repository secrets include:
 - `VITE_AGENT_SERVICE_URL`
 - `VITE_AGENT_PUBLIC_API_KEY` (or legacy `VITE_NEON_PUBLISHABLE_KEY` / `VITE_SUPABASE_PUBLISHABLE_KEY`)
 
+The current Cloudflare Worker serves both `/auth/*` and `/api/*`, so
+`VITE_AUTH_WORKER_URL` and `VITE_API_WORKER_URL` may point to the same worker
+base URL.
+
 ## Deploy to Azure Static Web Apps (legacy/manual path)
 
-This repo is configured for Azure Static Web Apps using:
+The Azure Static Web Apps workflow is retained only as a legacy/manual rollback
+path. The active public frontend deploy is Cloudflare Pages.
 
 - Workflow: `.github/workflows/azure-static-web-apps-gentle-dune-075b4710f.yml`
 - SWA CLI config: `swa-cli.config.json`
@@ -160,8 +168,8 @@ npm run swa:deploy
 
 CI/CD flow:
 
-- Push to `main` triggers production deployment to the linked Azure Static Web App.
-- Pull requests create/update preview environments and close them when PRs are closed.
+- Azure SWA deploys only from manual `workflow_dispatch`.
+- Pushes to `main` and pull-request previews use `.github/workflows/cloudflare-pages.yml`.
 
 ## Codex SDK Agent Service (recommended)
 
@@ -181,10 +189,11 @@ npm run agent:codex
 
 ```sh
 export VITE_AGENT_SERVICE_URL="http://localhost:8001"
-export VITE_NEON_DATA_API_URL="https://<your-endpoint>.apirest.c-<region>.aws.neon.tech/neondb/rest/v1"
-export VITE_NEON_AUTH_URL="https://<your-endpoint>.neonauth.c-<region>.aws.neon.tech/neondb/auth"
-# Optional fallback key for signed-out function calls
-export VITE_NEON_PUBLISHABLE_KEY="<neon-publishable-key>"
+export VITE_AUTH_WORKER_URL="http://localhost:8787"
+export VITE_API_WORKER_URL="http://localhost:8787"
+# Optional fallback key for signed-out agent-service calls
+export VITE_AGENT_PUBLIC_API_KEY="<publishable-agent-key>"
+export FUNCTION_PUBLIC_API_KEY="<same-publishable-agent-key>"
 ```
 
 Optional hardening:
@@ -195,7 +204,7 @@ export AGENT_SERVICE_TOKEN="<shared-secret>"
 
 Local dev note:
 
-- If `VITE_NEON_PUBLISHABLE_KEY` (frontend) and `FUNCTION_PUBLIC_API_KEY` (service) are set, enhancement can fall back to anonymous key auth when Neon Auth is not configured.
+- If `VITE_AGENT_PUBLIC_API_KEY` (frontend) and `FUNCTION_PUBLIC_API_KEY` (service) are set, enhancement can fall back to anonymous key auth when user-session auth is not configured. Legacy `VITE_NEON_PUBLISHABLE_KEY` / `VITE_SUPABASE_PUBLISHABLE_KEY` names are still accepted for older deployments.
 - `ALLOW_UNVERIFIED_JWT_FALLBACK=true` enables decoded-JWT fallback only when Neon Auth config/service is unavailable.
 - Use this for local development only and keep it disabled in production.
 
@@ -209,10 +218,10 @@ npm run dev
 
 The prompt enhancement backend uses `@openai/codex-sdk`. See `agent_service/README.md` for setup and configuration.
 
-## Database rollout notes
+## Legacy Postgres rollout notes
 
 - Migration `20260210010000_phase1_community_schema.sql` backfills `public.templates` into `public.saved_prompts`.
 - Migration `20260316010000_github_context_schema.sql` adds GitHub installation,
   repo-connection, manifest-cache, and setup-state storage plus GitHub share guards.
-- During rollout, `public.templates` is intentionally retained for compatibility and rollback safety.
-- Active prompt persistence paths in the app now target `public.saved_prompts`; plan a follow-up migration to drop `public.templates` after rollout validation.
+- Prompt CRUD, draft, version, and community persistence now use the Cloudflare Worker API/D1 path in `src/lib/cf-persistence.ts`.
+- Keep these Postgres notes for GitHub-context storage and rollback compatibility until the remaining Postgres-backed paths are migrated or removed.

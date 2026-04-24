@@ -1,6 +1,6 @@
 # Feature Flags Reference
 
-Last updated: 2026-04-23
+Last updated: 2026-04-24
 
 This is the canonical inventory of feature flags, experiment toggles, and
 environment-driven behavior switches across the PromptForge codebase. Update
@@ -10,7 +10,7 @@ individual flags elsewhere.
 
 See also
 [`plans/2026-04-23-feature-flag-consolidation.md`](plans/2026-04-23-feature-flag-consolidation.md)
-for the active plan to retire redundant flags and the reasoning behind what
+for the completed GitHub-context flag retirement and the reasoning behind what
 stays configurable.
 
 Scope legend:
@@ -95,7 +95,7 @@ worker deployment details.
 
 | Flag | Default | Purpose | Location |
 |---|---|---|---|
-| `STRICT_DOC_DATES` | _(unset)_ | When `"1"`, `npm run check:docs` treats missing `Last updated:` lines in active operational docs as fatal instead of warnings. Set in strict CI gates. | [`scripts/check-docs-freshness.mjs`](../scripts/check-docs-freshness.mjs) |
+| `STRICT_DOC_DATES` | _(unset)_ | When `"1"`, `npm run check:docs` treats missing `Last updated:` lines in active operational docs as fatal instead of warnings. Enable in CI jobs that should fail on missing freshness dates. | [`scripts/check-docs-freshness.mjs`](../scripts/check-docs-freshness.mjs) |
 | `STRICT_PRIMITIVE_IMPORTS` | _(unset)_ | When `"1"`, `check:no-primitive-ds-imports` fails CI on direct primitive imports. Enabled in `check:prod`. | [`scripts/check-no-primitive-ds-imports.mjs`](../scripts/check-no-primitive-ds-imports.mjs) |
 
 ## Ownership and lifecycle
